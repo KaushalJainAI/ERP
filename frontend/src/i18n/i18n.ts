@@ -1,0 +1,89 @@
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+
+export const SUPPORTED_LANGUAGES = [
+  { code: "en", name: "English", rtl: false },
+  { code: "hi", name: "हिंदी (Hindi)", rtl: false },
+  { code: "ta", name: "தமிழ் (Tamil)", rtl: false },
+  { code: "pa", name: "ਪੰਜਾਬੀ (Punjabi)", rtl: false },
+  { code: "gu", name: "ગુજરાતી (Gujarati)", rtl: false },
+  { code: "or", name: "ଓଡ଼ିଆ (Odia)", rtl: false },
+  { code: "bn", name: "বাংলা (Bengali)", rtl: false },
+  { code: "kn", name: "கன்னட (Kannada)", rtl: false },
+  { code: "as", name: "অসমীয়া (Assamese)", rtl: false },
+  { code: "te", name: "తెలుగు (Telugu)", rtl: false },
+  { code: "ml", name: "మలయాళం (Malayalam)", rtl: false },
+  { code: "ur", name: "اردو (Urdu)", rtl: true },
+];
+
+const resources = {
+  en: {
+    translation: {
+      appName: "Enterprise ERP",
+      dashboard: "Dashboard",
+      selling: "Selling",
+      buying: "Buying",
+      stock: "Stock",
+      accounts: "Accounts",
+      users: "Users & Security",
+      login: "Sign In",
+      logout: "Sign Out",
+      email: "Email Address",
+      password: "Password",
+      submit: "Submit Document",
+      cancel: "Cancel Document",
+      amend: "Amend",
+      save: "Save Draft",
+      delete: "Delete Draft",
+      draft: "Draft",
+      submitted: "Submitted",
+      cancelled: "Cancelled",
+      search: "Search...",
+      actions: "Actions",
+      status: "Status",
+      name: "Document No.",
+      created_at: "Created Date",
+      no_records: "No records found.",
+    },
+  },
+  hi: {
+    translation: {
+      appName: "एंटरप्राइज़ ईआरपी",
+      dashboard: "डैशबोर्ड",
+      selling: "बिक्री",
+      buying: "खरीद",
+      stock: "स्टॉक",
+      accounts: "खाते",
+      users: "उपयोगकर्ता और सुरक्षा",
+      login: "साइन इन करें",
+      logout: "साइन आउट",
+      email: "ईमेल पता",
+      password: "पासवर्ड",
+      submit: "दस्तावेज़ सबमिट करें",
+      cancel: "दस्तावेज़ रद्द करें",
+      amend: "संशोधित करें",
+      save: "ड्राफ्ट सहेजें",
+      delete: "ड्राफ्ट हटाएं",
+      draft: "ड्राफ्ट",
+      submitted: "जमा किया गया",
+      cancelled: "रद्द किया गया",
+      search: "खोजें...",
+      actions: "कार्रवाइयां",
+      status: "स्थिति",
+      name: "दस्तावेज़ संख्या",
+      created_at: "सृजन तिथि",
+      no_records: "कोई रिकॉर्ड नहीं मिला।",
+    },
+  },
+};
+
+i18n.use(initReactI18next).init({
+  resources,
+  lng: localStorage.getItem("app_lang") || "en",
+  fallbackLng: "en",
+  interpolation: {
+    escapeValue: false,
+  },
+});
+
+export default i18n;
