@@ -1,6 +1,11 @@
+from django.db import transaction
 from rest_framework import serializers
 from selling.models import CustomerGroup, Customer, SalesOrder, SalesOrderItem, SalesInvoice, SalesInvoiceItem
-from core.mixins import TranslatedSerializerMixin
+from core.mixins import (
+    TranslatedSerializerMixin,
+    PositiveQtyLineItemMixin,
+    NonNegativeRateLineItemMixin,
+)
 from core.models import NamingSeries
 
 
@@ -36,7 +41,9 @@ class CustomerSerializer(TranslatedSerializerMixin, serializers.ModelSerializer)
         translatable_fields = ["name"]
 
 
-class SalesOrderItemSerializer(serializers.ModelSerializer):
+class SalesOrderItemSerializer(
+    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
 
@@ -70,21 +77,24 @@ class SalesOrderSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("SO-2026-")
-        sales_order = SalesOrder.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("SO-2026-")
+            sales_order = SalesOrder.objects.create(**validated_data)
 
-        gt = 0
-        for item in items_data:
-            item_obj = SalesOrderItem.objects.create(sales_order=sales_order, **item)
-            gt += item_obj.amount
+            gt = 0
+            for item in items_data:
+                item_obj = SalesOrderItem.objects.create(sales_order=sales_order, **item)
+                gt += item_obj.amount
 
-        sales_order.grand_total = gt
-        sales_order.save(update_fields=["grand_total"])
+            sales_order.grand_total = gt
+            sales_order.save(update_fields=["grand_total"])
         return sales_order
 
 
-class SalesInvoiceItemSerializer(serializers.ModelSerializer):
+class SalesInvoiceItemSerializer(
+    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
 
@@ -122,15 +132,16 @@ class SalesInvoiceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("SINV-2026-")
-        sales_invoice = SalesInvoice.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("SINV-2026-")
+            sales_invoice = SalesInvoice.objects.create(**validated_data)
 
-        gt = 0
-        for item in items_data:
-            item_obj = SalesInvoiceItem.objects.create(sales_invoice=sales_invoice, **item)
-            gt += item_obj.amount
+            gt = 0
+            for item in items_data:
+                item_obj = SalesInvoiceItem.objects.create(sales_invoice=sales_invoice, **item)
+                gt += item_obj.amount
 
-        sales_invoice.grand_total = gt
-        sales_invoice.save(update_fields=["grand_total"])
+            sales_invoice.grand_total = gt
+            sales_invoice.save(update_fields=["grand_total"])
         return sales_invoice

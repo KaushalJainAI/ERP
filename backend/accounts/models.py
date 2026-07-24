@@ -99,6 +99,13 @@ class JournalEntry(SubmittableDocument):
         lines = self.lines.all()
         if not lines.exists():
             raise ValidationError("Journal Entry must have at least one line.")
+        for line in lines:
+            # Keep every line inside the entry's company; gl.post already blocks
+            # group accounts, but nothing else stops a cross-company posting.
+            if line.account.company_id != self.company_id:
+                raise ValidationError(
+                    f"Account '{line.account.name}' does not belong to the entry's company."
+                )
         dr_sum = sum(line.debit for line in lines)
         cr_sum = sum(line.credit for line in lines)
         if dr_sum != cr_sum:
@@ -160,6 +167,10 @@ class PaymentEntry(SubmittableDocument):
             raise ValidationError("Paid amount must be greater than zero.")
         if self.paid_from.is_group or self.paid_to.is_group:
             raise ValidationError("Posting to group accounts is not allowed.")
+        if self.paid_from_id == self.paid_to_id:
+            raise ValidationError("Paid From and Paid To accounts must be different.")
+        if self.paid_from.company_id != self.company_id or self.paid_to.company_id != self.company_id:
+            raise ValidationError("Payment accounts must belong to the payment's company.")
 
     def on_submit(self):
         from accounts.services import gl as gl_service

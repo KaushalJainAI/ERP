@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -6,12 +6,12 @@ from accounts.models import Account, GLEntry
 
 
 def quantize_money(amount: Any) -> Decimal:
-    """Helper to convert amount to Decimal quantized to 0.01."""
+    """Helper to convert amount to Decimal quantized to 0.01 (round half up)."""
     if amount is None:
         return Decimal("0.00")
     if not isinstance(amount, Decimal):
         amount = Decimal(str(amount))
-    return amount.quantize(Decimal("0.01"))
+    return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def post(
@@ -135,7 +135,12 @@ def reverse(voucher: Any) -> List[GLEntry]:
 
 def repost(account_id=None, company_id=None):
     """
-    Replaces derived account balances from immutable GLEntry logs.
+    Verify GL consistency from the immutable GLEntry logs.
+
+    Account balances are *derived on read* (see accounts.views.trial_balance /
+    general_ledger), so there is no stored projection to rebuild here — a repost
+    is a per-voucher debit==credit re-validation over the ledger. Raises
+    ValidationError on any imbalance; returns True when the ledger is consistent.
     """
     queryset = GLEntry.objects.filter(is_cancelled=False)
     if account_id:

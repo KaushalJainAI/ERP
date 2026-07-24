@@ -71,6 +71,25 @@ class CoreModelTests(TestCase):
         self.assertEqual(amended.amended_from, doc)
         self.assertEqual(amended.title, "First Invoice")
 
+    def test_amend_auto_generates_unique_name(self):
+        """GOOD: amend() without new_name derives a unique name from the source."""
+        doc = DummySubmittableDoc.objects.create(name="DOC-100", title="Orig", docstatus=DocStatus.DRAFT)
+        doc.submit()
+        doc.cancel()
+
+        # First amendment gets a non-empty, unique, derived name.
+        first = doc.amend()
+        first.save()
+        self.assertTrue(first.name)
+        self.assertEqual(first.name, "DOC-100-1")
+        self.assertEqual(first.amended_from, doc)
+
+        # A second amendment of the same source does not collide.
+        second = doc.amend()
+        second.save()
+        self.assertNotEqual(second.name, first.name)
+        self.assertEqual(second.name, "DOC-100-2")
+
     def test_fiscal_year_valid(self):
         """GOOD: FiscalYear with end_date > start_date saves properly."""
         fy = FiscalYear(

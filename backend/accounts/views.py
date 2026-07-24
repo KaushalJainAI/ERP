@@ -11,7 +11,7 @@ from accounts.serializers import (
     PaymentEntrySerializer,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
-from users.permissions import HasRolePermission
+from users.permissions import HasRolePermission, require_model_permission
 
 
 class AccountViewSet(AuditLogMixin, viewsets.ModelViewSet):
@@ -52,7 +52,7 @@ class PaymentEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")])
 def trial_balance(request):
     """Trial Balance report endpoint."""
     company_id = request.query_params.get("company")
@@ -105,7 +105,7 @@ def trial_balance(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")])
 def general_ledger(request):
     company_id = request.query_params.get("company")
     account_id = request.query_params.get("account")
@@ -142,7 +142,7 @@ def general_ledger(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")])
 def profit_and_loss(request):
     company_id = request.query_params.get("company")
     qs = GLEntry.objects.filter(is_cancelled=False)
@@ -164,7 +164,7 @@ def profit_and_loss(request):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")])
 def balance_sheet(request):
     company_id = request.query_params.get("company")
     qs = GLEntry.objects.filter(is_cancelled=False)

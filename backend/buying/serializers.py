@@ -1,6 +1,11 @@
+from django.db import transaction
 from rest_framework import serializers
 from buying.models import SupplierGroup, Supplier, PurchaseOrder, PurchaseOrderItem, PurchaseInvoice, PurchaseInvoiceItem
-from core.mixins import TranslatedSerializerMixin
+from core.mixins import (
+    TranslatedSerializerMixin,
+    PositiveQtyLineItemMixin,
+    NonNegativeRateLineItemMixin,
+)
 from core.models import NamingSeries
 
 
@@ -36,7 +41,9 @@ class SupplierSerializer(TranslatedSerializerMixin, serializers.ModelSerializer)
         translatable_fields = ["name"]
 
 
-class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+class PurchaseOrderItemSerializer(
+    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
 
@@ -70,21 +77,24 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("PO-2026-")
-        purchase_order = PurchaseOrder.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("PO-2026-")
+            purchase_order = PurchaseOrder.objects.create(**validated_data)
 
-        gt = 0
-        for item in items_data:
-            item_obj = PurchaseOrderItem.objects.create(purchase_order=purchase_order, **item)
-            gt += item_obj.amount
+            gt = 0
+            for item in items_data:
+                item_obj = PurchaseOrderItem.objects.create(purchase_order=purchase_order, **item)
+                gt += item_obj.amount
 
-        purchase_order.grand_total = gt
-        purchase_order.save(update_fields=["grand_total"])
+            purchase_order.grand_total = gt
+            purchase_order.save(update_fields=["grand_total"])
         return purchase_order
 
 
-class PurchaseInvoiceItemSerializer(serializers.ModelSerializer):
+class PurchaseInvoiceItemSerializer(
+    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
 
@@ -122,15 +132,16 @@ class PurchaseInvoiceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("PINV-2026-")
-        purchase_invoice = PurchaseInvoice.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("PINV-2026-")
+            purchase_invoice = PurchaseInvoice.objects.create(**validated_data)
 
-        gt = 0
-        for item in items_data:
-            item_obj = PurchaseInvoiceItem.objects.create(purchase_invoice=purchase_invoice, **item)
-            gt += item_obj.amount
+            gt = 0
+            for item in items_data:
+                item_obj = PurchaseInvoiceItem.objects.create(purchase_invoice=purchase_invoice, **item)
+                gt += item_obj.amount
 
-        purchase_invoice.grand_total = gt
-        purchase_invoice.save(update_fields=["grand_total"])
+            purchase_invoice.grand_total = gt
+            purchase_invoice.save(update_fields=["grand_total"])
         return purchase_invoice

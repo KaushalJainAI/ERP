@@ -178,6 +178,9 @@ class StockEntry(SubmittableDocument):
                     "warehouse": item.target_warehouse,
                     "qty": abs(item.qty),
                     "valuation_rate": item.valuation_rate,
+                    # Value the receipt at the rate the source warehouse released,
+                    # so an internal transfer conserves total stock value.
+                    "use_outgoing_rate": True,
                 })
         stock_service.post(self, sle_list, posting_date=self.posting_date, posting_time=self.posting_time)
 

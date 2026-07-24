@@ -182,6 +182,75 @@ class StockAppTests(TestCase):
         bin_obj.refresh_from_db()
         self.assertEqual(bin_obj.actual_qty, Decimal("0.000"))
 
+    def test_material_transfer_conserves_total_stock_value(self):
+        """GOOD: A transfer values the receipt at the source's outgoing rate, so
+        total stock value across warehouses is unchanged even when the item's
+        entered valuation_rate on the transfer differs from the source rate."""
+        dest = Warehouse.objects.create(
+            name="Stores Store-2", company=self.company, parent=self.wh_parent, is_group=False
+        )
+        # Seed source warehouse at rate 100 -> stock value 1000.
+        stock_service.post(
+            voucher=self.doc,
+            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("100.00")}],
+            posting_date=datetime.date(2026, 4, 1),
+        )
+        total_before = sum(b.stock_value for b in Bin.objects.all())
+
+        # Transfer 4 units with a bogus/zero transfer valuation_rate.
+        ste = StockEntry.objects.create(
+            name="STE-TRF-001",
+            stock_entry_type=StockEntryType.MATERIAL_TRANSFER,
+            posting_date=datetime.date(2026, 4, 2),
+            company=self.company,
+        )
+        StockEntryItem.objects.create(
+            stock_entry=ste,
+            item=self.item,
+            source_warehouse=self.warehouse,
+            target_warehouse=dest,
+            qty=Decimal("4.000"),
+            valuation_rate=Decimal("0.00"),  # deliberately wrong / unset
+        )
+        ste.submit()
+
+        total_after = sum(b.stock_value for b in Bin.objects.all())
+        self.assertEqual(total_after, total_before)
+
+        # Destination valued at the source's outgoing rate (100), not 0.
+        dest_bin = Bin.objects.get(item=self.item, warehouse=dest)
+        self.assertEqual(dest_bin.actual_qty, Decimal("4.000"))
+        self.assertEqual(dest_bin.stock_value, Decimal("400.00"))
+        self.assertEqual(dest_bin.valuation_rate, Decimal("100.000000"))
+
+    def test_cancel_receipt_after_stock_consumed_is_blocked(self):
+        """BAD: Reversing a receipt whose units were later issued would drive the
+        Bin negative — the No-Negative-Stock invariant must block it."""
+        # Receipt of 10 on the receipt voucher (self.doc).
+        stock_service.post(
+            voucher=self.doc,
+            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("100.00")}],
+            posting_date=datetime.date(2026, 4, 1),
+        )
+        # A different voucher issues 8 of those units.
+        issue_doc = DummySubmittableDoc.objects.create(
+            name="MAT-ISS-001", title="Issue", docstatus=DocStatus.SUBMITTED
+        )
+        stock_service.post(
+            voucher=issue_doc,
+            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("-8.000"), "valuation_rate": Decimal("100.00")}],
+            posting_date=datetime.date(2026, 4, 2),
+        )
+
+        # Cancelling the original receipt would leave -8 on hand: reject it.
+        with self.assertRaises(ValidationError):
+            with transaction.atomic():
+                stock_service.reverse(self.doc)
+
+        # Bin is untouched by the failed reversal (atomic rollback), no negatives.
+        bin_obj = Bin.objects.get(item=self.item, warehouse=self.warehouse)
+        self.assertEqual(bin_obj.actual_qty, Decimal("2.000"))
+
     def test_stock_entry_receipt_missing_target_warehouse_fails(self):
         """BAD: Material Receipt without target warehouse raises ValidationError on submit."""
         ste = StockEntry.objects.create(

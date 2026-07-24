@@ -13,7 +13,7 @@ from stock.serializers import (
     StockEntrySerializer,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
-from users.permissions import HasRolePermission
+from users.permissions import HasRolePermission, require_model_permission
 
 
 class UOMViewSet(AuditLogMixin, viewsets.ModelViewSet):
@@ -77,7 +77,7 @@ class StockEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated, require_model_permission("stock.Bin")])
 def stock_balance(request):
     """Stock Balance report endpoint."""
     item_id = request.query_params.get("item")

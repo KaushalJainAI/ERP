@@ -71,8 +71,19 @@ class SubmittableDocument(TimeStampedModel):
     def submit(self, user=None):
         """Atomically validate and submit the document."""
         with transaction.atomic():
-            if self.docstatus != DocStatus.DRAFT:
+            # Lock the row and re-read docstatus so two concurrent submits
+            # cannot both pass the guard and post ledger entries twice.
+            locked_status = (
+                self.__class__.objects.select_for_update()
+                .filter(pk=self.pk)
+                .values_list("docstatus", flat=True)
+                .first()
+            )
+            if locked_status is None:
+                raise ValidationError("Document no longer exists.")
+            if locked_status != DocStatus.DRAFT:
                 raise ValidationError("Only draft documents can be submitted.")
+            self.docstatus = locked_status
             self.validate_before_submit()
             self.docstatus = DocStatus.SUBMITTED
             if user and hasattr(user, "id"):
@@ -83,7 +94,17 @@ class SubmittableDocument(TimeStampedModel):
     def cancel(self, user=None):
         """Atomically cancel the document and reverse ledger entries."""
         with transaction.atomic():
-            if self.docstatus != DocStatus.SUBMITTED:
+            # Lock the row and re-read docstatus so two concurrent cancels
+            # cannot both pass the guard and reverse ledger entries twice.
+            locked_status = (
+                self.__class__.objects.select_for_update()
+                .filter(pk=self.pk)
+                .values_list("docstatus", flat=True)
+                .first()
+            )
+            if locked_status is None:
+                raise ValidationError("Document no longer exists.")
+            if locked_status != DocStatus.SUBMITTED:
                 raise ValidationError("Only submitted documents can be cancelled.")
             self.docstatus = DocStatus.CANCELLED
             if user and hasattr(user, "id"):
@@ -103,9 +124,22 @@ class SubmittableDocument(TimeStampedModel):
             setattr(amendment, field.name, getattr(self, field.name))
         amendment.docstatus = DocStatus.DRAFT
         amendment.amended_from = self
-        if new_name:
-            amendment.name = new_name
+        # A submittable's `name` is unique and NOT NULL; an amendment must get its
+        # own name. Follow ERPNext's convention of suffixing the source name with
+        # an incrementing amendment index (e.g. SINV-2026-0001 -> SINV-2026-0001-1).
+        amendment.name = new_name or self._next_amendment_name()
         return amendment
+
+    def _next_amendment_name(self):
+        """Return a unique name for a new amendment of this document."""
+        base = self.name
+        n = self.amendments.count() + 1
+        candidate = f"{base}-{n}"
+        # Guard against gaps/races: bump until the name is free.
+        while self.__class__.objects.filter(name=candidate).exists():
+            n += 1
+            candidate = f"{base}-{n}"
+        return candidate
 
     def save(self, *args, **kwargs):
         # Prevent edit of non-draft documents unless updating docstatus/timestamps

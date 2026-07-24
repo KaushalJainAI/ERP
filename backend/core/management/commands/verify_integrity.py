@@ -54,6 +54,20 @@ class Command(BaseCommand):
                     f"Bin stock_value ({bin_obj.stock_value}) != SLE Sum ({expected_value})"
                 )
 
+            # Valuation rate must stay the derived quotient stock_value / actual_qty.
+            # A mismatch means the moving-average projection drifted from its own
+            # facts even when qty/value happen to tie out.
+            expected_rate = (
+                (expected_value / expected_qty).quantize(Decimal("0.000001"))
+                if expected_qty > 0
+                else Decimal("0.000000")
+            )
+            if bin_obj.valuation_rate != expected_rate:
+                errors.append(
+                    f"Bin Valuation Rate Drift for {bin_obj.item.code} @ {bin_obj.warehouse.name}: "
+                    f"Bin valuation_rate ({bin_obj.valuation_rate}) != stock_value/qty ({expected_rate})"
+                )
+
         # 3. No Negative Stock Invariant
         for bin_obj in Bin.objects.all():
             if bin_obj.actual_qty < 0:

@@ -1,15 +1,22 @@
 # Custom ERP — Master Design & Implementation Plan
 
-> **Read this first, in full, before writing any code.**
+> ## ⚠️ STATUS: Historical design notes — **NOT the source of truth**
 >
-> This is the single source of truth for *what* we are building and *why every
-> decision was made*. A separate [instructions.md](instructions.md) tells you
-> *how* to work. [checklist.md](checklist.md) is the ordered task list you
-> execute. [CLAUDE.md](CLAUDE.md) is the quick orientation.
+> This document captured the original design intent *before* the system was
+> built. It is kept for background and rationale only. **It is no longer
+> authoritative and may drift from the running code.**
 >
-> The design here is deliberate and complete. **Do not invent alternatives,
-> change the schema, or "improve" the architecture.** If something is
-> genuinely ambiguous, stop and ask — do not guess.
+> The source of truth is now the **code**:
+> - **Schema** → the Django models and migrations (`backend/*/models.py`,
+>   `backend/*/migrations/`). What the migrations define is what exists.
+> - **Behaviour** → the **tests** (`backend/*/tests.py`) and the posting/repost
+>   services. What the tests assert is the contract.
+> - **Deliberate deviations from ERPNext** → `backend/docs/erpnext_divergences.md`.
+>
+> When this file and the code disagree, **the code wins.** Do not treat the
+> schema, constraints, or precisions below as binding — verify against the
+> models/migrations. The three mandates in §1 remain the guiding principles, but
+> they are enforced by the code, not by this prose.
 
 ---
 
@@ -176,7 +183,7 @@ justified.
 
 ---
 
-## 3. Database schema (authoritative)
+## 3. Database schema (original design — verify against the migrations)
 
 **Conventions used throughout:**
 

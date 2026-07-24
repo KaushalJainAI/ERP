@@ -1,6 +1,8 @@
+from django.db import transaction
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from stock.models import UOM, ItemGroup, Item, Warehouse, StockLedgerEntry, Bin, StockEntry, StockEntryItem
-from core.mixins import TranslatedSerializerMixin
+from core.mixins import TranslatedSerializerMixin, PositiveQtyLineItemMixin
 from core.models import NamingSeries
 
 
@@ -101,11 +103,16 @@ class BinSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class StockEntryItemSerializer(serializers.ModelSerializer):
+class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
     source_warehouse_name = serializers.CharField(source="source_warehouse.name", read_only=True)
     target_warehouse_name = serializers.CharField(source="target_warehouse.name", read_only=True)
+
+    def validate_valuation_rate(self, value):
+        if value is not None and value < 0:
+            raise DRFValidationError("Valuation rate cannot be negative.")
+        return value
 
     class Meta:
         model = StockEntryItem
@@ -145,11 +152,12 @@ class StockEntrySerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("STE-2026-")
-        stock_entry = StockEntry.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("STE-2026-")
+            stock_entry = StockEntry.objects.create(**validated_data)
 
-        for item in items_data:
-            StockEntryItem.objects.create(stock_entry=stock_entry, **item)
+            for item in items_data:
+                StockEntryItem.objects.create(stock_entry=stock_entry, **item)
 
         return stock_entry

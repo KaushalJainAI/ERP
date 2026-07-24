@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 from accounts.models import Account, GLEntry, JournalEntry, JournalEntryLine, PaymentEntry, PaymentEntryReference
 from core.mixins import TranslatedSerializerMixin
@@ -86,19 +87,20 @@ class JournalEntrySerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         lines_data = validated_data.pop("lines", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("JV-2026-")
-        journal_entry = JournalEntry.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("JV-2026-")
+            journal_entry = JournalEntry.objects.create(**validated_data)
 
-        total_dr, total_cr = 0, 0
-        for line in lines_data:
-            JournalEntryLine.objects.create(journal_entry=journal_entry, **line)
-            total_dr += line.get("debit", 0)
-            total_cr += line.get("credit", 0)
+            total_dr, total_cr = 0, 0
+            for line in lines_data:
+                JournalEntryLine.objects.create(journal_entry=journal_entry, **line)
+                total_dr += line.get("debit", 0)
+                total_cr += line.get("credit", 0)
 
-        journal_entry.total_debit = total_dr
-        journal_entry.total_credit = total_cr
-        journal_entry.save(update_fields=["total_debit", "total_credit"])
+            journal_entry.total_debit = total_dr
+            journal_entry.total_credit = total_cr
+            journal_entry.save(update_fields=["total_debit", "total_credit"])
         return journal_entry
 
 
@@ -136,12 +138,13 @@ class PaymentEntrySerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         refs_data = validated_data.pop("references", [])
-        if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("PE-2026-")
-        payment_entry = PaymentEntry.objects.create(**validated_data)
+        with transaction.atomic():
+            if not validated_data.get("name"):
+                validated_data["name"] = NamingSeries.next("PE-2026-")
+            payment_entry = PaymentEntry.objects.create(**validated_data)
 
-        for ref in refs_data:
-            PaymentEntryReference.objects.create(payment_entry=payment_entry, **ref)
+            for ref in refs_data:
+                PaymentEntryReference.objects.create(payment_entry=payment_entry, **ref)
 
         return payment_entry
 

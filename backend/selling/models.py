@@ -95,6 +95,13 @@ class SalesInvoice(SubmittableDocument):
             raise ValidationError("Sales Invoice must have at least one line item.")
         if self.debit_to.is_group or self.income_account.is_group:
             raise ValidationError("Posting to group accounts is not allowed.")
+        # Multi-tenant integrity: an invoice must only touch its own company's
+        # ledger and customer. Nothing else stops the API from referencing another
+        # company's account/customer, which would post into their books.
+        if self.debit_to.company_id != self.company_id or self.income_account.company_id != self.company_id:
+            raise ValidationError("Debit-to and income accounts must belong to the invoice's company.")
+        if self.customer.company_id != self.company_id:
+            raise ValidationError("Customer must belong to the invoice's company.")
         self.grand_total = sum(item.amount for item in items)
         self.save(update_fields=["grand_total"])
 

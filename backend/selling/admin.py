@@ -1,0 +1,150 @@
+"""Django admin for selling (Customer, Sales Order, Sales Invoice)."""
+
+from django.contrib import admin
+
+from core.admin import SubmittableDocumentAdmin, TimeStampedAdminMixin
+from selling.models import (
+    Customer,
+    CustomerGroup,
+    SalesInvoice,
+    SalesInvoiceItem,
+    SalesOrder,
+    SalesOrderItem,
+)
+
+
+@admin.register(CustomerGroup)
+class CustomerGroupAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = ("name", "parent", "is_group")
+    list_filter = ("is_group",)
+    search_fields = ("name",)
+    autocomplete_fields = ("parent",)
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("name",)
+
+
+@admin.register(Customer)
+class CustomerAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "name",
+        "company",
+        "customer_group",
+        "gstin",
+        "email",
+        "phone",
+        "is_active",
+    )
+    list_filter = ("company", "customer_group", "is_active")
+    search_fields = ("name", "gstin", "tax_id", "email", "phone")
+    autocomplete_fields = ("company", "customer_group")
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("company", "name")
+
+
+class SalesOrderItemInline(admin.TabularInline):
+    model = SalesOrderItem
+    extra = 1
+    autocomplete_fields = ("item", "warehouse")
+    fields = ("item", "warehouse", "qty", "rate", "amount")
+    readonly_fields = ("amount",)
+
+
+@admin.register(SalesOrder)
+class SalesOrderAdmin(SubmittableDocumentAdmin):
+    list_display = (
+        "name",
+        "customer",
+        "company",
+        "transaction_date",
+        "delivery_date",
+        "grand_total",
+        "docstatus",
+    )
+    list_filter = ("docstatus", "company", "transaction_date")
+    search_fields = ("name", "customer__name")
+    date_hierarchy = "transaction_date"
+    autocomplete_fields = ("customer", "company", "amended_from")
+    inlines = [SalesOrderItemInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "customer",
+                    "company",
+                    "transaction_date",
+                    "delivery_date",
+                )
+            },
+        ),
+        ("Status", {"fields": ("docstatus", "amended_from", "grand_total")}),
+        (
+            "Audit",
+            {
+                "fields": ("created_at", "modified_at", "created_by", "modified_by"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+class SalesInvoiceItemInline(admin.TabularInline):
+    model = SalesInvoiceItem
+    extra = 1
+    autocomplete_fields = ("item", "warehouse")
+    fields = ("item", "warehouse", "qty", "rate", "amount")
+    readonly_fields = ("amount",)
+
+
+@admin.register(SalesInvoice)
+class SalesInvoiceAdmin(SubmittableDocumentAdmin):
+    list_display = (
+        "name",
+        "customer",
+        "company",
+        "posting_date",
+        "due_date",
+        "grand_total",
+        "update_stock",
+        "docstatus",
+    )
+    list_filter = ("docstatus", "company", "update_stock", "posting_date")
+    search_fields = ("name", "customer__name")
+    date_hierarchy = "posting_date"
+    autocomplete_fields = (
+        "customer",
+        "company",
+        "sales_order",
+        "debit_to",
+        "income_account",
+        "amended_from",
+    )
+    inlines = [SalesInvoiceItemInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "customer",
+                    "company",
+                    "posting_date",
+                    "due_date",
+                    "sales_order",
+                    "update_stock",
+                )
+            },
+        ),
+        ("Accounts", {"fields": ("debit_to", "income_account")}),
+        ("Status", {"fields": ("docstatus", "amended_from", "grand_total")}),
+        (
+            "Audit",
+            {
+                "fields": ("created_at", "modified_at", "created_by", "modified_by"),
+                "classes": ("collapse",),
+            },
+        ),
+    )

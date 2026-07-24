@@ -1,9 +1,37 @@
-from rest_framework import status, mixins
+import logging
+
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.exceptions import ValidationError as DjangoValidationError
 from core.models import AuditLog, DocStatus
+
+logger = logging.getLogger(__name__)
+
+
+class PositiveQtyLineItemMixin:
+    """Serializer mixin: reject non-positive quantities on transactional lines.
+
+    Every document type here moves stock/value in one direction (abs(qty) is
+    taken in the posting services), so a zero or negative line is always a data
+    error — it produces a meaningless or value-destroying document. Returns/credit
+    notes, when added, will be their own document types, not negative lines.
+    """
+
+    def validate_qty(self, value):
+        if value is None or value <= 0:
+            raise DRFValidationError("Quantity must be greater than zero.")
+        return value
+
+
+class NonNegativeRateLineItemMixin:
+    """Serializer mixin: reject negative unit rates on transactional lines."""
+
+    def validate_rate(self, value):
+        if value is not None and value < 0:
+            raise DRFValidationError("Rate cannot be negative.")
+        return value
 
 
 def record_audit_log(user, action_name, instance, changes=None, ip_address=None):
@@ -20,9 +48,12 @@ def record_audit_log(user, action_name, instance, changes=None, ip_address=None)
             ip_address=ip_address,
         )
     except Exception:
-        # Audit logging failure should not crash main transaction if DB allows,
-        # but AuditLog must record mutations in normal ops.
-        pass
+        # A failed audit write must never be swallowed silently — the audit log
+        # is a mandate. Surface it loudly so the drift is caught, without
+        # tearing down the caller's transaction from inside this helper.
+        logger.exception(
+            "Failed to record audit log: action=%s instance=%r", action_name, instance
+        )
 
 
 class AuditLogMixin:
@@ -40,8 +71,12 @@ class AuditLogMixin:
 
     def perform_destroy(self, instance):
         user = getattr(self.request, "user", None)
-        record_audit_log(user, "delete", instance)
+        # Delete first, then audit: recording "delete" before the delete would
+        # leave a phantom audit entry if the delete is refused (e.g. the model
+        # blocks deleting a non-draft submittable). The name/id read for the log
+        # survive in memory after the row is gone.
         instance.delete()
+        record_audit_log(user, "delete", instance)
 
 
 class SubmittableViewSetMixin(AuditLogMixin):
@@ -49,6 +84,28 @@ class SubmittableViewSetMixin(AuditLogMixin):
     ViewSet mixin for SubmittableDocument resources.
     Provides /submit/ and /cancel/ POST endpoints and blocks edit/delete on non-draft documents.
     """
+
+    def update(self, request, *args, **kwargs):
+        """Translate the model-layer immutability guard into a clean 409 instead
+        of letting Django's ValidationError surface as an uncaught 500."""
+        try:
+            return super().update(request, *args, **kwargs)
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": exc.messages if hasattr(exc, "messages") else str(exc)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if getattr(instance, "docstatus", None) != DocStatus.DRAFT:
+            return Response(
+                {
+                    "error": "Only draft documents can be deleted; cancel and amend instead."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], url_path="submit")
     def submit_doc(self, request, pk=None):
@@ -59,7 +116,11 @@ class SubmittableViewSetMixin(AuditLogMixin):
             serializer = self.get_serializer(doc)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except (DjangoValidationError, DRFValidationError) as exc:
-            msg = exc.message_dict if hasattr(exc, "message_dict") else (exc.messages if hasattr(exc, "messages") else str(exc))
+            msg = (
+                exc.message_dict
+                if hasattr(exc, "message_dict")
+                else (exc.messages if hasattr(exc, "messages") else str(exc))
+            )
             return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="cancel")
@@ -71,7 +132,11 @@ class SubmittableViewSetMixin(AuditLogMixin):
             serializer = self.get_serializer(doc)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except (DjangoValidationError, DRFValidationError) as exc:
-            msg = exc.message_dict if hasattr(exc, "message_dict") else (exc.messages if hasattr(exc, "messages") else str(exc))
+            msg = (
+                exc.message_dict
+                if hasattr(exc, "message_dict")
+                else (exc.messages if hasattr(exc, "messages") else str(exc))
+            )
             return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["post"], url_path="amend")
@@ -84,7 +149,11 @@ class SubmittableViewSetMixin(AuditLogMixin):
             serializer = self.get_serializer(new_draft)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except (DjangoValidationError, DRFValidationError) as exc:
-            msg = exc.message_dict if hasattr(exc, "message_dict") else (exc.messages if hasattr(exc, "messages") else str(exc))
+            msg = (
+                exc.message_dict
+                if hasattr(exc, "message_dict")
+                else (exc.messages if hasattr(exc, "messages") else str(exc))
+            )
             return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -95,7 +164,9 @@ def get_active_language(request):
     user = getattr(request, "user", None)
     if user and user.is_authenticated and getattr(user, "language", None):
         return user.language
-    accept_lang = request.META.get("HTTP_ACCEPT_LANGUAGE", "") if hasattr(request, "META") else ""
+    accept_lang = (
+        request.META.get("HTTP_ACCEPT_LANGUAGE", "") if hasattr(request, "META") else ""
+    )
     if accept_lang:
         code = accept_lang.split(",")[0].split("-")[0].strip().lower()
         if code:
@@ -135,4 +206,3 @@ class TranslatedSerializerMixin:
                 ret[field] = trans_dict[field]
 
         return ret
-

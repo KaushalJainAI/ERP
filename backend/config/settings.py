@@ -147,12 +147,26 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    # Rate limiting. Anonymous traffic is capped hard; authenticated ERP users
+    # get a generous ceiling (bulk data entry is legitimate). The `auth` scope is
+    # a brute-force guard applied only to the JWT token endpoint (see
+    # users.views.ThrottledTokenObtainPairView).
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env("THROTTLE_ANON", default="30/min"),
+        "user": env("THROTTLE_USER", default="1000/min"),
+        "auth": env("THROTTLE_AUTH", default="10/min"),
+    },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "core.pagination.StablePageNumberPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

@@ -1,5 +1,5 @@
 import datetime
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,7 +11,7 @@ def quantize_qty(val: Any) -> Decimal:
         return Decimal("0.000")
     if not isinstance(val, Decimal):
         val = Decimal(str(val))
-    return val.quantize(Decimal("0.001"))
+    return val.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
 
 
 def quantize_rate(val: Any) -> Decimal:
@@ -19,7 +19,7 @@ def quantize_rate(val: Any) -> Decimal:
         return Decimal("0.000000")
     if not isinstance(val, Decimal):
         val = Decimal(str(val))
-    return val.quantize(Decimal("0.000001"))
+    return val.quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
 
 
 def quantize_value(val: Any) -> Decimal:
@@ -27,7 +27,7 @@ def quantize_value(val: Any) -> Decimal:
         return Decimal("0.00")
     if not isinstance(val, Decimal):
         val = Decimal(str(val))
-    return val.quantize(Decimal("0.01"))
+    return val.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def post(
@@ -49,6 +49,9 @@ def post(
     voucher_no = getattr(voucher, "name", str(voucher.pk))
 
     created_sles: List[StockLedgerEntry] = []
+    # Rate computed on the most recent stock-out leg in this call. A transfer's
+    # incoming leg reuses it so an internal move neither creates nor destroys value.
+    last_outgoing_rate: Any = None
 
     with transaction.atomic():
         for item_data in sle_entries:
@@ -80,11 +83,15 @@ def post(
                 },
             )
 
-            # Valuation math: Moving Average & FIFO value delta
+            # Valuation math: Moving Average. FIFO is not yet implemented — see
+            # docs/erpnext_divergences.md G1; FIFO-flagged items use this path too.
             new_qty = quantize_qty(bin_obj.actual_qty + qty)
 
             if qty > 0:
-                # Stock In
+                # Stock In. For a transfer's incoming leg, value it at the rate the
+                # matching outgoing leg left with so total stock value is conserved.
+                if item_data.get("use_outgoing_rate") and last_outgoing_rate is not None:
+                    rate = quantize_rate(last_outgoing_rate)
                 incoming_value = quantize_value(qty * rate)
                 new_stock_value = quantize_value(bin_obj.stock_value + incoming_value)
                 new_valuation_rate = (
@@ -105,6 +112,7 @@ def post(
                     quantize_rate(new_stock_value / new_qty) if new_qty > 0 else Decimal("0.000000")
                 )
                 stock_value_diff = quantize_value(-outgoing_value)
+                last_outgoing_rate = outgoing_rate
 
             # Update derived Bin
             bin_obj.actual_qty = new_qty
@@ -159,6 +167,18 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
                 warehouse=orig.warehouse,
             )
             new_qty = quantize_qty(bin_obj.actual_qty + rev_qty)
+            # Guard the No-Negative-Stock invariant: a reversal must never drive a
+            # Bin below zero. This happens when a later voucher already consumed the
+            # stock this entry brought in (e.g. cancelling a receipt whose units were
+            # since issued/sold/transferred out). Like ERPNext, block the cancel and
+            # tell the user to reverse the dependent transactions first.
+            if new_qty < 0:
+                raise ValidationError(
+                    f"Cannot cancel: reversing this entry would leave negative stock for "
+                    f"Item '{orig.item.code}' in Warehouse '{orig.warehouse.name}' "
+                    f"(available {bin_obj.actual_qty}, reversal {rev_qty}). "
+                    f"Cancel the later transactions that consumed this stock first."
+                )
             new_value = quantize_value(bin_obj.stock_value + rev_diff)
             new_rate = quantize_rate(new_value / new_qty) if new_qty > 0 else Decimal("0.000000")
 

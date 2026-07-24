@@ -95,6 +95,11 @@ class PurchaseInvoice(SubmittableDocument):
             raise ValidationError("Purchase Invoice must have at least one line item.")
         if self.credit_to.is_group or self.expense_account.is_group:
             raise ValidationError("Posting to group accounts is not allowed.")
+        # Multi-tenant integrity: keep the posting inside this invoice's company.
+        if self.credit_to.company_id != self.company_id or self.expense_account.company_id != self.company_id:
+            raise ValidationError("Credit-to and expense accounts must belong to the invoice's company.")
+        if self.supplier.company_id != self.company_id:
+            raise ValidationError("Supplier must belong to the invoice's company.")
         self.grand_total = sum(item.amount for item in items)
         self.save(update_fields=["grand_total"])
 

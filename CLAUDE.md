@@ -10,12 +10,29 @@ requirements. First clone the behaviour; later modify it. When unsure how a
 feature should behave, the answer is "how does ERPNext do it?" — consult the
 reference in `erpnext/`.
 
-## Read these before doing anything
+## Source of truth
 
-The design is fully specified. Do not improvise around it.
+**The code is the source of truth**, not the docs. When any document and the
+code disagree, the code wins.
 
-- **[plan.md](plan.md)** — master design + authoritative DB schema + the three
-  mandates. The source of truth for *what* and *why*.
+- **Schema** → the Django models and migrations (`backend/*/models.py`,
+  `backend/*/migrations/`). What the migrations define is what exists.
+- **Behaviour** → the tests (`backend/*/tests.py`) and the posting/repost
+  services. What the tests assert is the contract. `verify_integrity` must be
+  green.
+- **Deliberate deviations from ERPNext** → `backend/docs/erpnext_divergences.md`.
+- **HTTP API surface** → `backend/docs/API.md` — the endpoint map / code-review index:
+  every route with its Django app, purpose, access (RBAC), complexity, test coverage,
+  serializer, DB tables (incl. posting side-effects), and atomicity. It's the intended
+  starting point for reviewing the backend. ⚠ **Keep it current**: whenever you add,
+  remove, or change a route (any `urls.py`), its permission, or its serializer, update the
+  matching row in `backend/docs/API.md` in the same commit (part of Definition of Done).
+
+### Supporting docs (context, not authority)
+
+- **[plan.md](plan.md)** — *historical* design notes explaining the original
+  intent and *why* decisions were made. Useful background; **not authoritative**
+  and may drift from the code — verify against the models/migrations.
 - **[instructions.md](instructions.md)** — how to implement (golden rules, the
   document-building recipe, Definition of Done).
 - **[checklist.md](checklist.md)** — ordered task list. Work top-to-bottom, one
@@ -33,7 +50,7 @@ balances, invoice outstanding, order fulfilment) are **derived projections** tha
 can be rebuilt from the ledgers. Frontend is a **metadata-driven** React SPA:
 `<DocForm>`/`<DataTable>` render any resource from serializer metadata.
 
-## The three mandates (never violate — see plan.md §1)
+## The three mandates (never violate)
 
 1. **Self-healing.** Store immutable facts (ledgers, audit log); derive
    everything else; if a derived value is wrong, rebuild it via `repost_*`.
@@ -49,7 +66,8 @@ can be rebuilt from the ledgers. Frontend is a **metadata-driven** React SPA:
 
 - `GLEntry` / `StockLedgerEntry` / `Bin` are written **only** by the posting/repost
   services — never via an API, never `UPDATE`/hard-`DELETE`. Corrections = reversals.
-- Money is `Decimal` with the precisions in plan.md §3 — never `float`.
+- Money is `Decimal` with the precisions declared on the model fields
+  (money `DecimalField(18,2)`, qty `(18,3)`, rate/valuation `(18,6)`) — never `float`.
 - Only draft documents can be deleted; submitted documents cancel + amend.
 - Re-validate all input server-side; the DB constraint is the real guarantee.
 - `erpnext/` is **read-only reference** (git-ignored) — never edit, import, or ship it.
@@ -69,6 +87,7 @@ Self-healing: `python manage.py verify_integrity` (detect drift), `repost_stock`
 ## Working discipline
 
 Follow [checklist.md](checklist.md) in order, one task per commit. A task is done
-only when it matches plan.md, DB constraints exist, the three mandates hold, tests
-+ `verify_integrity` + lint pass, and it reproduces the ERPNext behaviour. **When a
-task is ambiguous or not covered by plan.md, stop and ask — never guess.**
+only when the DB constraints exist, the three mandates hold, tests +
+`verify_integrity` + lint pass, and it reproduces the ERPNext behaviour (record any
+deliberate deviation in `backend/docs/erpnext_divergences.md`). **When a task is
+genuinely ambiguous, stop and ask — never guess.**

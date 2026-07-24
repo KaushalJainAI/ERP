@@ -1,6 +1,8 @@
 # ERP Build Checklist
 
-Ordered, atomic task tracker for [plan.md](plan.md). **Do tasks top-to-bottom,
+Ordered, atomic task tracker for the ERP build (design background in
+[plan.md](plan.md); the source of truth is the code — see [CLAUDE.md](CLAUDE.md)).
+**Do tasks top-to-bottom,
 one at a time.** For each: implement → verify (see [instructions.md §5](instructions.md))
 → tick → commit. Do not skip or batch. When a task is ambiguous, stop and ask.
 
@@ -129,10 +131,30 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **(V)** = must pass
 - [x] Dashboards / KPIs (Executive dashboard with real-time metrics & health)
 - [x] Outbox transactional queue & `verify_integrity` self-healing engine
 - [x] Full RBAC enforced on every endpoint; audit log verified for all mutations
-- [x] Test coverage: 62 positive & negative unit tests passing in pytest
+      (report endpoints were closed on 2026-07-23 — see Phase 5)
+- [x] Test coverage: 87 positive & negative tests passing in pytest
 - [x] Backup/restore & ledger replay validated via `repost_stock` & `repost_gl`
 
 ---
 
 ## Phase 4 — Custom requirements
 - [x] Capture divergences from ERPNext once MVP modules are stable (backend/docs/erpnext_divergences.md)
+
+---
+
+## Phase 5 — Post-MVP hardening (2026-07-23)
+
+Full backend audit; fixes below are in code + tests (`verify_integrity` green,
+87 tests passing). Forward-looking backlog captured in repo-root `improvements.md`.
+
+- [x] Security: financial/stock **reports now enforce RBAC** (were login-only and
+      fail-open) — `require_model_permission` on all report endpoints
+- [x] Stock: **cancel cannot drive a `Bin` negative** (No-Negative-Stock held only
+      on the forward path before)
+- [x] Self-healing: `verify_integrity` also checks **valuation-rate** drift
+- [x] API: **stable pagination** ordering (unordered lists could drop/duplicate rows)
+- [x] Validation: reject `qty<=0` / negative rate; reject **cross-company** and
+      **same-account** postings; **atomic** nested create
+- [x] Audit: record delete **after** it succeeds; corrected `gl.repost()` docstring
+- [ ] Backlog (see `improvements.md`): perpetual inventory/COGS, fiscal-period lock,
+      GST, AR/AP allocation, `is_staff` RBAC bypass, FIFO

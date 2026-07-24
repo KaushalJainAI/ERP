@@ -1,8 +1,10 @@
 # Implementer Instructions
 
 **Audience:** the AI model that writes the code. Read this completely before
-touching any file. It tells you *how* to work. The *what/why* is in
-[plan.md](plan.md); the ordered tasks are in [checklist.md](checklist.md).
+touching any file. It tells you *how* to work. The source of truth is the
+**code** (models, migrations, tests) — see [CLAUDE.md](CLAUDE.md). [plan.md](plan.md)
+is *historical* design background for the *what/why*, not authoritative. The
+ordered tasks are in [checklist.md](checklist.md).
 
 ---
 
@@ -16,9 +18,10 @@ Our north star is **functional parity with ERPNext** for the MVP modules
   match ERPNext. When unsure how something should work, the answer is "how does
   ERPNext do it?" — open the reference (§4) and match it.
 - We do **not** copy ERPNext's code, frontend, or framework. We reimplement the
-  same functionality against the schema in [plan.md §3](plan.md).
-- If ERPNext does something that conflicts with a rule in this file or plan.md,
-  **our rules win** — stop and ask before diverging.
+  same functionality on our own models (see `backend/*/models.py`).
+- If ERPNext does something that conflicts with a rule in this file or our
+  existing code/tests, **our rules win** — stop and ask before diverging, and
+  record deliberate deviations in `backend/docs/erpnext_divergences.md`.
 
 Keep this goal in mind on every task: *"Does this reproduce what ERPNext does
 for this feature?"*
@@ -27,23 +30,27 @@ for this feature?"*
 
 ## 1. The golden rules (never break these)
 
-1. **Follow plan.md exactly.** The schema in [plan.md §3](plan.md) is
-   authoritative. Do not add, rename, or drop fields/tables. Do not redesign.
-2. **Never guess.** If a task is ambiguous, or plan.md doesn't cover it, **stop
-   and ask a human.** A wrong guess is worse than a question.
+1. **The code is the source of truth.** The schema is whatever the Django models
+   and migrations define; behaviour is whatever the tests assert. `plan.md` is
+   background only — when it and the code disagree, the code wins. Don't redesign
+   existing schema without cause; when you do change it, do it via a migration and
+   update the affected tests.
+2. **Never guess.** If a task is genuinely ambiguous, **stop and ask a human.**
+   A wrong guess is worse than a question.
 3. **One task at a time.** Take the next unchecked item in
    [checklist.md](checklist.md), do only that, verify it, tick it, commit. Do not
    batch or skip ahead.
-4. **The three mandates are law** (plan.md §1): self-healing, user-error-proofing,
+4. **The three mandates are law:** self-healing, user-error-proofing,
    multilingual. Every model and endpoint must honour them.
 5. **Immutable ledgers are sacred.** `GLEntry` and `StockLedgerEntry` are
    append-only. Never `UPDATE` or hard-`DELETE` them, and never expose write
    endpoints for them. Corrections happen by *reversing* entries only.
-6. **Money is `Decimal`, never `float`.** Use the field precisions in plan.md §3.
+6. **Money is `Decimal`, never `float`.** Use the field precisions on the models
+   (money `(18,2)`, qty `(18,3)`, rate/valuation `(18,6)`).
 7. **All document writes are atomic.** Submit/cancel wrap every write in
-   `transaction.atomic()` (plan.md §4.2).
-8. **The database enforces correctness**, not just Python. Add the `CHECK`,
-   `UNIQUE`, and `ON DELETE` constraints from plan.md §3 as real migrations.
+   `transaction.atomic()`.
+8. **The database enforces correctness**, not just Python. Add `CHECK`, `UNIQUE`,
+   and `ON DELETE` constraints as real migrations.
 9. **Verify before you tick.** Run the verification for the task (§5). If it
    fails, fix it before moving on. Never tick an unverified box.
 10. **erpnext/ is read-only.** Reference it; never edit, import, or ship it.
@@ -85,12 +92,13 @@ Follow these steps *in order* every time you add a submittable document (Sales
 Invoice, Stock Entry, Sales Order, …). This is the pattern; do not deviate.
 
 1. **Reference ERPNext.** Open the matching DocType JSON + controller (§4).
-   Confirm the fields you need already exist in [plan.md §3](plan.md). If plan.md
-   lacks a field ERPNext needs for MVP behaviour, **ask** — don't add it silently.
-2. **Model.** Subclass `core.SubmittableDocument`. Add exactly the columns in
-   plan.md §3, with the specified types, `CHECK`/`UNIQUE`/`ON DELETE` constraints,
-   and indexes. Child rows are a separate model with `ForeignKey(..., CASCADE)` to
-   the parent only.
+   Check whether the fields you need already exist on our models; `plan.md §3` can
+   help you understand the original intent. If a field ERPNext needs for MVP
+   behaviour is missing, **ask** — don't add it silently.
+2. **Model.** Subclass `core.SubmittableDocument`. Add the columns with the
+   correct types, `CHECK`/`UNIQUE`/`ON DELETE` constraints, and indexes (money
+   `(18,2)`, qty `(18,3)`, rate/valuation `(18,6)`). Child rows are a separate
+   model with `ForeignKey(..., CASCADE)` to the parent only.
 3. **Hooks.** Implement `validate_before_submit()` (raise `ValidationError` on
    anything unpostable) and `on_submit()`/`on_cancel()` that call the posting
    service (`accounts/services/gl.py`, `stock/services/ledger.py`) — never write
@@ -127,7 +135,7 @@ Master data (Item, Customer, Account…) skips the submit/ledger steps: plain
 ## 5. Definition of Done (per task)
 
 A checklist item is done only when **all** apply:
-- Code matches plan.md (schema, types, constraints) with no extra scope.
+- Schema (types, constraints) is correct and covered by migrations, with no extra scope.
 - Migrations generated, reviewed, and applied cleanly.
 - The three mandates are honoured (DB constraints present; least-privilege
   permission wired; user-facing strings translatable).
@@ -156,7 +164,8 @@ Only then tick the box in checklist.md and commit.
 
 ## 7. Things you must never do
 
-- Never change the schema or architecture in plan.md on your own initiative.
+- Never change the established schema or architecture on your own initiative;
+  propose it, and once agreed, change it via a migration + tests.
 - Never write to or expose an API for `GLEntry` / `StockLedgerEntry` / `Bin`
   outside the posting/repost services.
 - Never hard-delete transactional data; never allow editing a submitted document.
