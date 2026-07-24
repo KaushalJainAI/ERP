@@ -20,3 +20,7 @@ frontend/.env.local
 .idea/
 .DS_Store
 *.log
+
+erpnext/
+
+
