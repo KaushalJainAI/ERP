@@ -117,6 +117,60 @@ This document outlines key technical decisions and architectural enhancements ma
   docstring now states it validates rather than rebuilds (balances are derived on
   read).
 
+## Fixed / hardened (2026-10-21) — RBAC
+
+A full pass over `users/permissions.py`, `users/views.py` and
+`core/management/commands/seed_defaults.py` closed three defects in the
+authorization layer. ERPNext reference: Frappe's `Permissions` + `Role` /
+`User Role` use the same *role → per-DocType → per-action* shape, but
+`frappe.permissions.has_permission` **fails closed** (`permlevel` unset ⇒
+deny) and `is_admin` is an explicit role rather than the `is_staff` flag. We
+now match that posture.
+
+- **`is_staff` no longer bypasses RBAC (was P0.3).** In Django `is_staff` only
+  means "may sign in to the admin site". `HasRolePermission` and
+  `user_has_model_permission` treated it as an all-power bypass, so every
+  staff-flagged operator could read every company's books, post documents, and
+  cancel them. Only `is_superuser` bypasses now. Staff keep admin-site access
+  through `ModelAdmin`; API authority comes from roles.
+- **The permission check now fails closed (was P0.4).** When a view could not
+  be tied to a model, `HasRolePermission` returned `True` — allow. It now
+  returns `False` — deny. Function-based report endpoints, which expose no
+  queryset, keep working because they declare their model explicitly through
+  `require_model_permission(...)`.
+- **The fail-open was worse than it looked: it also hit empty tables.** Model
+  resolution used truthiness checks (`if not model`), and a Django `QuerySet`
+  is *falsy when it has no rows*. On a fresh install — or any table the user
+  had not written to yet — every ViewSet failed to resolve its model and was
+  allowed through. Resolution now uses `is None` checks throughout
+  (`users/permissions.resolve_model_label`).
+- **Role management moved off `IsAdminUser` onto RBAC.** `RoleViewSet` and
+  `RolePermissionViewSet` were gated on `is_staff`, which — combined with the
+  bypass above — let any staff user grant themselves `can_read` on
+  `accounts.GLEntry` and read the whole ledger. They now require
+  `HasRolePermission` on `users.Role` / `users.RolePermission`, granted to the
+  seeded *System Manager* role (and to superusers).
+- **The seeded permission matrix was wrong in three ways, and one of them made
+  every report unreachable.** The hand-maintained label list pointed
+  `accounts.SalesInvoice` at a model that lives in the `selling` app (and
+  `accounts.PurchaseInvoice` at `buying`), listed three labels for models that
+  do not exist (`selling.Quotation`, `selling.DeliveryNote`,
+  `buying.PurchaseReceipt`), and **omitted `accounts.GLEntry` and `stock.Bin`**
+  — the exact two labels the report endpoints are gated on. No seeded role
+  could read a single report; only `is_staff` could get in. The seed now
+  derives its labels from a single matrix, **validates every label against the
+  app registry** (a bad label aborts the seed with a clear error instead of
+  silently granting authority on nothing), and prunes rows that no longer
+  resolve.
+- **Every manager role held every permission on every model.** "Sales Manager"
+  and "System Manager" were the same account wearing different hats. The seed
+  is now *authoritative and scoped* per role: each role carries only its own
+  domain, and read access to `accounts.GLEntry` / `stock.Bin` — i.e. to the
+  financial and stock reports — is reserved for the Accounts and Stock
+  Managers. Re-running `seed_defaults` repairs a database seeded by the older
+  version (it reports granted/updated/revoked counts); roles the operator
+  created themselves are never touched.
+
 ## Fixed / hardened (2026-07-22)
 
 - **Submitted-document write over the API returned HTTP 500.** A `PATCH`/`DELETE` on a

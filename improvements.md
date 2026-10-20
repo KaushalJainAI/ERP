@@ -9,9 +9,23 @@ is cross-referenced (e.g. *[div G4]*).
 Priority key: **P0** correctness/security you should not ship without · **P1**
 important parity/robustness · **P2** polish, DX, scope growth.
 
-> Items marked ✅ **Done (2026-07-23)** were fixed in this pass; the rest are
-> proposals. See the "Fixed / hardened" section of the divergences doc for the
-> running fix log.
+> Items marked ✅ **Done (2026-07-23)** were fixed in that pass; ✅ **Done
+> (2026-10-21)** in the RBAC pass. The rest are proposals. See the "Fixed /
+> hardened" section of the divergences doc for the running fix log.
+
+---
+
+## Already fixed ✅ (2026-10-21) — RBAC pass
+
+| Area | Fix |
+|------|-----|
+| **RBAC — `is_staff` bypass** *[P0.3]* | `HasRolePermission` and `user_has_model_permission` no longer treat `is_staff` as an all-power bypass. In Django `is_staff` only means "may open the admin site"; it was handing every staff-flagged operator the whole company's books, plus submit/cancel authority. Only `is_superuser` bypasses now. Staff keep admin-site access via `ModelAdmin`. |
+| **RBAC — fail open** *[P0.4]* | `HasRolePermission` now **denies** when a view cannot be tied to a model, instead of allowing it. Function-based report endpoints keep working because they declare their model via `require_model_permission(...)`. |
+| **RBAC — the fail-open also hit empty tables** | Model resolution used truthiness checks (`if not model`), and a Django `QuerySet` is falsy when it has no rows — so on a fresh install, or any table the user had not written to yet, *every viewset* failed to resolve its model and was allowed through. Resolution now uses `is None` checks throughout (`users/permissions.resolve_model_label`). |
+| **RBAC — privilege escalation via the role API** | `RoleViewSet` / `RolePermissionViewSet` were gated on `IsAdminUser` (`is_staff`), so any staff user could grant themselves `can_read` on `accounts.GLEntry` and read the whole ledger. They now require `HasRolePermission` on `users.Role` / `users.RolePermission` — the seeded *System Manager* role, or a superuser. |
+| **RBAC — seeded label list had drifted** | The hand-maintained list pointed `accounts.SalesInvoice` at a model living in `selling` (and `accounts.PurchaseInvoice` at `buying`), listed three labels for models that do not exist (`selling.Quotation`, `selling.DeliveryNote`, `buying.PurchaseReceipt`), and **omitted `accounts.GLEntry` and `stock.Bin`** — the exact two labels the report endpoints are gated on. Consequence: **no seeded role could read a single report**; only `is_staff` could get in. The seed now derives labels from one matrix, validates every label against the app registry (a bad label aborts the seed), and prunes rows that no longer resolve. |
+| **RBAC — roles were not scoped** | Every manager role held every permission on every model, so "Sales Manager" and "System Manager" were the same account wearing different hats. The seeded matrix is now least-privilege per domain, and read on `accounts.GLEntry` / `stock.Bin` (i.e. the financial and stock reports) is reserved for the Accounts and Stock Managers. The seed is authoritative for the six roles it owns, so a re-seed repairs a database seeded by the older version; operator-created roles are never touched. |
+| **Tests** | New `users/test_rbac.py` (26 tests) covers all of the above, including that an empty queryset still resolves its model and that the seed is idempotent. Suite: 113 passing. |
 
 ---
 
@@ -55,7 +69,7 @@ period, and `GLEntry.fiscal_year` is always `NULL`.
   the date guard for stock in `ledger.post()`.
 - **Effort:** S–M.
 
-### P0.3 `is_staff` grants a full RBAC bypass
+### P0.3 `is_staff` grants a full RBAC bypass — ✅ **Done (2026-10-21)**
 `HasRolePermission` returns `True` for `is_superuser` **or** `is_staff`. In Django
 `is_staff` only means "may open the admin site", so any staff-flagged operator
 silently bypasses every per-model/per-action rule.
@@ -63,14 +77,26 @@ silently bypasses every per-model/per-action rule.
   admin-site access only), or introduce an explicit "Administrator" role. Decide
   and record the intent.
 - **Effort:** S. ⚠️ Review existing seeded users first so you don't lock anyone out.
+- **Resolution:** the bypass is now `is_superuser`-only, and the seeded
+  *System Manager* role is the explicit administrator role (it carries
+  `users.Role` / `users.RolePermission`, so it can grant authority without
+  `is_staff`). `is_staff` still grants Django admin-site access. Role
+  management moved off `IsAdminUser` onto RBAC at the same time, closing the
+  escalation path where a staff user granted themselves ledger read.
 
-### P0.4 `HasRolePermission` fails open when no model is resolvable
+### P0.4 `HasRolePermission` fails open when no model is resolvable — ✅ **Done (2026-10-21)**
 For any view where the model can't be inferred, the class returns `True`. That is
 what made the report endpoints world-readable (now fixed for reports, but the
 fail-open default remains for any future function view).
 - **Suggested:** default-deny (`return False`) and require views to declare a
   `model_label`; convert the report fix pattern into the norm.
 - **Effort:** S, but audit every non-ViewSet endpoint before flipping.
+- **Resolution:** the class now **denies** when no model resolves, and the
+  resolution helper (`users/permissions.resolve_model_label`) uses `is None`
+  checks rather than truthiness — an empty `QuerySet` is falsy, so the old
+  truthiness check discarded the model on any table with no rows and turned
+  every viewset into a fail-open. The five report endpoints declare their
+  model explicitly with `require_model_permission(...)`, so they are unaffected.
 
 ---
 
@@ -158,7 +184,8 @@ The new rate limits use the default `LocMemCache`; with multiple workers the
 
 ## Suggested sequencing
 
-1. **P0.3 / P0.4** (small, high-value security hardening) →
+1. ~~**P0.3 / P0.4**~~ ✅ **Done (2026-10-21)** — `is_staff` no longer bypasses RBAC,
+   the check fails closed, and the seeded role matrix is scoped and validated →
 2. **P0.2** fiscal-period lock (small, prevents bad data now) →
 3. **P0.1** perpetual inventory/COGS (the biggest correctness gap) →
 4. **P1.1 / P1.2** (GST, AR/AP — the features that make it usable in India) →

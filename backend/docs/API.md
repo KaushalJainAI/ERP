@@ -26,7 +26,10 @@ ledger · `Posting` a submit/cancel that writes ledger entries + updates balance
 
 **Access**: every business route requires `IsAuthenticated` **and** `HasRolePermission`
 (per-model RBAC via `users.RolePermission`). Auth is JWT or Django session. Only the
-token endpoints differ.
+token endpoints differ. `HasRolePermission` **fails closed**: a view that cannot be tied
+to a model is *denied*, so every viewset must expose a `queryset`/`model`, and
+function-based views must declare their model via `require_model_permission(...)`. Only
+`is_superuser` bypasses RBAC — `is_staff` does not (it means "may open the admin site").
 
 **Tested**: `✅` covered by app tests · `~` thin/indirect · `—` none.
 
@@ -47,11 +50,21 @@ actions, `No` for ordinary CRUD.
   drafts are editable/deletable; submitted docs are immutable (edit → 409); cancel then
   `amend` to make a new draft. This is enforced in `SubmittableViewSetMixin`.
 - **Audit**: every CRUD + submit/cancel/amend writes a `core.AuditLog` row (`AuditLogMixin`).
+- **RBAC posture (2026-10-21)**: `HasRolePermission` resolves the view's model via
+  `view.model_label` → `view.model` → `view.queryset` → `view.get_queryset()`, and
+  **denies** when none resolve. Resolution uses `is None` checks, never truthiness — a
+  Django `QuerySet` is falsy when empty, which previously made every viewset on an empty
+  table fail open. `is_superuser` bypasses; `is_staff` does not. The seeded role matrix
+  lives in `core/management/commands/seed_defaults.py` (`ROLE_PERMISSION_MATRIX`) and is
+  authoritative for the six seeded roles: a re-seed grants/updates/revokes to match it,
+  and validates every `model_label` against the app registry. Read on `accounts.GLEntry`
+  / `stock.Bin` — i.e. access to the financial and stock reports — is reserved for the
+  Accounts and Stock Managers.
 
 ## Test coverage by app (≈ #tests)
 
 `core` ✅ (tests 18, test_security 10, test_e2e 12) · `accounts` ✅ (14) · `stock` ✅ (13) ·
-`users` ✅ (8) · `buying` ~ (6) · `selling` ~ (6). No app is untested.
+`users` ✅ (tests 8, test_rbac 26) · `buying` ~ (6) · `selling` ~ (6). No app is untested.
 
 ---
 
@@ -64,10 +77,10 @@ Models: `Role`, `UserRole`, `RolePermission` (+ custom `User`).
 | `token/` | POST | JWT obtain | Public (throttled `auth`) | O(1) | ✅ | SimpleJWT | User | No | Brute-force throttle |
 | `token/refresh/` | POST | Refresh JWT | Public (throttled) | O(1) | ✅ | SimpleJWT | — | No | |
 | `me/` | GET | Current user + roles/permissions | Auth | O(1) | ✅ | `CurrentUserSerializer` | User, UserRole, RolePermission | N/A | |
-| `roles/` | GET/POST | Role registry | Auth + RBAC | O(n) | ✅ | `RoleSerializer` | Role | No | |
-| `roles/{pk}/` | GET/PUT/PATCH/DELETE | Role CRUD | Auth + RBAC | O(1) | ✅ | `RoleSerializer` | Role, UserRole | No | |
-| `permissions/` | GET/POST | Role→permission grants | Auth + RBAC | O(n) | ✅ | `RolePermissionSerializer` | RolePermission | No | Governs every other endpoint's access |
-| `permissions/{pk}/` | GET/PUT/PATCH/DELETE | Permission CRUD | Auth + RBAC | O(1) | ✅ | `RolePermissionSerializer` | RolePermission | No | |
+| `roles/` | GET/POST | Role registry | Auth + RBAC `users.Role` | O(n) | ✅ | `RoleSerializer` | Role | No | Was `IsAdminUser`; now RBAC-gated on `users.Role` (seeded *System Manager* role, or superuser) |
+| `roles/{pk}/` | GET/PUT/PATCH/DELETE | Role CRUD | Auth + RBAC `users.Role` | O(1) | ✅ | `RoleSerializer` | Role, UserRole | No | |
+| `permissions/` | GET/POST | Role→permission grants | Auth + RBAC `users.RolePermission` | O(n) | ✅ | `RolePermissionSerializer` | RolePermission | No | Governs every other endpoint's access. Was `IsAdminUser` — any staff user could grant themselves `can_read` on `accounts.GLEntry` and read the whole ledger |
+| `permissions/{pk}/` | GET/PUT/PATCH/DELETE | Permission CRUD | Auth + RBAC `users.RolePermission` | O(1) | ✅ | `RolePermissionSerializer` | RolePermission | No | |
 
 ---
 

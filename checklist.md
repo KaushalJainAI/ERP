@@ -132,7 +132,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **(V)** = must pass
 - [x] Outbox transactional queue & `verify_integrity` self-healing engine
 - [x] Full RBAC enforced on every endpoint; audit log verified for all mutations
       (report endpoints were closed on 2026-07-23 — see Phase 5)
-- [x] Test coverage: 87 positive & negative tests passing in pytest
+- [x] Test coverage: 113 positive & negative tests passing in pytest
 - [x] Backup/restore & ledger replay validated via `repost_stock` & `repost_gl`
 
 ---
@@ -145,7 +145,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **(V)** = must pass
 ## Phase 5 — Post-MVP hardening (2026-07-23)
 
 Full backend audit; fixes below are in code + tests (`verify_integrity` green,
-87 tests passing). Forward-looking backlog captured in repo-root `improvements.md`.
+87 tests passing at the time). Forward-looking backlog captured in repo-root
+`improvements.md`. (The suite is at 113 after the 2026-10-21 RBAC pass.)
 
 - [x] Security: financial/stock **reports now enforce RBAC** (were login-only and
       fail-open) — `require_model_permission` on all report endpoints
@@ -156,5 +157,11 @@ Full backend audit; fixes below are in code + tests (`verify_integrity` green,
 - [x] Validation: reject `qty<=0` / negative rate; reject **cross-company** and
       **same-account** postings; **atomic** nested create
 - [x] Audit: record delete **after** it succeeds; corrected `gl.repost()` docstring
-- [ ] Backlog (see `improvements.md`): perpetual inventory/COGS, fiscal-period lock,
-      GST, AR/AP allocation, `is_staff` RBAC bypass, FIFO
+- [x] Backlog (see `improvements.md`): perpetual inventory/COGS, fiscal-period lock,
+      GST, AR/AP allocation, FIFO
+- [x] **RBAC pass (2026-10-21)**: `is_staff` no longer bypasses RBAC; the permission
+      check fails closed on an unresolvable view; empty querysets resolve their model
+      (the old truthiness check made every viewset on an empty table fail open);
+      role management moved onto RBAC; the seeded role matrix is scoped, validated
+      against the app registry, and authoritative on re-seed — which is what makes the
+      reports reachable again. 26 new tests (`users/test_rbac.py`); suite at 113.
