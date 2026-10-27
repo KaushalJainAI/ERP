@@ -2,6 +2,16 @@ import { FilePlus2, Receipt, ShoppingCart, UserSquare2, Users, Wallet } from "lu
 import { fetchCompanies } from "@/api/lookups";
 import { mulDec, roundDec, sumDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
+import {
+  gstOptionCell,
+  lineGstColumns,
+  partyGstFields,
+  renderGstSummary,
+  taxHeaderFields,
+  taxPreview,
+  taxTotalFields,
+  taxesTable,
+} from "./gst";
 import { DocStatus, type ChildColumnDef, type FieldDef, type LinkDef, type ResourceConfig } from "@/types";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
@@ -14,7 +24,8 @@ export const customerLink: LinkDef = {
   subLabel: (r) => [r.gstin, r.customer_group_name].filter(Boolean).join(" - ") || undefined,
   display: (v) => v.customer_name,
   filters: (_row, form) => ({ company: form.company, is_active: true }),
-  fill: (r) => ({ customer_name: r.name }),
+  // The GST snapshot (category / GSTIN) is read-only on the document; shown at once, re-derived by the server.
+  fill: (r) => ({ customer_name: r.name, gst_category: r.gst_category ?? "", party_gstin: r.gstin ?? "" }),
 };
 
 export const itemLink: LinkDef = {
@@ -27,6 +38,7 @@ export const itemLink: LinkDef = {
   fill: (r, row) => ({
     item_code: r.code,
     item_name: r.name,
+    gst_hsn_code: r.gst_hsn_code ?? "",
     rate: roundDec(r.standard_rate, 2) ?? row.rate ?? "",
     qty: row.qty ? row.qty : "1",
   }),
@@ -64,6 +76,8 @@ const itemColumns: ChildColumnDef[] = [
     dependsOn: ["qty", "rate"],
     widthClass: "w-36",
   },
+  // HSN, GST rate, CGST / SGST / IGST: server-owned, shown from the saved doc or the dry-run preview.
+  ...lineGstColumns,
 ];
 
 export const itemsTable = {
@@ -142,6 +156,8 @@ const customers: ResourceConfig = {
     { key: "name", labelKey: "fields.customer" },
     { key: "customer_group_name", labelKey: "fields.customer_group" },
     { key: "gstin", labelKey: "fields.gstin" },
+    { key: "gst_category", labelKey: "gst.fields.gst_category", render: gstOptionCell },
+    { key: "state_name", labelKey: "gst.fields.state" },
     { key: "phone", labelKey: "fields.phone" },
     { key: "email", labelKey: "fields.email" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
@@ -156,7 +172,7 @@ const customers: ResourceConfig = {
       required: true,
       link: { endpoint: "/selling/customer-groups/", labelField: "name", display: (v) => v.customer_group_name },
     },
-    { key: "gstin", labelKey: "fields.gstin", type: "text" },
+    ...partyGstFields(),
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
@@ -183,13 +199,17 @@ const salesOrders: ResourceConfig = {
   ],
   fields: [
     docNoField,
-    { ...companyField, clears: ["customer"] },
-    { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink },
+    { ...companyField, clears: ["customer", "taxes_and_charges", "place_of_supply"] },
+    // A new party forgets the place of supply so the server re-defaults it from the party state.
+    { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "delivery_date", labelKey: "fields.delivery_date", type: "date" },
-    grandTotal(),
+    ...taxHeaderFields("Sales"),
+    ...taxTotalFields(),
   ],
-  childTables: [itemsTable],
+  childTables: [itemsTable, taxesTable],
+  preview: taxPreview("selling.SalesOrder", "customer"),
+  renderSummary: renderGstSummary("customer"),
   actions: [
     {
       key: "make_sales_invoice",
@@ -222,8 +242,8 @@ const salesInvoices: ResourceConfig = {
   ],
   fields: [
     docNoField,
-    { ...companyField, clears: ["customer", "debit_to", "income_account", "sales_order"] },
-    { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink },
+    { ...companyField, clears: ["customer", "debit_to", "income_account", "sales_order", "taxes_and_charges", "place_of_supply"] },
+    { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -240,9 +260,12 @@ const salesInvoices: ResourceConfig = {
     { key: "debit_to", labelKey: "fields.debit_to", type: "link", required: true, link: accountLink("Asset") },
     { key: "income_account", labelKey: "fields.income_account", type: "link", required: true, link: accountLink("Income") },
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
-    grandTotal(),
+    ...taxHeaderFields("Sales"),
+    ...taxTotalFields(),
   ],
-  childTables: [itemsTable],
+  childTables: [itemsTable, taxesTable],
+  preview: taxPreview("selling.SalesInvoice", "customer"),
+  renderSummary: renderGstSummary("customer"),
   actions: [
     {
       key: "make_payment_entry",

@@ -15,6 +15,7 @@ import type {
   SelectOption,
 } from "@/types";
 import { companyField, docNoField } from "./selling";
+import { accountGstFields, gstOptionCell } from "./gst";
 
 /* ---- option lists (values are the backend's TextChoices) ---- */
 
@@ -103,6 +104,8 @@ const accountsMaster: ResourceConfig = {
     { key: "parent_name", labelKey: "acc.fields.parent_account" },
     { key: "root_type", labelKey: "acc.fields.root_type", render: optionCell },
     { key: "account_type", labelKey: "acc.fields.account_type", render: optionCell },
+    { key: "gst_direction", labelKey: "gst.fields.gst_direction", render: gstOptionCell },
+    { key: "gst_component", labelKey: "gst.fields.gst_component" },
     { key: "company_name", labelKey: "acc.fields.company" },
     { key: "is_group", labelKey: "fields.is_group", type: "boolean" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
@@ -120,6 +123,7 @@ const accountsMaster: ResourceConfig = {
     { key: "root_type", labelKey: "acc.fields.root_type", type: "select", required: true, options: ROOT_TYPES },
     { key: "account_type", labelKey: "acc.fields.account_type", type: "select", options: ACCOUNT_TYPES },
     { key: "account_number", labelKey: "acc.fields.account_number", type: "text" },
+    ...accountGstFields(),
     { key: "is_group", labelKey: "fields.is_group", type: "boolean", defaultValue: false },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],

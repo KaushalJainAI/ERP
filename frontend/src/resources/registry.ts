@@ -1,9 +1,10 @@
-import { BookOpen, Boxes, ShoppingBag, ShoppingCart, Users } from "lucide-react";
+import { BookOpen, Boxes, Percent, ShoppingBag, ShoppingCart, Users } from "lucide-react";
 import type { ModuleDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { sellingResources } from "./selling";
 import { accountsLinks, accountsResources } from "./accounts";
 import { buyingResources } from "./buying";
+import { gstResources } from "./gstMasters";
 import { stockReports, stockResources } from "./stock";
 import { usersLinks, usersResources } from "./users";
 
@@ -19,6 +20,7 @@ export const RESOURCES: ResourceConfig[] = [
   ...stockResources,
   ...buyingResources,
   ...accountsResources,
+  ...gstResources,
   ...usersResources,
 ];
 
@@ -41,6 +43,7 @@ export const MODULES: ModuleDef[] = [
   },
   { key: "selling", titleKey: "selling", icon: ShoppingCart },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
+  { key: "gst", titleKey: "gst.title", icon: Percent },
   { key: "users", titleKey: "users", icon: Users, extraLinks: usersLinks },
 ];
 

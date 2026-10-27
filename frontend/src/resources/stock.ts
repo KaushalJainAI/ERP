@@ -4,6 +4,7 @@ import { todayISO } from "@/lib/format";
 import type { LinkDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { companyField, docNoField, itemLink, warehouseLink } from "./selling";
+import { itemGstFields } from "./gst";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
 
@@ -63,8 +64,14 @@ const uoms: ResourceConfig = {
   icon: Ruler,
   titleField: "name",
   ordering: "name",
-  columns: [{ key: "name", labelKey: "bs.fields.uom" }],
-  fields: [{ key: "name", labelKey: "bs.fields.uom", type: "text", required: true }],
+  columns: [
+    { key: "name", labelKey: "bs.fields.uom" },
+    { key: "gst_uqc", labelKey: "gst.fields.gst_uqc" },
+  ],
+  fields: [
+    { key: "name", labelKey: "bs.fields.uom", type: "text", required: true },
+    { key: "gst_uqc", labelKey: "gst.fields.gst_uqc", type: "text", helpKey: "gst.help.gst_uqc" },
+  ],
 };
 
 const itemGroups: ResourceConfig = {
@@ -108,6 +115,8 @@ const items: ResourceConfig = {
     { key: "name", labelKey: "bs.fields.item_name" },
     { key: "item_group_name", labelKey: "bs.fields.item_group" },
     { key: "stock_uom_name", labelKey: "bs.fields.stock_uom" },
+    { key: "gst_hsn_code", labelKey: "gst.fields.hsn_code" },
+    { key: "item_tax_template_name", labelKey: "gst.fields.item_tax_template" },
     { key: "valuation_method", labelKey: "bs.fields.valuation_method" },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "number", render: rateCell },
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean" },
@@ -128,6 +137,7 @@ const items: ResourceConfig = {
     },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "decimal", decimals: 6, defaultValue: "0" },
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true },
+    ...itemGstFields(),
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
     { key: "description", labelKey: "bs.fields.description", type: "textarea" },
   ],

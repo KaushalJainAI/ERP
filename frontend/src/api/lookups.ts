@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { listAllRecords } from "./endpoints";
 import type { LinkRecord } from "@/types";
 
 /**
@@ -53,4 +54,27 @@ export async function fetchCompanies(search = ""): Promise<LinkRecord[]> {
 
 export function resetCompanyCache() {
   cache = null;
+}
+
+/**
+ * GST states / union territories (GET /core/states/, read-only, 2-digit code as
+ * primary key). ~38 rows, so the whole list is loaded once and filtered locally;
+ * this also lets a stored code be resolved to its name without a detail endpoint.
+ */
+let stateCache: LinkRecord[] | null = null;
+let stateInflight: Promise<LinkRecord[]> | null = null;
+
+export async function fetchStates(search = ""): Promise<LinkRecord[]> {
+  if (!stateCache) {
+    stateInflight = stateInflight || listAllRecords("/core/states/", { is_active: true });
+    try {
+      stateCache = await stateInflight;
+    } finally {
+      stateInflight = null;
+    }
+  }
+  const q = search.trim().toLowerCase();
+  return q
+    ? stateCache.filter((s) => `${s.code} ${s.name} ${s.abbr ?? ""}`.toLowerCase().includes(q))
+    : stateCache;
 }

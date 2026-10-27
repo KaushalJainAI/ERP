@@ -23,6 +23,9 @@ export const newRowKey = () => `r${++rowCounter}`;
 
 /** Value shown in a computed column: server value if its inputs are unchanged, else a client estimate. */
 export function computedValue(col: ChildColumnDef, row: Row): string | null {
+  // A server-owned read-only column (no client estimate) always shows the row's current value,
+  // which is the saved value after a load and the dry-run value after a preview.
+  if (!col.preview) return row[col.key] ?? null;
   const srv = row._srv as Row | undefined;
   if (srv && srv[col.key] !== undefined && srv[col.key] !== null) {
     const deps = col.dependsOn ?? [];

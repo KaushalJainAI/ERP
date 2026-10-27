@@ -1,7 +1,16 @@
 import { FilePlus2, Receipt, ShoppingBag, Truck, Users, Wallet } from "lucide-react";
 import { todayISO } from "@/lib/format";
 import { DocStatus, type LinkDef, type ResourceConfig } from "@/types";
-import { accountLink, companyField, docNoField, grandTotal, itemsTable } from "./selling";
+import { accountLink, companyField, docNoField, itemsTable } from "./selling";
+import {
+  gstOptionCell,
+  partyGstFields,
+  renderGstSummary,
+  taxHeaderFields,
+  taxPreview,
+  taxTotalFields,
+  taxesTable,
+} from "./gst";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
 
@@ -11,7 +20,7 @@ export const supplierLink: LinkDef = {
   subLabel: (r) => [r.gstin, r.supplier_group_name].filter(Boolean).join(" - ") || undefined,
   display: (v) => v.supplier_name,
   filters: (_row, form) => ({ company: form.company, is_active: true }),
-  fill: (r) => ({ supplier_name: r.name }),
+  fill: (r) => ({ supplier_name: r.name, gst_category: r.gst_category ?? "", party_gstin: r.gstin ?? "" }),
 };
 
 const supplierGroupLink: LinkDef = {
@@ -62,6 +71,8 @@ const suppliers: ResourceConfig = {
     { key: "name", labelKey: "bs.fields.supplier" },
     { key: "supplier_group_name", labelKey: "bs.fields.supplier_group" },
     { key: "gstin", labelKey: "fields.gstin" },
+    { key: "gst_category", labelKey: "gst.fields.gst_category", render: gstOptionCell },
+    { key: "state_name", labelKey: "gst.fields.state" },
     { key: "phone", labelKey: "fields.phone" },
     { key: "email", labelKey: "fields.email" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
@@ -76,7 +87,7 @@ const suppliers: ResourceConfig = {
       required: true,
       link: supplierGroupLink,
     },
-    { key: "gstin", labelKey: "fields.gstin", type: "text" },
+    ...partyGstFields(),
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
@@ -103,13 +114,16 @@ const purchaseOrders: ResourceConfig = {
   ],
   fields: [
     docNoField,
-    { ...companyField, clears: ["supplier"] },
-    { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink },
+    { ...companyField, clears: ["supplier", "taxes_and_charges", "place_of_supply"] },
+    { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "schedule_date", labelKey: "bs.fields.schedule_date", type: "date" },
-    grandTotal(),
+    ...taxHeaderFields("Purchase"),
+    ...taxTotalFields(),
   ],
-  childTables: [itemsTable],
+  childTables: [itemsTable, taxesTable],
+  preview: taxPreview("buying.PurchaseOrder", "supplier"),
+  renderSummary: renderGstSummary("supplier"),
   actions: [
     {
       key: "make_purchase_invoice",
@@ -142,8 +156,8 @@ const purchaseInvoices: ResourceConfig = {
   ],
   fields: [
     docNoField,
-    { ...companyField, clears: ["supplier", "credit_to", "expense_account", "purchase_order"] },
-    { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink },
+    { ...companyField, clears: ["supplier", "credit_to", "expense_account", "purchase_order", "taxes_and_charges", "place_of_supply"] },
+    { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -160,9 +174,12 @@ const purchaseInvoices: ResourceConfig = {
     { key: "credit_to", labelKey: "bs.fields.credit_to", type: "link", required: true, link: accountLink("Liability") },
     { key: "expense_account", labelKey: "bs.fields.expense_account", type: "link", required: true, link: accountLink("Expense") },
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
-    grandTotal(),
+    ...taxHeaderFields("Purchase"),
+    ...taxTotalFields(),
   ],
-  childTables: [itemsTable],
+  childTables: [itemsTable, taxesTable],
+  preview: taxPreview("buying.PurchaseInvoice", "supplier"),
+  renderSummary: renderGstSummary("supplier"),
   actions: [
     {
       key: "make_payment_entry",

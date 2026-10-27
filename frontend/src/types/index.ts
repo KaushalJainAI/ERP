@@ -120,6 +120,29 @@ export interface FieldDef {
   helpKey?: string;
   /** Keys of other fields to reset when this one changes (e.g. company -> customer). */
   clears?: string[];
+  /**
+   * Server-side check run when the (text) input loses focus - e.g. GSTIN
+   * validation. Never blocks saving; the server re-validates on save.
+   */
+  check?: FieldCheckDef;
+}
+
+/** Result of interpreting a field-check response. */
+export interface FieldCheckResult {
+  ok: boolean;
+  /** Shown under the input when !ok (typically the server's own reason). */
+  message?: string;
+  /** Values merged into the form when the check ran (e.g. state from the GSTIN prefix). */
+  fill?: Record<string, any>;
+}
+
+export interface FieldCheckDef {
+  /** GET endpoint relative to the API base; the value is sent as `?<param>=`. */
+  endpoint: string;
+  param: string;
+  /** i18n key shown (green) when the check passes. */
+  okKey: string;
+  interpret: (response: any, values: Record<string, any>) => FieldCheckResult;
 }
 
 export interface ChildColumnDef {
@@ -159,6 +182,60 @@ export interface ChildTableDef {
   newRow?: () => Record<string, any>;
   /** Column keys copied from the previous row when adding a row (e.g. warehouse). */
   inheritFromPrevious?: string[];
+  /**
+   * Rows the server derives (e.g. the tax table from a tax template). Requires
+   * `ResourceConfig.preview`. While "derived" the rows come from the preview
+   * response and are OMITTED from the save payload (the server re-derives them);
+   * once the user edits a row by hand the table turns "manual" and is sent as
+   * edited. A new document starts derived; a saved one starts manual (as saved)
+   * until a field in `PreviewDef.rederiveOn` changes.
+   */
+  derived?: boolean;
+}
+
+/** Context the preview hook gets when merging a response into the form. */
+export interface PreviewApplyContext {
+  values: Record<string, any>;
+  tables: Record<string, Record<string, any>[]>;
+  /** Derived tables the user has taken over by hand. */
+  manual: ReadonlySet<string>;
+}
+
+/**
+ * Server-side preview of a whole document (dry run). While a draft has unsaved
+ * changes the form debounces a POST to `endpoint` and merges the response back,
+ * so computed totals/columns always come from the server's own engine instead of
+ * a client re-implementation. Stale responses are dropped.
+ */
+export interface PreviewDef {
+  /** POST endpoint relative to the API base. */
+  endpoint: string;
+  /** Debounce before a request is sent. Default 500 ms. */
+  debounceMs?: number;
+  /**
+   * Request body from the form (header values with child tables merged in by key;
+   * `manual` = derived tables the user edited by hand). Return null while the
+   * form is not ready for a preview (e.g. no customer yet). Must only read INPUT
+   * fields - never values written by `apply` - or it would loop.
+   */
+  buildRequest: (values: Record<string, any>, manual: ReadonlySet<string>) => Record<string, any> | null;
+  /** Merge a response into the form: header `values` and/or whole replacement `tables`. */
+  apply: (
+    response: any,
+    ctx: PreviewApplyContext
+  ) => { values?: Record<string, any>; tables?: Record<string, Record<string, any>[]> };
+  /** Header fields that, when the user changes them, put every `derived` table back to "derived". */
+  rederiveOn?: string[];
+}
+
+/** Live state of the preview, handed to `renderSummary`. */
+export interface PreviewState {
+  /** Last response that matches the current form, if any. */
+  data: any | null;
+  /** Human-readable errors of the last dry run (empty when it succeeded). */
+  errors: string[];
+  /** A request is queued or in flight. */
+  pending: boolean;
 }
 
 export interface DocAction {
@@ -237,7 +314,15 @@ export interface ResourceConfig {
    * Journal Entry "balanced / not balanced" warning). `values` is the form with
    * child tables merged in by key (values.lines = rows).
    */
-  renderSummary?: (ctx: { values: Record<string, any>; dirty: boolean; editable: boolean }) => ReactNode;
+  renderSummary?: (ctx: {
+    values: Record<string, any>;
+    dirty: boolean;
+    editable: boolean;
+    /** Present when the resource defines `preview`. */
+    preview?: PreviewState;
+  }) => ReactNode;
+  /** Dry-run preview of the whole document (see PreviewDef). */
+  preview?: PreviewDef;
 }
 
 export interface NavLink {

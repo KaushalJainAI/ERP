@@ -29,6 +29,8 @@ interface FieldInputProps {
   compact?: boolean;
   id?: string;
   placeholder?: string;
+  /** Text-like inputs only: fired when the input loses focus (server-side field checks). */
+  onBlur?: () => void;
 }
 
 const defaultDecimals = (type: FieldType) => (type === "number" ? 3 : 2);
@@ -47,6 +49,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
   compact,
   id,
   placeholder,
+  onBlur,
 }) => {
   const { t } = useTranslation();
   const pad = compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm";
@@ -183,6 +186,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
           value={value ?? ""}
           disabled={readOnly}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           className={base}
         />
       );

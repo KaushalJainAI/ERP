@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, ArrowLeft, Ban, CheckCircle2, Loader2, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
+import { useDebounced } from "@/hooks/useDebounced";
 import { Layout } from "@/components/Layout";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -20,7 +21,16 @@ import {
   type NormalisedError,
 } from "@/api/endpoints";
 import { apiClient } from "@/api/client";
-import { DocStatus, type ApiRecord, type DocAction, type FieldDef, type LinkRecord, type ResourceConfig } from "@/types";
+import {
+  DocStatus,
+  type ApiRecord,
+  type DocAction,
+  type FieldCheckResult,
+  type FieldDef,
+  type LinkRecord,
+  type PreviewState,
+  type ResourceConfig,
+} from "@/types";
 
 type Values = Record<string, any>;
 type Tables = Record<string, Row[]>;
@@ -68,7 +78,14 @@ function cleanValue(f: { type: string }, v: any, isNew: boolean) {
   return v;
 }
 
-function buildPayload(config: ResourceConfig, values: Values, tables: Tables, isNew: boolean): ApiRecord {
+function buildPayload(
+  config: ResourceConfig,
+  values: Values,
+  tables: Tables,
+  isNew: boolean,
+  /** Server-derived tables left out of the payload (the server re-derives them). */
+  omit: ReadonlySet<string> = new Set()
+): ApiRecord {
   const payload: ApiRecord = {};
   config.fields.forEach((f) => {
     if (f.readOnly || f.preview) return;
@@ -77,6 +94,7 @@ function buildPayload(config: ResourceConfig, values: Values, tables: Tables, is
     if (v !== undefined) payload[f.key] = v;
   });
   (config.childTables ?? []).forEach((t) => {
+    if (omit.has(t.key)) return;
     payload[t.key] = (tables[t.key] ?? []).map((row) => {
       const out: ApiRecord = {};
       t.columns.forEach((c) => {
@@ -173,8 +191,64 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const [serverErr, setServerErr] = useState<NormalisedError | null>(null);
   const [clientErr, setClientErr] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<Confirm>(null);
+  const [checks, setChecks] = useState<Record<string, FieldCheckResult | undefined>>({});
 
   const dirty = snapshot(values, tables) !== initialSnap;
+
+  /* ---- server-side preview (config.preview) ---- */
+  const pv = config.preview;
+  const derivedKeys = useMemo(() => (config.childTables ?? []).filter((c) => c.derived).map((c) => c.key), [config]);
+  // Derived tables the user took over by hand. A saved document starts as saved ("manual").
+  const [manual, setManual] = useState<ReadonlySet<string>>(() => new Set(isNew ? [] : derivedKeys));
+  const previewActive = !!pv && editable && (isNew || dirty);
+  const reqKey = useMemo(() => {
+    if (!pv || !previewActive) return null;
+    const body = pv.buildRequest({ ...values, ...tables }, manual);
+    return body ? JSON.stringify(body) : null;
+  }, [pv, previewActive, values, tables, manual]);
+  const debouncedKey = useDebounced(reqKey, pv?.debounceMs ?? 500);
+  const inSync = reqKey !== null && reqKey === debouncedKey;
+  const previewQ = useQuery({
+    queryKey: ["preview", config.key, debouncedKey],
+    queryFn: async () => (await apiClient.post(pv!.endpoint, JSON.parse(debouncedKey!))).data,
+    enabled: !!pv && debouncedKey !== null,
+    retry: false,
+    staleTime: 0,
+  });
+  const previewData = inSync && previewQ.data ? previewQ.data : null;
+
+  // Merge a response that matches the CURRENT form (stale ones are dropped) into the form.
+  useEffect(() => {
+    if (!pv || !previewData) return;
+    const out = pv.apply(previewData, { values, tables, manual });
+    if (out.values) setValues((v) => ({ ...v, ...out.values }));
+    const patch = out.tables;
+    if (patch) {
+      setTables((prev) => {
+        const next = { ...prev };
+        Object.entries(patch).forEach(([k, rows]) => {
+          next[k] = rows.map((r) => (r._key ? (r as Row) : { ...r, _key: newRowKey() }));
+        });
+        return next;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewData]);
+
+  const previewErrors = (): string[] => {
+    if (!inSync || !previewQ.error || previewQ.isFetching) return [];
+    const n = normaliseError(previewQ.error, derivedKeys);
+    if (n.forbidden) return [];
+    return [
+      ...n.general,
+      ...Object.values(n.fields).flat(),
+      ...Object.values(n.tables).flat(),
+      ...Object.values(n.rows).flatMap((byRow) => Object.values(byRow).flatMap((c) => Object.values(c).flat())),
+    ];
+  };
+  const previewState: PreviewState | undefined = pv
+    ? { data: previewData, errors: previewErrors(), pending: reqKey !== null && (!inSync || previewQ.isFetching) }
+    : undefined;
 
   // Auto-pick the only option of a required lookup-backed link (e.g. the single company).
   useEffect(() => {
@@ -195,6 +269,8 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
 
   /* ---- field editing ---- */
   const setField = (f: FieldDef, value: any, record?: LinkRecord | null) => {
+    if (pv?.rederiveOn?.includes(f.key)) setManual((m) => new Set([...m].filter((k) => !derivedKeys.includes(k))));
+    if (f.check) setChecks((c) => ({ ...c, [f.key]: undefined }));
     setValues((prev) => {
       const next: Values = { ...prev, [f.key]: value };
       if (record && f.link?.fill) Object.assign(next, f.link.fill(record, next));
@@ -210,6 +286,21 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
       return rest;
     });
     setServerErr((s) => (s && s.fields[f.key] ? { ...s, fields: { ...s.fields, [f.key]: [] } } : s));
+  };
+
+  /** Run a field's server-side check (on blur). Never blocks; the server re-validates on save. */
+  const runCheck = async (f: FieldDef) => {
+    const chk = f.check;
+    const raw = values[f.key];
+    if (!chk || isEmpty(raw)) return;
+    try {
+      const res = await apiClient.get(chk.endpoint, { params: { [chk.param]: String(raw).trim() } });
+      const out = chk.interpret(res.data, values);
+      setChecks((c) => ({ ...c, [f.key]: out }));
+      if (out.fill) setValues((v) => ({ ...v, ...out.fill }));
+    } catch {
+      setChecks((c) => ({ ...c, [f.key]: undefined })); // a failed check is simply not shown
+    }
   };
 
   /* ---- mutations ---- */
@@ -253,7 +344,8 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   };
 
   const persist = async (): Promise<ApiRecord> => {
-    const payload = buildPayload(config, values, tables, isNew);
+    const omit = new Set(derivedKeys.filter((k) => !manual.has(k)));
+    const payload = buildPayload(config, values, tables, isNew, omit);
     return isNew ? createRecord(config.endpoint, payload) : updateRecord(config.endpoint, doc!.id!, payload);
   };
 
@@ -507,11 +599,17 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
                       values={formValues}
                       parentValues={formValues}
                       readOnly={ro}
-                      invalid={!!err}
+                      invalid={!!err || (!!f.check && checks[f.key]?.ok === false)}
                       onChange={(v) => setField(f, v)}
                       onLinkSelect={(v, rec) => setField(f, v, rec)}
+                      onBlur={f.check ? () => void runCheck(f) : undefined}
                     />
                   </>
+                )}
+                {f.check && checks[f.key] && (
+                  <p className={`text-[11px] mt-1 ${checks[f.key]!.ok ? "text-emerald-400" : "text-rose-400"}`}>
+                    {checks[f.key]!.ok ? t(f.check.okKey) : checks[f.key]!.message}
+                  </p>
                 )}
                 {f.helpKey && !err && editable && <p className="text-[11px] text-slate-500 mt-1">{t(f.helpKey)}</p>}
                 {err && <p className="text-[11px] text-rose-400 mt-1">{err}</p>}
@@ -539,6 +637,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
             errors={rowErrs}
             tableErrors={serverErr?.tables[tb.key]}
             onChange={(rows) => {
+              if (tb.derived) setManual((m) => (m.has(tb.key) ? m : new Set([...m, tb.key])));
               setTables((prev) => ({ ...prev, [tb.key]: rows }));
               setServerErr((s) => (s ? { ...s, rows: { ...s.rows, [tb.key]: {} } } : s));
             }}
@@ -557,7 +656,14 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
                   <dt className="text-xs uppercase tracking-wider text-slate-400">{t(f.labelKey)}</dt>
                   <dd className="text-lg font-semibold text-slate-100 tabular-nums">
                     {formatReadOnly(f, live)}
-                    {dirty && <span className="ml-2 text-[10px] font-normal text-amber-400">{t("common.estimate")}</span>}
+                    {previewState?.pending ? (
+                      <Loader2 className="inline w-3 h-3 ml-2 animate-spin text-slate-500" aria-label={t("common.loading")} />
+                    ) : (
+                      dirty &&
+                      !previewState?.data && (
+                        <span className="ml-2 text-[10px] font-normal text-amber-400">{t("common.estimate")}</span>
+                      )
+                    )}
                   </dd>
                 </div>
               );
@@ -566,7 +672,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
         </div>
       )}
 
-      {config.renderSummary?.({ values: formValues, dirty, editable })}
+      {config.renderSummary?.({ values: formValues, dirty, editable, preview: previewState })}
 
       {/* confirmations */}
       <ConfirmDialog

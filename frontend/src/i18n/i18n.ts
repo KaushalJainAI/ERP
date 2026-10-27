@@ -6,6 +6,7 @@ import { enDashboard } from "./en.dashboard";
 import { enAccounts } from "./en.accounts";
 import { enBuyingStock } from "./en.buying_stock";
 import { enUsers } from "./en.users";
+import { enGst } from "./en.gst";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -67,6 +68,7 @@ const resources = {
       ...enAccounts,
       ...enBuyingStock,
       ...enUsers,
+      ...enGst,
     },
   },
 };
