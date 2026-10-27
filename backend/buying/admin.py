@@ -6,8 +6,10 @@ from core.admin import SubmittableDocumentAdmin, TimeStampedAdminMixin
 from buying.models import (
     PurchaseInvoice,
     PurchaseInvoiceItem,
+    PurchaseInvoiceTax,
     PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseOrderTax,
     Supplier,
     SupplierGroup,
 )
@@ -51,6 +53,23 @@ class PurchaseOrderItemInline(admin.TabularInline):
     readonly_fields = ("amount",)
 
 
+class PurchaseOrderTaxInline(admin.TabularInline):
+    model = PurchaseOrderTax
+    extra = 0
+    autocomplete_fields = ("account",)
+    fields = (
+        "idx",
+        "account",
+        "description",
+        "rate",
+        "add_deduct_tax",
+        "net_amount",
+        "tax_amount",
+        "total",
+    )
+    readonly_fields = ("net_amount", "tax_amount", "total")
+
+
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(SubmittableDocumentAdmin):
     list_display = (
@@ -66,8 +85,17 @@ class PurchaseOrderAdmin(SubmittableDocumentAdmin):
     search_fields = ("name", "supplier__name")
     date_hierarchy = "transaction_date"
     autocomplete_fields = ("supplier", "company", "amended_from")
-    inlines = [PurchaseOrderItemInline]
-    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    inlines = [PurchaseOrderItemInline, PurchaseOrderTaxInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + (
+        "grand_total",
+        "gst_category",
+        "party_gstin",
+        "company_gstin",
+        "net_total",
+        "total_taxes_and_charges",
+        "rounding_adjustment",
+        "rounded_total",
+    )
     fieldsets = (
         (
             None,
@@ -78,6 +106,24 @@ class PurchaseOrderAdmin(SubmittableDocumentAdmin):
                     "company",
                     "transaction_date",
                     "schedule_date",
+                )
+            },
+        ),
+        (
+            "GST",
+            {
+                "fields": (
+                    "taxes_and_charges",
+                    "place_of_supply",
+                    "is_export_with_gst",
+                    "is_reverse_charge",
+                    "gst_category",
+                    "party_gstin",
+                    "company_gstin",
+                    "net_total",
+                    "total_taxes_and_charges",
+                    "rounding_adjustment",
+                    "rounded_total",
                 )
             },
         ),
@@ -98,6 +144,23 @@ class PurchaseInvoiceItemInline(admin.TabularInline):
     autocomplete_fields = ("item", "warehouse")
     fields = ("item", "warehouse", "qty", "rate", "amount")
     readonly_fields = ("amount",)
+
+
+class PurchaseInvoiceTaxInline(admin.TabularInline):
+    model = PurchaseInvoiceTax
+    extra = 0
+    autocomplete_fields = ("account",)
+    fields = (
+        "idx",
+        "account",
+        "description",
+        "rate",
+        "add_deduct_tax",
+        "net_amount",
+        "tax_amount",
+        "total",
+    )
+    readonly_fields = ("net_amount", "tax_amount", "total")
 
 
 @admin.register(PurchaseInvoice)
@@ -123,8 +186,17 @@ class PurchaseInvoiceAdmin(SubmittableDocumentAdmin):
         "expense_account",
         "amended_from",
     )
-    inlines = [PurchaseInvoiceItemInline]
-    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    inlines = [PurchaseInvoiceItemInline, PurchaseInvoiceTaxInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + (
+        "grand_total",
+        "gst_category",
+        "party_gstin",
+        "company_gstin",
+        "net_total",
+        "total_taxes_and_charges",
+        "rounding_adjustment",
+        "rounded_total",
+    )
     fieldsets = (
         (
             None,
@@ -141,6 +213,24 @@ class PurchaseInvoiceAdmin(SubmittableDocumentAdmin):
             },
         ),
         ("Accounts", {"fields": ("credit_to", "expense_account")}),
+        (
+            "GST",
+            {
+                "fields": (
+                    "taxes_and_charges",
+                    "place_of_supply",
+                    "is_export_with_gst",
+                    "is_reverse_charge",
+                    "gst_category",
+                    "party_gstin",
+                    "company_gstin",
+                    "net_total",
+                    "total_taxes_and_charges",
+                    "rounding_adjustment",
+                    "rounded_total",
+                )
+            },
+        ),
         ("Status", {"fields": ("docstatus", "amended_from", "grand_total")}),
         (
             "Audit",

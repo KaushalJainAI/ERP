@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
@@ -19,7 +21,15 @@ from core.mixins import (
     NestedMasterWriteMixin,
     TranslatedSerializerMixin,
 )
-from gst.constants import GSTDirection, TemplateType
+from core.models import Company, State
+from stock.models import Item
+from gst.constants import (
+    AddDeduct,
+    ChargeType,
+    GSTDirection,
+    TaxCategory,
+    TemplateType,
+)
 
 
 class AccountSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
@@ -381,3 +391,192 @@ class TaxTemplateSerializer(NestedMasterWriteMixin, serializers.ModelSerializer)
                     }
                 )
         return attrs
+
+
+# ------------------------------------------------------- taxable documents
+
+#: Header fields every taxable document serializer adds (SO / SI / PO / PI).
+TAX_HEADER_WRITABLE = (
+    "taxes_and_charges",
+    "place_of_supply",
+    "is_export_with_gst",
+    "is_reverse_charge",
+)
+TAX_HEADER_READ_ONLY = (
+    "gst_category",
+    "party_gstin",
+    "company_gstin",
+    "net_total",
+    "total_taxes_and_charges",
+    "rounding_adjustment",
+    "rounded_total",
+)
+#: GST columns of a document line (all server-owned).
+LINE_GST_FIELDS = (
+    "gst_hsn_code",
+    "gst_treatment",
+    "item_tax_template",
+    "item_tax_rate",
+    "gst_rate",
+    "cgst_amount",
+    "sgst_amount",
+    "igst_amount",
+)
+
+
+class TaxRowSerializerBase(serializers.ModelSerializer):
+    """A document tax row. Inputs: ``charge_type``, ``account``, ``description``,
+    ``rate``, ``add_deduct_tax``, ``category``. ``net_amount`` / ``tax_amount`` /
+    ``total`` and ``idx`` are calculated by the server."""
+
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    gst_direction = serializers.CharField(
+        source="account.gst_direction", read_only=True, allow_null=True
+    )
+    gst_component = serializers.CharField(
+        source="account.gst_component", read_only=True, allow_null=True
+    )
+    rate = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        default=Decimal("0"),
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+    )
+
+    class Meta:
+        fields = (
+            "id",
+            "idx",
+            "charge_type",
+            "account",
+            "account_name",
+            "gst_direction",
+            "gst_component",
+            "description",
+            "rate",
+            "add_deduct_tax",
+            "category",
+            "net_amount",
+            "tax_amount",
+            "total",
+        )
+        read_only_fields = ("idx", "net_amount", "tax_amount", "total")
+        # The (parent, idx) / (parent, account) uniqueness is checked by the
+        # document serializer (the parent FK is not a field here).
+        validators = []
+
+
+def tax_row_serializer(model_class):
+    """Build the nested tax-row serializer for one concrete tax-row model."""
+
+    class _Meta(TaxRowSerializerBase.Meta):
+        model = model_class
+
+    return type(
+        f"{model_class.__name__}Serializer",
+        (TaxRowSerializerBase,),
+        {"Meta": _Meta, "__module__": __name__},
+    )
+
+
+class TaxableSerializerMixin:
+    """Serializer mixin for SO / SI / PO / PI (put before ``DraftNestedWriteMixin``).
+
+    Adds the tax table as a second nested child, checks it for duplicate accounts and
+    forgets the stored place of supply when the party changes (so it is defaulted for
+    the new party).
+    """
+
+    extra_children_fields = ("taxes",)
+
+    def validate_taxes(self, rows):
+        accounts = [r["account"].pk for r in rows if "account" in r]
+        if len(accounts) != len(set(accounts)):
+            raise serializers.ValidationError(
+                _("Each tax account may appear only once in the tax table.")
+            )
+        return rows
+
+    def update(self, instance, validated_data):
+        party_field = self.Meta.model.party_field
+        if (
+            "place_of_supply" not in validated_data
+            and party_field in validated_data
+            and validated_data[party_field] != getattr(instance, party_field)
+        ):
+            validated_data["place_of_supply"] = None
+        return super().update(instance, validated_data)
+
+
+# ------------------------------------------------------- dry-run calculation
+
+
+class TaxCalcItemSerializer(serializers.Serializer):
+    item = serializers.PrimaryKeyRelatedField(queryset=Item.objects.all())
+    qty = serializers.DecimalField(
+        max_digits=18, decimal_places=3, min_value=Decimal("0")
+    )
+    rate = serializers.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0")
+    )
+
+    def validate_qty(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(_("Quantity must be greater than zero."))
+        return value
+
+
+class TaxCalcRowSerializer(serializers.Serializer):
+    account = serializers.PrimaryKeyRelatedField(queryset=Account.objects.all())
+    rate = serializers.DecimalField(
+        max_digits=7,
+        decimal_places=3,
+        default=Decimal("0"),
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+    )
+    charge_type = serializers.ChoiceField(
+        choices=ChargeType.choices, default=ChargeType.ON_NET_TOTAL
+    )
+    add_deduct_tax = serializers.ChoiceField(choices=AddDeduct.choices, default="Add")
+    category = serializers.ChoiceField(
+        choices=TaxCategory.choices, default=TaxCategory.TOTAL
+    )
+    description = serializers.CharField(
+        max_length=200, required=False, allow_blank=True
+    )
+
+
+class TaxCalculateSerializer(serializers.Serializer):
+    """Request of ``POST /api/accounts/taxes/calculate/`` (a stateless dry run)."""
+
+    DOCTYPES = (
+        "selling.SalesOrder",
+        "selling.SalesInvoice",
+        "buying.PurchaseOrder",
+        "buying.PurchaseInvoice",
+    )
+
+    doctype = serializers.ChoiceField(choices=[(d, d) for d in DOCTYPES])
+    company = serializers.PrimaryKeyRelatedField(queryset=Company.objects.all())
+    party = serializers.IntegerField()
+    posting_date = serializers.DateField(required=False, allow_null=True)
+    place_of_supply = serializers.PrimaryKeyRelatedField(
+        queryset=State.objects.all(), required=False, allow_null=True
+    )
+    is_export_with_gst = serializers.BooleanField(default=False)
+    is_reverse_charge = serializers.BooleanField(default=False)
+    taxes_and_charges = serializers.PrimaryKeyRelatedField(
+        queryset=TaxTemplate.objects.all(), required=False, allow_null=True
+    )
+    items = TaxCalcItemSerializer(many=True, allow_empty=False)
+    taxes = TaxCalcRowSerializer(many=True, required=False)
+
+    def validate_taxes(self, rows):
+        accounts = [r["account"].pk for r in rows]
+        if len(accounts) != len(set(accounts)):
+            raise serializers.ValidationError(
+                _("Each tax account may appear only once in the tax table.")
+            )
+        return rows

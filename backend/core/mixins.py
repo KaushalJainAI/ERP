@@ -54,6 +54,9 @@ class DraftNestedWriteMixin:
     """
 
     children_field = "items"
+    #: Further nested child tables (e.g. ``("taxes",)`` on taxable documents),
+    #: written after ``children_field``.
+    extra_children_fields = ()
     name_prefix = ""
 
     def get_extra_kwargs(self):
@@ -65,18 +68,22 @@ class DraftNestedWriteMixin:
 
     # ----------------------------------------------------------- introspection
 
-    def _child_model(self):
-        return self.fields[self.children_field].child.Meta.model
+    def _all_child_fields(self):
+        return (self.children_field, *self.extra_children_fields)
 
-    def _parent_fk_name(self):
+    def _child_model(self, field=None):
+        return self.fields[field or self.children_field].child.Meta.model
+
+    def _parent_fk_name(self, field=None):
         parent_model = self.Meta.model
-        for field in self._child_model()._meta.fields:
+        child_model = self._child_model(field)
+        for model_field in child_model._meta.fields:
             if (
-                isinstance(field, dj_models.ForeignKey)
-                and field.related_model is parent_model
+                isinstance(model_field, dj_models.ForeignKey)
+                and model_field.related_model is parent_model
             ):
-                return field.name
-        raise RuntimeError(f"{self._child_model()} has no FK to {parent_model}")
+                return model_field.name
+        raise RuntimeError(f"{child_model} has no FK to {parent_model}")
 
     # -------------------------------------------------------------- validation
 
@@ -85,35 +92,42 @@ class DraftNestedWriteMixin:
         # On a partial update DRF skips "required" for nested rows too, so a PATCH
         # replacing the children could slip an incomplete row through to the
         # database (a 500). A replacement child set must be complete, like create.
-        if self.partial and self.children_field in attrs:
-            child_fields = self.fields[self.children_field].child.fields
-            required = [
-                name
-                for name, f in child_fields.items()
-                if f.required and not f.read_only
-            ]
-            for index, row in enumerate(attrs[self.children_field]):
-                missing = [name for name in required if name not in row]
-                if missing:
-                    raise DRFValidationError(
-                        {
-                            self.children_field: {
-                                index: {
-                                    name: ["This field is required."]
-                                    for name in missing
+        if self.partial:
+            for field in self._all_child_fields():
+                if field not in attrs:
+                    continue
+                child_fields = self.fields[field].child.fields
+                required = [
+                    name
+                    for name, f in child_fields.items()
+                    if f.required and not f.read_only
+                ]
+                for index, row in enumerate(attrs[field]):
+                    missing = [name for name in required if name not in row]
+                    if missing:
+                        raise DRFValidationError(
+                            {
+                                field: {
+                                    index: {
+                                        name: ["This field is required."]
+                                        for name in missing
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
         return attrs
 
     # -------------------------------------------------------------- persistence
 
-    def _replace_children(self, instance, rows):
-        child_model = self._child_model()
-        fk = self._parent_fk_name()
+    def _replace_children(self, instance, rows, field=None):
+        child_model = self._child_model(field)
+        fk = self._parent_fk_name(field)
+        has_idx = any(f.name == "idx" for f in child_model._meta.fields)
         child_model.objects.filter(**{fk: instance}).delete()
-        for row in rows:
+        for position, row in enumerate(rows, start=1):
+            row = dict(row)
+            if has_idx:
+                row["idx"] = position
             child_model.objects.create(**{fk: instance}, **row)
         # The viewset prefetches children; drop the stale cache.
         instance._prefetched_objects_cache = {}
@@ -123,6 +137,23 @@ class DraftNestedWriteMixin:
         if hasattr(instance, "recompute_totals"):
             instance.recompute_totals()
             instance.save(update_fields=["total_debit", "total_credit"])
+        elif hasattr(instance, "calculate_taxes_and_totals"):
+            # Taxable documents: the tax engine is the source of truth. Input
+            # problems become a 400 (and roll the surrounding atomic block back),
+            # not the 409 the view maps a bare Django ValidationError to.
+            flags = getattr(instance, "_tax_flags", {})
+            try:
+                instance.calculate_taxes_and_totals(
+                    resolve_lines=True,
+                    expand_template=flags.get("expand_template", False),
+                    auto_select=flags.get("auto_select", False),
+                )
+            except DjangoValidationError as exc:
+                raise DRFValidationError(
+                    exc.message_dict
+                    if hasattr(exc, "error_dict")
+                    else {"non_field_errors": exc.messages}
+                )
         elif hasattr(instance, "grand_total"):
             child_model = self._child_model()
             fk = self._parent_fk_name()
@@ -133,20 +164,58 @@ class DraftNestedWriteMixin:
             instance.grand_total = total
             instance.save(update_fields=["grand_total"])
 
+    def _pop_children(self, validated_data):
+        """Pop every nested child set out of ``validated_data`` (field -> rows)."""
+        return {
+            field: validated_data.pop(field)
+            for field in self._all_child_fields()
+            if field in validated_data
+        }
+
+    def _tax_flags_for(self, validated_data, supplied, is_new):
+        """How the tax engine should treat the tax table on this save.
+
+        Explicit ``taxes`` (even ``[]``) are used as sent. When they are omitted a
+        chosen ``taxes_and_charges`` template is expanded (on create, or when it is
+        part of the update, i.e. an explicit "re-apply the template"); a new
+        document with neither gets the company's default template.
+        """
+        if "taxes" in supplied:
+            return {}
+        template = validated_data.get("taxes_and_charges")
+        if template is not None and (is_new or "taxes_and_charges" in validated_data):
+            return {"expand_template": True}
+        if is_new and template is None:
+            return {"auto_select": True}
+        return {}
+
     def create(self, validated_data):
         from core.models import NamingSeries
 
-        rows = validated_data.pop(self.children_field, [])
+        supplied = self._pop_children(validated_data)
+        flags = (
+            self._tax_flags_for(validated_data, supplied, True)
+            if self.extra_children_fields
+            else {}
+        )
         with transaction.atomic():
             if not validated_data.get("name"):
                 validated_data["name"] = NamingSeries.next(self.name_prefix)
             instance = self.Meta.model.objects.create(**validated_data)
-            self._replace_children(instance, rows)
+            for field in self._all_child_fields():
+                if field in supplied:
+                    self._replace_children(instance, supplied[field], field)
+            instance._tax_flags = flags
             self.refresh_totals(instance)
         return instance
 
     def update(self, instance, validated_data):
-        rows = validated_data.pop(self.children_field, None)
+        supplied = self._pop_children(validated_data)
+        flags = (
+            self._tax_flags_for(validated_data, supplied, False)
+            if self.extra_children_fields
+            else {}
+        )
         model = self.Meta.model
         with transaction.atomic():
             locked = model.objects.select_for_update().get(pk=instance.pk)
@@ -155,8 +224,10 @@ class DraftNestedWriteMixin:
                     "Submitted or cancelled documents cannot be modified."
                 )
             instance = super().update(instance, validated_data)
-            if rows is not None:
-                self._replace_children(instance, rows)
+            for field in self._all_child_fields():
+                if field in supplied:
+                    self._replace_children(instance, supplied[field], field)
+            instance._tax_flags = flags
             self.refresh_totals(instance)
         return instance
 

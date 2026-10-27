@@ -305,3 +305,39 @@ now match that posture.
 - **B2CL thresholds** are constants in `gst/constants.py` (1,00,000 from 2024-08-01, 2,50,000
   before), taken from memory of the notification, not verifiable in this repo.
 - The seeds never invent a company GSTIN or state (production data); they come from `seed_demo`.
+
+## GST tax engine and document model (2026-10-28, docs/gst_design.md Task 2)
+
+- **`grand_total` is now tax-inclusive** on SO/SI/PO/PI, with `net_total` (sum of line amounts),
+  `total_taxes_and_charges`, `rounding_adjustment` and `rounded_total`. DB CHECKs enforce
+  `grand_total = net_total + total_taxes_and_charges` and `rounded_total = grand_total +
+  rounding_adjustment`, with a half-paisa tolerance because SQLite evaluates DECIMAL arithmetic in
+  floating point (exact on PostgreSQL). Existing documents are backfilled `net_total =
+  rounded_total = grand_total`, zero tax, `gst_category = ""` (legacy marker).
+- **`rounded_total` is always populated** (ERPNext zeroes it when rounding is off); rounding is
+  to the nearest rupee, `ROUND_HALF_UP`, when `Company.enable_rounded_total` is on.
+- **Document-level rounding as in ERPNext**: per-line tax is kept unrounded, each tax row is
+  rounded once. The per-line `cgst/sgst/igst_amount` columns are rounded per line and the residual
+  goes to the last taxed line (a negative residual spills backwards so no line goes below 0).
+- **Item tax rates are snapshotted on the line** (`item_tax_rate`, `gst_treatment`, `gst_hsn_code`):
+  re-read from the Item master on every draft save, frozen at submit and amend (ERPNext keeps an
+  `item_tax_rate` JSON on the line too). A never-calculated draft (ORM-created / legacy) is
+  resolved once at submit.
+- **Tax rows (`taxes`) validate at draft time**, not only at submit: an edit that leaves the rows
+  inconsistent with the supply kind is a 400 telling the user to re-apply the template; the server
+  never rewrites rows silently. GST-tagged rows are refused when the company has no GSTIN (or is a
+  composition taxpayer), for composition suppliers, for unregistered / overseas suppliers without
+  reverse charge, for SEZ / overseas customers without `is_export_with_gst`, and as Deduct rows.
+- **Reverse charge** (purchase only): GST rows are memo rows -- computed and shown, excluded from
+  `grand_total`; `total_taxes_and_charges` is 0. Sales `is_reverse_charge` is rejected.
+- **Legacy / ORM-imported parties**: a party stored as Unregistered / Consumer with a GSTIN that
+  passes the checksum is treated as **Registered Regular** on documents; one with an invalid GSTIN
+  is treated as unregistered (GSTIN ignored). Party location = `state`, else the GSTIN prefix, else
+  the company state (for B2C place of supply and for purchases).
+- **Submit gate** (company has a GSTIN): place of supply, HSN/SAC (digits only, 4/6/8, at least
+  `Company.hsn_min_digits`, Non-GST lines exempt), valid party GSTIN + state-prefix match for
+  Registered / Composition / SEZ parties, valid company GSTIN, SI number at most 16 characters.
+  Applied to orders too, not only invoices.
+- **Temporary posting guard (Task 2 only)**: SI / PI `validate_before_submit` refuses a document
+  with a non-zero tax row or `rounding_adjustment` ("GST posting not yet enabled") until Task 3
+  posts them to the GL.

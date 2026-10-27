@@ -586,16 +586,13 @@ class Command(BaseCommand):
             delivery_date=self.d(-6),
             created_by=self.admin,
         )
-        total = Decimal("0.00")
         for code, qty, rate in [("SUGAR-001", "30", "48"), ("TEA-001", "10", "320")]:
-            line = SalesOrderItem.objects.create(
+            SalesOrderItem.objects.create(
                 sales_order=so,
                 item=self.items[code],
                 warehouse=self.stores,
                 qty=_d(qty),
                 rate=_d(rate),
             )
-            total += line.amount
-        so.grand_total = total
-        so.save(update_fields=["grand_total"])
+        so.calculate_taxes_and_totals()
         return [name]

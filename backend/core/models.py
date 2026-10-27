@@ -181,6 +181,10 @@ class SubmittableDocument(TimeStampedModel):
         if hasattr(self, "recompute_totals"):
             self.recompute_totals()
             self.save(update_fields=["total_debit", "total_credit"])
+        elif hasattr(self, "calculate_taxes_and_totals"):
+            # Taxable documents: the tax engine recomputes from the copied rows and
+            # line snapshots (a never-calculated legacy draft is resolved once).
+            self.calculate_taxes_and_totals()
         elif hasattr(self, "grand_total"):
             total = Decimal("0.00")
             for rel in self._meta.related_objects:

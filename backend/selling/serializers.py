@@ -7,6 +7,15 @@ from selling.models import (
     SalesOrderItem,
     SalesInvoice,
     SalesInvoiceItem,
+    SalesOrderTax,
+    SalesInvoiceTax,
+)
+from accounts.serializers import (
+    LINE_GST_FIELDS,
+    TAX_HEADER_READ_ONLY,
+    TAX_HEADER_WRITABLE,
+    TaxableSerializerMixin,
+    tax_row_serializer,
 )
 from core.mixins import (
     DraftNestedWriteMixin,
@@ -87,14 +96,28 @@ class SalesOrderItemSerializer(
             "qty",
             "rate",
             "amount",
+            *LINE_GST_FIELDS,
         )
+        read_only_fields = LINE_GST_FIELDS
 
 
-class SalesOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+SalesOrderTaxSerializer = tax_row_serializer(SalesOrderTax)
+
+
+class SalesOrderSerializer(
+    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+):
     children_field = "items"
     name_prefix = "SO-2026-"
 
     items = SalesOrderItemSerializer(many=True)
+    taxes = SalesOrderTaxSerializer(many=True, required=False)
+    place_of_supply_name = serializers.CharField(
+        source="place_of_supply.name", read_only=True, allow_null=True
+    )
+    taxes_and_charges_name = serializers.CharField(
+        source="taxes_and_charges.title", read_only=True, allow_null=True
+    )
     customer_name = serializers.CharField(source="customer.name", read_only=True)
 
     class Meta:
@@ -108,9 +131,14 @@ class SalesOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
             "transaction_date",
             "delivery_date",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
+            *TAX_HEADER_WRITABLE,
+            "place_of_supply_name",
+            "taxes_and_charges_name",
             "docstatus",
             "amended_from",
             "items",
+            "taxes",
             "created_at",
             "modified_at",
         )
@@ -118,6 +146,7 @@ class SalesOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
             "id",
             "docstatus",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
         )
@@ -144,14 +173,28 @@ class SalesInvoiceItemSerializer(
             "qty",
             "rate",
             "amount",
+            *LINE_GST_FIELDS,
         )
+        read_only_fields = LINE_GST_FIELDS
 
 
-class SalesInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+SalesInvoiceTaxSerializer = tax_row_serializer(SalesInvoiceTax)
+
+
+class SalesInvoiceSerializer(
+    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+):
     children_field = "items"
     name_prefix = "SINV-2026-"
 
     items = SalesInvoiceItemSerializer(many=True)
+    taxes = SalesInvoiceTaxSerializer(many=True, required=False)
+    place_of_supply_name = serializers.CharField(
+        source="place_of_supply.name", read_only=True, allow_null=True
+    )
+    taxes_and_charges_name = serializers.CharField(
+        source="taxes_and_charges.title", read_only=True, allow_null=True
+    )
     customer_name = serializers.CharField(source="customer.name", read_only=True)
     # sales_order is nullable: allow_null so the key is kept (DRF otherwise
     # drops a null dotted source from the output).
@@ -181,9 +224,14 @@ class SalesInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "income_account",
             "income_account_name",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
+            *TAX_HEADER_WRITABLE,
+            "place_of_supply_name",
+            "taxes_and_charges_name",
             "docstatus",
             "amended_from",
             "items",
+            "taxes",
             "created_at",
             "modified_at",
         )
@@ -191,6 +239,7 @@ class SalesInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "id",
             "docstatus",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
         )

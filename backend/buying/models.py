@@ -9,7 +9,12 @@ from core.models import (
     TimeStampedModel,
 )
 from gst.validators import validate_gstin_format
-from accounts.models import Account
+from accounts.models import (
+    Account,
+    TaxableDocument,
+    TaxableLine,
+    TaxLine,
+)
 from stock.models import Item, Warehouse
 
 
@@ -70,8 +75,14 @@ class Supplier(TimeStampedModel):
         return f"{self.name} ({self.company.abbr})"
 
 
-class PurchaseOrder(SubmittableDocument):
+class PurchaseOrder(TaxableDocument, SubmittableDocument):
     """Purchase Order document."""
+
+    GST_DIRECTION = "Purchase"
+    party_field = "supplier"
+
+    class Meta(TaxableDocument.Meta):
+        pass
 
     supplier = models.ForeignKey(
         Supplier, on_delete=models.PROTECT, related_name="purchase_orders"
@@ -89,8 +100,7 @@ class PurchaseOrder(SubmittableDocument):
         items = self.items.all()
         if not items.exists():
             raise ValidationError("Purchase Order must have at least one line item.")
-        self.grand_total = sum(item.amount for item in items)
-        self.save(update_fields=["grand_total"])
+        self.calculate_taxes_and_totals(for_submit=True)
 
     def on_submit(self):
         pass  # Submitting reserves purchase intent
@@ -102,7 +112,7 @@ class PurchaseOrder(SubmittableDocument):
         return f"{self.name} - {self.supplier.name}"
 
 
-class PurchaseOrderItem(models.Model):
+class PurchaseOrderItem(TaxableLine):
     purchase_order = models.ForeignKey(
         PurchaseOrder, on_delete=models.CASCADE, related_name="items"
     )
@@ -117,7 +127,7 @@ class PurchaseOrderItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        self.amount = (self.qty * self.rate).quantize(Decimal("0.01"))
+        self.amount = self.compute_amount()
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -126,8 +136,14 @@ class PurchaseOrderItem(models.Model):
         )
 
 
-class PurchaseInvoice(SubmittableDocument):
+class PurchaseInvoice(TaxableDocument, SubmittableDocument):
     """Purchase Invoice document."""
+
+    GST_DIRECTION = "Purchase"
+    party_field = "supplier"
+
+    class Meta(TaxableDocument.Meta):
+        pass
 
     supplier = models.ForeignKey(
         Supplier, on_delete=models.PROTECT, related_name="purchase_invoices"
@@ -173,8 +189,8 @@ class PurchaseInvoice(SubmittableDocument):
             raise ValidationError("Supplier must belong to the invoice's company.")
         if self.update_stock:
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
-        self.grand_total = sum(item.amount for item in items)
-        self.save(update_fields=["grand_total"])
+        self.calculate_taxes_and_totals(for_submit=True)
+        self._assert_gst_posting_enabled()  # TEMPORARY (GST Task 2): removed by Task 3
 
     def on_submit(self):
         from accounts.services import gl as gl_service
@@ -264,7 +280,7 @@ class PurchaseInvoice(SubmittableDocument):
         return f"{self.name} - {self.supplier.name} ({self.grand_total})"
 
 
-class PurchaseInvoiceItem(models.Model):
+class PurchaseInvoiceItem(TaxableLine):
     purchase_invoice = models.ForeignKey(
         PurchaseInvoice, on_delete=models.CASCADE, related_name="items"
     )
@@ -279,8 +295,26 @@ class PurchaseInvoiceItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        self.amount = (self.qty * self.rate).quantize(Decimal("0.01"))
+        self.amount = self.compute_amount()
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.purchase_invoice.name} - {self.item.code} ({self.qty} @ {self.rate})"
+
+
+class PurchaseOrderTax(TaxLine):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder, on_delete=models.CASCADE, related_name="taxes"
+    )
+
+    class Meta(TaxLine.Meta):
+        constraints = TaxLine.constraints_for("purchase_order")
+
+
+class PurchaseInvoiceTax(TaxLine):
+    purchase_invoice = models.ForeignKey(
+        PurchaseInvoice, on_delete=models.CASCADE, related_name="taxes"
+    )
+
+    class Meta(TaxLine.Meta):
+        constraints = TaxLine.constraints_for("purchase_invoice")

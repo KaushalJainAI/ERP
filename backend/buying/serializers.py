@@ -7,6 +7,15 @@ from buying.models import (
     PurchaseOrderItem,
     PurchaseInvoice,
     PurchaseInvoiceItem,
+    PurchaseOrderTax,
+    PurchaseInvoiceTax,
+)
+from accounts.serializers import (
+    LINE_GST_FIELDS,
+    TAX_HEADER_READ_ONLY,
+    TAX_HEADER_WRITABLE,
+    TaxableSerializerMixin,
+    tax_row_serializer,
 )
 from core.mixins import (
     DraftNestedWriteMixin,
@@ -87,14 +96,28 @@ class PurchaseOrderItemSerializer(
             "qty",
             "rate",
             "amount",
+            *LINE_GST_FIELDS,
         )
+        read_only_fields = LINE_GST_FIELDS
 
 
-class PurchaseOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+PurchaseOrderTaxSerializer = tax_row_serializer(PurchaseOrderTax)
+
+
+class PurchaseOrderSerializer(
+    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+):
     children_field = "items"
     name_prefix = "PO-2026-"
 
     items = PurchaseOrderItemSerializer(many=True)
+    taxes = PurchaseOrderTaxSerializer(many=True, required=False)
+    place_of_supply_name = serializers.CharField(
+        source="place_of_supply.name", read_only=True, allow_null=True
+    )
+    taxes_and_charges_name = serializers.CharField(
+        source="taxes_and_charges.title", read_only=True, allow_null=True
+    )
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
 
     class Meta:
@@ -108,9 +131,14 @@ class PurchaseOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer
             "transaction_date",
             "schedule_date",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
+            *TAX_HEADER_WRITABLE,
+            "place_of_supply_name",
+            "taxes_and_charges_name",
             "docstatus",
             "amended_from",
             "items",
+            "taxes",
             "created_at",
             "modified_at",
         )
@@ -118,6 +146,7 @@ class PurchaseOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer
             "id",
             "docstatus",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
         )
@@ -144,14 +173,28 @@ class PurchaseInvoiceItemSerializer(
             "qty",
             "rate",
             "amount",
+            *LINE_GST_FIELDS,
         )
+        read_only_fields = LINE_GST_FIELDS
 
 
-class PurchaseInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+PurchaseInvoiceTaxSerializer = tax_row_serializer(PurchaseInvoiceTax)
+
+
+class PurchaseInvoiceSerializer(
+    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+):
     children_field = "items"
     name_prefix = "PINV-2026-"
 
     items = PurchaseInvoiceItemSerializer(many=True)
+    taxes = PurchaseInvoiceTaxSerializer(many=True, required=False)
+    place_of_supply_name = serializers.CharField(
+        source="place_of_supply.name", read_only=True, allow_null=True
+    )
+    taxes_and_charges_name = serializers.CharField(
+        source="taxes_and_charges.title", read_only=True, allow_null=True
+    )
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     # purchase_order is nullable: allow_null so the key is kept (DRF otherwise
     # drops a null dotted source from the output).
@@ -181,9 +224,14 @@ class PurchaseInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializ
             "expense_account",
             "expense_account_name",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
+            *TAX_HEADER_WRITABLE,
+            "place_of_supply_name",
+            "taxes_and_charges_name",
             "docstatus",
             "amended_from",
             "items",
+            "taxes",
             "created_at",
             "modified_at",
         )
@@ -191,6 +239,7 @@ class PurchaseInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializ
             "id",
             "docstatus",
             "grand_total",
+            *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
         )

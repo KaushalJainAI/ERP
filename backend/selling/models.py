@@ -9,7 +9,12 @@ from core.models import (
     TimeStampedModel,
 )
 from gst.validators import validate_gstin_format
-from accounts.models import Account
+from accounts.models import (
+    Account,
+    TaxableDocument,
+    TaxableLine,
+    TaxLine,
+)
 from stock.models import Item, Warehouse
 
 
@@ -70,8 +75,14 @@ class Customer(TimeStampedModel):
         return f"{self.name} ({self.company.abbr})"
 
 
-class SalesOrder(SubmittableDocument):
+class SalesOrder(TaxableDocument, SubmittableDocument):
     """Sales Order document."""
+
+    GST_DIRECTION = "Sales"
+    party_field = "customer"
+
+    class Meta(TaxableDocument.Meta):
+        pass
 
     customer = models.ForeignKey(
         Customer, on_delete=models.PROTECT, related_name="sales_orders"
@@ -89,8 +100,7 @@ class SalesOrder(SubmittableDocument):
         items = self.items.all()
         if not items.exists():
             raise ValidationError("Sales Order must have at least one line item.")
-        self.grand_total = sum(item.amount for item in items)
-        self.save(update_fields=["grand_total"])
+        self.calculate_taxes_and_totals(for_submit=True)
 
     def on_submit(self):
         pass  # Submitting reserves order intent; stock/GL posted on invoice or delivery
@@ -102,7 +112,7 @@ class SalesOrder(SubmittableDocument):
         return f"{self.name} - {self.customer.name}"
 
 
-class SalesOrderItem(models.Model):
+class SalesOrderItem(TaxableLine):
     sales_order = models.ForeignKey(
         SalesOrder, on_delete=models.CASCADE, related_name="items"
     )
@@ -117,15 +127,21 @@ class SalesOrderItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        self.amount = (self.qty * self.rate).quantize(Decimal("0.01"))
+        self.amount = self.compute_amount()
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.sales_order.name} - {self.item.code} ({self.qty} @ {self.rate})"
 
 
-class SalesInvoice(SubmittableDocument):
+class SalesInvoice(TaxableDocument, SubmittableDocument):
     """Sales Invoice document."""
+
+    GST_DIRECTION = "Sales"
+    party_field = "customer"
+
+    class Meta(TaxableDocument.Meta):
+        pass
 
     customer = models.ForeignKey(
         Customer, on_delete=models.PROTECT, related_name="sales_invoices"
@@ -175,8 +191,8 @@ class SalesInvoice(SubmittableDocument):
             self.company.get_perpetual_accounts(
                 need_cogs=True
             )  # raises if perpetual is on but misconfigured
-        self.grand_total = sum(item.amount for item in items)
-        self.save(update_fields=["grand_total"])
+        self.calculate_taxes_and_totals(for_submit=True)
+        self._assert_gst_posting_enabled()  # TEMPORARY (GST Task 2): removed by Task 3
 
     def on_submit(self):
         from accounts.services import gl as gl_service
@@ -263,7 +279,7 @@ class SalesInvoice(SubmittableDocument):
         return f"{self.name} - {self.customer.name} ({self.grand_total})"
 
 
-class SalesInvoiceItem(models.Model):
+class SalesInvoiceItem(TaxableLine):
     sales_invoice = models.ForeignKey(
         SalesInvoice, on_delete=models.CASCADE, related_name="items"
     )
@@ -278,10 +294,28 @@ class SalesInvoiceItem(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        self.amount = (self.qty * self.rate).quantize(Decimal("0.01"))
+        self.amount = self.compute_amount()
         super().save(*args, **kwargs)
 
     def __str__(self):
         return (
             f"{self.sales_invoice.name} - {self.item.code} ({self.qty} @ {self.rate})"
         )
+
+
+class SalesOrderTax(TaxLine):
+    sales_order = models.ForeignKey(
+        SalesOrder, on_delete=models.CASCADE, related_name="taxes"
+    )
+
+    class Meta(TaxLine.Meta):
+        constraints = TaxLine.constraints_for("sales_order")
+
+
+class SalesInvoiceTax(TaxLine):
+    sales_invoice = models.ForeignKey(
+        SalesInvoice, on_delete=models.CASCADE, related_name="taxes"
+    )
+
+    class Meta(TaxLine.Meta):
+        constraints = TaxLine.constraints_for("sales_invoice")

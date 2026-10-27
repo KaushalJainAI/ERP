@@ -47,8 +47,8 @@ class PurchaseOrderViewSet(
     action_permission_flags = {"make_purchase_invoice": "can_read"}
     queryset = (
         PurchaseOrder.objects.all()
-        .select_related("supplier", "company")
-        .prefetch_related("items")
+        .select_related("supplier", "company", "place_of_supply", "taxes_and_charges")
+        .prefetch_related("items", "taxes")
     )
     serializer_class = PurchaseOrderSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -73,8 +73,8 @@ class PurchaseInvoiceViewSet(
     action_permission_flags = {"make_payment_entry": "can_read"}
     queryset = (
         PurchaseInvoice.objects.all()
-        .select_related("supplier", "company")
-        .prefetch_related("items")
+        .select_related("supplier", "company", "place_of_supply", "taxes_and_charges")
+        .prefetch_related("items", "taxes")
     )
     serializer_class = PurchaseInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]

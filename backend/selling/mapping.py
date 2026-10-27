@@ -44,8 +44,7 @@ def make_sales_invoice(sales_order):
         )
         for line in lines:
             SalesInvoiceItem.objects.create(sales_invoice=invoice, **line)
-        invoice.grand_total = sum(i.amount for i in invoice.items.all())
-        invoice.save(update_fields=["grand_total"])
+        invoice.calculate_taxes_and_totals()
     return invoice
 
 

@@ -20,6 +20,7 @@ from accounts.serializers import (
     ItemTaxTemplateSerializer,
     JournalEntrySerializer,
     PaymentEntrySerializer,
+    TaxCalculateSerializer,
     TaxTemplateSerializer,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
@@ -364,5 +365,141 @@ def balance_sheet(request):
             "total_liabilities": str(total_liabilities),
             "total_equity": str(total_equity),
             "accounts": asset_rows + liab_rows + eq_rows,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def calculate_taxes(request):
+    """Stateless dry run of the tax engine (``POST /api/accounts/taxes/calculate/``).
+
+    Takes what a Sales/Purchase Order or Invoice form holds (company, party, place
+    of supply, flags, template, lines and optional tax rows) and returns the same
+    supply decision, per-line GST and totals a subsequent create would produce --
+    nothing is written. As on create, omitting ``taxes`` expands ``taxes_and_charges``
+    or, with neither, auto-selects the company's default template. Needs
+    ``can_create`` on the target document type. Tax-input problems are a 400.
+    """
+    from django.apps import apps
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from rest_framework.exceptions import PermissionDenied
+    from gst.services import supply
+    from users.permissions import user_has_model_permission
+
+    serializer = TaxCalculateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+    label = data["doctype"]
+    if not user_has_model_permission(request.user, label, "can_create"):
+        raise PermissionDenied(f"You do not have permission to create {label}.")
+
+    doc_model = apps.get_model(label)
+    party_model = doc_model._meta.get_field(doc_model.party_field).related_model
+    company = data["company"]
+    party = party_model.objects.filter(pk=data["party"]).first()
+    if party is None:
+        raise ValidationError({"party": _("Party not found.")})
+    if party.company_id != company.pk:
+        raise ValidationError({"party": _("Party must belong to the company.")})
+
+    doc = doc_model(
+        company=company,
+        place_of_supply=data.get("place_of_supply"),
+        taxes_and_charges=data.get("taxes_and_charges"),
+        is_export_with_gst=data["is_export_with_gst"],
+        is_reverse_charge=data["is_reverse_charge"],
+    )
+    setattr(doc, doc_model.party_field, party)
+    lines = []
+    for row in data["items"]:
+        line = doc_model.item_model()(
+            item=row["item"], qty=row["qty"], rate=row["rate"]
+        )
+        line.amount = line.compute_amount()
+        lines.append(line)
+    rows_supplied = "taxes" in data
+    tax_model = doc_model.tax_model()
+    rows = [
+        tax_model(
+            account=r["account"],
+            rate=r["rate"],
+            charge_type=r["charge_type"],
+            add_deduct_tax=r["add_deduct_tax"],
+            category=r["category"],
+            description=r.get("description", ""),
+        )
+        for r in data.get("taxes", [])
+    ]
+    try:
+        outcome = supply.compute(
+            doc,
+            lines,
+            rows,
+            resolve_lines=True,
+            expand_template=(
+                not rows_supplied and doc.taxes_and_charges_id is not None
+            ),
+            auto_select=(not rows_supplied and doc.taxes_and_charges_id is None),
+        )
+    except DjangoValidationError as exc:
+        raise ValidationError(
+            exc.message_dict
+            if hasattr(exc, "error_dict")
+            else {"non_field_errors": exc.messages}
+        )
+
+    ctx = outcome.ctx
+    return Response(
+        {
+            "supply": {
+                "kind": ctx.kind,
+                "place_of_supply": ctx.place_of_supply,
+                "gst_category": ctx.gst_category,
+                "party_gstin": ctx.party_gstin,
+                "company_gstin": ctx.company_gstin,
+                "allowed_components": list(ctx.allowed_components),
+                "reason": ctx.reason,
+            },
+            "taxes_and_charges": doc.taxes_and_charges_id,
+            "items": [
+                {
+                    "item": line.item_id,
+                    "qty": str(line.qty),
+                    "rate": str(line.rate),
+                    "amount": str(line.amount),
+                    "gst_treatment": line.gst_treatment,
+                    "gst_hsn_code": line.gst_hsn_code,
+                    "item_tax_rate": line.item_tax_rate,
+                    "gst_rate": str(line.gst_rate),
+                    "cgst_amount": str(line.cgst_amount),
+                    "sgst_amount": str(line.sgst_amount),
+                    "igst_amount": str(line.igst_amount),
+                }
+                for line in outcome.lines
+            ],
+            "taxes": [
+                {
+                    "idx": row.idx,
+                    "charge_type": row.charge_type,
+                    "account": row.account_id,
+                    "account_name": row.account.name,
+                    "gst_direction": row.account.gst_direction,
+                    "gst_component": row.account.gst_component,
+                    "description": row.description,
+                    "rate": str(row.rate),
+                    "add_deduct_tax": row.add_deduct_tax,
+                    "category": row.category,
+                    "net_amount": str(row.net_amount),
+                    "tax_amount": str(row.tax_amount),
+                    "total": str(row.total),
+                }
+                for row in outcome.rows
+            ],
+            "net_total": str(doc.net_total),
+            "total_taxes_and_charges": str(doc.total_taxes_and_charges),
+            "grand_total": str(doc.grand_total),
+            "rounding_adjustment": str(doc.rounding_adjustment),
+            "rounded_total": str(doc.rounded_total),
         }
     )

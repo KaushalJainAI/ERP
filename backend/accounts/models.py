@@ -456,3 +456,363 @@ class TaxTemplateRow(models.Model):
 
     def __str__(self):
         return f"{self.template.title} #{self.idx}: {self.account.name} {self.rate}%"
+
+
+# ------------------------------------------------------- taxable documents
+# Abstract building blocks mixed into Sales/Purchase Order and Invoice (and their
+# line and tax-row tables). The engine is ``accounts.services.taxes`` (pure maths)
+# driven by ``gst.services.supply`` (supply kind, templates, validation); see
+# docs/gst_design.md sections 2 and 3.
+
+#: Tolerance of the header identity CHECKs. Amounts are 2-dp values; SQLite does
+#: DECIMAL arithmetic in floating point, so an exact ``=`` could spuriously fail
+#: (0.1 + 0.2 != 0.3). Half a paisa is exact on PostgreSQL's numeric too.
+_IDENTITY_EPS = Decimal("0.005")
+
+
+class TaxableDocument(models.Model):
+    """Header fields of a document that carries tax rows (``taxes``) and rounding.
+
+    Concrete models must declare ``grand_total`` (tax-inclusive), a reverse ``items``
+    and ``taxes`` relation, ``company`` and a party FK, and set ``GST_DIRECTION``
+    (``"Sales"`` / ``"Purchase"``) and ``party_field``. They inherit this ``Meta``.
+    """
+
+    GST_DIRECTION = ""
+    party_field = ""
+
+    taxes_and_charges = models.ForeignKey(
+        "accounts.TaxTemplate",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    place_of_supply = models.ForeignKey(
+        "core.State",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    # Snapshots of the party / company GST identity at the time the totals were
+    # last calculated. "" = legacy / pre-GST document.
+    gst_category = models.CharField(max_length=24, blank=True, default="")
+    party_gstin = models.CharField(max_length=20, null=True, blank=True)
+    company_gstin = models.CharField(max_length=20, null=True, blank=True)
+    # SEZ / Overseas customers: True = IGST charged, False = zero-rated (LUT / bond).
+    is_export_with_gst = models.BooleanField(default=False)
+    # Purchase documents only in v1.
+    is_reverse_charge = models.BooleanField(default=False)
+    # Σ line amount; grand_total = net_total + total_taxes_and_charges (reverse-charge
+    # memo rows excluded); rounded_total = grand_total + rounding_adjustment.
+    net_total = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    total_taxes_and_charges = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    rounding_adjustment = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    rounded_total = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        abstract = True
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(
+                    grand_total__gt=models.F("net_total")
+                    + models.F("total_taxes_and_charges")
+                    - _IDENTITY_EPS
+                )
+                & models.Q(
+                    grand_total__lt=models.F("net_total")
+                    + models.F("total_taxes_and_charges")
+                    + _IDENTITY_EPS
+                ),
+                name="%(app_label)s_%(class)s_grand_total_identity",
+            ),
+            models.CheckConstraint(
+                check=models.Q(
+                    rounded_total__gt=models.F("grand_total")
+                    + models.F("rounding_adjustment")
+                    - _IDENTITY_EPS
+                )
+                & models.Q(
+                    rounded_total__lt=models.F("grand_total")
+                    + models.F("rounding_adjustment")
+                    + _IDENTITY_EPS
+                ),
+                name="%(app_label)s_%(class)s_rounded_total_identity",
+            ),
+            models.CheckConstraint(
+                check=~(
+                    models.Q(is_reverse_charge=True) & models.Q(is_export_with_gst=True)
+                ),
+                name="%(app_label)s_%(class)s_rcm_not_export",
+            ),
+        ]
+
+    # ------------------------------------------------------------ introspection
+
+    @property
+    def party(self):
+        return getattr(self, self.party_field)
+
+    @classmethod
+    def item_model(cls):
+        return cls._meta.get_field("items").related_model
+
+    @classmethod
+    def tax_model(cls):
+        return cls._meta.get_field("taxes").related_model
+
+    @classmethod
+    def tax_fk_name(cls):
+        return cls._meta.get_field("taxes").field.name
+
+    @classmethod
+    def item_fk_name(cls):
+        return cls._meta.get_field("items").field.name
+
+    # ------------------------------------------------------------------ engine
+
+    HEADER_UPDATE_FIELDS = (
+        "taxes_and_charges",
+        "place_of_supply",
+        "gst_category",
+        "party_gstin",
+        "company_gstin",
+        "net_total",
+        "total_taxes_and_charges",
+        "grand_total",
+        "rounding_adjustment",
+        "rounded_total",
+    )
+
+    def calculate_taxes_and_totals(
+        self,
+        *,
+        resolve_lines=None,
+        expand_template=False,
+        auto_select=False,
+        for_submit=False,
+    ):
+        """Recompute every derived tax / total field of this **draft** from its rows.
+
+        The single server-side source of truth (called on create / update, submit
+        and amend). One atomic block: snapshots, place of supply, template
+        expansion, line GST resolution, the pure engine, then persistence.
+
+        ``resolve_lines``: re-read HSN / treatment / rates from the Item master
+        (``True`` on create / update), keep the stored line snapshots (``False``,
+        submit and amend), or ``None`` = resolve only if this document was never
+        calculated before (``gst_category == ""``: ORM-created or legacy drafts).
+        ``expand_template`` replaces the rows with ``taxes_and_charges``'s rows;
+        ``auto_select`` picks the company's default template when none is chosen.
+        ``for_submit`` also runs the submit gate (place of supply, HSN, GSTIN, ...).
+        """
+        from django.db import transaction
+        from gst.services import supply
+
+        if resolve_lines is None:
+            resolve_lines = self.gst_category == ""
+        with transaction.atomic():
+            fk = self.item_fk_name()
+            lines = list(
+                self.item_model()
+                .objects.filter(**{fk: self})
+                .select_related("item", "item__item_tax_template")
+                .order_by("pk")
+            )
+            rows = list(
+                self.tax_model()
+                .objects.filter(**{self.tax_fk_name(): self})
+                .select_related("account")
+                .order_by("idx", "pk")
+            )
+            outcome = supply.compute(
+                self,
+                lines,
+                rows,
+                resolve_lines=resolve_lines,
+                expand_template=expand_template,
+                auto_select=auto_select,
+                for_submit=for_submit,
+            )
+            supply.persist(self, outcome)
+        return outcome
+
+    def _assert_gst_posting_enabled(self):
+        """TEMPORARY GST Task 2 guard -- removed by Task 3 (GL posting).
+
+        Tax rows and the rounding adjustment are not posted to the GL yet, so an
+        invoice that carries either must not be submitted (the voucher would not
+        match the document). Called from ``validate_before_submit`` of
+        ``SalesInvoice`` and ``PurchaseInvoice`` only.
+        """
+        has_tax = self.taxes.exclude(tax_amount=0).exists()
+        if has_tax or self.rounding_adjustment != 0:
+            raise ValidationError(
+                "GST posting not yet enabled: invoices with tax rows or a rounding "
+                "adjustment cannot be submitted yet."
+            )
+
+
+class TaxLine(models.Model):
+    """One row of a document's tax table (concrete classes add the parent FK).
+
+    ``rate`` / ``account`` / ``add_deduct_tax`` are inputs; ``net_amount``,
+    ``tax_amount`` and ``total`` are server-calculated. The amount is **not** called
+    ``amount`` so generic "sum the child ``amount``" code never picks it up.
+    """
+
+    idx = models.PositiveSmallIntegerField()
+    # v1: "On Net Total" / "Total" only (CHECK constraints).
+    charge_type = models.CharField(
+        max_length=24, choices=ChargeType.choices, default=ChargeType.ON_NET_TOTAL
+    )
+    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="+")
+    description = models.CharField(max_length=200, blank=True, default="")
+    rate = models.DecimalField(max_digits=7, decimal_places=3, default=Decimal("0"))
+    add_deduct_tax = models.CharField(
+        max_length=6, choices=AddDeduct.choices, default=AddDeduct.ADD
+    )
+    category = models.CharField(
+        max_length=24, choices=TaxCategory.choices, default=TaxCategory.TOTAL
+    )
+    net_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    tax_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    total = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ["idx"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(charge_type="On Net Total"),
+                name="%(app_label)s_%(class)s_charge_type",
+            ),
+            models.CheckConstraint(
+                check=models.Q(category="Total"),
+                name="%(app_label)s_%(class)s_category",
+            ),
+            models.CheckConstraint(
+                check=models.Q(add_deduct_tax__in=["Add", "Deduct"]),
+                name="%(app_label)s_%(class)s_add_deduct",
+            ),
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0) & models.Q(rate__lte=100),
+                name="%(app_label)s_%(class)s_rate_0_100",
+            ),
+            models.CheckConstraint(
+                check=models.Q(tax_amount__gte=0),
+                name="%(app_label)s_%(class)s_tax_amount_gte_0",
+            ),
+        ]
+
+    @classmethod
+    def constraints_for(cls, parent_field):
+        """Base constraints plus the per-parent uniqueness rules."""
+        return [
+            *TaxLine.Meta.constraints,
+            models.UniqueConstraint(
+                fields=[parent_field, "idx"],
+                name="%(app_label)s_%(class)s_unique_idx",
+            ),
+            models.UniqueConstraint(
+                fields=[parent_field, "account"],
+                name="%(app_label)s_%(class)s_unique_account",
+            ),
+        ]
+
+    def __str__(self):
+        return f"#{self.idx} {self.account_id} {self.rate}% = {self.tax_amount}"
+
+
+class TaxableLine(models.Model):
+    """GST columns of a document line (snapshots + server-calculated amounts).
+
+    The per-line columns make GSTR-1 / 3B plain ``GROUP BY gst_rate`` aggregates.
+    """
+
+    gst_hsn_code = models.CharField(max_length=8, blank=True, default="")
+    gst_treatment = models.CharField(
+        max_length=12, choices=GSTTreatment.choices, default=GSTTreatment.TAXABLE
+    )
+    item_tax_template = models.ForeignKey(
+        "accounts.ItemTaxTemplate",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    # {"CGST": "9.000", "SGST": "9.000", "IGST": "18.000"} snapshot of the rates.
+    item_tax_rate = models.JSONField(default=dict, blank=True)
+    gst_rate = models.DecimalField(max_digits=7, decimal_places=3, default=Decimal("0"))
+    cgst_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    sgst_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    igst_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    GST_LINE_FIELDS = (
+        "gst_hsn_code",
+        "gst_treatment",
+        "item_tax_template",
+        "item_tax_rate",
+        "gst_rate",
+        "cgst_amount",
+        "sgst_amount",
+        "igst_amount",
+    )
+
+    class Meta:
+        abstract = True
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(gst_rate__gte=0) & models.Q(gst_rate__lte=100),
+                name="%(app_label)s_%(class)s_gst_rate_0_100",
+            ),
+            models.CheckConstraint(
+                check=models.Q(cgst_amount__gte=0)
+                & models.Q(sgst_amount__gte=0)
+                & models.Q(igst_amount__gte=0),
+                name="%(app_label)s_%(class)s_gst_amounts_gte_0",
+            ),
+            # Only a Taxable line can carry GST.
+            models.CheckConstraint(
+                check=models.Q(gst_treatment="Taxable")
+                | (
+                    models.Q(cgst_amount=0)
+                    & models.Q(sgst_amount=0)
+                    & models.Q(igst_amount=0)
+                ),
+                name="%(app_label)s_%(class)s_only_taxable_has_gst",
+            ),
+            # Intra-state (CGST+SGST) and inter-state (IGST) never mix on a line.
+            models.CheckConstraint(
+                check=~(
+                    models.Q(igst_amount__gt=0)
+                    & (models.Q(cgst_amount__gt=0) | models.Q(sgst_amount__gt=0))
+                ),
+                name="%(app_label)s_%(class)s_no_igst_with_cgst",
+            ),
+        ]
+
+    def compute_amount(self):
+        """``qty * rate`` quantized to a money amount (the line's taxable value)."""
+        return (self.qty * self.rate).quantize(Decimal("0.01"))

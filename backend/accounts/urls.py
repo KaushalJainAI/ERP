@@ -7,6 +7,7 @@ from accounts.views import (
     JournalEntryViewSet,
     PaymentEntryViewSet,
     TaxTemplateViewSet,
+    calculate_taxes,
     trial_balance,
     general_ledger,
     profit_and_loss,
@@ -26,6 +27,7 @@ router.register(
 )
 
 urlpatterns = [
+    path("taxes/calculate/", calculate_taxes, name="calculate-taxes"),
     path("reports/trial-balance/", trial_balance, name="trial-balance"),
     path("reports/general-ledger/", general_ledger, name="general-ledger"),
     path("reports/profit-and-loss/", profit_and_loss, name="profit-and-loss"),

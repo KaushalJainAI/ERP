@@ -8,8 +8,10 @@ from selling.models import (
     CustomerGroup,
     SalesInvoice,
     SalesInvoiceItem,
+    SalesInvoiceTax,
     SalesOrder,
     SalesOrderItem,
+    SalesOrderTax,
 )
 
 
@@ -51,6 +53,23 @@ class SalesOrderItemInline(admin.TabularInline):
     readonly_fields = ("amount",)
 
 
+class SalesOrderTaxInline(admin.TabularInline):
+    model = SalesOrderTax
+    extra = 0
+    autocomplete_fields = ("account",)
+    fields = (
+        "idx",
+        "account",
+        "description",
+        "rate",
+        "add_deduct_tax",
+        "net_amount",
+        "tax_amount",
+        "total",
+    )
+    readonly_fields = ("net_amount", "tax_amount", "total")
+
+
 @admin.register(SalesOrder)
 class SalesOrderAdmin(SubmittableDocumentAdmin):
     list_display = (
@@ -66,8 +85,17 @@ class SalesOrderAdmin(SubmittableDocumentAdmin):
     search_fields = ("name", "customer__name")
     date_hierarchy = "transaction_date"
     autocomplete_fields = ("customer", "company", "amended_from")
-    inlines = [SalesOrderItemInline]
-    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    inlines = [SalesOrderItemInline, SalesOrderTaxInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + (
+        "grand_total",
+        "gst_category",
+        "party_gstin",
+        "company_gstin",
+        "net_total",
+        "total_taxes_and_charges",
+        "rounding_adjustment",
+        "rounded_total",
+    )
     fieldsets = (
         (
             None,
@@ -78,6 +106,24 @@ class SalesOrderAdmin(SubmittableDocumentAdmin):
                     "company",
                     "transaction_date",
                     "delivery_date",
+                )
+            },
+        ),
+        (
+            "GST",
+            {
+                "fields": (
+                    "taxes_and_charges",
+                    "place_of_supply",
+                    "is_export_with_gst",
+                    "is_reverse_charge",
+                    "gst_category",
+                    "party_gstin",
+                    "company_gstin",
+                    "net_total",
+                    "total_taxes_and_charges",
+                    "rounding_adjustment",
+                    "rounded_total",
                 )
             },
         ),
@@ -98,6 +144,23 @@ class SalesInvoiceItemInline(admin.TabularInline):
     autocomplete_fields = ("item", "warehouse")
     fields = ("item", "warehouse", "qty", "rate", "amount")
     readonly_fields = ("amount",)
+
+
+class SalesInvoiceTaxInline(admin.TabularInline):
+    model = SalesInvoiceTax
+    extra = 0
+    autocomplete_fields = ("account",)
+    fields = (
+        "idx",
+        "account",
+        "description",
+        "rate",
+        "add_deduct_tax",
+        "net_amount",
+        "tax_amount",
+        "total",
+    )
+    readonly_fields = ("net_amount", "tax_amount", "total")
 
 
 @admin.register(SalesInvoice)
@@ -123,8 +186,17 @@ class SalesInvoiceAdmin(SubmittableDocumentAdmin):
         "income_account",
         "amended_from",
     )
-    inlines = [SalesInvoiceItemInline]
-    readonly_fields = SubmittableDocumentAdmin.readonly_fields + ("grand_total",)
+    inlines = [SalesInvoiceItemInline, SalesInvoiceTaxInline]
+    readonly_fields = SubmittableDocumentAdmin.readonly_fields + (
+        "grand_total",
+        "gst_category",
+        "party_gstin",
+        "company_gstin",
+        "net_total",
+        "total_taxes_and_charges",
+        "rounding_adjustment",
+        "rounded_total",
+    )
     fieldsets = (
         (
             None,
@@ -141,6 +213,24 @@ class SalesInvoiceAdmin(SubmittableDocumentAdmin):
             },
         ),
         ("Accounts", {"fields": ("debit_to", "income_account")}),
+        (
+            "GST",
+            {
+                "fields": (
+                    "taxes_and_charges",
+                    "place_of_supply",
+                    "is_export_with_gst",
+                    "is_reverse_charge",
+                    "gst_category",
+                    "party_gstin",
+                    "company_gstin",
+                    "net_total",
+                    "total_taxes_and_charges",
+                    "rounding_adjustment",
+                    "rounded_total",
+                )
+            },
+        ),
         ("Status", {"fields": ("docstatus", "amended_from", "grand_total")}),
         (
             "Audit",

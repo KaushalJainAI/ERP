@@ -45,8 +45,7 @@ def make_purchase_invoice(purchase_order):
         )
         for line in lines:
             PurchaseInvoiceItem.objects.create(purchase_invoice=invoice, **line)
-        invoice.grand_total = sum(i.amount for i in invoice.items.all())
-        invoice.save(update_fields=["grand_total"])
+        invoice.calculate_taxes_and_totals()
     return invoice
 
 
