@@ -2,12 +2,21 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
+/** Fired when the session is irrecoverably unauthenticated; AuthProvider listens. */
+export const AUTH_LOGOUT_EVENT = "auth:logout";
+
 export const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+function clearSession() {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+  window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
+}
 
 // Request Interceptor: Attach JWT Access Token & Language
 apiClient.interceptors.request.use(
@@ -23,33 +32,33 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Auto-refresh JWT on 401
+// Response Interceptor: Auto-refresh JWT on 401, then fall back to logout.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/token/")
-    ) {
-      originalRequest._retry = true;
-      try {
+    const isAuthCall = originalRequest?.url?.includes("/auth/token/");
+    if (error.response?.status === 401 && originalRequest && !isAuthCall) {
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
-          const res = await axios.post(`${API_URL}/auth/token/refresh/`, {
-            refresh: refreshToken,
-          });
-          const newAccessToken = res.data.access;
-          localStorage.setItem("access_token", newAccessToken);
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          return apiClient(originalRequest);
+          try {
+            const res = await axios.post(`${API_URL}/auth/token/refresh/`, {
+              refresh: refreshToken,
+            });
+            const newAccessToken = res.data.access;
+            localStorage.setItem("access_token", newAccessToken);
+            if (res.data.refresh) localStorage.setItem("refresh_token", res.data.refresh);
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return apiClient(originalRequest);
+          } catch {
+            clearSession();
+            return Promise.reject(error);
+          }
         }
-      } catch (refreshErr) {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
-        window.location.href = "/login";
       }
+      clearSession();
     }
     return Promise.reject(error);
   }

@@ -1,5 +1,9 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { enExtra } from "./en";
+import { enDashboard } from "./en.dashboard";
+import { enAccounts } from "./en.accounts";
+import { enBuyingStock } from "./en.buying_stock";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -9,12 +13,31 @@ export const SUPPORTED_LANGUAGES = [
   { code: "gu", name: "ગુજરાતી (Gujarati)", rtl: false },
   { code: "or", name: "ଓଡ଼ିଆ (Odia)", rtl: false },
   { code: "bn", name: "বাংলা (Bengali)", rtl: false },
-  { code: "kn", name: "கன்னட (Kannada)", rtl: false },
+  { code: "kn", name: "ಕನ್ನಡ (Kannada)", rtl: false },
   { code: "as", name: "অসমীয়া (Assamese)", rtl: false },
   { code: "te", name: "తెలుగు (Telugu)", rtl: false },
-  { code: "ml", name: "మలయాళం (Malayalam)", rtl: false },
+  { code: "ml", name: "മലയാളം (Malayalam)", rtl: false },
+  { code: "mr", name: "मराठी (Marathi)", rtl: false },
   { code: "ur", name: "اردو (Urdu)", rtl: true },
 ];
+
+/** Set <html dir/lang> for a language code (ur is right-to-left). */
+export function applyDocumentDirection(code: string) {
+  const lang = SUPPORTED_LANGUAGES.find((l) => l.code === code);
+  document.documentElement.dir = lang?.rtl ? "rtl" : "ltr";
+  document.documentElement.lang = code;
+}
+
+/** Switch the UI language and remember it on this device. */
+export function setAppLanguage(code: string) {
+  if (!SUPPORTED_LANGUAGES.some((l) => l.code === code)) return;
+  try {
+    localStorage.setItem("app_lang", code);
+  } catch {
+    /* storage unavailable: the language still switches for this session */
+  }
+  void i18n.changeLanguage(code);
+}
 
 const resources = {
   en: {
@@ -44,6 +67,10 @@ const resources = {
       name: "Document No.",
       created_at: "Created Date",
       no_records: "No records found.",
+      ...enExtra,
+      ...enDashboard,
+      ...enAccounts,
+      ...enBuyingStock,
     },
   },
   hi: {
@@ -77,13 +104,28 @@ const resources = {
   },
 };
 
+const storedLang = (() => {
+  try {
+    const code = localStorage.getItem("app_lang");
+    return code && SUPPORTED_LANGUAGES.some((l) => l.code === code) ? code : "en";
+  } catch {
+    return "en";
+  }
+})();
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem("app_lang") || "en",
+  lng: storedLang,
   fallbackLng: "en",
+  supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
   interpolation: {
     escapeValue: false,
   },
 });
+
+// Keep <html dir/lang> in step with the active language (ur is RTL), including
+// on first load with a stored language.
+applyDocumentDirection(storedLang);
+i18n.on("languageChanged", applyDocumentDirection);
 
 export default i18n;
