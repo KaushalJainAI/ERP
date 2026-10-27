@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { isValidDecimalInput } from "@/lib/decimal";
 import { formatIndianCurrency, formatIndianNumber } from "@/lib/numberFormat";
 import { LinkField } from "./LinkField";
+import { MultiSelectField } from "./MultiSelectField";
 import type { FieldType, LinkDef, LinkRecord, SelectOption } from "@/types";
 
 export interface InputDef {
@@ -69,6 +70,32 @@ export const FieldInput: React.FC<FieldInputProps> = ({
           required={def.required}
           compact={compact}
           placeholder={placeholder}
+        />
+      );
+
+    case "multiselect":
+      return (
+        <MultiSelectField
+          id={id}
+          link={def.link!}
+          cacheKey={cacheKey}
+          value={Array.isArray(value) ? value : []}
+          onChange={onChange}
+          disabled={readOnly}
+          invalid={invalid}
+        />
+      );
+
+    case "password":
+      return (
+        <input
+          id={id}
+          type="password"
+          autoComplete="new-password"
+          value={value ?? ""}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.target.value)}
+          className={base}
         />
       );
 
@@ -165,6 +192,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
 /** Read-only text for a value (used for computed/preview cells and fully read-only docs). */
 export function formatReadOnly(def: { type: FieldType; money?: boolean }, value: any): string {
   if (value === null || value === undefined || value === "") return "";
+  if (Array.isArray(value)) return value.join(", ");
   if (def.type === "decimal" && def.money) return formatIndianCurrency(value);
   if (def.type === "number" || def.type === "decimal") return formatIndianNumber(value);
   return String(value);

@@ -1,9 +1,11 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { enCore } from "./en.core";
 import { enExtra } from "./en";
 import { enDashboard } from "./en.dashboard";
 import { enAccounts } from "./en.accounts";
 import { enBuyingStock } from "./en.buying_stock";
+import { enUsers } from "./en.users";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -28,6 +30,21 @@ export function applyDocumentDirection(code: string) {
   document.documentElement.lang = code;
 }
 
+const localeLoaders = import.meta.glob<{ default: Record<string, unknown> }>("./locales/*.ts");
+
+/** Load a language's translation bundle on first use (English is always bundled). */
+export async function ensureLanguage(code: string): Promise<void> {
+  if (code === "en" || i18n.hasResourceBundle(code, "translation")) return;
+  const load = localeLoaders[`./locales/${code}.ts`];
+  if (!load) return;
+  try {
+    const mod = await load();
+    i18n.addResourceBundle(code, "translation", mod.default, true, true);
+  } catch {
+    /* offline / chunk failed: keep showing English (fallbackLng) */
+  }
+}
+
 /** Switch the UI language and remember it on this device. */
 export function setAppLanguage(code: string) {
   if (!SUPPORTED_LANGUAGES.some((l) => l.code === code)) return;
@@ -36,70 +53,20 @@ export function setAppLanguage(code: string) {
   } catch {
     /* storage unavailable: the language still switches for this session */
   }
-  void i18n.changeLanguage(code);
+  void ensureLanguage(code).then(() => i18n.changeLanguage(code));
 }
 
+// English is bundled (it is the fallback); the 12 Indian languages are loaded on
+// demand from ./locales/<code>.ts (see ensureLanguage). Missing keys fall back to English.
 const resources = {
   en: {
     translation: {
-      appName: "Enterprise ERP",
-      dashboard: "Dashboard",
-      selling: "Selling",
-      buying: "Buying",
-      stock: "Stock",
-      accounts: "Accounts",
-      users: "Users & Security",
-      login: "Sign In",
-      logout: "Sign Out",
-      email: "Email Address",
-      password: "Password",
-      submit: "Submit Document",
-      cancel: "Cancel Document",
-      amend: "Amend",
-      save: "Save Draft",
-      delete: "Delete Draft",
-      draft: "Draft",
-      submitted: "Submitted",
-      cancelled: "Cancelled",
-      search: "Search...",
-      actions: "Actions",
-      status: "Status",
-      name: "Document No.",
-      created_at: "Created Date",
-      no_records: "No records found.",
+      ...enCore,
       ...enExtra,
       ...enDashboard,
       ...enAccounts,
       ...enBuyingStock,
-    },
-  },
-  hi: {
-    translation: {
-      appName: "एंटरप्राइज़ ईआरपी",
-      dashboard: "डैशबोर्ड",
-      selling: "बिक्री",
-      buying: "खरीद",
-      stock: "स्टॉक",
-      accounts: "खाते",
-      users: "उपयोगकर्ता और सुरक्षा",
-      login: "साइन इन करें",
-      logout: "साइन आउट",
-      email: "ईमेल पता",
-      password: "पासवर्ड",
-      submit: "दस्तावेज़ सबमिट करें",
-      cancel: "दस्तावेज़ रद्द करें",
-      amend: "संशोधित करें",
-      save: "ड्राफ्ट सहेजें",
-      delete: "ड्राफ्ट हटाएं",
-      draft: "ड्राफ्ट",
-      submitted: "जमा किया गया",
-      cancelled: "रद्द किया गया",
-      search: "खोजें...",
-      actions: "कार्रवाइयां",
-      status: "स्थिति",
-      name: "दस्तावेज़ संख्या",
-      created_at: "सृजन तिथि",
-      no_records: "कोई रिकॉर्ड नहीं मिला।",
+      ...enUsers,
     },
   },
 };
@@ -122,6 +89,9 @@ i18n.use(initReactI18next).init({
     escapeValue: false,
   },
 });
+
+// A stored non-English language: its bundle loads asynchronously (English meanwhile).
+if (storedLang !== "en") void ensureLanguage(storedLang).then(() => i18n.changeLanguage(storedLang));
 
 // Keep <html dir/lang> in step with the active language (ur is RTL), including
 // on first load with a stored language.

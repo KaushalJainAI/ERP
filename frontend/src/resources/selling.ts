@@ -111,6 +111,7 @@ const customerGroups: ResourceConfig = {
   icon: Users,
   titleField: "name",
   ordering: "name",
+  tree: { parentKey: "parent" },
   columns: [
     { key: "name", labelKey: "fields.customer_group" },
     { key: "parent_name", labelKey: "fields.parent_group" },

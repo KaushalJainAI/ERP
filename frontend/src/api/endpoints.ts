@@ -35,6 +35,25 @@ export async function listRecords(endpoint: string, params: ListParams = {}): Pr
   return res.data as Paginated<ApiRecord>;
 }
 
+/**
+ * Fetch EVERY row of a list endpoint (used by tree views, which need the whole
+ * hierarchy). The backend page size is fixed (no `page_size` query param), so
+ * this reads page 1, then the remaining pages in small parallel batches.
+ */
+export async function listAllRecords(endpoint: string, params: ListParams = {}): Promise<ApiRecord[]> {
+  const first = await listRecords(endpoint, { ...params, page: 1 });
+  const rows = [...first.results];
+  if (!first.next || first.results.length === 0) return rows;
+  const pages = Math.min(Math.ceil(first.count / first.results.length), 400);
+  const BATCH = 4;
+  for (let start = 2; start <= pages; start += BATCH) {
+    const nums = Array.from({ length: Math.min(BATCH, pages - start + 1) }, (_, i) => start + i);
+    const chunk = await Promise.all(nums.map((n) => listRecords(endpoint, { ...params, page: n })));
+    chunk.forEach((c) => rows.push(...c.results));
+  }
+  return rows;
+}
+
 export async function getRecord(endpoint: string, id: number | string): Promise<ApiRecord> {
   const res = await apiClient.get(detailUrl(endpoint, id));
   return res.data;

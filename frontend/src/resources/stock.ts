@@ -76,6 +76,7 @@ const itemGroups: ResourceConfig = {
   icon: FolderTree,
   titleField: "name",
   ordering: "name",
+  tree: { parentKey: "parent" },
   columns: [
     { key: "name", labelKey: "bs.fields.item_group" },
     { key: "parent_name", labelKey: "fields.parent_group" },
@@ -141,6 +142,7 @@ const warehouses: ResourceConfig = {
   icon: Warehouse,
   titleField: "name",
   ordering: "name",
+  tree: { parentKey: "parent" },
   columns: [
     { key: "name", labelKey: "fields.warehouse" },
     { key: "company_name", labelKey: "fields.company" },
@@ -207,8 +209,12 @@ const stockEntries: ResourceConfig = {
       inheritFromPrevious: ["source_warehouse", "target_warehouse"],
       columns: [
         { key: "item", labelKey: "fields.item", type: "link", required: true, link: stockEntryItemLink, widthClass: "min-w-[16rem]" },
-        { key: "source_warehouse", labelKey: "bs.fields.source_warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]" },
-        { key: "target_warehouse", labelKey: "bs.fields.target_warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]" },
+        { key: "source_warehouse", labelKey: "bs.fields.source_warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]",
+          // Material Receipt only moves stock IN (target warehouse only).
+          hidden: (_row, form) => form.stock_entry_type === "Material Receipt" },
+        { key: "target_warehouse", labelKey: "bs.fields.target_warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]",
+          // Material Issue only moves stock OUT (source warehouse only).
+          hidden: (_row, form) => form.stock_entry_type === "Material Issue" },
         { key: "qty", labelKey: "fields.qty", type: "number", required: true, widthClass: "w-28" },
         { key: "valuation_rate", labelKey: "bs.fields.valuation_rate", type: "decimal", decimals: 6, widthClass: "w-32" },
       ],

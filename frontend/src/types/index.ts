@@ -46,7 +46,9 @@ export type FieldType =
   | "date"
   | "select"
   | "boolean"
-  | "link";
+  | "link"
+  | "password" // write-only secret input (never echoed back by the API)
+  | "multiselect"; // list of foreign keys, options from `link.endpoint` (e.g. a user's role ids)
 
 /** A record in a link-field dropdown: whatever the target endpoint returns. */
 export type LinkRecord = Record<string, any>;
@@ -138,6 +140,13 @@ export interface ChildColumnDef {
    */
   preview?: (row: Record<string, any>) => string | null;
   dependsOn?: string[];
+  /**
+   * Conditional column: when this returns true for a row the cell is not
+   * rendered, and its value is cleared (and never sent to the server). The
+   * header is hidden when the column is hidden for every row; with no rows it
+   * is evaluated against an empty row (so parent-driven conditions still work).
+   */
+  hidden?: (row: Record<string, any>, parentValues: Record<string, any>) => boolean;
 }
 
 export interface ChildTableDef {
@@ -181,6 +190,18 @@ export interface ListColumnDef {
   render?: (value: any, row: ApiRecord) => ReactNode;
 }
 
+/** Hierarchical master (ERPNext tree view): rendered as a collapsible, indented tree. */
+export interface TreeConfig {
+  /** Property holding the parent's id (e.g. "parent"). Rows with a null/unknown parent are roots. */
+  parentKey: string;
+  /** Column key that gets the indent + expand/collapse toggle. Default: the first column. */
+  labelColumn?: string;
+  /** Property marking a row as a group (shown with a folder icon). Default "is_group". */
+  groupKey?: string;
+  /** Start in flat-list mode instead of tree mode. */
+  defaultFlat?: boolean;
+}
+
 export interface ResourceConfig {
   /** URL slug: /<module>/<key> */
   key: string;
@@ -203,6 +224,8 @@ export interface ResourceConfig {
   titleField?: string;
   /** DRF ordering for the list. Default "-created_at". */
   ordering?: string;
+  /** Enables the tree view (with a toggle back to the flat, paginated list). */
+  tree?: TreeConfig;
   /** Hide the Delete button on masters. */
   noDelete?: boolean;
   /** Hide from the sidebar (still routable). */

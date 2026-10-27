@@ -5,7 +5,7 @@ import { sellingResources } from "./selling";
 import { accountsLinks, accountsResources } from "./accounts";
 import { buyingResources } from "./buying";
 import { stockReports, stockResources } from "./stock";
-import { usersLinks } from "./users";
+import { usersLinks, usersResources } from "./users";
 
 /**
  * Central registry. To add a module's documents:
@@ -19,6 +19,7 @@ export const RESOURCES: ResourceConfig[] = [
   ...stockResources,
   ...buyingResources,
   ...accountsResources,
+  ...usersResources,
 ];
 
 /**

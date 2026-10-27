@@ -31,6 +31,7 @@ const supplierGroups: ResourceConfig = {
   icon: Users,
   titleField: "name",
   ordering: "name",
+  tree: { parentKey: "parent" },
   columns: [
     { key: "name", labelKey: "bs.fields.supplier_group" },
     { key: "parent_name", labelKey: "fields.parent_group" },

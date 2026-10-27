@@ -96,6 +96,7 @@ const accountsMaster: ResourceConfig = {
   icon: BookOpen,
   titleField: "name",
   ordering: "name",
+  tree: { parentKey: "parent" },
   columns: [
     { key: "name", labelKey: "acc.fields.account_name" },
     { key: "account_number", labelKey: "acc.fields.account_number" },

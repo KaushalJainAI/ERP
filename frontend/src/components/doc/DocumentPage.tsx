@@ -7,7 +7,7 @@ import { Layout } from "@/components/Layout";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
-import { ChildTable, newRowKey, type Row } from "./ChildTable";
+import { ChildTable, isColumnHidden, newRowKey, type Row } from "./ChildTable";
 import { FieldInput, formatReadOnly } from "./FieldInput";
 import {
   createRecord,
@@ -81,6 +81,7 @@ function buildPayload(config: ResourceConfig, values: Values, tables: Tables, is
       const out: ApiRecord = {};
       t.columns.forEach((c) => {
         if (c.readOnly || c.preview) return;
+        if (isColumnHidden(c, row, values)) return; // conditional column hidden: never send a stale value
         const v = cleanValue(c, row[c.key], true);
         if (v !== undefined) out[c.key] = v;
       });
@@ -236,7 +237,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
     (config.childTables ?? []).forEach((tb) => {
       (tables[tb.key] ?? []).forEach((row, idx) => {
         tb.columns.forEach((c) => {
-          if (c.required && !c.readOnly && !c.preview && isEmpty(row[c.key])) {
+          if (c.required && !c.readOnly && !c.preview && !isColumnHidden(c, row, values) && isEmpty(row[c.key])) {
             errs[`${tb.key}.${idx}.${c.key}`] = t("common.required");
           }
         });

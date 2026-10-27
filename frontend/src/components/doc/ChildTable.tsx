@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import { FieldInput, formatReadOnly } from "./FieldInput";
@@ -31,6 +31,32 @@ export function computedValue(col: ChildColumnDef, row: Row): string | null {
   return col.preview ? col.preview(row) : (row[col.key] ?? null);
 }
 
+const hasValue = (v: unknown) => v !== "" && v !== null && v !== undefined;
+
+/** True when a conditional column is hidden for this row. */
+export const isColumnHidden = (col: ChildColumnDef, row: Row, parentValues: Record<string, any>) =>
+  !!col.hidden?.(row, parentValues);
+
+/**
+ * Clear the values of columns hidden for a row. Returns the same array when
+ * nothing changed, so callers can cheaply detect "nothing to do".
+ */
+export function clearHiddenValues(def: ChildTableDef, rows: Row[], parentValues: Record<string, any>): Row[] {
+  if (!def.columns.some((c) => c.hidden)) return rows;
+  let changed = false;
+  const out = rows.map((row) => {
+    let next = row;
+    def.columns.forEach((c) => {
+      if (c.hidden && hasValue(next[c.key]) && isColumnHidden(c, next, parentValues)) {
+        next = { ...next, [c.key]: "" };
+        changed = true;
+      }
+    });
+    return next;
+  });
+  return changed ? out : rows;
+}
+
 export const ChildTable: React.FC<ChildTableProps> = ({
   def,
   cacheKeyBase,
@@ -43,6 +69,19 @@ export const ChildTable: React.FC<ChildTableProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // Columns hidden for every row (or for the blank row when the table is empty).
+  const visibleColumns = def.columns.filter(
+    (c) => !(rows.length ? rows : [{}]).every((r) => isColumnHidden(c, r, parentValues))
+  );
+
+  // A hidden column must not keep a stale value (e.g. after the entry type changes).
+  useEffect(() => {
+    if (readOnly) return;
+    const cleared = clearHiddenValues(def, rows, parentValues);
+    if (cleared !== rows) onChange(cleared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, parentValues, readOnly]);
+
   const setCell = (idx: number, patch: Row) => {
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
@@ -53,7 +92,8 @@ export const ChildTable: React.FC<ChildTableProps> = ({
     (def.inheritFromPrevious ?? []).forEach((k) => {
       if (prev && prev[k] !== undefined) inherited[k] = prev[k];
     });
-    onChange([...rows, { ...(def.newRow?.() ?? {}), ...inherited, _key: newRowKey() }]);
+    const fresh = { ...(def.newRow?.() ?? {}), ...inherited, _key: newRowKey() };
+    onChange([...rows, ...clearHiddenValues(def, [fresh], parentValues)]);
   };
 
   const removeRow = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
@@ -76,7 +116,7 @@ export const ChildTable: React.FC<ChildTableProps> = ({
           <thead className="bg-slate-950/70 text-[11px] uppercase text-slate-400 font-semibold">
             <tr>
               <th className="px-3 py-2.5 w-10 text-left">#</th>
-              {def.columns.map((col) => (
+              {visibleColumns.map((col) => (
                 <th
                   key={col.key}
                   className={`px-2 py-2.5 ${col.type === "number" || col.type === "decimal" ? "text-right" : "text-left"} ${
@@ -93,7 +133,7 @@ export const ChildTable: React.FC<ChildTableProps> = ({
           <tbody className="divide-y divide-slate-800/60">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={def.columns.length + 2} className="px-4 py-6 text-center text-slate-500 text-xs">
+                <td colSpan={visibleColumns.length + 2} className="px-4 py-6 text-center text-slate-500 text-xs">
                   {t("common.no_rows")}
                 </td>
               </tr>
@@ -101,7 +141,8 @@ export const ChildTable: React.FC<ChildTableProps> = ({
             {rows.map((row, idx) => (
               <tr key={row._key ?? idx} className="align-top">
                 <td className="px-3 py-2 text-xs text-slate-500">{idx + 1}</td>
-                {def.columns.map((col) => {
+                {visibleColumns.map((col) => {
+                  if (isColumnHidden(col, row, parentValues)) return <td key={col.key} className={`px-2 py-1.5 ${col.widthClass ?? ""}`} />;
                   const colErrors = errors[idx]?.[col.key];
                   const numeric = col.type === "number" || col.type === "decimal";
                   const isComputed = !!col.preview || col.readOnly;

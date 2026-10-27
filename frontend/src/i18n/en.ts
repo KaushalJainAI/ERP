@@ -46,6 +46,12 @@ export const enExtra = {
     save_short: "Save",
     delete: "Delete",
     section_modules: "Modules",
+    tree_view: "Tree view",
+    list_view: "List view",
+    expand_all: "Expand all",
+    collapse_all: "Collapse all",
+    expand_node: "Expand",
+    collapse_node: "Collapse",
   },
   doc: {
     confirm_submit_title: "Submit this {{item}}?",

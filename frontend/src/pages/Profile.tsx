@@ -7,6 +7,7 @@ import { apiClient } from "@/api/client";
 import { normaliseError, summariseError } from "@/api/endpoints";
 import { useAuth } from "@/hooks/useAuth";
 import { useChangeLanguage } from "@/hooks/useChangeLanguage";
+import { ChangePasswordSection } from "@/components/users/ChangePasswordSection";
 import { SUPPORTED_LANGUAGES } from "@/i18n/i18n";
 
 const inputClass =
@@ -157,6 +158,8 @@ export const Profile: React.FC = () => {
             )}
           </div>
         </div>
+
+        <ChangePasswordSection />
       </div>
     </Layout>
   );
