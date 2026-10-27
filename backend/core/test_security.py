@@ -8,7 +8,6 @@ through every HTTP verb. Every probe must get a clean 401/403/405/429 — never 
 500 and never data it shouldn't see.
 """
 
-
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase

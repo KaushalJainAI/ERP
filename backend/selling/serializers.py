@@ -1,12 +1,18 @@
-from django.db import transaction
 from rest_framework import serializers
-from selling.models import CustomerGroup, Customer, SalesOrder, SalesOrderItem, SalesInvoice, SalesInvoiceItem
+from selling.models import (
+    CustomerGroup,
+    Customer,
+    SalesOrder,
+    SalesOrderItem,
+    SalesInvoice,
+    SalesInvoiceItem,
+)
 from core.mixins import (
+    DraftNestedWriteMixin,
     TranslatedSerializerMixin,
     PositiveQtyLineItemMixin,
     NonNegativeRateLineItemMixin,
 )
-from core.models import NamingSeries
 
 
 class CustomerGroupSerializer(serializers.ModelSerializer):
@@ -14,12 +20,22 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomerGroup
-        fields = ("id", "name", "parent", "parent_name", "is_group", "created_at", "modified_at")
+        fields = (
+            "id",
+            "name",
+            "parent",
+            "parent_name",
+            "is_group",
+            "created_at",
+            "modified_at",
+        )
 
 
 class CustomerSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True)
-    customer_group_name = serializers.CharField(source="customer_group.name", read_only=True)
+    customer_group_name = serializers.CharField(
+        source="customer_group.name", read_only=True
+    )
 
     class Meta:
         model = Customer
@@ -46,13 +62,29 @@ class SalesOrderItemSerializer(
 ):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
+    warehouse_name = serializers.CharField(
+        source="warehouse.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = SalesOrderItem
-        fields = ("id", "item", "item_code", "item_name", "warehouse", "qty", "rate", "amount")
+        fields = (
+            "id",
+            "item",
+            "item_code",
+            "item_name",
+            "warehouse",
+            "warehouse_name",
+            "qty",
+            "rate",
+            "amount",
+        )
 
 
-class SalesOrderSerializer(serializers.ModelSerializer):
+class SalesOrderSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "items"
+    name_prefix = "SO-2026-"
+
     items = SalesOrderItemSerializer(many=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
 
@@ -73,23 +105,13 @@ class SalesOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "modified_at",
         )
-        read_only_fields = ("id", "docstatus", "grand_total", "created_at", "modified_at")
-
-    def create(self, validated_data):
-        items_data = validated_data.pop("items", [])
-        with transaction.atomic():
-            if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next("SO-2026-")
-            sales_order = SalesOrder.objects.create(**validated_data)
-
-            gt = 0
-            for item in items_data:
-                item_obj = SalesOrderItem.objects.create(sales_order=sales_order, **item)
-                gt += item_obj.amount
-
-            sales_order.grand_total = gt
-            sales_order.save(update_fields=["grand_total"])
-        return sales_order
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "grand_total",
+            "created_at",
+            "modified_at",
+        )
 
 
 class SalesInvoiceItemSerializer(
@@ -97,15 +119,40 @@ class SalesInvoiceItemSerializer(
 ):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
+    warehouse_name = serializers.CharField(
+        source="warehouse.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = SalesInvoiceItem
-        fields = ("id", "item", "item_code", "item_name", "warehouse", "qty", "rate", "amount")
+        fields = (
+            "id",
+            "item",
+            "item_code",
+            "item_name",
+            "warehouse",
+            "warehouse_name",
+            "qty",
+            "rate",
+            "amount",
+        )
 
 
-class SalesInvoiceSerializer(serializers.ModelSerializer):
+class SalesInvoiceSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "items"
+    name_prefix = "SINV-2026-"
+
     items = SalesInvoiceItemSerializer(many=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    # sales_order is nullable: allow_null so the key is kept (DRF otherwise
+    # drops a null dotted source from the output).
+    sales_order_name = serializers.CharField(
+        source="sales_order.name", read_only=True, allow_null=True
+    )
+    debit_to_name = serializers.CharField(source="debit_to.name", read_only=True)
+    income_account_name = serializers.CharField(
+        source="income_account.name", read_only=True
+    )
 
     class Meta:
         model = SalesInvoice
@@ -118,9 +165,12 @@ class SalesInvoiceSerializer(serializers.ModelSerializer):
             "posting_date",
             "due_date",
             "sales_order",
+            "sales_order_name",
             "update_stock",
             "debit_to",
+            "debit_to_name",
             "income_account",
+            "income_account_name",
             "grand_total",
             "docstatus",
             "amended_from",
@@ -128,20 +178,10 @@ class SalesInvoiceSerializer(serializers.ModelSerializer):
             "created_at",
             "modified_at",
         )
-        read_only_fields = ("id", "docstatus", "grand_total", "created_at", "modified_at")
-
-    def create(self, validated_data):
-        items_data = validated_data.pop("items", [])
-        with transaction.atomic():
-            if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next("SINV-2026-")
-            sales_invoice = SalesInvoice.objects.create(**validated_data)
-
-            gt = 0
-            for item in items_data:
-                item_obj = SalesInvoiceItem.objects.create(sales_invoice=sales_invoice, **item)
-                gt += item_obj.amount
-
-            sales_invoice.grand_total = gt
-            sales_invoice.save(update_fields=["grand_total"])
-        return sales_invoice
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "grand_total",
+            "created_at",
+            "modified_at",
+        )

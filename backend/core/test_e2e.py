@@ -484,7 +484,9 @@ class InputValidationE2E(BaseAPITest):
         submit = self.client.post(
             f"/api/selling/sales-invoices/{created.data['id']}/submit/"
         )
-        self.assertEqual(submit.status_code, status.HTTP_400_BAD_REQUEST, submit.content)
+        self.assertEqual(
+            submit.status_code, status.HTTP_400_BAD_REQUEST, submit.content
+        )
 
     def test_payment_to_same_account_is_rejected(self):
         pay = self.client.post(
@@ -506,4 +508,6 @@ class InputValidationE2E(BaseAPITest):
         submit = self.client.post(
             f"/api/accounts/payment-entries/{pay.data['id']}/submit/"
         )
-        self.assertEqual(submit.status_code, status.HTTP_400_BAD_REQUEST, submit.content)
+        self.assertEqual(
+            submit.status_code, status.HTTP_400_BAD_REQUEST, submit.content
+        )

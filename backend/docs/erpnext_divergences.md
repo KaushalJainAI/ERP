@@ -42,16 +42,29 @@ This document outlines key technical decisions and architectural enhancements ma
 - Money/qty/rate quantization uses `ROUND_HALF_UP` (Indian invoicing convention),
   applied consistently in `accounts.services.gl` and `stock.services.ledger`.
 
-### G4. No COGS / perpetual-inventory GL on stock-moving invoices  ⚠️ accounting integrity
-- A `SalesInvoice` with `update_stock=True` posts **revenue** (`Debtors Dr / Income Cr`)
-  and a stock-out SLE, but **no cost entry** (`COGS Dr / Stock-in-Hand Cr`). Inventory
-  value leaves `Bin.stock_value` with nothing recorded in the GL.
-- A `PurchaseInvoice` books `Expense Dr / Creditors Cr` (periodic style) while *also*
-  posting a stock-in SLE — the value lands in a P&L expense account, not a
-  Stock-in-Hand asset.
-- Net effect: the GL's inventory asset / COGS do **not** reconcile with the stock
-  ledger's `stock_value`. ERPNext keeps perpetual inventory in sync (Stock-in-Hand
-  movements, Stock Received But Not Billed). Tracked as a dedicated checklist item.
+### G4. Perpetual inventory — implemented (2026-10-27), with deviations
+- With `Company.enable_perpetual_inventory` on, stock-moving documents post inventory GL
+  from the SLE `stock_value_difference`, so GL == `Bin.stock_value`:
+  `PurchaseInvoice` → `default_inventory_account Dr` (non-stock lines stay on the expense
+  account); `SalesInvoice` → also `default_expense_account (COGS) Dr / inventory Cr`;
+  `StockEntry` receipt / issue ↔ `stock_adjustment_account`; a transfer posts no GL.
+  `verify_integrity` checks `perpetual_inventory_balance` per company.
+- **Deviation — default off.** ERPNext defaults perpetual inventory to on; our model
+  default is `False` because existing test fixtures build companies without the stock
+  accounts. Real companies must turn it on (`seed_demo` does so on a fresh database).
+  Flip the default once the fixtures carry the accounts.
+- **Deviation — no Purchase Receipt / "Stock Received But Not Billed".** A
+  `PurchaseInvoice` with `update_stock=False` still expenses the amount.
+- **Gap — manual Journal Entries can still post to the inventory account.** ERPNext
+  refuses them ("can only be updated via Stock Transactions"); `verify_integrity` will
+  flag the resulting drift until that guard is added.
+- Non-stock items (`is_stock_item=False`) no longer get SLEs on invoices.
+
+### G4a. Amend copies child rows (fixed 2026-10-27)
+- `SubmittableDocument.amend()` saves the draft and copies every child row set
+  (CASCADE, non-submittable related models) in one transaction, then recomputes totals.
+  Like ERPNext, it copies line fields as-is; fulfilment-style fields (delivered/billed
+  qty) must be reset when such fields are added.
 
 ### G5. No tax / GST computation  ⚠️ core Indian-market feature
 - `gstin`/`tax_id` are stored on company & parties, and an `AccountType.TAX` exists,
@@ -66,10 +79,12 @@ This document outlines key technical decisions and architectural enhancements ma
   aging, no partial-settlement, and no paid/unpaid status. ERPNext tracks this through
   GL `against_voucher` + the Payment Ledger.
 
-### G7. Fiscal year neither enforced nor stamped
-- `FiscalYear.is_closed` exists but **nothing blocks posting into a closed or missing
-  period**, and `gl.post()` never derives `fiscal_year`, so every `GLEntry.fiscal_year`
-  is `NULL`. No period-closing voucher exists.
+### G7. Fiscal year — enforced and stamped (2026-10-27)
+- `gl.post()` / `ledger.post()` resolve `FiscalYear.for_date(posting_date)` and refuse a
+  missing or closed year; every `GLEntry.fiscal_year` is stamped. Cancelling a document
+  whose entries fall in a closed (or missing) year is refused, as in ERPNext.
+- **Deviation:** `FiscalYear` is global, not per company (ERPNext links companies to a
+  fiscal year). No Period Closing Voucher document exists yet.
 
 ### G8. Negative stock is always hard-blocked
 - Any stock-out that would drive a `Bin` negative raises `ValidationError`
@@ -195,3 +210,39 @@ now match that posture.
 > A broader, prioritised improvement backlog (perpetual inventory/COGS, fiscal-period
 > lock, GST, AR/AP, the `is_staff` RBAC bypass, and more) lives in the repo-root
 > **`improvements.md`**. F1 above was fixed on 2026-07-23 — see the fix log.
+
+## Document mapping defaults (2026-10-27)
+
+`make-sales-invoice`, `make-purchase-invoice` and `make-payment-entry` (`selling/mapping.py`,
+`buying/mapping.py`, `accounts/mapping.py`) mirror ERPNext's `make_sales_invoice` /
+`make_purchase_invoice` / `get_payment_entry`, with these deliberate differences:
+
+- **Accounts are resolved by type, not from Company defaults.** `Company` has no default-account
+  fields, so within the document's company (non-group, active, lowest id, preferring a fitting
+  name): debit_to = `Receivable`, credit_to = `Payable`, income = Income root type, purchase
+  expense = a `Stock` account when `update_stock` else a non-COGS Expense account, payment
+  counter-account = `Bank`, else `Cash`. A missing account is a 400, never a guess.
+- **`update_stock` default** is true only when every mapped line is a stock item with a warehouse
+  (a stock-updating invoice line without a warehouse cannot be submitted).
+- **Billed qty** counts only **submitted** invoices of the order (as ERPNext), matched per item
+  because invoice lines carry no link to the order line.
+- **Outstanding** (payment mapping) = invoice grand total less `allocated_amount` on references of
+  **submitted** Payment Entries (`reference_doctype` = `selling.SalesInvoice` / `buying.PurchaseInvoice`),
+  computed on read; there is no stored outstanding field yet. Posting date defaults to today.
+- Permissions: `can_read` on the source and `can_create` on the target (ERPNext requires create
+  permission on the mapped doctype).
+
+## Report parameters and GL opening balance (2026-10-27)
+
+- **Profit & Loss** takes an optional period `from_date`..`to_date`; **Balance Sheet** takes an
+  as-of `to_date` only (it counts every posting up to and including it, `from_date` is ignored).
+  No parameters = all time. ERPNext additionally rolls closing-period/period-closing vouchers and
+  shows unclosed P&L inside Equity on the balance sheet; we do not (yet): `total_equity` is the
+  Equity-root ledger balance only.
+- **General Ledger** returns `opening_balance` (net debit-credit before `from_date`) only when an
+  `account` filter is given, and the running `balance` starts from it (ERPNext shows an "Opening"
+  row; we expose it as a value rather than a synthetic row so `entries` stay real GL facts).
+  Without an `account` the running balance would mix accounts, so `opening_balance`, per-row
+  `balance` and `closing_balance` are `null` (ERPNext's ungrouped GL has a running total column
+  too; we omit it deliberately).
+- Malformed `from_date`/`to_date` on the reports is a 400, not ignored.

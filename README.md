@@ -77,8 +77,16 @@ python -m venv venv
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed_defaults
+python manage.py seed_demo          # optional, DEV ONLY: demo data + login below
 python manage.py runserver          # http://localhost:8000
 ```
+
+`seed_demo` is idempotent and refuses to run unless `DEBUG` is true. It loads
+realistic Indian demo data (8 items, 2 warehouses, 4 customers, 3 suppliers, opening
+stock, a PO→Purchase Invoice, a SO→Sales Invoice with a partial Payment Entry, an open
+and a draft Sales Order, and Journal Entries) by submitting normal documents, so the
+ledgers stay consistent (`python manage.py verify_integrity` is green afterwards).
+Demo login (superuser): **`admin` / `admin123`**.
 
 **Frontend** (from `frontend/`):
 

@@ -6,7 +6,11 @@ read-only in admin. Corrections go through reverse/repost services.
 
 from django.contrib import admin
 
-from core.admin import ReadOnlyModelAdmin, SubmittableDocumentAdmin, TimeStampedAdminMixin
+from core.admin import (
+    ReadOnlyModelAdmin,
+    SubmittableDocumentAdmin,
+    TimeStampedAdminMixin,
+)
 from stock.models import (
     Bin,
     Item,

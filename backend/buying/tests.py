@@ -18,8 +18,12 @@ from buying.models import (
 
 class BuyingAppTests(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(name="Tata Steel", abbr="TS", default_currency="INR")
-        self.supp_group = SupplierGroup.objects.create(name="Raw Material Vendors", is_group=True)
+        self.company = Company.objects.create(
+            name="Tata Steel", abbr="TS", default_currency="INR"
+        )
+        self.supp_group = SupplierGroup.objects.create(
+            name="Raw Material Vendors", is_group=True
+        )
         self.supplier = Supplier.objects.create(
             name="Jindal Steels",
             company=self.company,
@@ -28,7 +32,12 @@ class BuyingAppTests(TestCase):
         )
 
         # Accounts setup
-        self.liability_root = Account.objects.create(name="Liabilities", company=self.company, root_type=AccountRootType.LIABILITY, is_group=True)
+        self.liability_root = Account.objects.create(
+            name="Liabilities",
+            company=self.company,
+            root_type=AccountRootType.LIABILITY,
+            is_group=True,
+        )
         self.creditors_acc = Account.objects.create(
             name="Creditors Account",
             company=self.company,
@@ -36,7 +45,12 @@ class BuyingAppTests(TestCase):
             root_type=AccountRootType.LIABILITY,
             account_type=AccountType.PAYABLE,
         )
-        self.expense_root = Account.objects.create(name="Expenses", company=self.company, root_type=AccountRootType.EXPENSE, is_group=True)
+        self.expense_root = Account.objects.create(
+            name="Expenses",
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+            is_group=True,
+        )
         self.purchase_expense_acc = Account.objects.create(
             name="Purchase Expense Account",
             company=self.company,
@@ -47,8 +61,15 @@ class BuyingAppTests(TestCase):
         # Stock setup
         self.uom = UOM.objects.create(name="Kg")
         self.item_grp = ItemGroup.objects.create(name="Raw Metals", is_group=True)
-        self.item = Item.objects.create(code="RM-001", name="Iron Ore 10mm", item_group=self.item_grp, stock_uom=self.uom)
-        self.warehouse = Warehouse.objects.create(name="Raw Material Store", company=self.company)
+        self.item = Item.objects.create(
+            code="RM-001",
+            name="Iron Ore 10mm",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+        )
+        self.warehouse = Warehouse.objects.create(
+            name="Raw Material Store", company=self.company
+        )
 
     # -------------------------------------------------------------------------
     # Good Unit Tests
@@ -67,7 +88,13 @@ class BuyingAppTests(TestCase):
             company=self.company,
             transaction_date=datetime.date(2026, 4, 1),
         )
-        PurchaseOrderItem.objects.create(purchase_order=po, item=self.item, warehouse=self.warehouse, qty=Decimal("500.000"), rate=Decimal("40.00"))
+        PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("500.000"),
+            rate=Decimal("40.00"),
+        )
         po.submit()
 
         self.assertEqual(po.grand_total, Decimal("20000.00"))
@@ -84,7 +111,13 @@ class BuyingAppTests(TestCase):
             credit_to=self.creditors_acc,
             expense_account=self.purchase_expense_acc,
         )
-        PurchaseInvoiceItem.objects.create(purchase_invoice=pi, item=self.item, warehouse=self.warehouse, qty=Decimal("100.000"), rate=Decimal("45.00"))
+        PurchaseInvoiceItem.objects.create(
+            purchase_invoice=pi,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("100.000"),
+            rate=Decimal("45.00"),
+        )
 
         # Submit Invoice
         pi.submit()
@@ -92,7 +125,9 @@ class BuyingAppTests(TestCase):
         self.assertEqual(pi.docstatus, DocStatus.SUBMITTED)
 
         # Verify GL entries (2 active rows: Expense Dr 4500, Creditors Cr 4500)
-        gl_entries = GLEntry.objects.filter(voucher_no="PINV-2026-0001", is_cancelled=False)
+        gl_entries = GLEntry.objects.filter(
+            voucher_no="PINV-2026-0001", is_cancelled=False
+        )
         self.assertEqual(gl_entries.count(), 2)
 
         # Verify Stock Bin updated (+100)
@@ -118,7 +153,11 @@ class BuyingAppTests(TestCase):
         """BAD: Creating duplicate supplier name in same company violates UNIQUE constraint."""
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                Supplier.objects.create(name="Jindal Steels", company=self.company, supplier_group=self.supp_group)
+                Supplier.objects.create(
+                    name="Jindal Steels",
+                    company=self.company,
+                    supplier_group=self.supp_group,
+                )
 
     def test_purchase_invoice_without_items_fails(self):
         """BAD: Submitting PurchaseInvoice without items raises ValidationError."""
@@ -143,6 +182,12 @@ class BuyingAppTests(TestCase):
             credit_to=self.liability_root,  # Group node
             expense_account=self.purchase_expense_acc,
         )
-        PurchaseInvoiceItem.objects.create(purchase_invoice=pi, item=self.item, warehouse=self.warehouse, qty=Decimal("10.000"), rate=Decimal("40.00"))
+        PurchaseInvoiceItem.objects.create(
+            purchase_invoice=pi,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("10.000"),
+            rate=Decimal("40.00"),
+        )
         with self.assertRaises(ValidationError):
             pi.submit()

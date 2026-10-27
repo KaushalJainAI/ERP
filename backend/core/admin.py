@@ -143,6 +143,7 @@ class OutboxAdmin(admin.ModelAdmin):
     search_fields = ("dedupe_key", "last_error")
     readonly_fields = ("created_at",)
     ordering = ("-created_at",)
+
     # Allow ops to inspect / re-queue (status, next_attempt_at) but not invent rows.
     def has_add_permission(self, request):
         return False
@@ -158,7 +159,13 @@ class LanguageAdmin(admin.ModelAdmin):
 
 @admin.register(FieldTranslation)
 class FieldTranslationAdmin(admin.ModelAdmin):
-    list_display = ("model_label", "object_id", "field_name", "language", "value_preview")
+    list_display = (
+        "model_label",
+        "object_id",
+        "field_name",
+        "language",
+        "value_preview",
+    )
     list_filter = ("language", "model_label")
     search_fields = ("model_label", "field_name", "value", "object_id")
     ordering = ("model_label", "object_id", "field_name", "language")

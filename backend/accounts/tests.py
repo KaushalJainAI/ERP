@@ -4,13 +4,24 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from core.models import Company, DummySubmittableDoc, DocStatus
-from accounts.models import Account, AccountRootType, AccountType, GLEntry, JournalEntry, JournalEntryLine, PaymentEntry, PaymentType
+from accounts.models import (
+    Account,
+    AccountRootType,
+    AccountType,
+    GLEntry,
+    JournalEntry,
+    JournalEntryLine,
+    PaymentEntry,
+    PaymentType,
+)
 from accounts.services import gl as gl_service
 
 
 class AccountsAppTests(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(name="Acme Trading", abbr="ACME", default_currency="INR")
+        self.company = Company.objects.create(
+            name="Acme Trading", abbr="ACME", default_currency="INR"
+        )
         self.asset_root = Account.objects.create(
             name="Application of Funds (Assets)",
             company=self.company,
@@ -63,8 +74,16 @@ class AccountsAppTests(TestCase):
     def test_gl_post_success(self):
         """GOOD: Posting balanced GL entries creates immutable GLEntry rows."""
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("5000.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("5000.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("5000.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("5000.00"),
+            },
         ]
         gl_rows = gl_service.post(
             voucher=self.doc,
@@ -77,10 +96,20 @@ class AccountsAppTests(TestCase):
     def test_gl_reversal_success(self):
         """GOOD: Reversing a GL voucher posts reversing entries with swapped debit/credit and is_cancelled=True."""
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("1000.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("1000.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("1000.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("1000.00"),
+            },
         ]
-        gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+        gl_service.post(
+            voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1)
+        )
 
         # Perform reversal
         reversals = gl_service.reverse(self.doc)
@@ -98,10 +127,20 @@ class AccountsAppTests(TestCase):
     def test_gl_repost_success(self):
         """GOOD: Reposting GL verifies ledger balance consistency."""
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("2500.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("2500.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("2500.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("2500.00"),
+            },
         ]
-        gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+        gl_service.post(
+            voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1)
+        )
         self.assertTrue(gl_service.repost(company_id=self.company.id))
 
     # -------------------------------------------------------------------------
@@ -121,28 +160,62 @@ class AccountsAppTests(TestCase):
     def test_gl_post_unbalanced_fails(self):
         """BAD: Posting GL entries where total debit != total credit raises ValidationError."""
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("5000.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("4000.00")},  # Unbalanced
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("5000.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("4000.00"),
+            },  # Unbalanced
         ]
         with self.assertRaises(ValidationError):
-            gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+            gl_service.post(
+                voucher=self.doc,
+                entries=entries,
+                posting_date=datetime.date(2026, 4, 1),
+            )
 
     def test_gl_post_to_group_account_fails(self):
         """BAD: Posting GL entries to a group account (is_group=True) raises ValidationError."""
         entries = [
-            {"account": self.asset_root, "debit": Decimal("1000.00"), "credit": Decimal("0.00")},  # Group node
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("1000.00")},
+            {
+                "account": self.asset_root,
+                "debit": Decimal("1000.00"),
+                "credit": Decimal("0.00"),
+            },  # Group node
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("1000.00"),
+            },
         ]
         with self.assertRaises(ValidationError):
-            gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+            gl_service.post(
+                voucher=self.doc,
+                entries=entries,
+                posting_date=datetime.date(2026, 4, 1),
+            )
 
     def test_gl_entry_immutability_update_and_delete_forbidden(self):
         """BAD: Updating or deleting an existing GLEntry raises ValidationError."""
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("500.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("500.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("500.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("500.00"),
+            },
         ]
-        rows = gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+        rows = gl_service.post(
+            voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1)
+        )
         gl_row = rows[0]
 
         # BAD: Updating GLEntry directly
@@ -162,8 +235,18 @@ class AccountsAppTests(TestCase):
             company=self.company,
             user_remark="Opening balance",
         )
-        JournalEntryLine.objects.create(journal_entry=jv, account=self.bank_acc, debit=Decimal("3000.00"), credit=Decimal("0.00"))
-        JournalEntryLine.objects.create(journal_entry=jv, account=self.sales_acc, debit=Decimal("0.00"), credit=Decimal("3000.00"))
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.bank_acc,
+            debit=Decimal("3000.00"),
+            credit=Decimal("0.00"),
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.sales_acc,
+            debit=Decimal("0.00"),
+            credit=Decimal("3000.00"),
+        )
 
         # Submit JV
         jv.submit()
@@ -175,6 +258,59 @@ class AccountsAppTests(TestCase):
         self.assertEqual(jv.docstatus, DocStatus.CANCELLED)
         self.assertEqual(GLEntry.objects.filter(voucher_no="JV-TEST-001").count(), 4)
 
+    def test_journal_entry_totals_are_derived_from_lines(self):
+        """GOOD: header totals follow the lines -- on API create and on submit,
+        even if the lines were written without the serializer (ORM/imports)."""
+        from rest_framework.test import APIClient
+        from users.models import User
+
+        user = User.objects.create_superuser(
+            username="admin_je", email="admin_je@test.com", password="password"
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        res = client.post(
+            "/api/accounts/journal-entries/",
+            {
+                "name": "JV-API-001",
+                "posting_date": "2026-04-01",
+                "company": self.company.id,
+                "lines": [
+                    {"account": self.bank_acc.id, "debit": "500.00", "credit": "0.00"},
+                    {"account": self.sales_acc.id, "debit": "0.00", "credit": "500.00"},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual(res.data["total_debit"], "500.00")
+        self.assertEqual(res.data["total_credit"], "500.00")
+
+        # Lines written straight through the ORM leave the header at zero ...
+        jv = JournalEntry.objects.create(
+            name="JV-ORM-001",
+            posting_date=datetime.date(2026, 4, 1),
+            company=self.company,
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.bank_acc,
+            debit=Decimal("750.00"),
+            credit=Decimal("0.00"),
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.sales_acc,
+            debit=Decimal("0.00"),
+            credit=Decimal("750.00"),
+        )
+        self.assertEqual(jv.total_debit, Decimal("0.00"))
+        # ... until submit re-derives and persists them.
+        jv.submit()
+        jv.refresh_from_db()
+        self.assertEqual(jv.total_debit, Decimal("750.00"))
+        self.assertEqual(jv.total_credit, Decimal("750.00"))
+
     def test_journal_entry_unbalanced_submit_fails(self):
         """BAD: Submitting unbalanced JournalEntry raises ValidationError."""
         jv = JournalEntry.objects.create(
@@ -182,8 +318,18 @@ class AccountsAppTests(TestCase):
             posting_date=datetime.date(2026, 4, 1),
             company=self.company,
         )
-        JournalEntryLine.objects.create(journal_entry=jv, account=self.bank_acc, debit=Decimal("3000.00"), credit=Decimal("0.00"))
-        JournalEntryLine.objects.create(journal_entry=jv, account=self.sales_acc, debit=Decimal("0.00"), credit=Decimal("2000.00"))
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.bank_acc,
+            debit=Decimal("3000.00"),
+            credit=Decimal("0.00"),
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=jv,
+            account=self.sales_acc,
+            debit=Decimal("0.00"),
+            credit=Decimal("2000.00"),
+        )
 
         with self.assertRaises(ValidationError):
             jv.submit()
@@ -193,17 +339,31 @@ class AccountsAppTests(TestCase):
         from rest_framework.test import APIClient
         from users.models import User
 
-        user = User.objects.create_superuser(username="admin_tb", email="admin_tb@test.com", password="password")
+        user = User.objects.create_superuser(
+            username="admin_tb", email="admin_tb@test.com", password="password"
+        )
         client = APIClient()
         client.force_authenticate(user=user)
 
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("12500.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("12500.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("12500.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("12500.00"),
+            },
         ]
-        gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+        gl_service.post(
+            voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1)
+        )
 
-        res = client.get(f"/api/accounts/reports/trial-balance/?company={self.company.id}")
+        res = client.get(
+            f"/api/accounts/reports/trial-balance/?company={self.company.id}"
+        )
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.data["is_balanced"])
         self.assertEqual(res.data["total_debit"], "12500.00")
@@ -224,7 +384,12 @@ class AccountsAppTests(TestCase):
         )
         pe.submit()
         self.assertEqual(pe.docstatus, DocStatus.SUBMITTED)
-        self.assertEqual(GLEntry.objects.filter(voucher_no="PE-2026-0001", is_cancelled=False).count(), 2)
+        self.assertEqual(
+            GLEntry.objects.filter(
+                voucher_no="PE-2026-0001", is_cancelled=False
+            ).count(),
+            2,
+        )
 
         pe.cancel()
         self.assertEqual(pe.docstatus, DocStatus.CANCELLED)
@@ -249,31 +414,45 @@ class AccountsAppTests(TestCase):
         from rest_framework.test import APIClient
         from users.models import User
 
-        user = User.objects.create_superuser(username="admin_reports", email="admin_rep@test.com", password="password")
+        user = User.objects.create_superuser(
+            username="admin_reports", email="admin_rep@test.com", password="password"
+        )
         client = APIClient()
         client.force_authenticate(user=user)
 
         entries = [
-            {"account": self.bank_acc, "debit": Decimal("10000.00"), "credit": Decimal("0.00")},
-            {"account": self.sales_acc, "debit": Decimal("0.00"), "credit": Decimal("10000.00")},
+            {
+                "account": self.bank_acc,
+                "debit": Decimal("10000.00"),
+                "credit": Decimal("0.00"),
+            },
+            {
+                "account": self.sales_acc,
+                "debit": Decimal("0.00"),
+                "credit": Decimal("10000.00"),
+            },
         ]
-        gl_service.post(voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1))
+        gl_service.post(
+            voucher=self.doc, entries=entries, posting_date=datetime.date(2026, 4, 1)
+        )
 
         # 1. General Ledger
-        gl_res = client.get(f"/api/accounts/reports/general-ledger/?company={self.company.id}")
+        gl_res = client.get(
+            f"/api/accounts/reports/general-ledger/?company={self.company.id}"
+        )
         self.assertEqual(gl_res.status_code, 200)
         self.assertEqual(len(gl_res.data["entries"]), 2)
 
         # 2. Profit and Loss
-        pnl_res = client.get(f"/api/accounts/reports/profit-and-loss/?company={self.company.id}")
+        pnl_res = client.get(
+            f"/api/accounts/reports/profit-and-loss/?company={self.company.id}"
+        )
         self.assertEqual(pnl_res.status_code, 200)
         self.assertEqual(pnl_res.data["total_income"], "10000.00")
 
         # 3. Balance Sheet
-        bs_res = client.get(f"/api/accounts/reports/balance-sheet/?company={self.company.id}")
+        bs_res = client.get(
+            f"/api/accounts/reports/balance-sheet/?company={self.company.id}"
+        )
         self.assertEqual(bs_res.status_code, 200)
         self.assertEqual(bs_res.data["total_assets"], "10000.00")
-
-
-
-

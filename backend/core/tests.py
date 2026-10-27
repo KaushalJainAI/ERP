@@ -14,7 +14,6 @@ from core.models import (
     Language,
     NamingSeries,
     Outbox,
-    SystemHealthCheck,
 )
 from core.mixins import TranslatedSerializerMixin, get_active_language
 from users.models import User, Role
@@ -22,7 +21,6 @@ from stock.models import UOM, ItemGroup
 from selling.models import CustomerGroup
 from buying.models import SupplierGroup
 from accounts.models import Account
-
 
 
 class DummySerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
@@ -53,7 +51,9 @@ class CoreModelTests(TestCase):
 
     def test_submittable_document_lifecycle(self):
         """GOOD: Submittable document state transitions (Draft -> Submitted -> Cancelled -> Amend)."""
-        doc = DummySubmittableDoc.objects.create(name="DOC-001", title="First Invoice", docstatus=DocStatus.DRAFT)
+        doc = DummySubmittableDoc.objects.create(
+            name="DOC-001", title="First Invoice", docstatus=DocStatus.DRAFT
+        )
         self.assertEqual(doc.docstatus, DocStatus.DRAFT)
 
         # Submit
@@ -73,7 +73,9 @@ class CoreModelTests(TestCase):
 
     def test_amend_auto_generates_unique_name(self):
         """GOOD: amend() without new_name derives a unique name from the source."""
-        doc = DummySubmittableDoc.objects.create(name="DOC-100", title="Orig", docstatus=DocStatus.DRAFT)
+        doc = DummySubmittableDoc.objects.create(
+            name="DOC-100", title="Orig", docstatus=DocStatus.DRAFT
+        )
         doc.submit()
         doc.cancel()
 
@@ -144,12 +146,22 @@ class CoreModelTests(TestCase):
 
     def test_language_resolution_hierarchy(self):
         """GOOD: Language resolution resolves user.language -> Accept-Language -> 'en'."""
-        user = User.objects.create_user(username="u1", email="u1@test.com", language="ta")
-        request = type("Request", (), {"user": user, "META": {"HTTP_ACCEPT_LANGUAGE": "hi-IN,hi;q=0.9"}})()
+        user = User.objects.create_user(
+            username="u1", email="u1@test.com", language="ta"
+        )
+        request = type(
+            "Request",
+            (),
+            {"user": user, "META": {"HTTP_ACCEPT_LANGUAGE": "hi-IN,hi;q=0.9"}},
+        )()
         self.assertEqual(get_active_language(request), "ta")
 
         # Unauthenticated user uses Accept-Language header
-        request_anon = type("Request", (), {"user": None, "META": {"HTTP_ACCEPT_LANGUAGE": "hi-IN,hi;q=0.9"}})()
+        request_anon = type(
+            "Request",
+            (),
+            {"user": None, "META": {"HTTP_ACCEPT_LANGUAGE": "hi-IN,hi;q=0.9"}},
+        )()
         self.assertEqual(get_active_language(request_anon), "hi")
 
         # Fallback to English
@@ -165,7 +177,9 @@ class CoreModelTests(TestCase):
             language="hi",
             value="एक्मे कॉर्प",
         )
-        user = User.objects.create_user(username="u2", email="u2@test.com", language="hi")
+        user = User.objects.create_user(
+            username="u2", email="u2@test.com", language="hi"
+        )
         request = type("Request", (), {"user": user, "META": {}})()
 
         serializer = DummySerializer(self.company, context={"request": request})
@@ -175,18 +189,23 @@ class CoreModelTests(TestCase):
     def test_seed_defaults_command_idempotent(self):
         """GOOD: seed_defaults runs cleanly multiple times and creates all initial default records."""
         from django.core.management import call_command
+
         call_command("seed_defaults")
         call_command("seed_defaults")
 
         self.assertEqual(Company.objects.filter(abbr="ACME").count(), 1)
         self.assertEqual(FiscalYear.objects.filter(name="2026-2027").count(), 1)
-        self.assertEqual(Language.objects.count(), 12)  # 12 Indian + English = 12 in list + en
+        self.assertEqual(Language.objects.count(), 13)  # English + 12 Indian
         self.assertTrue(Role.objects.filter(name="Default Role").exists())
         self.assertTrue(UOM.objects.filter(name="Nos").exists())
         self.assertTrue(Account.objects.filter(name="Bank Account").exists())
         self.assertTrue(ItemGroup.objects.filter(name="All Item Groups").exists())
-        self.assertTrue(CustomerGroup.objects.filter(name="All Customer Groups").exists())
-        self.assertTrue(SupplierGroup.objects.filter(name="All Supplier Groups").exists())
+        self.assertTrue(
+            CustomerGroup.objects.filter(name="All Customer Groups").exists()
+        )
+        self.assertTrue(
+            SupplierGroup.objects.filter(name="All Supplier Groups").exists()
+        )
 
     # -------------------------------------------------------------------------
     # Bad / Error Unit Tests
@@ -214,7 +233,9 @@ class CoreModelTests(TestCase):
 
     def test_submittable_document_illegal_transitions_and_edit_lock(self):
         """BAD: Illegal state transitions or editing submitted/cancelled doc raises ValidationError."""
-        doc = DummySubmittableDoc.objects.create(name="DOC-BAD-01", title="Draft Doc", docstatus=DocStatus.DRAFT)
+        doc = DummySubmittableDoc.objects.create(
+            name="DOC-BAD-01", title="Draft Doc", docstatus=DocStatus.DRAFT
+        )
 
         # BAD: Cannot cancel a draft doc
         with self.assertRaises(ValidationError):
@@ -287,12 +308,27 @@ class CoreModelTests(TestCase):
 
         uom = UOM.objects.create(name="Boxes")
         group = ItemGroup.objects.create(name="Finished Goods", is_group=True)
-        item = Item.objects.create(code="FG-001", name="Widget A", item_group=group, stock_uom=uom)
+        item = Item.objects.create(
+            code="FG-001", name="Widget A", item_group=group, stock_uom=uom
+        )
         wh = Warehouse.objects.create(name="Finished Goods Store", company=self.company)
-        doc = DummySubmittableDoc.objects.create(name="REC-001", title="Receipt", docstatus=DocStatus.SUBMITTED)
+        doc = DummySubmittableDoc.objects.create(
+            name="REC-001", title="Receipt", docstatus=DocStatus.SUBMITTED
+        )
 
         # Post SLE (+50 qty)
-        stock_service.post(doc, [{"item": item, "warehouse": wh, "qty": Decimal("50.000"), "valuation_rate": Decimal("10.00")}], posting_date=datetime.date(2026, 4, 1))
+        stock_service.post(
+            doc,
+            [
+                {
+                    "item": item,
+                    "warehouse": wh,
+                    "qty": Decimal("50.000"),
+                    "valuation_rate": Decimal("10.00"),
+                }
+            ],
+            posting_date=datetime.date(2026, 4, 1),
+        )
 
         # Initial verify passes
         call_command("verify_integrity")
@@ -311,4 +347,3 @@ class CoreModelTests(TestCase):
 
         # verify_integrity passes again
         call_command("verify_integrity")
-

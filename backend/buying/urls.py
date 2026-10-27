@@ -13,7 +13,9 @@ router = DefaultRouter()
 router.register("supplier-groups", SupplierGroupViewSet, basename="supplier-group")
 router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-order")
-router.register("purchase-invoices", PurchaseInvoiceViewSet, basename="purchase-invoice")
+router.register(
+    "purchase-invoices", PurchaseInvoiceViewSet, basename="purchase-invoice"
+)
 
 urlpatterns = [
     path("", include(router.urls)),

@@ -4,7 +4,6 @@ from django.db import models
 from core.models import TimeStampedModel, SubmittableDocument, Company
 
 
-
 class AccountRootType(models.TextChoices):
     ASSET = "Asset", "Asset"
     LIABILITY = "Liability", "Liability"
@@ -25,18 +24,31 @@ class AccountType(models.TextChoices):
 
 class Account(TimeStampedModel):
     """Chart of Accounts tree node."""
+
     name = models.CharField(max_length=200)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="accounts")
-    parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.RESTRICT, related_name="children")
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="accounts"
+    )
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name="children",
+    )
     root_type = models.CharField(max_length=12, choices=AccountRootType.choices)
-    account_type = models.CharField(max_length=40, choices=AccountType.choices, null=True, blank=True)
+    account_type = models.CharField(
+        max_length=40, choices=AccountType.choices, null=True, blank=True
+    )
     account_number = models.CharField(max_length=40, null=True, blank=True)
     is_group = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["company", "name"], name="unique_account_per_company")
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_account_per_company"
+            )
         ]
 
     def __str__(self):
@@ -48,13 +60,22 @@ class GLEntry(models.Model):
     Immutable General Ledger Entry (append-only fact).
     Never updated or deleted over API or direct SQL.
     """
+
     posting_date = models.DateField(db_index=True)
-    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="gl_entries")
-    company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="gl_entries")
+    account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="gl_entries"
+    )
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="gl_entries"
+    )
     party_type = models.CharField(max_length=20, null=True, blank=True)
     party = models.CharField(max_length=200, null=True, blank=True)
-    debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
-    credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    debit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    credit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     voucher_type = models.CharField(max_length=60)
     voucher_no = models.CharField(max_length=60)
     against_voucher_type = models.CharField(max_length=60, null=True, blank=True)
@@ -67,7 +88,9 @@ class GLEntry(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=models.Q(debit__gte=0) & models.Q(credit__gte=0) & ~models.Q(debit__gt=0, credit__gt=0),
+                check=models.Q(debit__gte=0)
+                & models.Q(credit__gte=0)
+                & ~models.Q(debit__gt=0, credit__gt=0),
                 name="check_gl_entry_debit_credit",
             )
         ]
@@ -90,10 +113,23 @@ class GLEntry(models.Model):
 
 class JournalEntry(SubmittableDocument):
     posting_date = models.DateField()
-    company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="journal_entries")
-    total_debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
-    total_credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="journal_entries"
+    )
+    total_debit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    total_credit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     user_remark = models.TextField(null=True, blank=True)
+
+    def recompute_totals(self):
+        """Set ``total_debit``/``total_credit`` from the lines (they are derived
+        values, never trusted from a client or a prior write)."""
+        lines = list(self.lines.all())
+        self.total_debit = sum((line.debit for line in lines), Decimal("0.00"))
+        self.total_credit = sum((line.credit for line in lines), Decimal("0.00"))
 
     def validate_before_submit(self):
         lines = self.lines.all()
@@ -109,23 +145,34 @@ class JournalEntry(SubmittableDocument):
         dr_sum = sum(line.debit for line in lines)
         cr_sum = sum(line.credit for line in lines)
         if dr_sum != cr_sum:
-            raise ValidationError(f"Journal Entry is unbalanced: Total Debit ({dr_sum}) != Total Credit ({cr_sum}).")
+            raise ValidationError(
+                f"Journal Entry is unbalanced: Total Debit ({dr_sum}) != Total Credit ({cr_sum})."
+            )
+        # Persist the derived header totals while the row is still a draft.
+        self.recompute_totals()
+        self.save(update_fields=["total_debit", "total_credit"])
 
     def on_submit(self):
         from accounts.services import gl as gl_service
+
         entries = []
         for line in self.lines.all():
-            entries.append({
-                "account": line.account,
-                "debit": line.debit,
-                "credit": line.credit,
-                "party_type": line.party_type,
-                "party": line.party,
-            })
-        gl_service.post(self, entries, posting_date=self.posting_date, remarks=self.user_remark)
+            entries.append(
+                {
+                    "account": line.account,
+                    "debit": line.debit,
+                    "credit": line.credit,
+                    "party_type": line.party_type,
+                    "party": line.party,
+                }
+            )
+        gl_service.post(
+            self, entries, posting_date=self.posting_date, remarks=self.user_remark
+        )
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+
         gl_service.reverse(self)
 
     def __str__(self):
@@ -133,10 +180,18 @@ class JournalEntry(SubmittableDocument):
 
 
 class JournalEntryLine(models.Model):
-    journal_entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name="lines")
-    account = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="journal_lines")
-    debit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
-    credit = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    journal_entry = models.ForeignKey(
+        JournalEntry, on_delete=models.CASCADE, related_name="lines"
+    )
+    account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="journal_lines"
+    )
+    debit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    credit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     party_type = models.CharField(max_length=20, null=True, blank=True)
     party = models.CharField(max_length=200, null=True, blank=True)
 
@@ -153,13 +208,23 @@ class PaymentType(models.TextChoices):
 class PaymentEntry(SubmittableDocument):
     payment_type = models.CharField(max_length=20, choices=PaymentType.choices)
     posting_date = models.DateField()
-    company = models.ForeignKey(Company, on_delete=models.PROTECT, related_name="payment_entries")
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="payment_entries"
+    )
     party_type = models.CharField(max_length=20, null=True, blank=True)
     party_name = models.CharField(max_length=200, null=True, blank=True)
-    paid_from = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="paid_from_payments")
-    paid_to = models.ForeignKey(Account, on_delete=models.PROTECT, related_name="paid_to_payments")
-    paid_amount = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
-    received_amount = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    paid_from = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="paid_from_payments"
+    )
+    paid_to = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="paid_to_payments"
+    )
+    paid_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    received_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     reference_no = models.CharField(max_length=100, null=True, blank=True)
 
     def validate_before_submit(self):
@@ -169,11 +234,17 @@ class PaymentEntry(SubmittableDocument):
             raise ValidationError("Posting to group accounts is not allowed.")
         if self.paid_from_id == self.paid_to_id:
             raise ValidationError("Paid From and Paid To accounts must be different.")
-        if self.paid_from.company_id != self.company_id or self.paid_to.company_id != self.company_id:
-            raise ValidationError("Payment accounts must belong to the payment's company.")
+        if (
+            self.paid_from.company_id != self.company_id
+            or self.paid_to.company_id != self.company_id
+        ):
+            raise ValidationError(
+                "Payment accounts must belong to the payment's company."
+            )
 
     def on_submit(self):
         from accounts.services import gl as gl_service
+
         entries = [
             {
                 "account": self.paid_to,
@@ -190,10 +261,16 @@ class PaymentEntry(SubmittableDocument):
                 "party": self.party_name,
             },
         ]
-        gl_service.post(self, entries, posting_date=self.posting_date, remarks=f"Payment {self.payment_type}: {self.reference_no or ''}")
+        gl_service.post(
+            self,
+            entries,
+            posting_date=self.posting_date,
+            remarks=f"Payment {self.payment_type}: {self.reference_no or ''}",
+        )
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+
         gl_service.reverse(self)
 
     def __str__(self):
@@ -201,12 +278,12 @@ class PaymentEntry(SubmittableDocument):
 
 
 class PaymentEntryReference(models.Model):
-    payment_entry = models.ForeignKey(PaymentEntry, on_delete=models.CASCADE, related_name="references")
+    payment_entry = models.ForeignKey(
+        PaymentEntry, on_delete=models.CASCADE, related_name="references"
+    )
     reference_doctype = models.CharField(max_length=60)
     reference_name = models.CharField(max_length=60)
     allocated_amount = models.DecimalField(max_digits=18, decimal_places=2)
 
     def __str__(self):
         return f"{self.payment_entry.name} -> {self.reference_doctype}:{self.reference_name} ({self.allocated_amount})"
-
-

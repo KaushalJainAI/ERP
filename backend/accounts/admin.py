@@ -13,7 +13,11 @@ from accounts.models import (
     PaymentEntry,
     PaymentEntryReference,
 )
-from core.admin import ReadOnlyModelAdmin, SubmittableDocumentAdmin, TimeStampedAdminMixin
+from core.admin import (
+    ReadOnlyModelAdmin,
+    SubmittableDocumentAdmin,
+    TimeStampedAdminMixin,
+)
 
 
 @admin.register(Account)
@@ -113,7 +117,10 @@ class JournalEntryAdmin(SubmittableDocumentAdmin):
     )
     fieldsets = (
         (None, {"fields": ("name", "company", "posting_date", "user_remark")}),
-        ("Status", {"fields": ("docstatus", "amended_from", "total_debit", "total_credit")}),
+        (
+            "Status",
+            {"fields": ("docstatus", "amended_from", "total_debit", "total_credit")},
+        ),
         (
             "Audit",
             {

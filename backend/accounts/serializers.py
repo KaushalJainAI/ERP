@@ -1,8 +1,13 @@
-from django.db import transaction
 from rest_framework import serializers
-from accounts.models import Account, GLEntry, JournalEntry, JournalEntryLine, PaymentEntry, PaymentEntryReference
-from core.mixins import TranslatedSerializerMixin
-from core.models import NamingSeries
+from accounts.models import (
+    Account,
+    GLEntry,
+    JournalEntry,
+    JournalEntryLine,
+    PaymentEntry,
+    PaymentEntryReference,
+)
+from core.mixins import DraftNestedWriteMixin, TranslatedSerializerMixin
 
 
 class AccountSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
@@ -61,10 +66,21 @@ class JournalEntryLineSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JournalEntryLine
-        fields = ("id", "account", "account_name", "debit", "credit", "party_type", "party")
+        fields = (
+            "id",
+            "account",
+            "account_name",
+            "debit",
+            "credit",
+            "party_type",
+            "party",
+        )
 
 
-class JournalEntrySerializer(serializers.ModelSerializer):
+class JournalEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "lines"
+    name_prefix = "JV-2026-"
+
     lines = JournalEntryLineSerializer(many=True)
 
     class Meta:
@@ -83,25 +99,14 @@ class JournalEntrySerializer(serializers.ModelSerializer):
             "created_at",
             "modified_at",
         )
-        read_only_fields = ("id", "docstatus", "total_debit", "total_credit", "created_at", "modified_at")
-
-    def create(self, validated_data):
-        lines_data = validated_data.pop("lines", [])
-        with transaction.atomic():
-            if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next("JV-2026-")
-            journal_entry = JournalEntry.objects.create(**validated_data)
-
-            total_dr, total_cr = 0, 0
-            for line in lines_data:
-                JournalEntryLine.objects.create(journal_entry=journal_entry, **line)
-                total_dr += line.get("debit", 0)
-                total_cr += line.get("credit", 0)
-
-            journal_entry.total_debit = total_dr
-            journal_entry.total_credit = total_cr
-            journal_entry.save(update_fields=["total_debit", "total_credit"])
-        return journal_entry
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "total_debit",
+            "total_credit",
+            "created_at",
+            "modified_at",
+        )
 
 
 class PaymentEntryReferenceSerializer(serializers.ModelSerializer):
@@ -110,8 +115,13 @@ class PaymentEntryReferenceSerializer(serializers.ModelSerializer):
         fields = ("id", "reference_doctype", "reference_name", "allocated_amount")
 
 
-class PaymentEntrySerializer(serializers.ModelSerializer):
+class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "references"
+    name_prefix = "PE-2026-"
+
     references = PaymentEntryReferenceSerializer(many=True, required=False)
+    paid_from_name = serializers.CharField(source="paid_from.name", read_only=True)
+    paid_to_name = serializers.CharField(source="paid_to.name", read_only=True)
 
     class Meta:
         model = PaymentEntry
@@ -124,7 +134,9 @@ class PaymentEntrySerializer(serializers.ModelSerializer):
             "party_type",
             "party_name",
             "paid_from",
+            "paid_from_name",
             "paid_to",
+            "paid_to_name",
             "paid_amount",
             "received_amount",
             "reference_no",
@@ -135,16 +147,3 @@ class PaymentEntrySerializer(serializers.ModelSerializer):
             "modified_at",
         )
         read_only_fields = ("id", "docstatus", "created_at", "modified_at")
-
-    def create(self, validated_data):
-        refs_data = validated_data.pop("references", [])
-        with transaction.atomic():
-            if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next("PE-2026-")
-            payment_entry = PaymentEntry.objects.create(**validated_data)
-
-            for ref in refs_data:
-                PaymentEntryReference.objects.create(payment_entry=payment_entry, **ref)
-
-        return payment_entry
-

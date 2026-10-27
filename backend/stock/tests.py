@@ -4,13 +4,25 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from core.models import Company, DummySubmittableDoc, DocStatus
-from stock.models import UOM, ItemGroup, Item, Warehouse, StockLedgerEntry, Bin, ValuationMethod, StockEntry, StockEntryItem, StockEntryType
+from stock.models import (
+    UOM,
+    ItemGroup,
+    Item,
+    Warehouse,
+    Bin,
+    ValuationMethod,
+    StockEntry,
+    StockEntryItem,
+    StockEntryType,
+)
 from stock.services import ledger as stock_service
 
 
 class StockAppTests(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(name="Apex Logistics", abbr="APEX", default_currency="INR")
+        self.company = Company.objects.create(
+            name="Apex Logistics", abbr="APEX", default_currency="INR"
+        )
         self.uom = UOM.objects.create(name="Nos")
         self.group = ItemGroup.objects.create(name="Raw Materials", is_group=True)
         self.item = Item.objects.create(
@@ -21,7 +33,9 @@ class StockAppTests(TestCase):
             valuation_method=ValuationMethod.FIFO,
             standard_rate=Decimal("100.00"),
         )
-        self.wh_parent = Warehouse.objects.create(name="Main Hub", company=self.company, is_group=True)
+        self.wh_parent = Warehouse.objects.create(
+            name="Main Hub", company=self.company, is_group=True
+        )
         self.warehouse = Warehouse.objects.create(
             name="Stores Store-1",
             company=self.company,
@@ -47,7 +61,12 @@ class StockAppTests(TestCase):
     def test_stock_post_receipt_updates_bin(self):
         """GOOD: Posting stock receipt (+qty) creates SLE and updates derived Bin balance & valuation."""
         sle_data = [
-            {"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("150.00")}
+            {
+                "item": self.item,
+                "warehouse": self.warehouse,
+                "qty": Decimal("10.000"),
+                "valuation_rate": Decimal("150.00"),
+            }
         ]
         sles = stock_service.post(
             voucher=self.doc,
@@ -67,17 +86,33 @@ class StockAppTests(TestCase):
         # Receipt 10 @ 100
         stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("100.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("10.000"),
+                    "valuation_rate": Decimal("100.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
         bin_obj = Bin.objects.get(item=self.item, warehouse=self.warehouse)
         self.assertEqual(bin_obj.actual_qty, Decimal("10.000"))
 
         # Issue 4
-        issue_doc = DummySubmittableDoc.objects.create(name="MAT-ISS-001", title="Issue 1", docstatus=DocStatus.SUBMITTED)
+        issue_doc = DummySubmittableDoc.objects.create(
+            name="MAT-ISS-001", title="Issue 1", docstatus=DocStatus.SUBMITTED
+        )
         stock_service.post(
             voucher=issue_doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("-4.000"), "valuation_rate": Decimal("100.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("-4.000"),
+                    "valuation_rate": Decimal("100.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 2),
         )
         bin_obj.refresh_from_db()
@@ -92,7 +127,14 @@ class StockAppTests(TestCase):
         """GOOD: Self-healing repost restores Bin state when derived table is corrupted."""
         stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("20.000"), "valuation_rate": Decimal("50.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("20.000"),
+                    "valuation_rate": Decimal("50.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
         bin_obj = Bin.objects.get(item=self.item, warehouse=self.warehouse)
@@ -116,24 +158,49 @@ class StockAppTests(TestCase):
     def test_stock_post_to_group_warehouse_fails(self):
         """BAD: Posting stock to a group warehouse raises ValidationError."""
         sle_data = [
-            {"item": self.item, "warehouse": self.wh_parent, "qty": Decimal("5.000"), "valuation_rate": Decimal("100.00")}
+            {
+                "item": self.item,
+                "warehouse": self.wh_parent,
+                "qty": Decimal("5.000"),
+                "valuation_rate": Decimal("100.00"),
+            }
         ]
         with self.assertRaises(ValidationError):
-            stock_service.post(voucher=self.doc, sle_entries=sle_data, posting_date=datetime.date(2026, 4, 1))
+            stock_service.post(
+                voucher=self.doc,
+                sle_entries=sle_data,
+                posting_date=datetime.date(2026, 4, 1),
+            )
 
     def test_stock_issue_insufficient_stock_fails(self):
         """BAD: Attempting to issue more stock than available raises ValidationError."""
         sle_data = [
-            {"item": self.item, "warehouse": self.warehouse, "qty": Decimal("-5.000"), "valuation_rate": Decimal("100.00")}
+            {
+                "item": self.item,
+                "warehouse": self.warehouse,
+                "qty": Decimal("-5.000"),
+                "valuation_rate": Decimal("100.00"),
+            }
         ]
         with self.assertRaises(ValidationError):
-            stock_service.post(voucher=self.doc, sle_entries=sle_data, posting_date=datetime.date(2026, 4, 1))
+            stock_service.post(
+                voucher=self.doc,
+                sle_entries=sle_data,
+                posting_date=datetime.date(2026, 4, 1),
+            )
 
     def test_stock_ledger_entry_immutability_fails(self):
         """BAD: Updating or deleting an existing StockLedgerEntry row raises ValidationError."""
         sles = stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("5.000"), "valuation_rate": Decimal("10.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("5.000"),
+                    "valuation_rate": Decimal("10.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
         sle = sles[0]
@@ -149,10 +216,16 @@ class StockAppTests(TestCase):
 
     def test_duplicate_bin_fails(self):
         """BAD: Duplicate Bin for same (item, warehouse) violates UNIQUE constraint."""
-        Bin.objects.create(item=self.item, warehouse=self.warehouse, actual_qty=Decimal("5.000"))
+        Bin.objects.create(
+            item=self.item, warehouse=self.warehouse, actual_qty=Decimal("5.000")
+        )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                Bin.objects.create(item=self.item, warehouse=self.warehouse, actual_qty=Decimal("10.000"))
+                Bin.objects.create(
+                    item=self.item,
+                    warehouse=self.warehouse,
+                    actual_qty=Decimal("10.000"),
+                )
 
     def test_stock_entry_receipt_and_cancel_flow(self):
         """GOOD: Submitting StockEntry (Material Receipt) posts SLE and updates Bin balance; cancel reverses."""
@@ -187,12 +260,22 @@ class StockAppTests(TestCase):
         total stock value across warehouses is unchanged even when the item's
         entered valuation_rate on the transfer differs from the source rate."""
         dest = Warehouse.objects.create(
-            name="Stores Store-2", company=self.company, parent=self.wh_parent, is_group=False
+            name="Stores Store-2",
+            company=self.company,
+            parent=self.wh_parent,
+            is_group=False,
         )
         # Seed source warehouse at rate 100 -> stock value 1000.
         stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("100.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("10.000"),
+                    "valuation_rate": Decimal("100.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
         total_before = sum(b.stock_value for b in Bin.objects.all())
@@ -229,7 +312,14 @@ class StockAppTests(TestCase):
         # Receipt of 10 on the receipt voucher (self.doc).
         stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("10.000"), "valuation_rate": Decimal("100.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("10.000"),
+                    "valuation_rate": Decimal("100.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
         # A different voucher issues 8 of those units.
@@ -238,7 +328,14 @@ class StockAppTests(TestCase):
         )
         stock_service.post(
             voucher=issue_doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("-8.000"), "valuation_rate": Decimal("100.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("-8.000"),
+                    "valuation_rate": Decimal("100.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 2),
         )
 
@@ -273,13 +370,22 @@ class StockAppTests(TestCase):
         from rest_framework.test import APIClient
         from users.models import User
 
-        user = User.objects.create_superuser(username="admin_stock_rep", email="admin_srep@test.com", password="password")
+        user = User.objects.create_superuser(
+            username="admin_stock_rep", email="admin_srep@test.com", password="password"
+        )
         client = APIClient()
         client.force_authenticate(user=user)
 
         stock_service.post(
             voucher=self.doc,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("75.000"), "valuation_rate": Decimal("80.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("75.000"),
+                    "valuation_rate": Decimal("80.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
 
@@ -287,5 +393,3 @@ class StockAppTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data["total_actual_qty"], "75.000")
         self.assertEqual(res.data["total_stock_value"], "6000.00")
-
-

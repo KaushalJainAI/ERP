@@ -2,7 +2,15 @@ from decimal import Decimal
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from stock.models import UOM, ItemGroup, Item, Warehouse, StockLedgerEntry, Bin, StockEntry
+from stock.models import (
+    UOM,
+    ItemGroup,
+    Item,
+    Warehouse,
+    StockLedgerEntry,
+    Bin,
+    StockEntry,
+)
 from stock.serializers import (
     UOMSerializer,
     ItemGroupSerializer,
@@ -49,16 +57,25 @@ class WarehouseViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 class StockLedgerEntryViewSet(viewsets.ReadOnlyModelViewSet):
     """ReadOnlyModelViewSet for immutable StockLedgerEntry facts."""
+
     queryset = StockLedgerEntry.objects.all().select_related("item", "warehouse")
     serializer_class = StockLedgerEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["item", "warehouse", "posting_date", "voucher_type", "voucher_no", "is_cancelled"]
+    filterset_fields = [
+        "item",
+        "warehouse",
+        "posting_date",
+        "voucher_type",
+        "voucher_no",
+        "is_cancelled",
+    ]
     search_fields = ["voucher_no", "item__code", "item__name"]
     ordering_fields = ["posting_date", "posting_time", "created_at"]
 
 
 class BinViewSet(viewsets.ReadOnlyModelViewSet):
     """ReadOnlyModelViewSet for derived Bin stock balance projections."""
+
     queryset = Bin.objects.all().select_related("item", "warehouse")
     serializer_class = BinSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -77,7 +94,9 @@ class StockEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
 
 
 @api_view(["GET"])
-@permission_classes([permissions.IsAuthenticated, require_model_permission("stock.Bin")])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("stock.Bin")]
+)
 def stock_balance(request):
     """Stock Balance report endpoint."""
     item_id = request.query_params.get("item")
@@ -96,17 +115,21 @@ def stock_balance(request):
     for b in qs:
         total_qty_sum += b.actual_qty
         total_value_sum += b.stock_value
-        report_rows.append({
-            "item_code": b.item.code,
-            "item_name": b.item.name,
-            "warehouse_name": b.warehouse.name,
-            "actual_qty": str(b.actual_qty),
-            "valuation_rate": str(b.valuation_rate),
-            "stock_value": str(b.stock_value),
-        })
+        report_rows.append(
+            {
+                "item_code": b.item.code,
+                "item_name": b.item.name,
+                "warehouse_name": b.warehouse.name,
+                "actual_qty": str(b.actual_qty),
+                "valuation_rate": str(b.valuation_rate),
+                "stock_value": str(b.stock_value.quantize(Decimal("0.01"))),
+            }
+        )
 
-    return Response({
-        "rows": report_rows,
-        "total_actual_qty": str(total_qty_sum),
-        "total_stock_value": str(total_value_sum),
-    })
+    return Response(
+        {
+            "rows": report_rows,
+            "total_actual_qty": str(total_qty_sum),
+            "total_stock_value": str(total_value_sum.quantize(Decimal("0.01"))),
+        }
+    )

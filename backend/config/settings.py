@@ -2,6 +2,7 @@
 Django settings for ERP project.
 """
 
+from datetime import timedelta
 from pathlib import Path
 import environ
 
@@ -120,6 +121,7 @@ LANGUAGES = [
     ("te", "Telugu"),
     ("ml", "Malayalam"),
     ("ur", "Urdu"),
+    ("mr", "Marathi"),
 ]
 
 LOCALE_PATHS = [
@@ -172,7 +174,6 @@ REST_FRAMEWORK = {
 }
 
 # SimpleJWT settings
-from datetime import timedelta
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),

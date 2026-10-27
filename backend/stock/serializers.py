@@ -1,9 +1,20 @@
-from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from stock.models import UOM, ItemGroup, Item, Warehouse, StockLedgerEntry, Bin, StockEntry, StockEntryItem
-from core.mixins import TranslatedSerializerMixin, PositiveQtyLineItemMixin
-from core.models import NamingSeries
+from stock.models import (
+    UOM,
+    ItemGroup,
+    Item,
+    Warehouse,
+    StockLedgerEntry,
+    Bin,
+    StockEntry,
+    StockEntryItem,
+)
+from core.mixins import (
+    DraftNestedWriteMixin,
+    TranslatedSerializerMixin,
+    PositiveQtyLineItemMixin,
+)
 
 
 class UOMSerializer(serializers.ModelSerializer):
@@ -17,7 +28,15 @@ class ItemGroupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ItemGroup
-        fields = ("id", "name", "parent", "parent_name", "is_group", "created_at", "modified_at")
+        fields = (
+            "id",
+            "name",
+            "parent",
+            "parent_name",
+            "is_group",
+            "created_at",
+            "modified_at",
+        )
 
 
 class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
@@ -51,13 +70,25 @@ class WarehouseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Warehouse
-        fields = ("id", "name", "company", "company_name", "parent", "parent_name", "is_group", "created_at", "modified_at")
+        fields = (
+            "id",
+            "name",
+            "company",
+            "company_name",
+            "parent",
+            "parent_name",
+            "is_group",
+            "created_at",
+            "modified_at",
+        )
 
 
 class StockLedgerEntrySerializer(serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
-    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    warehouse_name = serializers.CharField(
+        source="warehouse.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = StockLedgerEntry
@@ -84,7 +115,9 @@ class StockLedgerEntrySerializer(serializers.ModelSerializer):
 class BinSerializer(serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
-    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    warehouse_name = serializers.CharField(
+        source="warehouse.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Bin
@@ -106,8 +139,12 @@ class BinSerializer(serializers.ModelSerializer):
 class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
-    source_warehouse_name = serializers.CharField(source="source_warehouse.name", read_only=True)
-    target_warehouse_name = serializers.CharField(source="target_warehouse.name", read_only=True)
+    source_warehouse_name = serializers.CharField(
+        source="source_warehouse.name", read_only=True, allow_null=True
+    )
+    target_warehouse_name = serializers.CharField(
+        source="target_warehouse.name", read_only=True, allow_null=True
+    )
 
     def validate_valuation_rate(self, value):
         if value is not None and value < 0:
@@ -130,7 +167,10 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
         )
 
 
-class StockEntrySerializer(serializers.ModelSerializer):
+class StockEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "items"
+    name_prefix = "STE-2026-"
+
     items = StockEntryItemSerializer(many=True)
 
     class Meta:
@@ -149,15 +189,3 @@ class StockEntrySerializer(serializers.ModelSerializer):
             "modified_at",
         )
         read_only_fields = ("id", "docstatus", "created_at", "modified_at")
-
-    def create(self, validated_data):
-        items_data = validated_data.pop("items", [])
-        with transaction.atomic():
-            if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next("STE-2026-")
-            stock_entry = StockEntry.objects.create(**validated_data)
-
-            for item in items_data:
-                StockEntryItem.objects.create(stock_entry=stock_entry, **item)
-
-        return stock_entry

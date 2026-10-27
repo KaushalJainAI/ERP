@@ -5,7 +5,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 from core.models import Company, DocStatus
 from accounts.models import Account, AccountRootType, AccountType, GLEntry
-from stock.models import UOM, ItemGroup, Item, Warehouse, Bin, StockLedgerEntry
+from stock.models import UOM, ItemGroup, Item, Warehouse, Bin
 from selling.models import (
     CustomerGroup,
     Customer,
@@ -19,8 +19,12 @@ from stock.services import ledger as stock_service
 
 class SellingAppTests(TestCase):
     def setUp(self):
-        self.company = Company.objects.create(name="Bharat Tech", abbr="BT", default_currency="INR")
-        self.cust_group = CustomerGroup.objects.create(name="Commercial Clients", is_group=True)
+        self.company = Company.objects.create(
+            name="Bharat Tech", abbr="BT", default_currency="INR"
+        )
+        self.cust_group = CustomerGroup.objects.create(
+            name="Commercial Clients", is_group=True
+        )
         self.customer = Customer.objects.create(
             name="Reliance Industries",
             company=self.company,
@@ -29,7 +33,12 @@ class SellingAppTests(TestCase):
         )
 
         # Accounts setup
-        self.asset_root = Account.objects.create(name="Assets", company=self.company, root_type=AccountRootType.ASSET, is_group=True)
+        self.asset_root = Account.objects.create(
+            name="Assets",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            is_group=True,
+        )
         self.debtors_acc = Account.objects.create(
             name="Debtors Account",
             company=self.company,
@@ -37,7 +46,12 @@ class SellingAppTests(TestCase):
             root_type=AccountRootType.ASSET,
             account_type=AccountType.RECEIVABLE,
         )
-        self.income_root = Account.objects.create(name="Income", company=self.company, root_type=AccountRootType.INCOME, is_group=True)
+        self.income_root = Account.objects.create(
+            name="Income",
+            company=self.company,
+            root_type=AccountRootType.INCOME,
+            is_group=True,
+        )
         self.sales_income_acc = Account.objects.create(
             name="Sales Income Account",
             company=self.company,
@@ -48,14 +62,30 @@ class SellingAppTests(TestCase):
         # Stock setup
         self.uom = UOM.objects.create(name="Units")
         self.item_grp = ItemGroup.objects.create(name="Hardware", is_group=True)
-        self.item = Item.objects.create(code="HW-001", name="Server Rack", item_group=self.item_grp, stock_uom=self.uom)
-        self.warehouse = Warehouse.objects.create(name="Main Store", company=self.company)
+        self.item = Item.objects.create(
+            code="HW-001",
+            name="Server Rack",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+        )
+        self.warehouse = Warehouse.objects.create(
+            name="Main Store", company=self.company
+        )
 
         # Seed initial stock (+100 qty @ 50.00)
-        dummy_receipt = Customer.objects.create(name="Seed Supplier", company=self.company, customer_group=self.cust_group)
+        dummy_receipt = Customer.objects.create(
+            name="Seed Supplier", company=self.company, customer_group=self.cust_group
+        )
         stock_service.post(
             voucher=dummy_receipt,
-            sle_entries=[{"item": self.item, "warehouse": self.warehouse, "qty": Decimal("100.000"), "valuation_rate": Decimal("50.00")}],
+            sle_entries=[
+                {
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("100.000"),
+                    "valuation_rate": Decimal("50.00"),
+                }
+            ],
             posting_date=datetime.date(2026, 4, 1),
         )
 
@@ -76,7 +106,13 @@ class SellingAppTests(TestCase):
             company=self.company,
             transaction_date=datetime.date(2026, 4, 1),
         )
-        SalesOrderItem.objects.create(sales_order=so, item=self.item, warehouse=self.warehouse, qty=Decimal("10.000"), rate=Decimal("200.00"))
+        SalesOrderItem.objects.create(
+            sales_order=so,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("10.000"),
+            rate=Decimal("200.00"),
+        )
         so.submit()
         self.assertEqual(so.grand_total, Decimal("2000.00"))
         self.assertEqual(so.docstatus, DocStatus.SUBMITTED)
@@ -92,7 +128,13 @@ class SellingAppTests(TestCase):
             debit_to=self.debtors_acc,
             income_account=self.sales_income_acc,
         )
-        SalesInvoiceItem.objects.create(sales_invoice=si, item=self.item, warehouse=self.warehouse, qty=Decimal("5.000"), rate=Decimal("300.00"))
+        SalesInvoiceItem.objects.create(
+            sales_invoice=si,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("5.000"),
+            rate=Decimal("300.00"),
+        )
 
         # Submit Invoice
         si.submit()
@@ -100,7 +142,9 @@ class SellingAppTests(TestCase):
         self.assertEqual(si.docstatus, DocStatus.SUBMITTED)
 
         # Verify GL entries (2 active rows: Debtors Dr 1500, Income Cr 1500)
-        gl_entries = GLEntry.objects.filter(voucher_no="SINV-2026-0001", is_cancelled=False)
+        gl_entries = GLEntry.objects.filter(
+            voucher_no="SINV-2026-0001", is_cancelled=False
+        )
         self.assertEqual(gl_entries.count(), 2)
 
         # Verify Stock Bin updated (100 - 5 = 95)
@@ -126,7 +170,11 @@ class SellingAppTests(TestCase):
         """BAD: Creating duplicate customer name in same company violates UNIQUE constraint."""
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                Customer.objects.create(name="Reliance Industries", company=self.company, customer_group=self.cust_group)
+                Customer.objects.create(
+                    name="Reliance Industries",
+                    company=self.company,
+                    customer_group=self.cust_group,
+                )
 
     def test_sales_invoice_without_items_fails(self):
         """BAD: Submitting SalesInvoice without items raises ValidationError."""
@@ -151,6 +199,12 @@ class SellingAppTests(TestCase):
             debit_to=self.asset_root,  # Group node
             income_account=self.sales_income_acc,
         )
-        SalesInvoiceItem.objects.create(sales_invoice=si, item=self.item, warehouse=self.warehouse, qty=Decimal("1.000"), rate=Decimal("100.00"))
+        SalesInvoiceItem.objects.create(
+            sales_invoice=si,
+            item=self.item,
+            warehouse=self.warehouse,
+            qty=Decimal("1.000"),
+            rate=Decimal("100.00"),
+        )
         with self.assertRaises(ValidationError):
             si.submit()

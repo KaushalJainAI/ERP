@@ -26,6 +26,7 @@ LANGUAGES_SEED = [
     ("te", "Telugu", False),
     ("ml", "Malayalam", False),
     ("ur", "Urdu", True),
+    ("mr", "Marathi", False),
 ]
 
 UOM_SEED = ["Nos", "Kg", "Meter", "Litre", "Box", "Set"]
@@ -132,6 +133,8 @@ _BUYING_LABELS = (
 _ADMIN_LABELS = (
     "users.Role",
     "users.RolePermission",
+    # Integrity / health results shown on the dashboard (no CRUD route exists).
+    "core.SystemHealthCheck",
 )
 
 #: Every model the API exposes and a role may therefore be granted authority

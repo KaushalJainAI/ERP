@@ -7,8 +7,30 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "language", "is_active", "roles")
-        read_only_fields = ("id", "username")
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "language",
+            "is_active",
+            "is_superuser",
+            "is_staff",
+            "roles",
+        )
+        # Self-service profile (PATCH /api/auth/me/): only the four personal
+        # fields below are writable. Everything else -- notably is_active,
+        # is_superuser and the derived roles -- is server-controlled, so a user
+        # can never deactivate/elevate themselves through their own profile.
+        read_only_fields = (
+            "id",
+            "username",
+            "is_active",
+            "is_superuser",
+            "is_staff",
+            "roles",
+        )
 
     def get_roles(self, obj):
         return list(

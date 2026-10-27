@@ -87,6 +87,12 @@ def resolve_action_flag(request, view):
         return "can_read"
     if request.method == "POST":
         action_name = getattr(view, "action", None)
+        # A view may declare that a POST action only needs a weaker flag on *its
+        # own* model (e.g. a ``make-*`` mapping action only reads the source
+        # document; the create right on the target is checked by the action).
+        overrides = getattr(view, "action_permission_flags", None) or {}
+        if action_name in overrides:
+            return overrides[action_name]
         if action_name in ("submit_doc", "submit"):
             return "can_submit"
         if action_name in ("cancel_doc", "cancel"):

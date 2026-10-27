@@ -38,8 +38,8 @@ class UsersAppTests(TestCase):
 
     def test_role_and_permission_assignment(self):
         """GOOD: Role, UserRole, and RolePermission created cleanly."""
-        ur = UserRole.objects.create(user=self.user, role=self.role)
-        perm = RolePermission.objects.create(
+        UserRole.objects.create(user=self.user, role=self.role)
+        RolePermission.objects.create(
             role=self.role,
             model_label="stock.Item",
             can_read=True,
