@@ -3,6 +3,7 @@ from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from accounts.models import Account, GLEntry
+from core.models import FiscalYear
 
 
 def quantize_money(amount: Any) -> Decimal:
@@ -23,7 +24,10 @@ def post(
 ) -> List[GLEntry]:
     """
     Atomically posts immutable GL entries for a submitted document.
-    Enforces debit == credit balance and group node restrictions.
+    Enforces debit == credit balance and group node restrictions, and that the
+    posting date falls in an open fiscal year (stamped on every row). The
+    ``fiscal_year`` argument is kept for backward compatibility but ignored:
+    the fiscal year is always resolved from the posting date.
     """
     if not entries:
         raise ValidationError("Cannot post empty GL entries.")
@@ -31,6 +35,8 @@ def post(
     date_to_use = posting_date or getattr(voucher, "posting_date", None)
     if not date_to_use:
         raise ValidationError("Posting date is required for GL entry.")
+
+    fy = FiscalYear.for_date(date_to_use)
 
     voucher_type = f"{voucher._meta.app_label}.{voucher._meta.object_name}"
     voucher_no = getattr(voucher, "name", str(voucher.pk))
@@ -46,7 +52,9 @@ def post(
                 account = Account.objects.get(pk=account)
 
             if account.is_group:
-                raise ValidationError(f"Posting to group account '{account.name}' is not allowed.")
+                raise ValidationError(
+                    f"Posting to group account '{account.name}' is not allowed."
+                )
 
             debit = quantize_money(item.get("debit", 0))
             credit = quantize_money(item.get("credit", 0))
@@ -54,7 +62,9 @@ def post(
             if debit < 0 or credit < 0:
                 raise ValidationError("Debit and credit amounts must be non-negative.")
             if debit > 0 and credit > 0:
-                raise ValidationError("A single GL entry line cannot have both debit and credit > 0.")
+                raise ValidationError(
+                    "A single GL entry line cannot have both debit and credit > 0."
+                )
             if debit == 0 and credit == 0:
                 continue
 
@@ -73,7 +83,7 @@ def post(
                 voucher_no=voucher_no,
                 against_voucher_type=item.get("against_voucher_type"),
                 against_voucher_no=item.get("against_voucher_no"),
-                fiscal_year=fiscal_year,
+                fiscal_year=fy.name,
                 remarks=remarks or getattr(voucher, "remarks", None),
                 is_cancelled=False,
             )
@@ -102,6 +112,10 @@ def reverse(voucher: Any) -> List[GLEntry]:
             voucher_no=voucher_no,
             is_cancelled=False,
         )
+
+        # Cancelling a document dated in a closed fiscal year is refused.
+        for posting_date in sorted({e.posting_date for e in original_entries}):
+            FiscalYear.for_date(posting_date)
 
         reversal_rows: List[GLEntry] = []
         for orig in original_entries:

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -6,6 +8,7 @@ from django.db.models import F, Q
 
 class TimeStampedModel(models.Model):
     """Abstract base model tracking creation and modification timestamps and actors."""
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     modified_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -39,6 +42,7 @@ class SubmittableDocument(TimeStampedModel):
     Docstatus transitions: Draft (0) -> Submitted (1) -> Cancelled (2).
     Submitted and Cancelled documents are immutable.
     """
+
     name = models.CharField(max_length=60, unique=True, db_index=True)
     docstatus = models.IntegerField(
         choices=DocStatus.choices,
@@ -113,22 +117,87 @@ class SubmittableDocument(TimeStampedModel):
             self.on_cancel()
 
     def amend(self, new_name=None):
-        """Create a new draft amendment from a cancelled document."""
+        """Create a new draft amendment from a cancelled document.
+
+        The amendment is saved (as a draft) together with a copy of every child
+        row set (line items, payment references, ...) in one transaction, so the
+        returned draft is complete and can be edited and submitted. Derived
+        totals are recomputed from the copied rows.
+        """
         if self.docstatus != DocStatus.CANCELLED:
             raise ValidationError("Only cancelled documents can be amended.")
-        amendment = self.__class__()
-        # Copy fields from self
-        for field in self._meta.fields:
-            if field.name in ["id", "pk", "name", "docstatus", "created_at", "modified_at", "amended_from"]:
+        with transaction.atomic():
+            amendment = self.__class__()
+            # Copy fields from self
+            for field in self._meta.fields:
+                if field.name in [
+                    "id",
+                    "pk",
+                    "name",
+                    "docstatus",
+                    "created_at",
+                    "modified_at",
+                    "amended_from",
+                ]:
+                    continue
+                setattr(amendment, field.name, getattr(self, field.name))
+            amendment.docstatus = DocStatus.DRAFT
+            amendment.amended_from = self
+            # A submittable's `name` is unique and NOT NULL; an amendment must get its
+            # own name. Follow ERPNext's convention of suffixing the source name with
+            # an incrementing amendment index (e.g. SINV-2026-0001 -> SINV-2026-0001-1).
+            amendment.name = new_name or self._next_amendment_name()
+            amendment.save()
+            self._copy_child_rows_to(amendment)
+            amendment._recompute_derived_totals()
+            return amendment
+
+    def _copy_child_rows_to(self, amendment):
+        """Copy every child row (non-submittable model with a CASCADE FK to this
+        document, e.g. ``lines``/``items``/``references``) onto ``amendment``."""
+        for rel in self._meta.related_objects:
+            if not rel.one_to_many or rel.on_delete is not models.CASCADE:
                 continue
-            setattr(amendment, field.name, getattr(self, field.name))
-        amendment.docstatus = DocStatus.DRAFT
-        amendment.amended_from = self
-        # A submittable's `name` is unique and NOT NULL; an amendment must get its
-        # own name. Follow ERPNext's convention of suffixing the source name with
-        # an incrementing amendment index (e.g. SINV-2026-0001 -> SINV-2026-0001-1).
-        amendment.name = new_name or self._next_amendment_name()
-        return amendment
+            child_model = rel.related_model
+            if issubclass(child_model, SubmittableDocument):
+                continue
+            fk = rel.field
+            for child in child_model._default_manager.filter(
+                **{fk.name: self.pk}
+            ).order_by("pk"):
+                clone = child_model()
+                for field in child_model._meta.concrete_fields:
+                    if field.primary_key or field.name == fk.name:
+                        continue
+                    setattr(clone, field.attname, getattr(child, field.attname))
+                setattr(clone, fk.name, amendment)
+                clone.save()
+
+    def _recompute_derived_totals(self):
+        """Refresh header totals of a freshly copied draft from its child rows."""
+        if hasattr(self, "recompute_totals"):
+            self.recompute_totals()
+            self.save(update_fields=["total_debit", "total_credit"])
+        elif hasattr(self, "grand_total"):
+            total = Decimal("0.00")
+            for rel in self._meta.related_objects:
+                if not rel.one_to_many or rel.on_delete is not models.CASCADE:
+                    continue
+                if issubclass(rel.related_model, SubmittableDocument):
+                    continue
+                if not any(
+                    f.name == "amount" for f in rel.related_model._meta.concrete_fields
+                ):
+                    continue
+                total += sum(
+                    (
+                        row.amount
+                        for row in getattr(self, rel.get_accessor_name()).all()
+                    ),
+                    Decimal("0.00"),
+                )
+            self.grand_total = total
+            self.save(update_fields=["grand_total"])
 
     def _next_amendment_name(self):
         """Return a unique name for a new amendment of this document."""
@@ -149,9 +218,13 @@ class SubmittableDocument(TimeStampedModel):
                 update_fields = kwargs.get("update_fields")
                 allowed = {"docstatus", "modified_at", "modified_by"}
                 if update_fields and not set(update_fields).issubset(allowed):
-                    raise ValidationError("Submitted or cancelled documents cannot be modified.")
+                    raise ValidationError(
+                        "Submitted or cancelled documents cannot be modified."
+                    )
                 elif not update_fields:
-                    raise ValidationError("Submitted or cancelled documents cannot be modified.")
+                    raise ValidationError(
+                        "Submitted or cancelled documents cannot be modified."
+                    )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -168,8 +241,67 @@ class Company(TimeStampedModel):
     gstin = models.CharField(max_length=20, null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    # Perpetual inventory (ERPNext: Company.enable_perpetual_inventory and the
+    # default_inventory_account / stock_adjustment_account / default_expense_account
+    # [= Cost of Goods Sold] accounts). Defaults False so companies without a chart
+    # of accounts keep working; seed_defaults turns it on for the seeded company.
+    enable_perpetual_inventory = models.BooleanField(default=False)
+    default_inventory_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    stock_adjustment_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    default_expense_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
     class Meta:
         verbose_name_plural = "Companies"
+
+    def get_perpetual_accounts(self, *, need_cogs=False, need_adjustment=False):
+        """Return the validated perpetual-inventory accounts as a dict, or None
+        when perpetual inventory is off. Raises ValidationError naming the missing
+        or invalid Company field (leaf account of this company)."""
+        from django.core.exceptions import ValidationError
+
+        if not self.enable_perpetual_inventory:
+            return None
+        required = ["default_inventory_account"]
+        if need_cogs:
+            required.append("default_expense_account")
+        if need_adjustment:
+            required.append("stock_adjustment_account")
+        accounts = {}
+        for field in required:
+            acc = getattr(self, field)
+            if acc is None:
+                raise ValidationError(
+                    f"Perpetual inventory is enabled for company '{self.name}' but "
+                    f"Company.{field} is not set."
+                )
+            if acc.is_group:
+                raise ValidationError(
+                    f"Company.{field} ('{acc.name}') must not be a group account."
+                )
+            if acc.company_id != self.pk:
+                raise ValidationError(
+                    f"Company.{field} ('{acc.name}') must belong to company '{self.name}'."
+                )
+            accounts[field] = acc
+        return accounts
 
     def __str__(self):
         return self.name
@@ -188,6 +320,27 @@ class FiscalYear(TimeStampedModel):
                 name="check_fiscal_year_dates",
             )
         ]
+
+    @classmethod
+    def for_date(cls, date):
+        """Return the open FiscalYear containing ``date`` or raise ValidationError.
+
+        Mirrors ERPNext's ``get_fiscal_year`` + closed-year check: posting into a
+        missing or closed fiscal year is refused. If year ranges overlap, the one
+        starting latest (most specific) wins.
+        """
+        fy = (
+            cls.objects.filter(start_date__lte=date, end_date__gte=date)
+            .order_by("-start_date", "-pk")
+            .first()
+        )
+        if fy is None:
+            raise ValidationError(f"No fiscal year found for posting date {date}.")
+        if fy.is_closed:
+            raise ValidationError(
+                f"Fiscal year {fy.name} is closed; posting on {date} is not allowed."
+            )
+        return fy
 
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
@@ -222,6 +375,7 @@ class NamingSeries(TimeStampedModel):
 
 class AuditLog(models.Model):
     """Immutable log of model mutations."""
+
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -249,6 +403,7 @@ class AuditLog(models.Model):
 
 class SystemHealthCheck(models.Model):
     """Recorded results from verify_integrity checks."""
+
     checked_at = models.DateTimeField(auto_now_add=True)
     check_name = models.CharField(max_length=80)
     status = models.CharField(max_length=10)  # ok, drift, healed, alert
@@ -260,10 +415,13 @@ class SystemHealthCheck(models.Model):
 
 class Outbox(models.Model):
     """Deduplicated transactional outbox for reliable external side effects."""
+
     dedupe_key = models.CharField(max_length=120, unique=True)
     channel = models.CharField(max_length=20)  # email, sms, whatsapp, webhook
     payload = models.JSONField(default=dict)
-    status = models.CharField(max_length=12, default="pending")  # pending, sent, failed, dead
+    status = models.CharField(
+        max_length=12, default="pending"
+    )  # pending, sent, failed, dead
     attempts = models.SmallIntegerField(default=0)
     next_attempt_at = models.DateTimeField(null=True, blank=True)
     last_error = models.TextField(null=True, blank=True)
@@ -275,6 +433,7 @@ class Outbox(models.Model):
 
 class DummySubmittableDoc(SubmittableDocument):
     """Concrete SubmittableDocument model used for testing submittable document workflows."""
+
     title = models.CharField(max_length=100)
 
     def __str__(self):
@@ -307,7 +466,6 @@ class FieldTranslation(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.model_label}:{self.object_id}.{self.field_name} [{self.language}]"
-
-
-
+        return (
+            f"{self.model_label}:{self.object_id}.{self.field_name} [{self.language}]"
+        )

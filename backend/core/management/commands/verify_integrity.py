@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Sum
 from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
-from core.models import SystemHealthCheck
+from core.models import Company, SystemHealthCheck
 
 
 class Command(BaseCommand):
@@ -14,7 +14,11 @@ class Command(BaseCommand):
         errors = []
 
         # 1. GL Balance Invariant
-        vouchers = GLEntry.objects.filter(is_cancelled=False).values("voucher_type", "voucher_no").distinct()
+        vouchers = (
+            GLEntry.objects.filter(is_cancelled=False)
+            .values("voucher_type", "voucher_no")
+            .distinct()
+        )
         for v in vouchers:
             v_entries = GLEntry.objects.filter(
                 voucher_type=v["voucher_type"],
@@ -39,8 +43,12 @@ class Command(BaseCommand):
                 sum_value=Sum("stock_value_difference"),
             )
 
-            expected_qty = (sle_aggregate["sum_qty"] or Decimal("0.000")).quantize(Decimal("0.001"))
-            expected_value = (sle_aggregate["sum_value"] or Decimal("0.00")).quantize(Decimal("0.01"))
+            expected_qty = (sle_aggregate["sum_qty"] or Decimal("0.000")).quantize(
+                Decimal("0.001")
+            )
+            expected_value = (sle_aggregate["sum_value"] or Decimal("0.00")).quantize(
+                Decimal("0.01")
+            )
 
             if bin_obj.actual_qty != expected_qty:
                 errors.append(
@@ -75,9 +83,29 @@ class Command(BaseCommand):
                     f"Negative Stock detected for {bin_obj.item.code} @ {bin_obj.warehouse.name}: Qty {bin_obj.actual_qty}"
                 )
 
+        # 4. Perpetual Inventory Balance: the GL inventory account must equal the
+        #    stock valuation (Σ Bin.stock_value) for every perpetual-inventory company.
+        perpetual_errors = self._check_perpetual_inventory_balance()
+        SystemHealthCheck.objects.create(
+            check_name="perpetual_inventory_balance",
+            status="alert" if perpetual_errors else "ok",
+            details=(
+                {"errors": perpetual_errors}
+                if perpetual_errors
+                else {
+                    "message": "GL inventory matches Bin stock value for all perpetual-inventory companies."
+                }
+            ),
+        )
+        errors.extend(perpetual_errors)
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
-        details_payload = {"errors": errors} if errors else {"message": "All system invariants verified successfully."}
+        details_payload = (
+            {"errors": errors}
+            if errors
+            else {"message": "All system invariants verified successfully."}
+        )
 
         SystemHealthCheck.objects.create(
             check_name="ledger_and_stock_integrity",
@@ -86,9 +114,47 @@ class Command(BaseCommand):
         )
 
         if errors:
-            self.stderr.write(self.style.ERROR(f"Integrity Check FAILED with {len(errors)} error(s):"))
+            self.stderr.write(
+                self.style.ERROR(f"Integrity Check FAILED with {len(errors)} error(s):")
+            )
             for err in errors:
                 self.stderr.write(self.style.ERROR(f"  - {err}"))
             raise CommandError("ERP Integrity verification failed.")
 
-        self.stdout.write(self.style.SUCCESS("[OK] ERP System Ledger & Inventory Integrity Verified (0 Drifts)"))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "[OK] ERP System Ledger & Inventory Integrity Verified (0 Drifts)"
+            )
+        )
+
+    def _check_perpetual_inventory_balance(self):
+        errors = []
+        companies = Company.objects.filter(
+            enable_perpetual_inventory=True, default_inventory_account__isnull=False
+        ).select_related("default_inventory_account")
+        for company in companies:
+            account = company.default_inventory_account
+            gl = GLEntry.objects.filter(account=account, is_cancelled=False).aggregate(
+                dr=Sum("debit"), cr=Sum("credit")
+            )
+            gl_balance = (gl["dr"] or Decimal("0.00")) - (gl["cr"] or Decimal("0.00"))
+            stock_value = Bin.objects.filter(warehouse__company=company).aggregate(
+                v=Sum("stock_value")
+            )["v"] or Decimal("0.00")
+            voucher_count = (
+                StockLedgerEntry.objects.filter(
+                    warehouse__company=company, is_cancelled=False
+                )
+                .values("voucher_type", "voucher_no")
+                .distinct()
+                .count()
+            )
+            # Each voucher may round its valuation by up to a cent.
+            tolerance = Decimal("0.01") * voucher_count
+            if abs(gl_balance - stock_value) > tolerance:
+                errors.append(
+                    f"Perpetual Inventory Drift for {company.name}: GL balance of "
+                    f"'{account.name}' ({gl_balance}) != Bin stock value ({stock_value}), "
+                    f"tolerance {tolerance}"
+                )
+        return errors

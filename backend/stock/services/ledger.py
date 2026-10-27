@@ -3,6 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from core.models import FiscalYear
 from stock.models import Item, Warehouse, StockLedgerEntry, Bin
 
 
@@ -42,8 +43,17 @@ def post(
     if not sle_entries:
         raise ValidationError("Cannot post empty stock ledger entries.")
 
-    date_to_use = posting_date or getattr(voucher, "posting_date", None) or datetime.date.today()
-    time_to_use = posting_time or getattr(voucher, "posting_time", None) or datetime.datetime.now().time()
+    date_to_use = (
+        posting_date or getattr(voucher, "posting_date", None) or datetime.date.today()
+    )
+    time_to_use = (
+        posting_time
+        or getattr(voucher, "posting_time", None)
+        or datetime.datetime.now().time()
+    )
+
+    # Posting into a missing or closed fiscal year is refused (ERPNext parity).
+    FiscalYear.for_date(date_to_use)
 
     voucher_type = f"{voucher._meta.app_label}.{voucher._meta.object_name}"
     voucher_no = getattr(voucher, "name", str(voucher.pk))
@@ -64,7 +74,9 @@ def post(
                 warehouse = Warehouse.objects.get(pk=warehouse)
 
             if warehouse.is_group:
-                raise ValidationError(f"Stock transaction not allowed on group warehouse '{warehouse.name}'.")
+                raise ValidationError(
+                    f"Stock transaction not allowed on group warehouse '{warehouse.name}'."
+                )
 
             qty = quantize_qty(item_data["qty"])
             if qty == 0:
@@ -90,12 +102,17 @@ def post(
             if qty > 0:
                 # Stock In. For a transfer's incoming leg, value it at the rate the
                 # matching outgoing leg left with so total stock value is conserved.
-                if item_data.get("use_outgoing_rate") and last_outgoing_rate is not None:
+                if (
+                    item_data.get("use_outgoing_rate")
+                    and last_outgoing_rate is not None
+                ):
                     rate = quantize_rate(last_outgoing_rate)
                 incoming_value = quantize_value(qty * rate)
                 new_stock_value = quantize_value(bin_obj.stock_value + incoming_value)
                 new_valuation_rate = (
-                    quantize_rate(new_stock_value / new_qty) if new_qty > 0 else Decimal("0.000000")
+                    quantize_rate(new_stock_value / new_qty)
+                    if new_qty > 0
+                    else Decimal("0.000000")
                 )
                 stock_value_diff = incoming_value
             else:
@@ -105,11 +122,15 @@ def post(
                         f"Insufficient stock for Item '{item.code}' in Warehouse '{warehouse.name}'. "
                         f"Available: {bin_obj.actual_qty}, Required: {abs(qty)}"
                     )
-                outgoing_rate = bin_obj.valuation_rate if bin_obj.valuation_rate > 0 else rate
+                outgoing_rate = (
+                    bin_obj.valuation_rate if bin_obj.valuation_rate > 0 else rate
+                )
                 outgoing_value = quantize_value(abs(qty) * outgoing_rate)
                 new_stock_value = quantize_value(bin_obj.stock_value - outgoing_value)
                 new_valuation_rate = (
-                    quantize_rate(new_stock_value / new_qty) if new_qty > 0 else Decimal("0.000000")
+                    quantize_rate(new_stock_value / new_qty)
+                    if new_qty > 0
+                    else Decimal("0.000000")
                 )
                 stock_value_diff = quantize_value(-outgoing_value)
                 last_outgoing_rate = outgoing_rate
@@ -118,7 +139,14 @@ def post(
             bin_obj.actual_qty = new_qty
             bin_obj.valuation_rate = new_valuation_rate
             bin_obj.stock_value = new_stock_value
-            bin_obj.save(update_fields=["actual_qty", "valuation_rate", "stock_value", "modified_at"])
+            bin_obj.save(
+                update_fields=[
+                    "actual_qty",
+                    "valuation_rate",
+                    "stock_value",
+                    "modified_at",
+                ]
+            )
 
             # Create immutable SLE
             sle = StockLedgerEntry.objects.create(
@@ -152,6 +180,10 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
             is_cancelled=False,
         )
 
+        # Cancelling a document dated in a closed fiscal year is refused.
+        for posting_date in sorted({s.posting_date for s in original_sles}):
+            FiscalYear.for_date(posting_date)
+
         reversal_sles: List[StockLedgerEntry] = []
         for orig in original_sles:
             orig._allow_internal_cancellation = True
@@ -180,12 +212,23 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
                     f"Cancel the later transactions that consumed this stock first."
                 )
             new_value = quantize_value(bin_obj.stock_value + rev_diff)
-            new_rate = quantize_rate(new_value / new_qty) if new_qty > 0 else Decimal("0.000000")
+            new_rate = (
+                quantize_rate(new_value / new_qty)
+                if new_qty > 0
+                else Decimal("0.000000")
+            )
 
             bin_obj.actual_qty = new_qty
             bin_obj.stock_value = new_value
             bin_obj.valuation_rate = new_rate
-            bin_obj.save(update_fields=["actual_qty", "valuation_rate", "stock_value", "modified_at"])
+            bin_obj.save(
+                update_fields=[
+                    "actual_qty",
+                    "valuation_rate",
+                    "stock_value",
+                    "modified_at",
+                ]
+            )
 
             rev_sle = StockLedgerEntry.objects.create(
                 posting_date=orig.posting_date,
@@ -220,7 +263,9 @@ def repost(item_id=None, warehouse_id=None) -> bool:
         # Clear derived Bins in scope
         bin_qs.delete()
 
-        sle_qs = StockLedgerEntry.objects.filter(is_cancelled=False).order_by("posting_date", "posting_time", "id")
+        sle_qs = StockLedgerEntry.objects.filter(is_cancelled=False).order_by(
+            "posting_date", "posting_time", "id"
+        )
         if item_id:
             sle_qs = sle_qs.filter(item_id=item_id)
         if warehouse_id:
@@ -237,9 +282,13 @@ def repost(item_id=None, warehouse_id=None) -> bool:
                 },
             )
             bin_obj.actual_qty = quantize_qty(bin_obj.actual_qty + sle.qty)
-            bin_obj.stock_value = quantize_value(bin_obj.stock_value + sle.stock_value_difference)
+            bin_obj.stock_value = quantize_value(
+                bin_obj.stock_value + sle.stock_value_difference
+            )
             bin_obj.valuation_rate = (
-                quantize_rate(bin_obj.stock_value / bin_obj.actual_qty) if bin_obj.actual_qty > 0 else Decimal("0.000000")
+                quantize_rate(bin_obj.stock_value / bin_obj.actual_qty)
+                if bin_obj.actual_qty > 0
+                else Decimal("0.000000")
             )
             bin_obj.save()
 
