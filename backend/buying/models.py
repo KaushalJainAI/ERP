@@ -1,7 +1,14 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
-from core.models import TimeStampedModel, SubmittableDocument, Company
+from core.models import (
+    Company,
+    GSTCategory,
+    State,
+    SubmittableDocument,
+    TimeStampedModel,
+)
+from gst.validators import validate_gstin_format
 from accounts.models import Account
 from stock.models import Item, Warehouse
 
@@ -33,7 +40,20 @@ class Supplier(TimeStampedModel):
     supplier_group = models.ForeignKey(
         SupplierGroup, on_delete=models.PROTECT, related_name="suppliers"
     )
-    gstin = models.CharField(max_length=20, null=True, blank=True)
+    # GSTIN is validated at the API layer (validators + serializer), never in
+    # save() or the DB: ORM/import writers may store legacy values.
+    gstin = models.CharField(
+        max_length=20, null=True, blank=True, validators=[validate_gstin_format]
+    )
+    gst_category = models.CharField(
+        max_length=24,
+        choices=GSTCategory.choices,
+        default=GSTCategory.UNREGISTERED,
+    )
+    # The party's location; also the default place of supply.
+    state = models.ForeignKey(
+        State, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     tax_id = models.CharField(max_length=40, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=30, null=True, blank=True)

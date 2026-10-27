@@ -8,10 +8,14 @@ from django.contrib import admin
 from accounts.models import (
     Account,
     GLEntry,
+    ItemTaxTemplate,
+    ItemTaxTemplateRow,
     JournalEntry,
     JournalEntryLine,
     PaymentEntry,
     PaymentEntryReference,
+    TaxTemplate,
+    TaxTemplateRow,
 )
 from core.admin import (
     ReadOnlyModelAdmin,
@@ -31,8 +35,18 @@ class AccountAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         "is_group",
         "is_active",
         "parent",
+        "gst_direction",
+        "gst_component",
     )
-    list_filter = ("company", "root_type", "account_type", "is_group", "is_active")
+    list_filter = (
+        "company",
+        "root_type",
+        "account_type",
+        "is_group",
+        "is_active",
+        "gst_direction",
+        "gst_component",
+    )
     search_fields = ("name", "account_number")
     autocomplete_fields = ("company", "parent")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
@@ -188,3 +202,53 @@ class PaymentEntryAdmin(SubmittableDocumentAdmin):
             },
         ),
     )
+
+
+class ItemTaxTemplateRowInline(admin.TabularInline):
+    model = ItemTaxTemplateRow
+    extra = 0
+    fields = ("gst_component", "tax_rate")
+
+
+@admin.register(ItemTaxTemplate)
+class ItemTaxTemplateAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = ("name", "gst_treatment", "is_active", "is_legacy")
+    list_filter = ("gst_treatment", "is_active", "is_legacy")
+    search_fields = ("name",)
+    inlines = [ItemTaxTemplateRowInline]
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("name",)
+
+
+class TaxTemplateRowInline(admin.TabularInline):
+    model = TaxTemplateRow
+    extra = 0
+    autocomplete_fields = ("account",)
+    fields = (
+        "idx",
+        "charge_type",
+        "account",
+        "description",
+        "rate",
+        "add_deduct_tax",
+        "category",
+    )
+
+
+@admin.register(TaxTemplate)
+class TaxTemplateAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "title",
+        "company",
+        "template_type",
+        "gst_supply_type",
+        "is_reverse_charge",
+        "is_default",
+        "disabled",
+    )
+    list_filter = ("company", "template_type", "is_reverse_charge", "disabled")
+    search_fields = ("title",)
+    autocomplete_fields = ("company",)
+    inlines = [TaxTemplateRowInline]
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("company", "template_type", "title")

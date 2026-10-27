@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
 from core.models import TimeStampedModel, SubmittableDocument, Company
+from gst.validators import validate_hsn_code
 
 
 class ValuationMethod(models.TextChoices):
@@ -13,6 +14,8 @@ class UOM(TimeStampedModel):
     """Unit of Measure."""
 
     name = models.CharField(max_length=40, unique=True)
+    # GST Unique Quantity Code ("NOS", "KGS", "MTR", ...) used in the GSTR-1 HSN summary.
+    gst_uqc = models.CharField(max_length=10, blank=True, default="")
 
     class Meta:
         verbose_name = "Unit of Measure"
@@ -59,6 +62,29 @@ class Item(TimeStampedModel):
         max_digits=18, decimal_places=6, default=Decimal("0.000000")
     )
     is_active = models.BooleanField(default=True)
+
+    # GST: HSN/SAC (digits only, 4/6/8 long when set), nil/exempt/non-GST flags and
+    # the item's rate set. All optional so documents created without them still work.
+    gst_hsn_code = models.CharField(
+        max_length=8, blank=True, default="", validators=[validate_hsn_code]
+    )
+    is_nil_exempt = models.BooleanField(default=False)
+    is_non_gst = models.BooleanField(default=False)
+    item_tax_template = models.ForeignKey(
+        "accounts.ItemTaxTemplate",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=~(models.Q(is_nil_exempt=True) & models.Q(is_non_gst=True)),
+                name="check_item_not_both_nil_exempt_and_non_gst",
+            )
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.code})"

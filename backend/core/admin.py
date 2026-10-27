@@ -15,6 +15,7 @@ from core.models import (
     Language,
     NamingSeries,
     Outbox,
+    State,
     SystemHealthCheck,
 )
 
@@ -70,11 +71,41 @@ class SubmittableDocumentAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Company)
 class CompanyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-    list_display = ("name", "abbr", "default_currency", "country", "gstin", "is_active")
-    list_filter = ("is_active", "country", "default_currency")
+    list_display = (
+        "name",
+        "abbr",
+        "default_currency",
+        "country",
+        "gstin",
+        "state",
+        "gst_category",
+        "is_active",
+    )
+    list_filter = ("is_active", "country", "default_currency", "gst_category")
     search_fields = ("name", "abbr", "gstin")
+    # Company.clean() (GSTIN checksum, state prefix, category) runs via the admin form.
+    autocomplete_fields = ("state", "round_off_account")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("name",)
+
+
+@admin.register(State)
+class StateAdmin(admin.ModelAdmin):
+    """GST state master: seeded from ``core.gst_states``; viewable, not editable."""
+
+    list_display = ("code", "name", "abbr", "is_union_territory", "is_active")
+    list_filter = ("is_union_territory", "is_active")
+    search_fields = ("code", "name", "abbr")
+    ordering = ("code",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(FiscalYear)

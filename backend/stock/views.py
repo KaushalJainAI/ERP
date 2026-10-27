@@ -39,11 +39,23 @@ class ItemGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 class ItemViewSet(AuditLogMixin, viewsets.ModelViewSet):
-    queryset = Item.objects.all().select_related("item_group", "stock_uom")
+    queryset = (
+        Item.objects.all()
+        .select_related("item_group", "stock_uom", "item_tax_template")
+        .prefetch_related("item_tax_template__rows")
+    )
     serializer_class = ItemSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["item_group", "is_stock_item", "is_active", "valuation_method"]
-    search_fields = ["code", "name", "description"]
+    filterset_fields = [
+        "item_group",
+        "is_stock_item",
+        "is_active",
+        "valuation_method",
+        "item_tax_template",
+        "is_nil_exempt",
+        "is_non_gst",
+    ]
+    search_fields = ["code", "name", "description", "gst_hsn_code"]
     ordering_fields = ["code", "name", "created_at"]
 
 

@@ -6,12 +6,21 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from accounts.models import Account, GLEntry, JournalEntry, PaymentEntry
+from accounts.models import (
+    Account,
+    GLEntry,
+    ItemTaxTemplate,
+    JournalEntry,
+    PaymentEntry,
+    TaxTemplate,
+)
 from accounts.serializers import (
     AccountSerializer,
     GLEntrySerializer,
+    ItemTaxTemplateSerializer,
     JournalEntrySerializer,
     PaymentEntrySerializer,
+    TaxTemplateSerializer,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
 from users.permissions import HasRolePermission, require_model_permission
@@ -76,9 +85,51 @@ class AccountViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = Account.objects.all().select_related("company", "parent")
     serializer_class = AccountSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "root_type", "account_type", "is_group", "is_active"]
+    filterset_fields = [
+        "company",
+        "root_type",
+        "account_type",
+        "is_group",
+        "is_active",
+        "gst_direction",
+        "gst_component",
+    ]
     search_fields = ["name", "account_number"]
     ordering_fields = ["name", "created_at"]
+
+
+class ItemTaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    """Global item tax templates (GST rate sets) with nested ``rows``."""
+
+    queryset = ItemTaxTemplate.objects.all().prefetch_related("rows").order_by("name")
+    serializer_class = ItemTaxTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["gst_treatment", "is_active", "is_legacy"]
+    search_fields = ["name"]
+    ordering_fields = ["name", "created_at"]
+
+
+class TaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    """Per-company Sales / Purchase Taxes and Charges templates with nested ``rows``."""
+
+    queryset = (
+        TaxTemplate.objects.all()
+        .select_related("company")
+        .prefetch_related("rows__account")
+        .order_by("company_id", "template_type", "title")
+    )
+    serializer_class = TaxTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = [
+        "company",
+        "template_type",
+        "gst_supply_type",
+        "is_reverse_charge",
+        "is_default",
+        "disabled",
+    ]
+    search_fields = ["title"]
+    ordering_fields = ["title", "created_at"]
 
 
 class GLEntryViewSet(viewsets.ReadOnlyModelViewSet):

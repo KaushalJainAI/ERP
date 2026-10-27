@@ -11,6 +11,7 @@ from stock.models import UOM, ItemGroup
 from selling.models import CustomerGroup
 from buying.models import SupplierGroup
 from accounts.models import Account, AccountRootType, AccountType
+from gst.services.seeding import seed_gst
 
 
 LANGUAGES_SEED = [
@@ -77,6 +78,17 @@ _MASTER_LABELS = (
     "selling.Customer",
     "buying.SupplierGroup",
     "buying.Supplier",
+    # GST masters (state list, per-company tax templates, global item tax templates).
+    "core.State",
+    "accounts.TaxTemplate",
+    "accounts.ItemTaxTemplate",
+)
+
+#: GST masters every selling/buying/stock role must be able to read to fill forms.
+_GST_MASTER_LABELS = (
+    "core.State",
+    "accounts.TaxTemplate",
+    "accounts.ItemTaxTemplate",
 )
 
 #: Transactional documents a clerk may raise.
@@ -113,6 +125,8 @@ _ACCOUNTS_LABELS = (
     "accounts.GLEntry",
     "accounts.JournalEntry",
     "accounts.PaymentEntry",
+    "accounts.TaxTemplate",
+    "accounts.ItemTaxTemplate",
 )
 
 _SELLING_LABELS = (
@@ -133,6 +147,8 @@ _BUYING_LABELS = (
 _ADMIN_LABELS = (
     "users.Role",
     "users.RolePermission",
+    "users.User",
+    "users.UserRole",
     # Integrity / health results shown on the dashboard (no CRUD route exists).
     "core.SystemHealthCheck",
 )
@@ -168,16 +184,20 @@ ROLE_PERMISSION_MATRIX = {
     # Inventory authority, including the stock ledger and the stock balance.
     "Stock Manager": {
         **_scope(_STOCK_LABELS, FULL),
-        **_scope(("core.Company",), READ),
+        **_scope(("core.Company", "accounts.ItemTaxTemplate"), READ),
     },
     # Financial authority: the GL, and therefore every accounts report.
     "Accounts Manager": {
         **_scope(_ACCOUNTS_LABELS, FULL),
-        **_scope(("core.Company", "selling.Customer", "buying.Supplier"), READ),
+        **_scope(
+            ("core.Company", "core.State", "selling.Customer", "buying.Supplier"),
+            READ,
+        ),
     },
     # Selling authority, plus read access to the catalogue it sells from.
     "Sales Manager": {
         **_scope(_SELLING_LABELS, FULL),
+        **_scope(_GST_MASTER_LABELS, READ),
         **_scope(
             (
                 "core.Company",
@@ -192,6 +212,7 @@ ROLE_PERMISSION_MATRIX = {
     # Buying authority, plus read access to the catalogue it buys.
     "Purchase Manager": {
         **_scope(_BUYING_LABELS, FULL),
+        **_scope(_GST_MASTER_LABELS, READ),
         **_scope(
             (
                 "core.Company",
@@ -368,36 +389,10 @@ class Command(BaseCommand):
                 "is_group": False,
             },
         )
-        Account.objects.get_or_create(
-            company=company,
-            name="CGST",
-            defaults={
-                "parent": root_nodes[AccountRootType.LIABILITY],
-                "root_type": AccountRootType.LIABILITY,
-                "account_type": AccountType.TAX,
-                "is_group": False,
-            },
-        )
-        Account.objects.get_or_create(
-            company=company,
-            name="SGST",
-            defaults={
-                "parent": root_nodes[AccountRootType.LIABILITY],
-                "root_type": AccountRootType.LIABILITY,
-                "account_type": AccountType.TAX,
-                "is_group": False,
-            },
-        )
-        Account.objects.get_or_create(
-            company=company,
-            name="IGST",
-            defaults={
-                "parent": root_nodes[AccountRootType.LIABILITY],
-                "root_type": AccountRootType.LIABILITY,
-                "account_type": AccountType.TAX,
-                "is_group": False,
-            },
-        )
+        # GST tax accounts (Output/Input/RCM CGST, SGST, IGST, Round Off) are seeded
+        # by gst.services.seeding.seed_gst() below. The bare "CGST"/"SGST"/"IGST"
+        # accounts this seed used to create are no longer created for new databases;
+        # legacy ones are tagged Output by migration accounts.0006.
 
         # Income & Expense sub accounts
         Account.objects.get_or_create(
@@ -430,6 +425,17 @@ class Command(BaseCommand):
         SupplierGroup.objects.get_or_create(
             name="All Supplier Groups", defaults={"is_group": True}
         )
+
+        # 8. GST masters: states, UQCs, item tax templates, and per company the
+        # tagged tax accounts, Round Off account and standard tax templates.
+        gst_summary = seed_gst()
+        self.stdout.write(
+            f"  GST: {gst_summary['states_created']} states, "
+            f"{gst_summary['item_tax_templates_created']} item tax templates created"
+        )
+        for comp in gst_summary["companies"]:
+            for warning in comp["warnings"]:
+                self.stdout.write(self.style.WARNING(f"  GST warning: {warning}"))
 
         self.stdout.write(
             self.style.SUCCESS("Successfully seeded default data idempotently.")

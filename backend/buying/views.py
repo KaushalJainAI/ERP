@@ -25,10 +25,18 @@ class SupplierGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
-    queryset = Supplier.objects.all().select_related("company", "supplier_group")
+    queryset = Supplier.objects.all().select_related(
+        "company", "supplier_group", "state"
+    )
     serializer_class = SupplierSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "supplier_group", "is_active"]
+    filterset_fields = [
+        "company",
+        "supplier_group",
+        "is_active",
+        "gst_category",
+        "state",
+    ]
     search_fields = ["name", "gstin", "email", "phone"]
     ordering_fields = ["name", "created_at"]
 

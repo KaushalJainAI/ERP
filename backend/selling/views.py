@@ -25,10 +25,18 @@ class CustomerGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 class CustomerViewSet(AuditLogMixin, viewsets.ModelViewSet):
-    queryset = Customer.objects.all().select_related("company", "customer_group")
+    queryset = Customer.objects.all().select_related(
+        "company", "customer_group", "state"
+    )
     serializer_class = CustomerSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "customer_group", "is_active"]
+    filterset_fields = [
+        "company",
+        "customer_group",
+        "is_active",
+        "gst_category",
+        "state",
+    ]
     search_fields = ["name", "gstin", "email", "phone"]
     ordering_fields = ["name", "created_at"]
 

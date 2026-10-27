@@ -30,13 +30,15 @@ class CustomerAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         "company",
         "customer_group",
         "gstin",
+        "gst_category",
+        "state",
         "email",
         "phone",
         "is_active",
     )
-    list_filter = ("company", "customer_group", "is_active")
+    list_filter = ("company", "customer_group", "is_active", "gst_category")
     search_fields = ("name", "gstin", "tax_id", "email", "phone")
-    autocomplete_fields = ("company", "customer_group")
+    autocomplete_fields = ("company", "customer_group", "state")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("company", "name")
 

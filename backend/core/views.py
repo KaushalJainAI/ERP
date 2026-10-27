@@ -19,7 +19,7 @@ from rest_framework.response import Response
 
 from accounts.models import AccountType, GLEntry, JournalEntry, PaymentEntry
 from buying.models import PurchaseInvoice, PurchaseOrder
-from core.models import Company, DocStatus, SystemHealthCheck
+from core.models import Company, DocStatus, State, SystemHealthCheck
 from selling.models import SalesInvoice, SalesOrder
 from stock.models import Bin, StockEntry
 from users.permissions import HasRolePermission, user_has_model_permission
@@ -226,6 +226,12 @@ class CompanySerializer(serializers.ModelSerializer):
             "default_inventory_account",
             "stock_adjustment_account",
             "default_expense_account",
+            "state",
+            "gst_category",
+            "hsn_min_digits",
+            "enable_rounded_total",
+            "round_off_account",
+            "round_off_gst_values",
         )
         read_only_fields = fields
 
@@ -239,3 +245,21 @@ class CompanyViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["is_active"]
     search_fields = ["name", "abbr"]
     ordering_fields = ["name"]
+
+
+class StateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = State
+        fields = ("code", "name", "abbr", "is_union_territory", "is_active")
+        read_only_fields = fields
+
+
+class StateViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only GST state / union-territory list (``code`` is the primary key)."""
+
+    queryset = State.objects.all().order_by("code")
+    serializer_class = StateSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["is_active", "is_union_territory"]
+    search_fields = ["code", "name", "abbr"]
+    ordering_fields = ["code", "name"]

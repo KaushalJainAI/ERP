@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from stock.models import (
@@ -20,7 +21,7 @@ from core.mixins import (
 class UOMSerializer(serializers.ModelSerializer):
     class Meta:
         model = UOM
-        fields = ("id", "name", "created_at", "modified_at")
+        fields = ("id", "name", "gst_uqc", "created_at", "modified_at")
 
 
 class ItemGroupSerializer(serializers.ModelSerializer):
@@ -42,6 +43,10 @@ class ItemGroupSerializer(serializers.ModelSerializer):
 class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     item_group_name = serializers.CharField(source="item_group.name", read_only=True)
     stock_uom_name = serializers.CharField(source="stock_uom.name", read_only=True)
+    item_tax_template_name = serializers.CharField(
+        source="item_tax_template.name", read_only=True, allow_null=True
+    )
+    item_tax_rate = serializers.SerializerMethodField()
 
     class Meta:
         model = Item
@@ -58,10 +63,41 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
             "valuation_method",
             "standard_rate",
             "is_active",
+            "gst_hsn_code",
+            "is_nil_exempt",
+            "is_non_gst",
+            "item_tax_template",
+            "item_tax_template_name",
+            "item_tax_rate",
             "created_at",
             "modified_at",
         )
         translatable_fields = ["name", "description"]
+
+    def get_item_tax_rate(self, obj):
+        """``{component: rate}`` from the item's tax template, e.g.
+        ``{"CGST": "9.000", "SGST": "9.000", "IGST": "18.000"}`` ({} if none)."""
+        template = obj.item_tax_template
+        if template is None:
+            return {}
+        return {r.gst_component: str(r.tax_rate) for r in template.rows.all()}
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        inst = self.instance
+
+        def current(name):
+            return attrs[name] if name in attrs else getattr(inst, name, False)
+
+        if current("is_nil_exempt") and current("is_non_gst"):
+            raise serializers.ValidationError(
+                {
+                    "is_non_gst": _(
+                        "An item cannot be both nil-rated/exempt and non-GST."
+                    )
+                }
+            )
+        return attrs
 
 
 class WarehouseSerializer(serializers.ModelSerializer):

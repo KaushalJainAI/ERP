@@ -71,6 +71,8 @@ This document outlines key technical decisions and architectural enhancements ma
   but there are **no tax templates and no CGST/SGST/IGST lines**. `grand_total` is just
   `sum(qty × rate)` (net total == grand total). ERPNext computes taxes via Sales/Purchase
   Taxes and Charges. Until this lands, invoice totals are tax-exclusive.
+  **In progress (2026-10-27):** the masters are in (see "GST masters" below); the tax
+  engine, document fields and GL posting follow (docs/gst_design.md, Tasks 2-3).
 
 ### G6. No AR/AP outstanding or payment allocation
 - Invoices have no `outstanding_amount`; `PaymentEntryReference` rows are stored but
@@ -246,3 +248,60 @@ now match that posture.
   `balance` and `closing_balance` are `null` (ERPNext's ungrouped GL has a running total column
   too; we omit it deliberately).
 - Malformed `from_date`/`to_date` on the reports is a 400, not ignored.
+
+## User management (2026-10-27)
+
+- **Users are deactivated, never deleted** (`DELETE /api/auth/users/{id}/` is 405), as in ERPNext
+  (`enabled = 0`); audit rows and documents reference them.
+- ERPNext's User doctype also carries `Has Role` child rows edited on the form; ours is the flat
+  `role_ids` list on the user. `username` is immutable after creation (ERPNext keys the User on
+  its email and also forbids renaming without the rename tool).
+- `is_superuser` / `is_staff` can **not** be set over the API (ERPNext lets a System Manager grant
+  System Manager and the Administrator user is fixed): superuser is only granted from the Django
+  admin / shell. A non-superuser (even a System Manager) cannot modify, reset the password of or
+  deactivate a superuser account, so the System Manager role cannot be used to take one over.
+- Nobody can deactivate themselves or change their own roles; the admin `set-password` action is
+  refused on your own account (own password: `me/change-password`, which needs the old password
+  and is throttled). ERPNext allows an admin to do all of these to themselves.
+- Role assignment is its own right (`can_write` on `users.UserRole`), separate from editing the
+  profile (`users.User`).
+- Changing a password does not invalidate already-issued JWTs (they expire on their own);
+  deactivation does take effect immediately.
+
+## GST masters (2026-10-27, docs/gst_design.md Task 1)
+
+- **Percentage fields are `DecimalField(7, 3)`** (tax and GST rates, `0..100` CHECK), so 0.125 and
+  2.5 are representable. CLAUDE.md declares no precision for percentages; this is the rule until it
+  does (CLAUDE.md itself is deliberately not edited here).
+- **Item Tax Templates are global and keyed by GST component** (CGST/SGST/IGST/CESS), not
+  per-company and keyed by account as in ERPNext, because our `Item` has no company. The engine
+  maps a component to the company's tagged account at calculation time.
+- **One `TaxTemplate` model for Sales and Purchase** (`template_type`) instead of ERPNext's two
+  doctypes. v1 allows `charge_type = On Net Total` and `category = Total` only (DB CHECKs).
+  Added a `UNIQUE(template, account)` guard on template rows (not in ERPNext; mirrors the
+  per-document tax-row rule so a template can never expand into an invalid document).
+- **GST accounts are identified by two nullable tags on `Account`** (`gst_direction`,
+  `gst_component`; both-or-neither, Tax type only, unique per company) instead of India
+  Compliance's "GST Settings -> GST Accounts" table. The legacy bare `CGST`/`SGST`/`IGST`
+  liability accounts are tagged Output by migration `accounts.0006` and keep their names;
+  `seed_defaults` no longer creates them for new databases (it seeds `Output/Input/RCM Payable
+  CGST/SGST/IGST` and `Round Off` instead).
+- **GST 2.0 slabs seeded** (effective 22 Sep 2025): 0, 0.25, 3, 5, 18, 40. 12 and 28 are
+  seeded with `is_legacy = true` for invoices raised under the old structure. Also `Nil Rated`,
+  `Exempted`, `Non-GST` zero-rate templates.
+- **State master** is `core.State` with the 2-digit GST code as primary key (40 rows, incl. retired
+  25 and 28, which remain valid inside older GSTINs). GSTIN validation checks the prefix against
+  the constant `core/gst_states.py`, not the table, so it needs no query.
+- **GSTIN is validated at the API layer only** (field validator + `validate_party_gst`), never in
+  `save()` and never by a DB constraint: ORM/import writers (Tally importer, fixtures) may store
+  legacy values that fail the checksum. Documents re-validate the snapshot GSTIN at submit
+  (Task 2). Customer/Supplier default `gst_category = Unregistered` even if an importer stores a
+  GSTIN; migrations `selling.0004` / `buying.0004` backfill existing rows (GSTIN present =>
+  Registered Regular, state from the prefix).
+- **"Consumer" is a UI-only alias of Unregistered**: identical in every report and rule.
+- **`Company.enable_rounded_total` defaults False** (ERPNext defaults rounding on), like
+  `enable_perpetual_inventory` (G4); the seeded ACME company is switched on the first time its
+  GST masters are seeded and an operator's later choice is not overwritten.
+- **B2CL thresholds** are constants in `gst/constants.py` (1,00,000 from 2024-08-01, 2,50,000
+  before), taken from memory of the notification, not verifiable in this repo.
+- The seeds never invent a company GSTIN or state (production data); they come from `seed_demo`.

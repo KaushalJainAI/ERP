@@ -13,7 +13,7 @@ The `seed_defaults` management command provides idempotent initialization of fou
 5. **UOMs**: `Nos`, `Kg`, `Meter`, `Litre`, `Box`, `Set`.
 6. **Base Chart of Accounts**:
    - Root groups: `Application of Funds (Assets)`, `Source of Funds (Liabilities)`, `Equity`, `Income`, `Expenses`.
-   - Default accounts: `Bank Account`, `Cash Account`, `Debtors`, `Stock Assets`, `Creditors`, `CGST`, `SGST`, `IGST`, `Sales Account`, `Cost of Goods Sold`.
+   - Default accounts: `Bank Account`, `Cash Account`, `Debtors`, `Stock Assets`, `Creditors`, `Sales Account`, `Cost of Goods Sold`.
 7. **Master Group Roots**:
    - `ItemGroup`: `All Item Groups`
    - `CustomerGroup`: `All Customer Groups`

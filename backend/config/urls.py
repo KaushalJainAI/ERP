@@ -25,4 +25,5 @@ urlpatterns = [
     path("api/stock/", include("stock.urls")),
     path("api/selling/", include("selling.urls")),
     path("api/buying/", include("buying.urls")),
+    path("api/gst/", include("gst.urls")),
 ]

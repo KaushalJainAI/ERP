@@ -4,6 +4,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import F, Q
+from django.db.models.functions import Length
+from django.db.models.lookups import Exact
+from django.utils.translation import gettext as _
 
 
 class TimeStampedModel(models.Model):
@@ -233,6 +236,44 @@ class SubmittableDocument(TimeStampedModel):
         super().delete(*args, **kwargs)
 
 
+class GSTCategory(models.TextChoices):
+    """GST registration category of a party or a company (India Compliance names)."""
+
+    REGISTERED_REGULAR = "Registered Regular", "Registered Regular"
+    REGISTERED_COMPOSITION = "Registered Composition", "Registered Composition"
+    UNREGISTERED = "Unregistered", "Unregistered"
+    # UI-only alias of Unregistered (walk-in B2C parties); behaves identically in reports.
+    CONSUMER = "Consumer", "Consumer"
+    SEZ = "SEZ", "SEZ"
+    OVERSEAS = "Overseas", "Overseas"
+
+
+class State(models.Model):
+    """GST state / union-territory master (code = the 2-digit GST state code).
+
+    Seeded by ``core.migrations.0008_seed_states`` from ``core.gst_states``; read-only
+    over the API. ``is_active=False`` marks retired codes (25, 28) that are still
+    valid inside older GSTINs.
+    """
+
+    code = models.CharField(max_length=2, primary_key=True)
+    name = models.CharField(max_length=60, unique=True)
+    abbr = models.CharField(max_length=3, blank=True, default="")
+    is_union_territory = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["code"]
+        constraints = [
+            models.CheckConstraint(
+                check=Exact(Length("code"), 2), name="check_state_code_length"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
 class Company(TimeStampedModel):
     name = models.CharField(max_length=200, unique=True)
     abbr = models.CharField(max_length=10, unique=True)
@@ -268,8 +309,68 @@ class Company(TimeStampedModel):
         related_name="+",
     )
 
+    # GST (see docs/gst_design.md). Percent/threshold style settings live on the
+    # company (India Compliance keeps them in a "GST Settings" doctype).
+    state = models.ForeignKey(
+        State, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    # v1 supports Registered Regular and Unregistered companies on GST documents.
+    gst_category = models.CharField(
+        max_length=24,
+        choices=GSTCategory.choices,
+        default=GSTCategory.UNREGISTERED,
+    )
+    hsn_min_digits = models.PositiveSmallIntegerField(
+        default=6, choices=((4, "4"), (6, "6"), (8, "8"))
+    )
+    # Defaults False (like enable_perpetual_inventory); seed_defaults turns it on
+    # for the seeded company.
+    enable_rounded_total = models.BooleanField(default=False)
+    round_off_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    round_off_gst_values = models.BooleanField(default=False)
+
     class Meta:
         verbose_name_plural = "Companies"
+
+    def clean(self):
+        """GST master checks (run by the admin form; the API for companies is read-only)."""
+        from gst.validators import check_gstin, normalise_gstin
+
+        errors = {}
+        gstin = normalise_gstin(self.gstin)
+        if gstin:
+            result = check_gstin(gstin)
+            if not result.valid:
+                errors["gstin"] = result.reason
+            else:
+                if self.state_id is None:
+                    errors["state"] = _("State is required when a GSTIN is set.")
+                elif gstin[:2] != self.state_id:
+                    errors["state"] = _(
+                        "GSTIN prefix %(code)s does not match the selected state."
+                    ) % {"code": gstin[:2]}
+            if self.gst_category != GSTCategory.REGISTERED_REGULAR:
+                errors["gst_category"] = _(
+                    "A company with a GSTIN must be 'Registered Regular'."
+                )
+        acc = self.round_off_account if self.round_off_account_id else None
+        if acc is not None:
+            if self.pk is None or acc.company_id != self.pk:
+                errors["round_off_account"] = _(
+                    "Round-off account must belong to this company."
+                )
+            elif acc.is_group:
+                errors["round_off_account"] = _(
+                    "Round-off account must not be a group account."
+                )
+        if errors:
+            raise ValidationError(errors)
 
     def get_perpetual_accounts(self, *, need_cogs=False, need_adjustment=False):
         """Return the validated perpetual-inventory accounts as a dict, or None

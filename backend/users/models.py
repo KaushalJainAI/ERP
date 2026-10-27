@@ -5,6 +5,10 @@ from django.db import models
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     language = models.CharField(max_length=5, default="en")
+    # Version token for the UI (the generic form re-seeds itself when a
+    # document's ``modified_at`` changes). Bumped by every profile/role/active
+    # change; null for rows not edited since this column was added.
+    modified_at = models.DateTimeField(auto_now=True, null=True, editable=False)
 
     def save(self, *args, **kwargs):
         if self.email:
@@ -38,7 +42,9 @@ class UserRole(models.Model):
 
 class RolePermission(models.Model):
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="permissions")
-    model_label = models.CharField(max_length=120)  # e.g. 'stock.Item' or 'accounts.SalesInvoice'
+    model_label = models.CharField(
+        max_length=120
+    )  # e.g. 'stock.Item' or 'accounts.SalesInvoice'
     can_read = models.BooleanField(default=False)
     can_create = models.BooleanField(default=False)
     can_write = models.BooleanField(default=False)
@@ -48,7 +54,9 @@ class RolePermission(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["role", "model_label"], name="unique_role_model_permission")
+            models.UniqueConstraint(
+                fields=["role", "model_label"], name="unique_role_model_permission"
+            )
         ]
 
     def __str__(self):

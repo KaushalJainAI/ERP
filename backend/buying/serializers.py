@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from gst.serializers import PartyGSTSerializerMixin
 from buying.models import (
     SupplierGroup,
     Supplier,
@@ -31,10 +32,15 @@ class SupplierGroupSerializer(serializers.ModelSerializer):
         )
 
 
-class SupplierSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
+class SupplierSerializer(
+    PartyGSTSerializerMixin, TranslatedSerializerMixin, serializers.ModelSerializer
+):
     company_name = serializers.CharField(source="company.name", read_only=True)
     supplier_group_name = serializers.CharField(
         source="supplier_group.name", read_only=True
+    )
+    state_name = serializers.CharField(
+        source="state.name", read_only=True, allow_null=True
     )
 
     class Meta:
@@ -47,6 +53,9 @@ class SupplierSerializer(TranslatedSerializerMixin, serializers.ModelSerializer)
             "supplier_group",
             "supplier_group_name",
             "gstin",
+            "gst_category",
+            "state",
+            "state_name",
             "tax_id",
             "email",
             "phone",

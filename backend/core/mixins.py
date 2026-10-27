@@ -161,6 +161,87 @@ class DraftNestedWriteMixin:
         return instance
 
 
+class NestedMasterWriteMixin:
+    """Serializer mixin: create / update a *master* together with its child rows.
+
+    Like :class:`DraftNestedWriteMixin` but for non-document masters (tax templates):
+    no docstatus guard, no naming series, no derived totals. Declare
+    ``children_field`` (the nested ``many=True`` field, e.g. ``"rows"``). When the
+    children are sent, the existing set is replaced atomically; when omitted
+    (header-only PATCH) they are left untouched. A child model with an ``idx``
+    field gets ``idx = position + 1`` (client-supplied ``idx`` is ignored -- make
+    it read-only on the child serializer).
+    """
+
+    children_field = "rows"
+
+    def _child_model(self):
+        return self.fields[self.children_field].child.Meta.model
+
+    def _parent_fk_name(self):
+        parent_model = self.Meta.model
+        for field in self._child_model()._meta.fields:
+            if (
+                isinstance(field, dj_models.ForeignKey)
+                and field.related_model is parent_model
+            ):
+                return field.name
+        raise RuntimeError(f"{self._child_model()} has no FK to {parent_model}")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        # A replacement child set must be complete, like on create (DRF skips
+        # "required" for nested rows on a partial update).
+        if self.partial and self.children_field in attrs:
+            child_fields = self.fields[self.children_field].child.fields
+            required = [
+                name
+                for name, f in child_fields.items()
+                if f.required and not f.read_only
+            ]
+            for index, row in enumerate(attrs[self.children_field]):
+                missing = [name for name in required if name not in row]
+                if missing:
+                    raise DRFValidationError(
+                        {
+                            self.children_field: {
+                                index: {
+                                    name: ["This field is required."]
+                                    for name in missing
+                                }
+                            }
+                        }
+                    )
+        return attrs
+
+    def _replace_children(self, instance, rows):
+        child_model = self._child_model()
+        fk = self._parent_fk_name()
+        has_idx = any(f.name == "idx" for f in child_model._meta.fields)
+        child_model.objects.filter(**{fk: instance}).delete()
+        for position, row in enumerate(rows, start=1):
+            row = dict(row)
+            if has_idx:
+                row["idx"] = position
+            child_model.objects.create(**{fk: instance}, **row)
+        instance._prefetched_objects_cache = {}
+
+    def create(self, validated_data):
+        rows = validated_data.pop(self.children_field, [])
+        with transaction.atomic():
+            instance = self.Meta.model.objects.create(**validated_data)
+            self._replace_children(instance, rows)
+        return instance
+
+    def update(self, instance, validated_data):
+        rows = validated_data.pop(self.children_field, None)
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if rows is not None:
+                self._replace_children(instance, rows)
+        return instance
+
+
 def record_audit_log(user, action_name, instance, changes=None, ip_address=None):
     """Utility function to log an operation to AuditLog."""
     try:

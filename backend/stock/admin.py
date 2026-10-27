@@ -25,7 +25,7 @@ from stock.models import (
 
 @admin.register(UOM)
 class UOMAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-    list_display = ("name",)
+    list_display = ("name", "gst_uqc")
     search_fields = ("name",)
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("name",)
@@ -59,8 +59,8 @@ class ItemAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         "valuation_method",
         "item_group",
     )
-    search_fields = ("code", "name", "description")
-    autocomplete_fields = ("item_group", "stock_uom")
+    search_fields = ("code", "name", "description", "gst_hsn_code")
+    autocomplete_fields = ("item_group", "stock_uom", "item_tax_template")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("code",)
 
