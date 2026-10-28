@@ -10,7 +10,7 @@ export const bomLink: LinkDef = {
   endpoint: "/manufacturing/boms/",
   label: (r) => `${r.name} - ${r.item_code ?? ""} ${r.item_name ?? ""}`.trim(),
   subLabel: (r) => r.company_name,
-  filters: (_row, form) => ({ company: form.company, is_active: 1 }),
+  filters: (_row, form) => ({ company: form.company, is_active: true }),
 };
 
 export const workOrderLink: LinkDef = {

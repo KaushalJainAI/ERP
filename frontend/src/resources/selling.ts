@@ -1,5 +1,7 @@
+import { createElement } from "react";
 import { FilePlus2, Receipt, RefreshCw, ShoppingCart, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
+import { CreditBanner } from "@/components/stock/CreditBanner";
 import { mulDec, sumDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import {
@@ -160,6 +162,15 @@ export const grandTotal = (itemsKey = "items"): FieldDef => ({
   preview: (v) => sumDec(((v[itemsKey] as Record<string, any>[]) ?? []).map(lineAmount), 2),
 });
 
+/** GST summary plus the customer's live credit exposure (design task 4). */
+const renderSalesSummary: NonNullable<ResourceConfig["renderSummary"]> = (ctx) =>
+  createElement(
+    "div",
+    { className: "space-y-3" },
+    createElement(CreditBanner, { customerId: ctx.values.customer }),
+    renderGstSummary("customer")(ctx)
+  );
+
 /* ---- resources ---- */
 
 const customerGroups: ResourceConfig = {
@@ -262,7 +273,7 @@ const salesOrders: ResourceConfig = {
   ],
   childTables: [itemsTable, taxesTable],
   preview: taxPreview("selling.SalesOrder", "customer"),
-  renderSummary: renderGstSummary("customer"),
+  renderSummary: renderSalesSummary,
   actions: [
     {
       key: "make_sales_invoice",
@@ -330,7 +341,7 @@ const salesInvoices: ResourceConfig = {
   ],
   childTables: [itemsTable, taxesTable],
   preview: taxPreview("selling.SalesInvoice", "customer"),
-  renderSummary: renderGstSummary("customer"),
+  renderSummary: renderSalesSummary,
   actions: [
     {
       key: "make_payment_entry",

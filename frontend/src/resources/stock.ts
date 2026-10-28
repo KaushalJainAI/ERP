@@ -418,7 +418,12 @@ const itemPrices: ResourceConfig = {
       key: "uom",
       labelKey: "bs.fields.uom",
       type: "link",
-      link: { endpoint: "/stock/uoms/", labelField: "name", display: (v) => v.uom_name },
+      link: {
+        endpoint: "/stock/uoms/",
+        labelField: "name",
+        display: (v) => v.uom_name,
+        fill: (r) => ({ uom_name: r.name }),
+      },
       helpKey: "pl.help.uom",
     },
     { key: "rate", labelKey: "fields.rate", type: "decimal", required: true, decimals: 6 },

@@ -891,6 +891,15 @@ const mr: Record<string, unknown> = {
       "update_rates": "Update Rates"
     }
   },
+
+  credit: {
+    limit: "Limit",
+    exposure: "Exposure",
+    available: "Available",
+    over: "Credit limit exceeded by {{amount}}",
+    within: "Within the customer credit limit",
+    bypass: "Credit limit check is bypassed for this customer",
+  },
 };
 
 export default mr;
