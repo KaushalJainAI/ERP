@@ -1,4 +1,4 @@
-import { BookOpen, Boxes, Percent, ShoppingBag, ShoppingCart, Users } from "lucide-react";
+import { BookOpen, Boxes, Factory, Percent, ShoppingBag, ShoppingCart, Users } from "lucide-react";
 import type { ModuleDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { sellingResources } from "./selling";
@@ -7,6 +7,7 @@ import { buyingResources } from "./buying";
 import { gstResources } from "./gstMasters";
 import { gstReportLinks } from "./gstReports";
 import { stockReports, stockResources } from "./stock";
+import { manufacturingReports, manufacturingResources } from "./manufacturing";
 import { ageingReports } from "./ageing";
 import { usersLinks, usersResources } from "./users";
 
@@ -20,6 +21,7 @@ import { usersLinks, usersResources } from "./users";
 export const RESOURCES: ResourceConfig[] = [
   ...sellingResources,
   ...stockResources,
+  ...manufacturingResources,
   ...buyingResources,
   ...accountsResources,
   ...gstResources,
@@ -45,12 +47,13 @@ export const MODULES: ModuleDef[] = [
   },
   { key: "selling", titleKey: "selling", icon: ShoppingCart },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
+  { key: "manufacturing", titleKey: "manufacturing", icon: Factory },
   { key: "gst", titleKey: "gst.title", icon: Percent, extraLinks: gstReportLinks },
   { key: "users", titleKey: "users", icon: Users, extraLinks: usersLinks },
 ];
 
 /** Read-only report pages (routes /<module>/reports/<key>, shown in the sidebar). Append other modules' reports here. */
-export const REPORTS: ReportConfig[] = [...stockReports, ...ageingReports];
+export const REPORTS: ReportConfig[] = [...stockReports, ...manufacturingReports, ...ageingReports];
 
 export const reportsOf = (moduleKey: string) => REPORTS.filter((r) => r.module === moduleKey && !r.hideInSidebar);
 

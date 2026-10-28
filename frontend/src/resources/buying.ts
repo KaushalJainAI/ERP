@@ -1,7 +1,7 @@
-import { FilePlus2, Receipt, ShoppingBag, Truck, Users, Wallet } from "lucide-react";
+import { FilePlus2, Receipt, RefreshCw, ShoppingBag, Truck, Users, Wallet } from "lucide-react";
 import { todayISO } from "@/lib/format";
 import { DocStatus, type ChildColumnDef, type LinkDef, type ResourceConfig } from "@/types";
-import { accountLink, companyField, docNoField, itemsTable } from "./selling";
+import { accountLink, companyField, docNoField, itemsTable, priceListLink } from "./selling";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 import {
   gstOptionCell,
@@ -115,6 +115,7 @@ const suppliers: ResourceConfig = {
     { key: "state_name", labelKey: "gst.fields.state" },
     { key: "phone", labelKey: "fields.phone" },
     { key: "email", labelKey: "fields.email" },
+    { key: "default_price_list_name", labelKey: "pl.fields.price_list" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
   ],
   fields: [
@@ -131,6 +132,7 @@ const suppliers: ResourceConfig = {
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
+    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.supplier_list" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],
 };
@@ -147,6 +149,7 @@ const purchaseOrders: ResourceConfig = {
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "supplier_name", labelKey: "bs.fields.supplier" },
+    { key: "price_list_name", labelKey: "pl.fields.price_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date" },
     { key: "schedule_date", labelKey: "bs.fields.schedule_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
@@ -156,6 +159,7 @@ const purchaseOrders: ResourceConfig = {
     docNoField,
     { ...companyField, clears: ["supplier", "taxes_and_charges", "place_of_supply"] },
     { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "schedule_date", labelKey: "bs.fields.schedule_date", type: "date" },
     ...taxHeaderFields("Purchase"),
@@ -174,6 +178,14 @@ const purchaseOrders: ResourceConfig = {
       url: (d) => `/buying/purchase-orders/${d.id}/make-purchase-invoice/`,
       resultTo: (r) => `/buying/purchase-invoices/${r.id}`,
     },
+    {
+      key: "update_rates",
+      labelKey: "pl.actions.update_rates",
+      icon: RefreshCw,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.DRAFT,
+      url: (d) => `/buying/purchase-orders/${d.id}/update-rates/`,
+    },
   ],
 };
 
@@ -189,6 +201,7 @@ const purchaseInvoices: ResourceConfig = {
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "supplier_name", labelKey: "bs.fields.supplier" },
+    { key: "price_list_name", labelKey: "pl.fields.price_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
@@ -199,6 +212,7 @@ const purchaseInvoices: ResourceConfig = {
     docNoField,
     { ...companyField, clears: ["supplier", "credit_to", "expense_account", "purchase_order", "taxes_and_charges", "place_of_supply"] },
     { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -232,6 +246,14 @@ const purchaseInvoices: ResourceConfig = {
       url: (d) => `/buying/purchase-invoices/${d.id}/make-payment-entry/`,
       // Opened in the Accounts module's Payment Entry document page.
       resultTo: (r) => `/accounts/payment-entries/${r.id}`,
+    },
+    {
+      key: "update_rates",
+      labelKey: "pl.actions.update_rates",
+      icon: RefreshCw,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.DRAFT,
+      url: (d) => `/buying/purchase-invoices/${d.id}/update-rates/`,
     },
   ],
 };

@@ -785,6 +785,112 @@ const ta: Record<string, unknown> = {
     status: { overdue: "தாமதம்", unpaid: "செலுத்தப்படவில்லை", partly_paid: "பகுதி செலுத்தப்பட்டது", paid: "செலுத்தப்பட்டது" },
     bucket: { "0-30": "0-30 நாட்கள்", "31-60": "31-60 நாட்கள்", "61-90": "61-90 நாட்கள்", "90+": "90+ நாட்கள்" },
   },
+
+  manufacturing: "Manufacturing",
+  mf: {
+    "res": {
+      "boms": "Bills of Materials",
+      "bom": "Bill of Materials",
+      "work_orders": "Work Orders",
+      "work_order": "Work Order",
+      "components": "Components",
+      "scrap_items": "Scrap Items",
+      "required_items": "Required Items",
+      "production_yield": "Production Yield",
+      "bom_cost": "BOM Cost"
+    },
+    "fields": {
+      "quantity": "Quantity",
+      "process_loss_percentage": "Process Loss %",
+      "good_qty": "Good Qty",
+      "unit_cost": "Unit Cost",
+      "product_item": "Product Item",
+      "raw_material_cost": "Raw Material Cost",
+      "scrap_value": "Scrap Value",
+      "rate_basis": "Rate Basis",
+      "sub_bom": "Sub BOM",
+      "cost_source": "Cost Source",
+      "is_default": "Default",
+      "bom": "BOM",
+      "planned_qty": "Planned Qty",
+      "produced_qty": "Produced Qty",
+      "process_loss_qty": "Process Loss Qty",
+      "status": "Status",
+      "planned_start_date": "Planned Start",
+      "expected_end_date": "Expected End",
+      "wip_warehouse": "WIP Warehouse",
+      "fg_warehouse": "Finished Goods Warehouse",
+      "scrap_warehouse": "Scrap Warehouse",
+      "skip_transfer": "Skip Material Transfer",
+      "work_order": "Work Order",
+      "fg_completed_qty": "Finished Good Qty",
+      "is_finished_item": "Finished Item",
+      "is_scrap_item": "Scrap Item",
+      "cost_allocation_per": "Cost Allocation %",
+      "required_qty": "Required Qty",
+      "transferred_qty": "Transferred Qty",
+      "consumed_qty": "Consumed Qty",
+      "from_date": "From Date",
+      "to_date": "To Date",
+      "stock_entry": "Stock Entry",
+      "entry_type": "Entry Type",
+      "loss_percent": "Loss %",
+      "output_value": "Output Value",
+      "scrap_qty": "Scrap Qty",
+      "last_actual_unit_cost": "Last Actual Unit Cost"
+    },
+    "opt": {
+      "valuation_rate": "Valuation Rate",
+      "standard_rate": "Standard Rate"
+    },
+    "help": {
+      "name": "Leave empty to auto-number.",
+      "quantity": "Good output the BOM makes from its components.",
+      "process_loss": "Extra input consumed beyond the good output, as a percentage.",
+      "bom": "Selecting a BOM copies its product item.",
+      "planned_qty": "Desired good output, not the gross input.",
+      "wip": "Required unless material transfer is skipped.",
+      "skip_transfer": "Consume directly from the source warehouse without a WIP transfer.",
+      "stock_entry_work_order": "Link a submitted Work Order to consume its required items.",
+      "fg_completed_qty": "Server-filled from the finished-good row."
+    },
+    "actions": {
+      "stop": "Stop",
+      "resume": "Resume",
+      "make_transfer": "Make Material Transfer",
+      "make_manufacture": "Make Manufacture Entry"
+    }
+  },
+  pl: {
+    "res": {
+      "price_lists": "Price Lists",
+      "price_list": "Price List",
+      "item_prices": "Item Prices",
+      "item_price": "Item Price"
+    },
+    "fields": {
+      "price_list": "Price List",
+      "currency": "Currency",
+      "selling": "Selling",
+      "buying": "Buying",
+      "price_list_rate": "List Rate",
+      "valid_from": "Valid From",
+      "valid_upto": "Valid Upto",
+      "credit_limit": "Credit Limit",
+      "bypass_credit_limit": "Bypass Credit Limit"
+    },
+    "help": {
+      "currency": "Must match the company currency; v1 has no conversion.",
+      "uom": "Leave blank to apply to the item's stock UOM.",
+      "customer_list": "Overrides the customer group and company default lists.",
+      "supplier_list": "Overrides the company default buying list.",
+      "credit_limit": "0 means no limit. Submit is blocked only when exposure exceeds it.",
+      "document_list": "Leave blank to use the customer/supplier or company default."
+    },
+    "actions": {
+      "update_rates": "Update Rates"
+    }
+  },
 };
 
 export default ta;

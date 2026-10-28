@@ -418,7 +418,8 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   });
 
   const requestMut = useMutation({
-    mutationFn: (a: DocAction) => apiClient.post(a.url!(doc!)).then((r) => ({ action: a, result: r.data as ApiRecord })),
+    mutationFn: (a: DocAction) =>
+      apiClient.post(a.url!(doc!), a.body?.(doc!)).then((r) => ({ action: a, result: r.data as ApiRecord })),
     onSuccess: ({ action, result }) => {
       toast.success(t("common.action_done"));
       invalidate(doc?.id);
@@ -633,7 +634,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
             cacheKeyBase={`${config.key}.${tb.key}`}
             rows={tables[tb.key] ?? []}
             parentValues={values}
-            readOnly={!editable}
+            readOnly={!editable || !!tb.readOnly}
             errors={rowErrs}
             tableErrors={serverErr?.tables[tb.key]}
             onChange={(rows) => {

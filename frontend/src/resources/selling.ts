@@ -1,6 +1,6 @@
-import { FilePlus2, Receipt, ShoppingCart, UserSquare2, Users, Wallet } from "lucide-react";
+import { FilePlus2, Receipt, RefreshCw, ShoppingCart, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
-import { mulDec, roundDec, sumDec } from "@/lib/decimal";
+import { mulDec, sumDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import {
   gstOptionCell,
@@ -35,17 +35,26 @@ export const itemLink: LinkDef = {
   subLabel: (r) => r.item_group_name,
   display: (row) => (row.item_code ? `${row.item_code} - ${row.item_name}` : undefined),
   filters: () => ({ is_active: true }),
-  // Auto-fill the rate from the item's standard rate (rounded to the 2dp the line stores).
+  // Item metadata only. The line rate stays blank so the server can resolve it
+  // from the price list (falling back to standard_rate when no list applies).
   fill: (r, row) => ({
     item_code: r.code,
     item_name: r.name,
     gst_hsn_code: r.gst_hsn_code ?? "",
-    rate: roundDec(r.standard_rate, 2) ?? row.rate ?? "",
     qty: row.qty ? row.qty : "1",
     // UI-only: lets line columns show the batch picker for batch-tracked items.
     // Never sent to the server (buildPayload writes only declared columns).
     _has_batch_no: !!r.has_batch_no,
   }),
+};
+
+/** Price-list picker shared by selling/buying headers and the stock masters. */
+export const priceListLink: LinkDef = {
+  endpoint: "/stock/price-lists/",
+  labelField: "name",
+  subLabel: (r) =>
+    [r.currency, r.selling ? "Selling" : null, r.buying ? "Buying" : null].filter(Boolean).join(" · ") || undefined,
+  filters: () => ({ enabled: true }),
 };
 
 export const warehouseLink: LinkDef = {
@@ -94,7 +103,15 @@ const itemColumns: ChildColumnDef[] = [
     hidden: (row, form) => form.update_stock === false || (!row._has_batch_no && !row.batch),
   },
   { key: "qty", labelKey: "fields.qty", type: "number", required: true, widthClass: "w-28" },
-  { key: "rate", labelKey: "fields.rate", type: "decimal", required: true, widthClass: "w-32" },
+  { key: "rate", labelKey: "fields.rate", type: "decimal", widthClass: "w-32" },
+  {
+    key: "price_list_rate",
+    labelKey: "pl.fields.price_list_rate",
+    type: "decimal",
+    money: true,
+    readOnly: true,
+    widthClass: "w-32",
+  },
   {
     key: "amount",
     labelKey: "fields.amount",
@@ -189,6 +206,8 @@ const customers: ResourceConfig = {
     { key: "state_name", labelKey: "gst.fields.state" },
     { key: "phone", labelKey: "fields.phone" },
     { key: "email", labelKey: "fields.email" },
+    { key: "default_price_list_name", labelKey: "pl.fields.price_list" },
+    { key: "credit_limit", labelKey: "pl.fields.credit_limit", type: "money" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
   ],
   fields: [
@@ -205,6 +224,9 @@ const customers: ResourceConfig = {
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
+    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.customer_list" },
+    { key: "credit_limit", labelKey: "pl.fields.credit_limit", type: "decimal", defaultValue: "0.00", helpKey: "pl.help.credit_limit" },
+    { key: "bypass_credit_limit_check", labelKey: "pl.fields.bypass_credit_limit", type: "boolean", defaultValue: false },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],
 };
@@ -221,6 +243,7 @@ const salesOrders: ResourceConfig = {
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "customer_name", labelKey: "fields.customer" },
+    { key: "price_list_name", labelKey: "pl.fields.price_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date" },
     { key: "delivery_date", labelKey: "fields.delivery_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
@@ -231,6 +254,7 @@ const salesOrders: ResourceConfig = {
     { ...companyField, clears: ["customer", "taxes_and_charges", "place_of_supply"] },
     // A new party forgets the place of supply so the server re-defaults it from the party state.
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "delivery_date", labelKey: "fields.delivery_date", type: "date" },
     ...taxHeaderFields("Sales"),
@@ -249,6 +273,14 @@ const salesOrders: ResourceConfig = {
       url: (d) => `/selling/sales-orders/${d.id}/make-sales-invoice/`,
       resultTo: (r) => `/selling/sales-invoices/${r.id}`,
     },
+    {
+      key: "update_rates",
+      labelKey: "pl.actions.update_rates",
+      icon: RefreshCw,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.DRAFT,
+      url: (d) => `/selling/sales-orders/${d.id}/update-rates/`,
+    },
   ],
 };
 
@@ -264,6 +296,7 @@ const salesInvoices: ResourceConfig = {
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "customer_name", labelKey: "fields.customer" },
+    { key: "price_list_name", labelKey: "pl.fields.price_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
@@ -274,6 +307,7 @@ const salesInvoices: ResourceConfig = {
     docNoField,
     { ...companyField, clears: ["customer", "debit_to", "income_account", "sales_order", "taxes_and_charges", "place_of_supply"] },
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -307,6 +341,14 @@ const salesInvoices: ResourceConfig = {
       url: (d) => `/selling/sales-invoices/${d.id}/make-payment-entry/`,
       // Opened in the Accounts module's Payment Entry document page.
       resultTo: (r) => `/accounts/payment-entries/${r.id}`,
+    },
+    {
+      key: "update_rates",
+      labelKey: "pl.actions.update_rates",
+      icon: RefreshCw,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.DRAFT,
+      url: (d) => `/selling/sales-invoices/${d.id}/update-rates/`,
     },
   ],
 };

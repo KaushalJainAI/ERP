@@ -4,8 +4,9 @@ import { roundDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import type { LinkDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { companyField, companyLink, docNoField, itemLink, warehouseLink } from "./selling";
+import { companyField, companyLink, docNoField, itemLink, priceListLink, warehouseLink } from "./selling";
 import { itemGstFields } from "./gst";
+import { bomLink, workOrderLink } from "./manufacturingLinks";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
 
@@ -74,7 +75,17 @@ const ENTRY_TYPE_OPTIONS = [
   { value: "Material Receipt", labelKey: "bs.res.entry_material_receipt" },
   { value: "Material Issue", labelKey: "bs.res.entry_material_issue" },
   { value: "Material Transfer", labelKey: "bs.res.entry_material_transfer" },
+  { value: "Material Transfer for Manufacture", labelKey: "bs.res.entry_material_transfer_manufacture" },
+  { value: "Manufacture", labelKey: "bs.res.entry_manufacture" },
+  { value: "Repack", labelKey: "bs.res.entry_repack" },
 ];
+
+/** Manufacturing vouchers carry a Work Order / BOM and the loss rows. */
+const MANUFACTURING_ENTRY_TYPES = ["Material Transfer for Manufacture", "Manufacture", "Repack"];
+const isManufacturingEntry = (values: Record<string, any>) =>
+  MANUFACTURING_ENTRY_TYPES.includes(values.stock_entry_type);
+const isOutputEntry = (values: Record<string, any>) =>
+  values.stock_entry_type === "Manufacture" || values.stock_entry_type === "Repack";
 
 /* ---- masters ---- */
 
@@ -251,6 +262,36 @@ const stockEntries: ResourceConfig = {
       helpKey: "bs.fields.stock_entry_type_help",
     },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
+    {
+      key: "work_order",
+      labelKey: "mf.fields.work_order",
+      type: "link",
+      link: workOrderLink,
+      hidden: (values) => !isManufacturingEntry(values),
+      helpKey: "mf.help.stock_entry_work_order",
+    },
+    {
+      key: "bom",
+      labelKey: "mf.fields.bom",
+      type: "link",
+      link: bomLink,
+      hidden: (values) => !isManufacturingEntry(values),
+    },
+    {
+      key: "fg_completed_qty",
+      labelKey: "mf.fields.fg_completed_qty",
+      type: "number",
+      readOnly: true,
+      hidden: (values) => !isOutputEntry(values),
+      helpKey: "mf.help.fg_completed_qty",
+    },
+    {
+      key: "process_loss_qty",
+      labelKey: "mf.fields.process_loss_qty",
+      type: "number",
+      readOnly: true,
+      hidden: (values) => !isOutputEntry(values),
+    },
   ],
   childTables: [
     {
@@ -302,8 +343,87 @@ const stockEntries: ResourceConfig = {
           hidden: (row, form) =>
             form.stock_entry_type !== "Material Receipt" || !row._has_batch_no || !!row.batch,
         },
+        {
+          key: "is_finished_item",
+          labelKey: "mf.fields.is_finished_item",
+          type: "boolean",
+          widthClass: "w-24",
+          hidden: (_row, form) => !isOutputEntry(form),
+        },
+        {
+          key: "is_scrap_item",
+          labelKey: "mf.fields.is_scrap_item",
+          type: "boolean",
+          widthClass: "w-24",
+          hidden: (_row, form) => !isOutputEntry(form),
+        },
+        {
+          key: "cost_allocation_per",
+          labelKey: "mf.fields.cost_allocation_per",
+          type: "decimal",
+          widthClass: "w-32",
+          hidden: (_row, form) => form.stock_entry_type !== "Repack",
+        },
       ],
     },
+  ],
+};
+
+const priceLists: ResourceConfig = {
+  key: "price-lists",
+  module: "stock",
+  endpoint: "/stock/price-lists/",
+  titleKey: "pl.res.price_lists",
+  singularKey: "pl.res.price_list",
+  icon: Tags,
+  titleField: "name",
+  ordering: "name",
+  columns: [
+    { key: "name", labelKey: "pl.fields.price_list" },
+    { key: "currency", labelKey: "pl.fields.currency" },
+    { key: "selling", labelKey: "pl.fields.selling", type: "boolean" },
+    { key: "buying", labelKey: "pl.fields.buying", type: "boolean" },
+    { key: "enabled", labelKey: "fields.is_active", type: "boolean" },
+  ],
+  fields: [
+    { key: "name", labelKey: "pl.fields.price_list", type: "text", required: true },
+    { key: "currency", labelKey: "pl.fields.currency", type: "text", defaultValue: "INR", helpKey: "pl.help.currency" },
+    { key: "selling", labelKey: "pl.fields.selling", type: "boolean", defaultValue: true },
+    { key: "buying", labelKey: "pl.fields.buying", type: "boolean", defaultValue: false },
+    { key: "enabled", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
+  ],
+};
+
+const itemPrices: ResourceConfig = {
+  key: "item-prices",
+  module: "stock",
+  endpoint: "/stock/item-prices/",
+  titleKey: "pl.res.item_prices",
+  singularKey: "pl.res.item_price",
+  icon: Tags,
+  ordering: "-created_at",
+  columns: [
+    { key: "item_code", labelKey: "bs.fields.item_code" },
+    { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "price_list_name", labelKey: "pl.fields.price_list" },
+    { key: "uom_name", labelKey: "bs.fields.uom" },
+    { key: "rate", labelKey: "fields.rate", type: "money" },
+    { key: "valid_from", labelKey: "pl.fields.valid_from", type: "date" },
+    { key: "valid_upto", labelKey: "pl.fields.valid_upto", type: "date" },
+  ],
+  fields: [
+    { key: "item", labelKey: "fields.item", type: "link", required: true, link: { ...itemLink, fill: undefined } },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", required: true, link: priceListLink },
+    {
+      key: "uom",
+      labelKey: "bs.fields.uom",
+      type: "link",
+      link: { endpoint: "/stock/uoms/", labelField: "name", display: (v) => v.uom_name },
+      helpKey: "pl.help.uom",
+    },
+    { key: "rate", labelKey: "fields.rate", type: "decimal", required: true, decimals: 6 },
+    { key: "valid_from", labelKey: "pl.fields.valid_from", type: "date" },
+    { key: "valid_upto", labelKey: "pl.fields.valid_upto", type: "date" },
   ],
 };
 
@@ -394,6 +514,8 @@ export const stockResources: ResourceConfig[] = [
   uoms,
   warehouses,
   batches,
+  priceLists,
+  itemPrices,
   stockEntries,
   bins,
   stockLedger,

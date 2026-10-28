@@ -182,6 +182,8 @@ export interface ChildTableDef {
   columns: ChildColumnDef[];
   /** Values for a freshly added row. */
   newRow?: () => Record<string, any>;
+  /** Server-owned rows: no add/remove controls (e.g. Work Order required items). */
+  readOnly?: boolean;
   /** Column keys copied from the previous row when adding a row (e.g. warehouse). */
   inheritFromPrevious?: string[];
   /**
@@ -258,6 +260,8 @@ export interface DocAction {
   kind: "navigate" | "request";
   navigate?: (doc: ApiRecord) => { to: string; initialValues?: Record<string, any> };
   url?: (doc: ApiRecord) => string;
+  /** POST body for a "request" action (e.g. make-stock-entry type). */
+  body?: (doc: ApiRecord) => Record<string, any>;
   resultTo?: (result: ApiRecord) => string;
 }
 
