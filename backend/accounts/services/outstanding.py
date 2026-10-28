@@ -83,6 +83,38 @@ def gl_outstanding(invoice):
     return (net * invoice.OUTSTANDING_SIGN).quantize(CENT)
 
 
+def party_balance(party_type, party_name, company_id):
+    """A party's balance on its control accounts, from the live GL rows.
+
+    Receivable rows (``Customer``) are debit minus credit; payable rows
+    (``Supplier``) credit minus debit. Every row on those accounts counts --
+    invoices, payments, advances, journal entries (e.g. imported opening
+    balances) -- not only invoice-tagged rows. Filtering on the account type
+    matters: a payment's bank line also carries the party.
+    """
+    from accounts.models import AccountType
+
+    receivable = party_type == "Customer"
+    agg = GLEntry.objects.filter(
+        company_id=company_id,
+        party_type=party_type,
+        party=party_name,
+        account__account_type=(
+            AccountType.RECEIVABLE if receivable else AccountType.PAYABLE
+        ),
+        is_cancelled=False,
+    ).aggregate(dr=Sum("debit"), cr=Sum("credit"))
+    net = (agg["dr"] or ZERO) - (agg["cr"] or ZERO)
+    return net if receivable else -net
+
+
+def customer_outstanding(customer, company=None):
+    """What ``customer`` owes ``company`` (default: the customer's company) on the
+    receivable accounts; negative when the customer is in advance."""
+    company_id = company.pk if company is not None else customer.company_id
+    return party_balance("Customer", customer.name, company_id)
+
+
 def status_for(invoice, outstanding):
     """Stored status for a submitted invoice with this ``outstanding``."""
     if outstanding == 0:

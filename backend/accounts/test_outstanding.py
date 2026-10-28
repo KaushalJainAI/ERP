@@ -227,6 +227,27 @@ class PaymentStatusTests(OutstandingBase):
         self.assertIsNone(rows.get().against_voucher_no)
         self.assert_balanced(pe.name)
 
+    def test_customer_outstanding_is_the_receivable_party_balance(self):
+        # Invoice 236, a 100 allocated payment and a 300 payment with 200 unallocated:
+        # owed 236 - 100 - 300 = -164 (in advance). The bank lines also carry the
+        # party but are not receivable rows, so they must not count.
+        inv = self.si_obj(self.sale(self.cust_intra, (self.item18, 2, 100)))
+        cust = outstanding_service.customer_outstanding
+        self.assertEqual(cust(self.cust_intra), D("236.00"))
+        self.receive(self.cust_intra, [(inv, "100.00")], "100.00")
+        self.assertEqual(cust(self.cust_intra), D("136.00"))
+        pe = self.receive(self.cust_intra, [], "300.00")
+        self.assertEqual(cust(self.cust_intra), D("-164.00"))
+        pe.cancel()
+        self.assertEqual(cust(self.cust_intra), D("136.00"))
+        self.assertEqual(cust(self.cust_intra, company=self.company), D("136.00"))
+
+    def test_supplier_party_balance(self):
+        inv = self.pi_obj(self.purchase(self.sup_intra, (self.item18, 1, 100)))  # 118
+        self.pay(self.sup_intra, [(inv, "50.00")], "50.00")
+        bal = outstanding_service.party_balance("Supplier", "Intra Sup", self.company.pk)
+        self.assertEqual(bal, D("68.00"))
+
     def test_purchase_pay_flow(self):
         inv = self.pi_obj(self.purchase(self.sup_intra, (self.item18, 1, 100)))  # 118
         pe = self.pay(self.sup_intra, [(inv, "50.00")], "50.00")
