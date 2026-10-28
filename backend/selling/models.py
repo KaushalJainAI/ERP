@@ -8,6 +8,7 @@ from core.models import (
     SubmittableDocument,
     TimeStampedModel,
 )
+from gst.services import posting
 from gst.validators import validate_gstin_format
 from accounts.models import (
     Account,
@@ -192,12 +193,13 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
                 need_cogs=True
             )  # raises if perpetual is on but misconfigured
         self.calculate_taxes_and_totals(for_submit=True)
-        self._assert_gst_posting_enabled()  # TEMPORARY (GST Task 2): removed by Task 3
+        posting.validate_posting(self)
 
     def on_submit(self):
         from accounts.services import gl as gl_service
         from stock.services import ledger as stock_service
 
+        posting.validate_posting(self)
         perpetual = (
             self.company.get_perpetual_accounts(need_cogs=True)
             if self.update_stock
@@ -232,12 +234,14 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
                     (s.stock_value_difference for s in sles), Decimal("0.00")
                 )
 
-        # 2. Post GL Entries (one voucher): Debit Debtors, Credit Income and, with
-        #    perpetual inventory, Debit COGS / Credit Stock In Hand at valuation cost.
+        # 2. Post GL Entries (one voucher): Debit Debtors for the full rounded total
+        #    (one party line), Credit Income for the net total, Credit each Output tax
+        #    row, the round-off, and, with perpetual inventory, Debit COGS / Credit
+        #    Stock In Hand at valuation cost (tax never touches the stock legs).
         gl_entries = [
             {
                 "account": self.debit_to,
-                "debit": self.grand_total,
+                "debit": self.rounded_total,
                 "credit": Decimal("0.00"),
                 "party_type": "Customer",
                 "party": self.customer.name,
@@ -245,8 +249,9 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
             {
                 "account": self.income_account,
                 "debit": Decimal("0.00"),
-                "credit": self.grand_total,
+                "credit": self.net_total,
             },
+            *posting.sales_tax_entries(self),
         ]
         if perpetual and outgoing_value:
             cogs_account = perpetual["default_expense_account"]

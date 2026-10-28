@@ -1,5 +1,6 @@
 from decimal import Decimal
-from django.db.models import Sum
+import django_filters
+from django.db.models import Q, Sum
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from rest_framework import viewsets, permissions
@@ -23,6 +24,8 @@ from accounts.serializers import (
     TaxCalculateSerializer,
     TaxTemplateSerializer,
 )
+from core.models import State
+from gst.constants import GSTSupplyType
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
 from users.permissions import HasRolePermission, require_model_permission
 
@@ -110,6 +113,33 @@ class ItemTaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
     ordering_fields = ["name", "created_at"]
 
 
+class TaxTemplateFilter(django_filters.FilterSet):
+    """``?supply_kind=INTRA|INTER`` returns the templates of that supply type **and**
+    the generic (blank supply type) ones, which fit any supply."""
+
+    supply_kind = django_filters.ChoiceFilter(
+        choices=[("INTRA", "Intra-state"), ("INTER", "Inter-state")],
+        method="filter_supply_kind",
+    )
+
+    class Meta:
+        model = TaxTemplate
+        fields = [
+            "company",
+            "template_type",
+            "gst_supply_type",
+            "is_reverse_charge",
+            "is_default",
+            "disabled",
+        ]
+
+    def filter_supply_kind(self, queryset, name, value):
+        supply_type = (
+            GSTSupplyType.INTRA_STATE if value == "INTRA" else GSTSupplyType.INTER_STATE
+        )
+        return queryset.filter(Q(gst_supply_type=supply_type) | Q(gst_supply_type=""))
+
+
 class TaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
     """Per-company Sales / Purchase Taxes and Charges templates with nested ``rows``."""
 
@@ -121,14 +151,7 @@ class TaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
     )
     serializer_class = TaxTemplateSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = [
-        "company",
-        "template_type",
-        "gst_supply_type",
-        "is_reverse_charge",
-        "is_default",
-        "disabled",
-    ]
+    filterset_class = TaxTemplateFilter
     search_fields = ["title"]
     ordering_fields = ["title", "created_at"]
 
@@ -462,6 +485,15 @@ def calculate_taxes(request):
                 "reason": ctx.reason,
             },
             "taxes_and_charges": doc.taxes_and_charges_id,
+            "taxes_and_charges_name": (
+                doc.taxes_and_charges.title if doc.taxes_and_charges_id else None
+            ),
+            "place_of_supply": ctx.place_of_supply,
+            "place_of_supply_name": (
+                State.objects.filter(pk=ctx.place_of_supply)
+                .values_list("name", flat=True)
+                .first()
+            ),
             "items": [
                 {
                     "item": line.item_id,

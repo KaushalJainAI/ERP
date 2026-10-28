@@ -4,6 +4,7 @@ from django.db.models import Sum
 from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
 from core.models import Company, SystemHealthCheck
+from gst.services import integrity as gst_integrity
 
 
 class Command(BaseCommand):
@@ -98,6 +99,22 @@ class Command(BaseCommand):
             ),
         )
         errors.extend(perpetual_errors)
+
+        # 5. GST invariants (totals identity, tax rows vs lines, GL vs document...).
+        #    Warnings (bad GSTINs, missing HSN, legacy documents) never fail the run.
+        gst_errors, gst_warnings = gst_integrity.check()
+        SystemHealthCheck.objects.create(
+            check_name="gst_integrity",
+            status="alert" if gst_errors else "ok",
+            details={
+                "errors": gst_errors,
+                "warnings": gst_warnings,
+                "message": "" if gst_errors else "GST totals, tax rows and GL agree.",
+            },
+        )
+        errors.extend(gst_errors)
+        for warning in gst_warnings:
+            self.stdout.write(self.style.WARNING(f"[GST warning] {warning}"))
 
         # Record Health Status
         status_str = "alert" if errors else "ok"

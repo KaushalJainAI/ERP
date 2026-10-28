@@ -20,6 +20,7 @@ from django.db import transaction
 from accounts.models import (
     Account,
     AccountRootType,
+    ItemTaxTemplate,
     JournalEntry,
     JournalEntryLine,
     PaymentEntry,
@@ -35,6 +36,7 @@ from buying.models import (
     SupplierGroup,
 )
 from core.models import Company, FiscalYear
+from gst.services import seeding as gst_seeding
 from selling.models import (
     Customer,
     CustomerGroup,
@@ -63,6 +65,22 @@ ITEM_GROUPS = ("Groceries", "Stationery")
 CUSTOMER_GROUPS = ("Retail", "Wholesale")
 SUPPLIER_GROUPS = ("Local Suppliers", "Distributors")
 
+#: Demo company GST identity (checksum-valid, Maharashtra).
+COMPANY_GSTIN = "27AABCA1234C1ZF"
+COMPANY_STATE = "27"
+
+# item code -> (HSN/SAC, item tax template)
+ITEM_GST = {
+    "RICE-001": ("100630", "GST 5%"),
+    "SUGAR-001": ("170199", "GST 5%"),
+    "ATTA-001": ("110100", "GST 5%"),
+    "TEA-001": ("090240", "GST 5%"),
+    "NB-001": ("482020", "GST 12%"),
+    "PEN-001": ("960810", "GST 18%"),
+    "STAP-001": ("847290", "GST 18%"),
+    "PAPER-001": ("480256", "GST 12%"),
+}
+
 # code, name, group, uom, selling (standard) rate, purchase rate, opening qty
 ITEMS = [
     ("RICE-001", "Basmati Rice", "Groceries", "Kg", "95", "80", "500"),
@@ -75,35 +93,47 @@ ITEMS = [
     ("PAPER-001", "A4 Copier Paper Ream", "Stationery", "Box", "350", "290", "120"),
 ]
 
-# name, group, GSTIN-format string, email, phone
+# name, group, GSTIN (checksum-valid), state code, email, phone
 CUSTOMERS = [
     (
         "Sharma Traders",
         "Wholesale",
-        "07AAGCS4567K1ZP",
+        "07AAGCS4567K1ZV",
+        "07",
         "accounts@sharmatraders.example",
         "+91 98100 11111",
     ),
     (
         "Patel General Stores",
         "Retail",
-        "24AAFPP8821M1Z3",
+        "24AAFPP8821M1ZB",
+        "24",
         "patelstores@example.com",
         "+91 98250 22222",
     ),
     (
         "Iyer & Sons Supermart",
         "Retail",
-        "33AABCI5512R1ZK",
+        "33AABCI5512R1ZE",
+        "33",
         "billing@iyersons.example",
         "+91 94440 33333",
     ),
     (
         "Banerjee Stationers",
         "Wholesale",
-        "19AAKFB3390D1Z8",
+        "19AAKFB3390D1ZH",
+        "19",
         "info@banerjeestationers.example",
         "+91 98300 44444",
+    ),
+    (
+        "Kulkarni Provision Stores",
+        "Retail",
+        "27AAHFK5521P1ZW",
+        "27",
+        "kulkarni@example.com",
+        "+91 98220 88888",
     ),
 ]
 
@@ -111,21 +141,24 @@ SUPPLIERS = [
     (
         "Ganga Agro Foods Pvt Ltd",
         "Distributors",
-        "09AABCG7741N1Z2",
+        "09AABCG7741N1Z4",
+        "09",
         "sales@gangaagro.example",
         "+91 94150 55555",
     ),
     (
         "Mahalaxmi Paper Mills",
         "Local Suppliers",
-        "27AAACM2209L1ZV",
+        "27AAACM2209L1ZK",
+        "27",
         "orders@mahalaxmipaper.example",
         "+91 98200 66666",
     ),
     (
         "Sundaram Wholesale Distributors",
         "Distributors",
-        "33AAECS6038J1Z6",
+        "33AAECS6038J1ZA",
+        "33",
         "sales@sundaramwholesale.example",
         "+91 94430 77777",
     ),
@@ -157,6 +190,7 @@ class Command(BaseCommand):
         self.admin = self._ensure_admin()
         self._ensure_accounts()
         self._ensure_perpetual_inventory()
+        self._ensure_company_gst()
         self._ensure_masters()
 
         # Spread the documents over the last few weeks, inside the fiscal year.
@@ -174,6 +208,7 @@ class Command(BaseCommand):
         created += self._sales_chain()
         created += self._open_sales_order()
         created += self._draft_sales_order()
+        created += self._gst_documents()
 
         if created:
             self.stdout.write(self.style.SUCCESS("Created: " + ", ".join(created)))
@@ -285,6 +320,23 @@ class Command(BaseCommand):
             ]
         )
 
+    def _ensure_company_gst(self):
+        """GST identity of the demo company plus the GST accounts / templates.
+
+        The GSTIN and state are only filled in when the company has none, so an
+        operator's own values are never overwritten.
+        """
+        company = self.company
+        if not company.gstin:
+            company.gstin = COMPANY_GSTIN
+            company.state_id = company.state_id or COMPANY_STATE
+            company.gst_category = "Registered Regular"
+            company.save(update_fields=["gstin", "state", "gst_category"])
+        gst_seeding.ensure_states()
+        gst_seeding.ensure_item_tax_templates()
+        gst_seeding.seed_company_gst(company)
+        company.refresh_from_db()
+
     def _ensure_masters(self):
         for name in ("Nos", "Kg", "Box"):
             UOM.objects.get_or_create(name=name)
@@ -330,29 +382,39 @@ class Command(BaseCommand):
                 },
             )
             self.items[code] = item
+            # HSN and item tax template are filled in place when still empty.
+            hsn, template_name = ITEM_GST[code]
+            if not item.gst_hsn_code or item.item_tax_template_id is None:
+                item.gst_hsn_code = item.gst_hsn_code or hsn
+                item.item_tax_template = item.item_tax_template or (
+                    ItemTaxTemplate.objects.get(name=template_name)
+                )
+                item.save(update_fields=["gst_hsn_code", "item_tax_template"])
 
-        for name, group, gstin, email, phone in CUSTOMERS:
-            Customer.objects.get_or_create(
-                company=self.company,
-                name=name,
-                defaults={
-                    "customer_group": CustomerGroup.objects.get(name=group),
-                    "gstin": gstin,
-                    "email": email,
-                    "phone": phone,
-                },
-            )
-        for name, group, gstin, email, phone in SUPPLIERS:
-            Supplier.objects.get_or_create(
-                company=self.company,
-                name=name,
-                defaults={
-                    "supplier_group": SupplierGroup.objects.get(name=group),
-                    "gstin": gstin,
-                    "email": email,
-                    "phone": phone,
-                },
-            )
+        for model, group_model, group_field, rows in (
+            (Customer, CustomerGroup, "customer_group", CUSTOMERS),
+            (Supplier, SupplierGroup, "supplier_group", SUPPLIERS),
+        ):
+            for name, group, gstin, state, email, phone in rows:
+                party, created = model.objects.get_or_create(
+                    company=self.company,
+                    name=name,
+                    defaults={
+                        group_field: group_model.objects.get(name=group),
+                        "gstin": gstin,
+                        "state_id": state,
+                        "gst_category": "Registered Regular",
+                        "email": email,
+                        "phone": phone,
+                    },
+                )
+                # Earlier seeds stored GSTINs that fail the checksum: correct them
+                # in place (a party's GSTIN is master data, not a ledger fact).
+                if not created and (party.gstin, party.state_id) != (gstin, state):
+                    party.gstin = gstin
+                    party.state_id = state
+                    party.gst_category = "Registered Regular"
+                    party.save(update_fields=["gstin", "state", "gst_category"])
 
     # ------------------------------------------------------------- documents
 
@@ -446,6 +508,7 @@ class Command(BaseCommand):
                     qty=_d(qty),
                     rate=_d(rate),
                 )
+            po.calculate_taxes_and_totals(auto_select=True)
             po.submit(user=self.admin)
             created.append(po.name)
 
@@ -470,6 +533,7 @@ class Command(BaseCommand):
                     qty=_d(qty),
                     rate=_d(rate),
                 )
+            pi.calculate_taxes_and_totals(auto_select=True)
             pi.submit(user=self.admin)
             created.append(pi.name)
         return created
@@ -497,6 +561,7 @@ class Command(BaseCommand):
                     qty=_d(qty),
                     rate=_d(rate),
                 )
+            so.calculate_taxes_and_totals(auto_select=True)
             so.submit(user=self.admin)
             created.append(so.name)
 
@@ -522,6 +587,7 @@ class Command(BaseCommand):
                     qty=_d(qty),
                     rate=_d(rate),
                 )
+            si.calculate_taxes_and_totals(auto_select=True)
             si.submit(user=self.admin)
             created.append(si.name)
 
@@ -571,6 +637,7 @@ class Command(BaseCommand):
                 qty=_d(qty),
                 rate=_d(rate),
             )
+        so.calculate_taxes_and_totals(auto_select=True)
         so.submit(user=self.admin)
         return [name]
 
@@ -594,5 +661,76 @@ class Command(BaseCommand):
                 qty=_d(qty),
                 rate=_d(rate),
             )
-        so.calculate_taxes_and_totals()
+        so.calculate_taxes_and_totals(auto_select=True)
         return [name]
+
+    def _gst_documents(self):
+        """Taxed invoices: intra-state SI (CGST+SGST), inter-state SI (IGST) and an
+        intra-state PI. The tax rows come from the company's default templates and
+        the per-line rates from the items' tax templates."""
+        created = []
+        sales = [
+            (
+                "SINV-DEMO-0002",
+                "Kulkarni Provision Stores",
+                self.d(8),
+                [("NB-001", "20", "60"), ("PEN-001", "10", "120")],
+            ),
+            (
+                "SINV-DEMO-0003",
+                "Sharma Traders",
+                self.d(6),
+                [("TEA-001", "5", "320"), ("SUGAR-001", "40", "48")],
+            ),
+        ]
+        for name, customer, date, lines in sales:
+            if SalesInvoice.objects.filter(name=name).exists():
+                continue
+            si = SalesInvoice.objects.create(
+                name=name,
+                customer=self._customer(customer),
+                company=self.company,
+                posting_date=date,
+                due_date=date + datetime.timedelta(days=30),
+                update_stock=True,
+                debit_to=self._acct("Debtors"),
+                income_account=self._acct("Sales Account"),
+                created_by=self.admin,
+            )
+            for code, qty, rate in lines:
+                SalesInvoiceItem.objects.create(
+                    sales_invoice=si,
+                    item=self.items[code],
+                    warehouse=self.stores,
+                    qty=_d(qty),
+                    rate=_d(rate),
+                )
+            si.calculate_taxes_and_totals(auto_select=True)
+            si.submit(user=self.admin)
+            created.append(name)
+
+        name = "PINV-DEMO-0002"
+        if not PurchaseInvoice.objects.filter(name=name).exists():
+            pi = PurchaseInvoice.objects.create(
+                name=name,
+                supplier=self._supplier("Mahalaxmi Paper Mills"),
+                company=self.company,
+                posting_date=self.d(7),
+                due_date=self.d(-23),
+                update_stock=True,
+                credit_to=self._acct("Creditors"),
+                expense_account=self._acct("Stock Assets"),
+                created_by=self.admin,
+            )
+            for code, qty, rate in [("PAPER-001", "30", "290"), ("NB-001", "50", "42")]:
+                PurchaseInvoiceItem.objects.create(
+                    purchase_invoice=pi,
+                    item=self.items[code],
+                    warehouse=self.stores,
+                    qty=_d(qty),
+                    rate=_d(rate),
+                )
+            pi.calculate_taxes_and_totals(auto_select=True)
+            pi.submit(user=self.admin)
+            created.append(name)
+        return created

@@ -143,11 +143,23 @@ class DraftNestedWriteMixin:
             # not the 409 the view maps a bare Django ValidationError to.
             flags = getattr(instance, "_tax_flags", {})
             try:
-                instance.calculate_taxes_and_totals(
-                    resolve_lines=True,
-                    expand_template=flags.get("expand_template", False),
-                    auto_select=flags.get("auto_select", False),
-                )
+                try:
+                    instance.calculate_taxes_and_totals(
+                        resolve_lines=True,
+                        expand_template=flags.get("expand_template", False),
+                        auto_select=flags.get("auto_select", False),
+                    )
+                except DjangoValidationError as exc:
+                    # ERPNext re-applies the taxes when the party changes. The
+                    # stored rows no longer fit the supply kind: drop them and
+                    # re-select the default template (none when GST does not apply).
+                    if not (
+                        flags.get("reconcile")
+                        and hasattr(exc, "error_dict")
+                        and "taxes" in exc.error_dict
+                    ):
+                        raise
+                    self._rederive_taxes(instance)
             except DjangoValidationError as exc:
                 raise DRFValidationError(
                     exc.message_dict
@@ -163,6 +175,19 @@ class DraftNestedWriteMixin:
             )
             instance.grand_total = total
             instance.save(update_fields=["grand_total"])
+
+    def _rederive_taxes(self, instance):
+        """Replace stale tax rows by the default template for the new supply kind."""
+        instance.tax_model().objects.filter(
+            **{instance.tax_fk_name(): instance}
+        ).delete()
+        instance.taxes_and_charges = None
+        instance.save(update_fields=["taxes_and_charges"])
+        instance._prefetched_objects_cache = {}
+        instance.calculate_taxes_and_totals(resolve_lines=True, auto_select=True)
+
+    #: Header fields whose change can make stored GST rows stale.
+    _SUPPLY_FIELDS = ("place_of_supply", "is_export_with_gst", "is_reverse_charge")
 
     def _pop_children(self, validated_data):
         """Pop every nested child set out of ``validated_data`` (field -> rows)."""
@@ -187,6 +212,11 @@ class DraftNestedWriteMixin:
             return {"expand_template": True}
         if is_new and template is None:
             return {"auto_select": True}
+        party_field = getattr(self.Meta.model, "party_field", "")
+        if not is_new and any(
+            f in validated_data for f in (party_field, *self._SUPPLY_FIELDS) if f
+        ):
+            return {"reconcile": True}
         return {}
 
     def create(self, validated_data):

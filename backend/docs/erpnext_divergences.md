@@ -338,6 +338,48 @@ now match that posture.
   `Company.hsn_min_digits`, Non-GST lines exempt), valid party GSTIN + state-prefix match for
   Registered / Composition / SEZ parties, valid company GSTIN, SI number at most 16 characters.
   Applied to orders too, not only invoices.
-- **Temporary posting guard (Task 2 only)**: SI / PI `validate_before_submit` refuses a document
-  with a non-zero tax row or `rounding_adjustment` ("GST posting not yet enabled") until Task 3
-  posts them to the GL.
+- ~~Temporary posting guard~~ removed by Task 3 (below).
+
+## GST GL posting, mapping, integrity (2026-10-28, docs/gst_design.md Task 3)
+
+- **Sales Invoice voucher**: Dr party `rounded_total` (one line, so payment allocation can set
+  `against_voucher` on it); Cr income `net_total`; Cr each Output tax row (a Deduct row is a Dr);
+  `rounding_adjustment` on `Company.round_off_account` (Cr when positive, Dr when negative);
+  perpetual-inventory COGS / inventory pair unchanged (tax never touches the stock legs).
+- **Purchase Invoice voucher**: Dr expense / inventory `net_total - stock_value` + `stock_value`
+  (recoverable input tax is excluded from the stock value by construction: the SLE rate is the
+  basic rate); Dr each Input tax row (Cr a Deduct row); Cr party `rounded_total`; round-off Dr when
+  positive, Cr when negative. `verify_integrity.perpetual_inventory_balance` stays exact.
+- **Reverse charge**: GST rows are memo rows (not in `grand_total`); the voucher adds
+  `Dr Input X / Cr RCM Payable X` per row (the RCM Payable account is looked up as
+  `(company, "Reverse Charge", component)`; submit is refused before any posting if it is missing).
+  The supplier is credited the net value only. ITC is booked on the invoice date (design 11.6).
+- **Submit refuses early** (before stock or GL is touched) when a non-zero rounding adjustment has
+  no round-off account on the company, or the RCM Payable account is missing.
+- **Mapping**: SO/PO -> SI/PI copies `taxes_and_charges`, the tax rows (input fields only), the
+  place of supply, the export / RCM flags and the lines' GST snapshots (HSN, treatment, item tax
+  template, `item_tax_rate`, as ERPNext copies `item_tax_template` / `item_tax_rate`), then runs
+  the engine on the remaining quantity. Party snapshots are refreshed from the master.
+- **Outstanding** (`accounts.mapping.invoice_outstanding`, `make-payment-entry`) is
+  `rounded_total` less submitted allocations. Dashboard sales / purchase totals and the open-order
+  comparison use `net_total` (GST is a pass-through); receivables / payables are GL-derived.
+- **Line `amount` rounding is now half up** (`TaxableLine.compute_amount`), like the tax engine
+  and the stock ledger (G3), so `sum(line.amount)` equals the SLE stock value of the same lines at
+  exact ties (e.g. 0.5 x 0.01). The previous Decimal-default half-even differed only at those ties.
+  ERPNext's `flt()` follows the System Settings "Rounding Method" (Banker's by default in recent
+  versions); the clone has no frappe core to confirm, so this is a deliberate G3-consistent choice.
+- **Stale tax rows are re-derived, not refused** (supersedes the Task 2 400): a draft update that
+  changes the party, `place_of_supply` or export / RCM flag without sending `taxes` and without a
+  template, and whose stored GST rows no longer fit the supply kind, drops the rows and re-selects
+  the company default template for the new kind (none when GST does not apply). ERPNext likewise
+  re-applies taxes when the party changes. Other structural errors stay 400. Unrelated edits leave
+  the stored rows alone.
+- **Dry run** (`taxes/calculate/`) also returns `taxes_and_charges_name`, `place_of_supply` and
+  `place_of_supply_name`; the tax-template list takes `?supply_kind=INTRA|INTER` (that type or blank).
+- **`verify_integrity` GST checks** (`gst/services/integrity.py`, recorded as `gst_integrity`):
+  hard errors for the totals identity, tax rows vs line GST columns, GL voucher vs document (party
+  line = `rounded_total`, per-row tax lines, RCM pair, round-off side, income/expense = `net_total`),
+  kind consistency, account tagging and non-taxable lines carrying GST; warnings (never failing)
+  for invalid GSTINs on masters / snapshots, missing place of supply or HSN, and the count of
+  legacy documents. Kind consistency for purchases uses the snapshot GSTIN prefix, else the
+  supplier's current state.

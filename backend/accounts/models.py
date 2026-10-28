@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
 from core.models import TimeStampedModel, SubmittableDocument, Company
@@ -646,21 +646,6 @@ class TaxableDocument(models.Model):
             supply.persist(self, outcome)
         return outcome
 
-    def _assert_gst_posting_enabled(self):
-        """TEMPORARY GST Task 2 guard -- removed by Task 3 (GL posting).
-
-        Tax rows and the rounding adjustment are not posted to the GL yet, so an
-        invoice that carries either must not be submitted (the voucher would not
-        match the document). Called from ``validate_before_submit`` of
-        ``SalesInvoice`` and ``PurchaseInvoice`` only.
-        """
-        has_tax = self.taxes.exclude(tax_amount=0).exists()
-        if has_tax or self.rounding_adjustment != 0:
-            raise ValidationError(
-                "GST posting not yet enabled: invoices with tax rows or a rounding "
-                "adjustment cannot be submitted yet."
-            )
-
 
 class TaxLine(models.Model):
     """One row of a document's tax table (concrete classes add the parent FK).
@@ -814,5 +799,9 @@ class TaxableLine(models.Model):
         ]
 
     def compute_amount(self):
-        """``qty * rate`` quantized to a money amount (the line's taxable value)."""
-        return (self.qty * self.rate).quantize(Decimal("0.01"))
+        """``qty * rate`` quantized to a money amount (the line's taxable value).
+
+        Half up, like the tax engine and the stock ledger (divergences G3), so
+        the sum of line amounts equals the stock value the SLE books per line.
+        """
+        return (self.qty * self.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

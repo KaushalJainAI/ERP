@@ -8,7 +8,7 @@ from django.db import transaction
 from accounts.models import PaymentType
 from accounts import mapping
 from core.models import DocStatus, NamingSeries
-from selling.models import SalesInvoice, SalesInvoiceItem
+from selling.models import SalesInvoice, SalesInvoiceItem, SalesInvoiceTax
 
 
 def make_sales_invoice(sales_order):
@@ -38,13 +38,17 @@ def make_sales_invoice(sales_order):
             company=company,
             posting_date=datetime.date.today(),
             sales_order=sales_order,
+            taxes_and_charges=sales_order.taxes_and_charges,
+            place_of_supply=sales_order.place_of_supply,
+            is_export_with_gst=sales_order.is_export_with_gst,
+            is_reverse_charge=sales_order.is_reverse_charge,
             update_stock=mapping.lines_update_stock(lines),
             debit_to=mapping.default_receivable_account(company),
             income_account=mapping.default_income_account(company),
         )
         for line in lines:
             SalesInvoiceItem.objects.create(sales_invoice=invoice, **line)
-        invoice.calculate_taxes_and_totals()
+        mapping.copy_order_taxes(sales_order, invoice, SalesInvoiceTax, "sales_invoice")
     return invoice
 
 

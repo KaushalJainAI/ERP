@@ -7,7 +7,7 @@ from django.db import transaction
 
 from accounts.models import PaymentType
 from accounts import mapping
-from buying.models import PurchaseInvoice, PurchaseInvoiceItem
+from buying.models import PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceTax
 from core.models import DocStatus, NamingSeries
 
 
@@ -39,13 +39,19 @@ def make_purchase_invoice(purchase_order):
             company=company,
             posting_date=datetime.date.today(),
             purchase_order=purchase_order,
+            taxes_and_charges=purchase_order.taxes_and_charges,
+            place_of_supply=purchase_order.place_of_supply,
+            is_export_with_gst=purchase_order.is_export_with_gst,
+            is_reverse_charge=purchase_order.is_reverse_charge,
             update_stock=update_stock,
             credit_to=mapping.default_payable_account(company),
             expense_account=mapping.default_expense_account(company, update_stock),
         )
         for line in lines:
             PurchaseInvoiceItem.objects.create(purchase_invoice=invoice, **line)
-        invoice.calculate_taxes_and_totals()
+        mapping.copy_order_taxes(
+            purchase_order, invoice, PurchaseInvoiceTax, "purchase_invoice"
+        )
     return invoice
 
 

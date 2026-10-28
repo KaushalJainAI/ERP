@@ -8,6 +8,7 @@ from core.models import (
     SubmittableDocument,
     TimeStampedModel,
 )
+from gst.services import posting
 from gst.validators import validate_gstin_format
 from accounts.models import (
     Account,
@@ -190,12 +191,13 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
         if self.update_stock:
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
         self.calculate_taxes_and_totals(for_submit=True)
-        self._assert_gst_posting_enabled()  # TEMPORARY (GST Task 2): removed by Task 3
+        posting.validate_posting(self)
 
     def on_submit(self):
         from accounts.services import gl as gl_service
         from stock.services import ledger as stock_service
 
+        posting.validate_posting(self)
         perpetual = self.company.get_perpetual_accounts() if self.update_stock else None
 
         # 1. Post stock first (stock lines only) so GL can book the value actually
@@ -226,8 +228,11 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
                     (s.stock_value_difference for s in sles), Decimal("0.00")
                 )
 
-        # 2. Post GL Entries: Debit Expense (and, with perpetual inventory,
-        #    Stock In Hand for the stock value), Credit Creditors
+        # 2. Post GL Entries: Debit Expense (and, with perpetual inventory, Stock In
+        #    Hand for the stock value) for the net total -- recoverable input tax is
+        #    never part of it -- Debit each Input tax row (Cr a Deduct row), the
+        #    reverse-charge pairs and the round-off, Credit Creditors for the full
+        #    rounded total (one party line).
         gl_entries = []
         if perpetual and stock_value:
             gl_entries.append(
@@ -238,9 +243,9 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
                 }
             )
             # Non-stock lines plus any rounding difference stay on the expense account.
-            expense_amount = self.grand_total - stock_value
+            expense_amount = self.net_total - stock_value
         else:
-            expense_amount = self.grand_total
+            expense_amount = self.net_total
         if expense_amount >= 0:
             gl_entries.append(
                 {
@@ -261,11 +266,12 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
             {
                 "account": self.credit_to,
                 "debit": Decimal("0.00"),
-                "credit": self.grand_total,
+                "credit": self.rounded_total,
                 "party_type": "Supplier",
                 "party": self.supplier.name,
             }
         )
+        gl_entries.extend(posting.purchase_tax_entries(self))
         gl_service.post(self, gl_entries, posting_date=self.posting_date)
 
     def on_cancel(self):

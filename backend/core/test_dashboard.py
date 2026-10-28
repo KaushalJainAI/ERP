@@ -84,13 +84,16 @@ class DashboardTests(APITestCase):
         data = res.data
         self.assertEqual(data["company"]["name"], "Acme Corp")
         self.assertEqual(data["company"]["currency"], "INR")
-        self.assertEqual(data["total_sales"], "10750.00")
-        self.assertEqual(data["total_purchases"], "22000.00")
-        # 10750 invoiced - 5000 received; 22000 billed, nothing paid.
-        self.assertEqual(data["receivables_outstanding"], "5750.00")
-        self.assertEqual(data["payables_outstanding"], "22000.00")
+        # Totals are net of GST: SINV-DEMO-0001..3 = 10750 + 2400 + 3520;
+        # PINV-DEMO-0001..2 = 22000 + 10800.
+        self.assertEqual(data["total_sales"], "16670.00")
+        self.assertEqual(data["total_purchases"], "32800.00")
+        # Receivables / payables come from the GL, so they include GST:
+        # 11708 + 2760 + 3696 invoiced - 5000 received; 23100 + 12096 billed.
+        self.assertEqual(data["receivables_outstanding"], "13164.00")
+        self.assertEqual(data["payables_outstanding"], "35196.00")
         self.assertEqual(data["open_sales_orders"], {"count": 1, "value": "10360.00"})
-        self.assertEqual(data["stock_value"], "175300.00")
+        self.assertEqual(data["stock_value"], "181560.00")
         self.assertEqual(data["draft_documents"]["sales_orders"], 1)
         self.assertEqual(data["draft_documents"]["total"], 1)
         # Money is serialised as strings, like the rest of the API.
@@ -126,18 +129,20 @@ class DashboardTests(APITestCase):
         SalesInvoice.objects.get(name="SINV-DEMO-0001").cancel(user=self.admin)
         self.client.force_authenticate(self.admin)
         data = self.client.get(URL).data
-        self.assertEqual(data["total_sales"], "0.00")
-        # Payment of 5000 remains on the ledger against a now-cancelled invoice.
-        self.assertEqual(data["receivables_outstanding"], "-5000.00")
-        # The order is open again once its invoice is cancelled.
+        self.assertEqual(data["total_sales"], "5920.00")
+        # Payment of 5000 remains on the ledger against a now-cancelled invoice:
+        # 2760 + 3696 (the two GST demo invoices) - 5000.
+        self.assertEqual(data["receivables_outstanding"], "1456.00")
+        # The order is open again once its invoice is cancelled (net values).
         self.assertEqual(data["open_sales_orders"]["count"], 2)
+        self.assertEqual(data["open_sales_orders"]["value"], "21110.00")
 
     def test_sections_are_filtered_by_role(self):
         user = self._user_with("clerk", ["selling.SalesInvoice"])
         self.client.force_authenticate(user)
         res = self.client.get(URL)
         self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.data["total_sales"], "10750.00")
+        self.assertEqual(res.data["total_sales"], "16670.00")
         for hidden in (
             "total_purchases",
             "receivables_outstanding",

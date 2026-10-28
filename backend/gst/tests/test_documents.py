@@ -577,29 +577,63 @@ class RecomputeTests(GSTDocBase):
         self.assertEqual(res.status_code, 400, res.content)
         self.assertIn("taxes_and_charges", res.data)
 
-    def test_inconsistent_rows_after_place_change_are_400_not_409(self):
+    def test_stale_rows_after_place_change_are_rederived(self):
+        """ERPNext re-applies the taxes when the supply changes: so do we."""
         d = self.create(
             SO_URL, self.so_body(self.cust_intra, self.lines((self.item18, 1, 100)))
         )
         res = self.client.patch(
             f"{SO_URL}{d['id']}/", {"place_of_supply": "07"}, format="json"
         )
-        self.assertEqual(res.status_code, 400, res.content)
-        self.assertIn("taxes", res.data)
-        self.assertIn("not applicable", str(res.data["taxes"]))
-        # nothing was changed
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.data["place_of_supply"], "07")
+        self.assertEqual(self.components(res.data), {"IGST": D("18.00")})
+        self.assertEqual(res.data["taxes_and_charges_name"], "Output GST Out-state")
+        self.assertEqual(D(res.data["grand_total"]), D("118.00"))
         got = self.client.get(f"{SO_URL}{d['id']}/").data
-        self.assertEqual(got["place_of_supply"], "27")
-        self.assertEqual(sorted(self.components(got)), ["CGST", "SGST"])
+        self.assertEqual(self.components(got), {"IGST": D("18.00")})
 
-    def test_changing_party_without_reapplying_template_is_400(self):
+    def test_changing_party_rederives_rows(self):
         d = self.create(
             SO_URL, self.so_body(self.cust_intra, self.lines((self.item18, 1, 100)))
         )
         res = self.client.patch(
             f"{SO_URL}{d['id']}/", {"customer": self.cust_inter.id}, format="json"
         )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(self.components(res.data), {"IGST": D("18.00")})
+
+    def test_changing_to_a_zero_rated_party_clears_the_rows(self):
+        d = self.create(
+            SO_URL, self.so_body(self.cust_intra, self.lines((self.item18, 1, 100)))
+        )
+        res = self.client.patch(
+            f"{SO_URL}{d['id']}/", {"customer": self.cust_sez.id}, format="json"
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.data["taxes"], [])
+        self.assertIsNone(res.data["taxes_and_charges"])
+        self.assertEqual(D(res.data["grand_total"]), D("100.00"))
+
+    def test_unrelated_update_keeps_stored_rows(self):
+        d = self.create(
+            SO_URL, self.so_body(self.cust_intra, self.lines((self.item18, 1, 100)))
+        )
+        res = self.client.patch(
+            f"{SO_URL}{d['id']}/", {"delivery_date": "2026-05-01"}, format="json"
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(sorted(self.components(res.data)), ["CGST", "SGST"])
+
+    def test_non_taxes_structural_error_still_400(self):
+        d = self.create(
+            SO_URL, self.so_body(self.cust_intra, self.lines((self.item18, 1, 100)))
+        )
+        res = self.client.patch(
+            f"{SO_URL}{d['id']}/", {"is_reverse_charge": True}, format="json"
+        )
         self.assertEqual(res.status_code, 400, res.content)
+        self.assertIn("is_reverse_charge", res.data)
 
     def test_reapplying_the_template_fixes_it(self):
         d = self.create(
@@ -1037,49 +1071,24 @@ class SubmitGateTests(GSTDocBase):
 
 
 class PostingGuardTests(GSTDocBase):
-    """Temporary Task 2 guard: tax / rounding cannot reach the GL until Task 3."""
+    """The Task 2 posting guard is gone: taxed invoices submit and post (Task 3)."""
 
-    def test_invoice_with_tax_cannot_be_submitted_yet(self):
+    def test_taxed_invoices_submit(self):
         d = self.create(
             SI_URL, self.si_body(self.cust_intra, self.lines((self.item18, 1, 100)))
         )
         res = self.client.post(f"{SI_URL}{d['id']}/submit/")
-        self.assertEqual(res.status_code, 400, res.content)
-        self.assertIn("GST posting not yet enabled", str(res.data))
-        self.assertEqual(
-            SalesInvoice.objects.get(pk=d["id"]).docstatus, DocStatus.DRAFT
-        )
-
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.data["docstatus"], DocStatus.SUBMITTED)
         d = self.create(
             PI_URL, self.pi_body(self.sup_intra, self.lines((self.item18, 1, 100)))
         )
         res = self.client.post(f"{PI_URL}{d['id']}/submit/")
-        self.assertEqual(res.status_code, 400, res.content)
-        self.assertIn("GST posting not yet enabled", str(res.data))
+        self.assertEqual(res.status_code, 200, res.content)
 
-    def test_reverse_charge_invoice_is_also_blocked(self):
-        d = self.create(
-            PI_URL,
-            self.pi_body(
-                self.sup_unreg,
-                self.lines((self.item18, 1, 100)),
-                is_reverse_charge=True,
-            ),
-        )
-        res = self.client.post(f"{PI_URL}{d['id']}/submit/")
-        self.assertEqual(res.status_code, 400, res.content)
-
-    def test_rounding_adjustment_is_blocked(self):
-        Company.objects.filter(pk=self.company.pk).update(enable_rounded_total=True)
-        d = self.create(
-            SI_URL,
-            self.si_body(
-                self.cust_intra, self.lines((self.item_plain, 1, "10.40")), taxes=[]
-            ),
-        )
-        res = self.client.post(f"{SI_URL}{d['id']}/submit/")
-        self.assertEqual(res.status_code, 400, res.content)
-        self.assertIn("GST posting not yet enabled", str(res.data))
+    def test_guard_helper_is_removed(self):
+        self.assertFalse(hasattr(SalesInvoice, "_assert_gst_posting_enabled"))
+        self.assertFalse(hasattr(PurchaseInvoice, "_assert_gst_posting_enabled"))
 
     def test_untaxed_invoice_submits_and_posts_exactly_as_before(self):
         d = self.create(

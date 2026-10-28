@@ -30,6 +30,23 @@ from core.models import DocStatus, NamingSeries
 
 ZERO = Decimal("0.00")
 QTY_QUANTUM = Decimal("0.001")
+#: Input GST columns of a document line copied from order to invoice. The amounts
+#: (cgst / sgst / igst, gst_rate) are recomputed by the engine.
+GST_SNAPSHOT_FIELDS = (
+    "gst_hsn_code",
+    "gst_treatment",
+    "item_tax_template",
+    "item_tax_rate",
+)
+TAX_ROW_INPUT_FIELDS = (
+    "idx",
+    "charge_type",
+    "account",
+    "description",
+    "rate",
+    "add_deduct_tax",
+    "category",
+)
 
 
 # ---------------------------------------------------------------- accounts
@@ -133,9 +150,32 @@ def remaining_order_lines(order_items, invoiced_items):
                     "warehouse": line.warehouse,
                     "qty": qty,
                     "rate": line.rate,
+                    # GST snapshots of the order line (as ERPNext copies
+                    # item_tax_template / item_tax_rate onto the invoice line).
+                    **{name: getattr(line, name) for name in GST_SNAPSHOT_FIELDS},
                 }
             )
     return remaining
+
+
+def copy_order_taxes(order, invoice, tax_model, fk_name):
+    """Copy the order's tax rows onto ``invoice`` as **inputs only** (computed
+    amounts start at 0), then recompute taxes and totals on the invoice's lines.
+
+    ``calculate_taxes_and_totals`` re-derives every row amount from the quantity
+    actually being invoiced, so partial invoicing needs no special handling. The
+    supply kind, party snapshots and rounding are refreshed from the masters.
+    """
+    tax_model.objects.bulk_create(
+        [
+            tax_model(
+                **{fk_name: invoice},
+                **{name: getattr(row, name) for name in TAX_ROW_INPUT_FIELDS},
+            )
+            for row in order.taxes.order_by("idx")
+        ]
+    )
+    invoice.calculate_taxes_and_totals(resolve_lines=False)
 
 
 def lines_update_stock(lines):
@@ -160,9 +200,10 @@ def allocated_amount(reference_doctype, reference_name):
 
 
 def invoice_outstanding(invoice):
-    """Derived outstanding amount: grand total less submitted allocations."""
+    """Derived outstanding amount: the rounded (tax-inclusive) total less submitted
+    allocations. ``rounded_total`` is what the party line of the voucher carries."""
     label = f"{invoice._meta.app_label}.{invoice._meta.object_name}"
-    return invoice.grand_total - allocated_amount(label, invoice.name)
+    return invoice.rounded_total - allocated_amount(label, invoice.name)
 
 
 def build_payment_entry(

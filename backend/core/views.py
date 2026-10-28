@@ -90,9 +90,10 @@ def _ledger_balance(company, account_type, receivable):
 
 
 def _open_sales_orders(company):
-    """Submitted orders not yet fully invoiced (by submitted invoice value)."""
+    """Submitted orders not yet fully invoiced (by submitted invoice net value; GST is
+    a pass-through, so order and invoices are compared before tax)."""
     billed = Coalesce(
-        Sum("invoices__grand_total", filter=Q(invoices__docstatus=DocStatus.SUBMITTED)),
+        Sum("invoices__net_total", filter=Q(invoices__docstatus=DocStatus.SUBMITTED)),
         Value(ZERO),
         output_field=DecimalField(max_digits=18, decimal_places=2),
     )
@@ -101,7 +102,7 @@ def _open_sales_orders(company):
         .annotate(billed=billed)
         .annotate(
             remaining=ExpressionWrapper(
-                F("grand_total") - F("billed"),
+                F("net_total") - F("billed"),
                 output_field=DecimalField(max_digits=18, decimal_places=2),
             )
         )
@@ -174,12 +175,12 @@ def dashboard(request):
     if can("selling.SalesInvoice"):
         total = SalesInvoice.objects.filter(
             company=company, docstatus=submitted
-        ).aggregate(t=Sum("grand_total"))["t"]
+        ).aggregate(t=Sum("net_total"))["t"]
         payload["total_sales"] = _money(total)
     if can("buying.PurchaseInvoice"):
         total = PurchaseInvoice.objects.filter(
             company=company, docstatus=submitted
-        ).aggregate(t=Sum("grand_total"))["t"]
+        ).aggregate(t=Sum("net_total"))["t"]
         payload["total_purchases"] = _money(total)
     if can("accounts.GLEntry"):
         payload["receivables_outstanding"] = _money(
