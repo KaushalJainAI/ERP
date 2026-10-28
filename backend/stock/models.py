@@ -199,6 +199,72 @@ class Warehouse(TimeStampedModel):
         return f"{self.name} ({self.company.abbr})"
 
 
+class PriceList(TimeStampedModel):
+    """A named set of item prices for selling and/or buying."""
+
+    name = models.CharField(max_length=140, unique=True)
+    # v1 has no currency conversion: a list must match the company currency.
+    currency = models.CharField(max_length=3, default="INR")
+    selling = models.BooleanField(default=False)
+    buying = models.BooleanField(default=False)
+    enabled = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(selling=True) | models.Q(buying=True),
+                name="check_price_list_has_direction",
+            )
+        ]
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class ItemPrice(TimeStampedModel):
+    """One price of an item on a price list, optionally UOM- and date-bounded."""
+
+    item = models.ForeignKey(Item, on_delete=models.PROTECT, related_name="prices")
+    price_list = models.ForeignKey(
+        PriceList, on_delete=models.PROTECT, related_name="prices"
+    )
+    # NULL means the item's stock UOM.
+    uom = models.ForeignKey(
+        UOM, null=True, blank=True, on_delete=models.PROTECT, related_name="item_prices"
+    )
+    rate = models.DecimalField(max_digits=18, decimal_places=6)
+    valid_from = models.DateField(null=True, blank=True)
+    valid_upto = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0), name="check_item_price_rate_non_negative"
+            ),
+            models.CheckConstraint(
+                check=models.Q(valid_upto__isnull=True)
+                | models.Q(valid_from__isnull=True)
+                | models.Q(valid_upto__gte=models.F("valid_from")),
+                name="check_item_price_dates",
+            ),
+            models.UniqueConstraint(
+                fields=["item", "price_list", "valid_from"],
+                condition=models.Q(uom__isnull=True, valid_from__isnull=False),
+                name="unique_item_price_from_date",
+            ),
+            models.UniqueConstraint(
+                fields=["item", "price_list"],
+                condition=models.Q(uom__isnull=True, valid_from__isnull=True),
+                name="unique_item_price_open_ended",
+            ),
+        ]
+        ordering = ("item", "price_list", "valid_from", "pk")
+
+    def __str__(self):
+        return f"{self.item.code} @ {self.price_list.name}: {self.rate}"
+
+
 class Batch(TimeStampedModel):
     """A lot of one batch-tracked item (manufacturing / expiry / supplier lot).
 

@@ -267,3 +267,28 @@ models used by selling/buying. Flag as models-only when reviewing.
 **Stock Entry manufacturing types.** `Material Transfer for Manufacture`, `Manufacture` and `Repack` are regular `StockEntry` documents (`stock/stock-entries/`). Manufacturing entries accept `work_order`, `bom`, `is_finished_item`, `is_scrap_item` and `cost_allocation_per` (Repack). `fg_completed_qty` and `process_loss_qty` are server-owned read-only fields. A Manufacture consumes exactly the Work Order's components from the WIP warehouse and produces one finished row; a Repack allocates the consumed value across finished rows by `cost_allocation_per` (must total 100).
 
 **GL.** A WIP warehouse may carry its own Stock account (`Warehouse.account`); stock posts to that account instead of the company default inventory account. A Material Transfer for Manufacture debits WIP and credits the source warehouses; a Manufacture credits WIP and debits the finished/scrap warehouses for the same total value (value conservation is asserted at submit). A `Manufacture` or `Repack` voucher posts no other GL row; the net residual goes to the stock adjustment account only when rounding leaves one.
+
+## Price lists (design section 5)
+
+| Endpoint | Method | Purpose | Notes |
+|---|---|---|---|
+| `stock/price-lists/` | GET/POST | Price-list master | `selling` and/or `buying`; `currency` must equal the company currency in v1 (no conversion). |
+| `stock/price-lists/{pk}/` | GET/PATCH/DELETE | Price-list detail | `PROTECT` once an item price or document references it. |
+| `stock/item-prices/` | GET/POST | Item prices on a list | `uom` blank = the item's stock UOM; `valid_from`/`valid_upto` are optional. Partial unique constraints allow several UOM or date rows. |
+| `stock/item-prices/rate/` | GET | Resolve one line rate | Params `item` and `company` (required), `type=selling|buying`, `customer` | `supplier`, `price_list`, `transaction_date`, `uom`. Missing data returns nulls, never a 404. |
+
+**Resolution order:** explicit document `price_list`, the customer's (or supplier's) own list, the nearest ancestor customer-group list, then the company `default_selling_price_list` / `default_buying_price_list`. For a chosen list the best row is the latest `valid_from` whose window contains the posting date; a UOM-specific row beats a blank-UOM row on the same date, and the newest row breaks any remaining tie.
+
+**Documents:** Sales/Purchase Order and Invoice headers carry `price_list`; lines carry `price_list_rate` (read-only snapshot, 6 dp). A line whose `rate` is omitted is filled from the resolved list; if the item has no row the item's `standard_rate` is the fallback, and a zero standard rate is a **400**. A supplied rate is kept. `POST .../update-rates/` on any draft document re-fetches every line and recalculates taxes/totals; it returns `{changed, document}` and **409** on a submitted document.
+
+## Credit limits (design section 6)
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `selling/customers/{pk}/credit-status/` | GET | `credit_limit`, `bypass`, GL `receivable_balance`, `unbilled_orders`, `exposure`, `available`, `source` |
+| `selling/sales-orders/{pk}/update-rates/` | POST | Draft-only line-rate refresh |
+| `selling/sales-invoices/{pk}/update-rates/` | POST | Draft-only line-rate refresh |
+| `buying/purchase-orders/{pk}/update-rates/` | POST | Draft-only line-rate refresh |
+| `buying/purchase-invoices/{pk}/update-rates/` | POST | Draft-only line-rate refresh |
+
+`Customer.credit_limit` is 2 dp and defaults to `0.00` ("no limit", as ERPNext). `bypass_credit_limit_check` skips the gate for one customer. At **submit** of a Sales Order or Sales Invoice the server computes exposure as the live GL receivable balance + the prorated value of the customer's other submitted, not-yet-billed Sales Orders + this document's `rounded_total`; it blocks when exposure is strictly greater than the limit. A superuser or a member of the `Credit Controller` role may override, and the override writes an immutable `credit_limit_override` row to the audit log. The check fails closed for an ORM submit with no user.

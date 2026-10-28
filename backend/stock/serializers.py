@@ -10,6 +10,8 @@ from stock.models import (
     Item,
     Warehouse,
     Batch,
+    PriceList,
+    ItemPrice,
     StockLedgerEntry,
     Bin,
     StockEntry,
@@ -276,6 +278,50 @@ class WarehouseSerializer(serializers.ModelSerializer):
             "created_at",
             "modified_at",
         )
+
+
+class PriceListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PriceList
+        fields = (
+            "id",
+            "name",
+            "currency",
+            "selling",
+            "buying",
+            "enabled",
+            "created_at",
+            "modified_at",
+        )
+
+
+class ItemPriceSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="item.code", read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    price_list_name = serializers.CharField(source="price_list.name", read_only=True)
+    uom_name = serializers.CharField(source="uom.name", read_only=True, default=None)
+
+    class Meta:
+        model = ItemPrice
+        fields = (
+            "id",
+            "item",
+            "item_code",
+            "item_name",
+            "price_list",
+            "price_list_name",
+            "uom",
+            "uom_name",
+            "rate",
+            "valid_from",
+            "valid_upto",
+            "created_at",
+            "modified_at",
+        )
+        # The model's unique constraints are *partial*; DRF would otherwise turn
+        # them into a global unique-together validator and refuse several UOM or
+        # date rows.  The database still enforces the intended uniqueness.
+        validators = []
 
 
 class StockLedgerEntrySerializer(serializers.ModelSerializer):

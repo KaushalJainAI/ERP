@@ -38,6 +38,7 @@ ROLES_SEED = [
     ("Accounts Manager", "Full permission over GL, invoices, and payments"),
     ("Sales Manager", "Full permission over selling chain"),
     ("Purchase Manager", "Full permission over buying chain"),
+    ("Credit Controller", "May override a customer credit-limit block"),
     ("System Manager", "System administration role"),
 ]
 
@@ -75,6 +76,8 @@ _MASTER_LABELS = (
     "stock.Item",
     "stock.Batch",
     "stock.Warehouse",
+    "stock.PriceList",
+    "stock.ItemPrice",
     "manufacturing.BOM",
     "selling.CustomerGroup",
     "selling.Customer",
@@ -119,6 +122,8 @@ _STOCK_LABELS = (
     "stock.Item",
     "stock.Batch",
     "stock.Warehouse",
+    "stock.PriceList",
+    "stock.ItemPrice",
     "stock.StockLedgerEntry",
     "stock.Bin",
     "stock.StockEntry",
@@ -140,6 +145,8 @@ _SELLING_LABELS = (
     "selling.Customer",
     "selling.SalesOrder",
     "selling.SalesInvoice",
+    "stock.PriceList",
+    "stock.ItemPrice",
 )
 
 _BUYING_LABELS = (
@@ -147,6 +154,8 @@ _BUYING_LABELS = (
     "buying.Supplier",
     "buying.PurchaseOrder",
     "buying.PurchaseInvoice",
+    "stock.PriceList",
+    "stock.ItemPrice",
 )
 
 #: The RBAC control plane -- who may grant authority.
@@ -235,6 +244,20 @@ ROLE_PERMISSION_MATRIX = {
     # The control plane: every business model, plus authority to grant it.
     "System Manager": {
         **_scope(EXPOSED_MODEL_LABELS, FULL),
+    },
+    # May override the credit gate, but reads only the records the decision
+    # needs (the customer, the documents and the masters behind them).
+    "Credit Controller": {
+        **_scope(
+            (
+                "selling.Customer",
+                "selling.SalesOrder",
+                "selling.SalesInvoice",
+                "accounts.GLEntry",
+            ),
+            READ,
+        ),
+        **_scope(_MASTER_LABELS, READ),
     },
 }
 

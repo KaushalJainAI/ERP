@@ -312,6 +312,22 @@ class Company(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    # Price-list defaults (design section 5.3): used when the party and its group
+    # do not name a list.
+    default_selling_price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    default_buying_price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
 
     # GST (see docs/gst_design.md). Percent/threshold style settings live on the
     # company (India Compliance keeps them in a "GST Settings" doctype).
@@ -488,7 +504,7 @@ class AuditLog(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
     )
-    action = models.CharField(max_length=20)  # create, update, submit, cancel, delete
+    action = models.CharField(max_length=40)  # create, update, submit, cancel, delete
     model_label = models.CharField(max_length=120, db_index=True)
     object_id = models.CharField(max_length=60, db_index=True)
     changes = models.JSONField(default=dict, blank=True)

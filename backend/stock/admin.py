@@ -16,6 +16,8 @@ from stock.models import (
     Bin,
     Item,
     ItemGroup,
+    ItemPrice,
+    PriceList,
     StockEntry,
     StockEntryItem,
     StockLedgerEntry,
@@ -235,3 +237,29 @@ class StockEntryAdmin(SubmittableDocumentAdmin):
             },
         ),
     )
+
+
+@admin.register(PriceList)
+class PriceListAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = ("name", "currency", "selling", "buying", "enabled")
+    list_filter = ("selling", "buying", "enabled", "currency")
+    search_fields = ("name",)
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("name",)
+
+
+@admin.register(ItemPrice)
+class ItemPriceAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "item",
+        "price_list",
+        "uom",
+        "rate",
+        "valid_from",
+        "valid_upto",
+    )
+    list_filter = ("price_list", "uom")
+    search_fields = ("item__code", "item__name", "price_list__name")
+    autocomplete_fields = ("item", "price_list", "uom")
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("item__code", "price_list__name")

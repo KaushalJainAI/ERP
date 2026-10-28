@@ -14,22 +14,28 @@ from stock.models import (
     Item,
     Warehouse,
     Batch,
+    PriceList,
+    ItemPrice,
     StockLedgerEntry,
     Bin,
     StockEntry,
 )
 from stock.services import batches as batch_service
+from stock.services import pricing as pricing_service
 from stock.serializers import (
     UOMSerializer,
     ItemGroupSerializer,
     ItemSerializer,
     WarehouseSerializer,
     BatchSerializer,
+    PriceListSerializer,
+    ItemPriceSerializer,
     StockLedgerEntrySerializer,
     BinSerializer,
     StockEntrySerializer,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
+from core.models import Company
 from users.permissions import HasRolePermission, require_model_permission
 
 
@@ -76,6 +82,24 @@ class WarehouseViewSet(AuditLogMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
     filterset_fields = ["company", "is_group"]
     search_fields = ["name"]
+
+
+class PriceListViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    queryset = PriceList.objects.all()
+    serializer_class = PriceListSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["selling", "buying", "enabled", "currency"]
+    search_fields = ["name"]
+    ordering_fields = ["name", "created_at"]
+
+
+class ItemPriceViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    queryset = ItemPrice.objects.all().select_related("item", "price_list", "uom")
+    serializer_class = ItemPriceSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["item", "price_list", "uom"]
+    search_fields = ["item__code", "item__name", "price_list__name"]
+    ordering_fields = ["item__code", "valid_from", "rate", "created_at"]
 
 
 def _jsonable(obj):
@@ -376,3 +400,72 @@ def stock_balance(request):
             "total_stock_value": str(total_value_sum.quantize(Decimal("0.01"))),
         }
     )
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("stock.ItemPrice")]
+)
+@_params_400
+def item_price_rate(request):
+    """Resolve the price-list rate for one item (design 5.3).
+
+    Params: ``item`` (required), ``type=selling|buying``, ``company``
+    (required), ``customer`` | ``supplier``, ``price_list``,
+    ``transaction_date`` and ``uom``.  Missing data is not an error: the rate
+    fields come back null so the client can keep its own prefill.
+    """
+    q = request.query_params
+    item_id = _parse_int(q.get("item"), "item", required=True)
+    company_id = _parse_int(q.get("company"), "company", required=True)
+    item = Item.objects.filter(pk=item_id).select_related("stock_uom").first()
+    if item is None:
+        raise DRFValidationError({"item": _("Item not found.")})
+    company = Company.objects.filter(pk=company_id).first()
+    if company is None:
+        raise DRFValidationError({"company": _("Company not found.")})
+    selling = q.get("type", "selling") != "buying"
+    price_list_id = _parse_int(q.get("price_list"), "price_list")
+    price_list = None
+    if price_list_id:
+        price_list = PriceList.objects.filter(pk=price_list_id).first()
+        if price_list is None:
+            raise DRFValidationError({"price_list": _("Price List not found.")})
+    customer = supplier = None
+    if selling:
+        customer_id = _parse_int(q.get("customer"), "customer")
+        if customer_id:
+            from selling.models import Customer
+
+            customer = Customer.objects.filter(
+                pk=customer_id, company=company
+            ).first()
+            if customer is None:
+                raise DRFValidationError({"customer": _("Customer not found.")})
+    else:
+        supplier_id = _parse_int(q.get("supplier"), "supplier")
+        if supplier_id:
+            from buying.models import Supplier
+
+            supplier = Supplier.objects.filter(
+                pk=supplier_id, company=company
+            ).first()
+            if supplier is None:
+                raise DRFValidationError({"supplier": _("Supplier not found.")})
+    uom_id = _parse_int(q.get("uom"), "uom")
+    uom = UOM.objects.filter(pk=uom_id).first() if uom_id else None
+    transaction_date = _parse_date(q.get("transaction_date"), "transaction_date")
+    result = pricing_service.fetch_rate(
+        item,
+        selling=selling,
+        company=company,
+        customer=customer,
+        supplier=supplier,
+        price_list=price_list,
+        transaction_date=transaction_date,
+        uom=uom,
+    )
+    if result["price_list"]:
+        pricing_service.validate_list(
+            PriceList.objects.get(pk=result["price_list"]), company, selling=selling
+        )
+    return Response(_jsonable(result))

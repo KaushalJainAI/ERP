@@ -39,6 +39,7 @@ def make_purchase_invoice(purchase_order):
             company=company,
             posting_date=datetime.date.today(),
             purchase_order=purchase_order,
+            price_list=purchase_order.price_list,
             taxes_and_charges=purchase_order.taxes_and_charges,
             place_of_supply=purchase_order.place_of_supply,
             is_export_with_gst=purchase_order.is_export_with_gst,

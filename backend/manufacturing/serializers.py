@@ -52,6 +52,9 @@ class BOMSerializer(NestedMasterWriteMixin, serializers.ModelSerializer):
 
     items = BOMItemSerializer(many=True, required=False)
     scrap_items = BOMScrapItemSerializer(many=True, required=False)
+    item_code = serializers.CharField(source="item.code", read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True)
     raw_material_cost = serializers.SerializerMethodField()
     scrap_value = serializers.SerializerMethodField()
     good_qty = serializers.SerializerMethodField()
@@ -63,7 +66,10 @@ class BOMSerializer(NestedMasterWriteMixin, serializers.ModelSerializer):
             "id",
             "name",
             "company",
+            "company_name",
             "item",
+            "item_code",
+            "item_name",
             "quantity",
             "process_loss_percentage",
             "rate_basis",
@@ -247,6 +253,26 @@ class WorkOrderItemSerializer(serializers.ModelSerializer):
 
 class WorkOrderSerializer(serializers.ModelSerializer):
     required_items = WorkOrderItemSerializer(many=True, read_only=True)
+    production_item_code = serializers.CharField(
+        source="production_item.code", read_only=True
+    )
+    production_item_name = serializers.CharField(
+        source="production_item.name", read_only=True
+    )
+    bom_name = serializers.CharField(source="bom.name", read_only=True)
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    source_warehouse_name = serializers.CharField(
+        source="source_warehouse.name", read_only=True
+    )
+    wip_warehouse_name = serializers.CharField(
+        source="wip_warehouse.name", read_only=True, allow_null=True
+    )
+    fg_warehouse_name = serializers.CharField(
+        source="fg_warehouse.name", read_only=True
+    )
+    scrap_warehouse_name = serializers.CharField(
+        source="scrap_warehouse.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = WorkOrder
@@ -254,13 +280,21 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "company",
+            "company_name",
             "production_item",
+            "production_item_code",
+            "production_item_name",
             "bom",
+            "bom_name",
             "qty",
             "source_warehouse",
+            "source_warehouse_name",
             "wip_warehouse",
+            "wip_warehouse_name",
             "fg_warehouse",
+            "fg_warehouse_name",
             "scrap_warehouse",
+            "scrap_warehouse_name",
             "skip_transfer",
             "planned_start_date",
             "expected_end_date",

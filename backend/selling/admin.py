@@ -40,7 +40,7 @@ class CustomerAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     )
     list_filter = ("company", "customer_group", "is_active", "gst_category")
     search_fields = ("name", "gstin", "tax_id", "email", "phone")
-    autocomplete_fields = ("company", "customer_group", "state")
+    autocomplete_fields = ("company", "customer_group", "state", "default_price_list")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("company", "name")
 
@@ -49,8 +49,8 @@ class SalesOrderItemInline(admin.TabularInline):
     model = SalesOrderItem
     extra = 1
     autocomplete_fields = ("item", "warehouse")
-    fields = ("item", "warehouse", "qty", "rate", "amount")
-    readonly_fields = ("amount",)
+    fields = ("item", "warehouse", "qty", "rate", "price_list_rate", "amount")
+    readonly_fields = ("price_list_rate", "amount")
 
 
 class SalesOrderTaxInline(admin.TabularInline):
@@ -142,8 +142,8 @@ class SalesInvoiceItemInline(admin.TabularInline):
     model = SalesInvoiceItem
     extra = 1
     autocomplete_fields = ("item", "warehouse")
-    fields = ("item", "warehouse", "qty", "rate", "amount")
-    readonly_fields = ("amount",)
+    fields = ("item", "warehouse", "qty", "rate", "price_list_rate", "amount")
+    readonly_fields = ("price_list_rate", "amount")
 
 
 class SalesInvoiceTaxInline(admin.TabularInline):

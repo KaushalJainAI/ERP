@@ -66,6 +66,13 @@ class Supplier(TimeStampedModel):
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=30, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    default_price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     class Meta:
         constraints = [
@@ -98,6 +105,13 @@ class PurchaseOrder(TaxableDocument, SubmittableDocument):
     grand_total = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
+    price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
 
     def validate_before_submit(self):
         items = self.items.all()
@@ -125,6 +139,9 @@ class PurchaseOrderItem(TaxableLine):
     )
     qty = models.DecimalField(max_digits=18, decimal_places=3)
     rate = models.DecimalField(max_digits=18, decimal_places=2)
+    price_list_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True
+    )
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
@@ -178,6 +195,13 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     )
     grand_total = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
     )
 
     def validate_before_submit(self):
@@ -385,6 +409,9 @@ class PurchaseInvoiceItem(TaxableLine):
     )
     qty = models.DecimalField(max_digits=18, decimal_places=3)
     rate = models.DecimalField(max_digits=18, decimal_places=2)
+    price_list_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True
+    )
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )

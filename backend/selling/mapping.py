@@ -38,6 +38,7 @@ def make_sales_invoice(sales_order):
             company=company,
             posting_date=datetime.date.today(),
             sales_order=sales_order,
+            price_list=sales_order.price_list,
             taxes_and_charges=sales_order.taxes_and_charges,
             place_of_supply=sales_order.place_of_supply,
             is_export_with_gst=sales_order.is_export_with_gst,

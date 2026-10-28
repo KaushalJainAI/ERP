@@ -111,8 +111,9 @@ This document outlines key technical decisions and architectural enhancements ma
   deliberate stricter default, or make it configurable — decide and record here.
 
 ### G9. Larger absent modules
-- No serial/batch tracking, no multi-currency exchange rates, no price lists / discounts,
-  no delivery-note ↔ invoice ↔ order fulfilment linkage. Noted for scope, not yet planned.
+- No serial/batch tracking on delivery notes, no multi-currency exchange rates, no item
+  discounts (price lists are now implemented), no delivery-note ↔ invoice ↔ order
+  fulfilment linkage. Noted for scope, not yet planned.
 
 ## Fixed / hardened (2026-07-23)
 
@@ -468,3 +469,11 @@ now match that posture.
 - **No serial numbers and no Serial and Batch Bundle.** One batch per line; multi-batch issues are multiple rows. `Manufacture` auto-creates a finished-goods batch with the item shelf life; `Repack` does the same. Consumption uses FEFO and refuses expired lots.
 - **Repack** allocates consumed value by `cost_allocation_per` (must total 100) over its finished rows; it has no process loss and cannot reference a Work Order.
 - **Production Yield** is reported per manufacturing voucher, with `process_loss_qty` and `loss_percent = loss / (output + loss) * 100`.
+
+## Price lists and credit limits (2026-10-28)
+
+- **Price lists are masters in `stock`.** `PriceList` and `ItemPrice` follow ERPNext's shape, including the UOM- and date-bounded rows and the partial unique constraints. v1 has no currency conversion: a list whose `currency` differs from the company currency is refused on use.
+- **One resolver for every document.** The explicit header list wins, then the party's own list, then the nearest customer-group ancestor, then the company default. A supplied line `rate` is never overwritten; an omitted rate is filled from the list, then the item's `standard_rate`, otherwise 400. The line keeps a `price_list_rate` snapshot at 6 dp.
+- **Credit exposure is GL-derived.** `credit_limit == 0` means no limit. Exposure = the customer's live Receivable balance (`accounts.services.outstanding.customer_outstanding`) + the remaining value of other submitted Sales Orders prorated by their `rounded_total` + the document being submitted. The gate is strictly greater-than, matching ERPNext.
+- **Override is audited, not silent.** A superuser or a `Credit Controller` role member may submit past the limit; the audit log gets a `credit_limit_override` row with the limit, existing exposure, document total and resulting exposure. Without a user the check fails closed.
+- **`update-rates` is draft-only.** It re-resolves every line and recalculates taxes and totals; submitted documents return **409**. The mapping from an order to its invoice copies the header list and each line's snapshot.

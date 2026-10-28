@@ -33,6 +33,13 @@ class CustomerGroup(TimeStampedModel):
         related_name="children",
     )
     is_group = models.BooleanField(default=True)
+    default_price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     def __str__(self):
         return self.name
@@ -66,12 +73,28 @@ class Customer(TimeStampedModel):
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=30, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    default_price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    # 0 means "no limit" (ERPNext's convention).
+    credit_limit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    bypass_credit_limit_check = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["company", "name"], name="unique_customer_per_company"
-            )
+            ),
+            models.CheckConstraint(
+                check=models.Q(credit_limit__gte=0),
+                name="check_customer_credit_limit_non_negative",
+            ),
         ]
 
     def __str__(self):
@@ -98,6 +121,19 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
     grand_total = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
+    price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    def submit(self, user=None):
+        # ``SubmittableDocument.submit`` does not pass the user into
+        # ``validate_before_submit``; the credit override needs it (design 6.2).
+        self._submit_user = user
+        return super().submit(user=user)
 
     def validate_before_submit(self):
         items = self.items.all()
@@ -112,6 +148,9 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
                     % {"code": line.item.code, "batch": line.batch.batch_no}
                 )
         self.calculate_taxes_and_totals(for_submit=True)
+        from selling.services import credit as credit_service
+
+        credit_service.enforce(self, getattr(self, "_submit_user", None))
 
     def on_submit(self):
         pass  # Submitting reserves order intent; stock/GL posted on invoice or delivery
@@ -133,6 +172,10 @@ class SalesOrderItem(TaxableLine):
     )
     qty = models.DecimalField(max_digits=18, decimal_places=3)
     rate = models.DecimalField(max_digits=18, decimal_places=2)
+    # Snapshot of the price-list rate at fetch time (6 dp; design 5.1).
+    price_list_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True
+    )
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
@@ -194,6 +237,18 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     grand_total = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
+    price_list = models.ForeignKey(
+        "stock.PriceList",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    def submit(self, user=None):
+        # Stash the user for the credit override (design 6.2).
+        self._submit_user = user
+        return super().submit(user=user)
 
     def validate_before_submit(self):
         items = self.items.all()
@@ -219,6 +274,9 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             )  # raises if perpetual is on but misconfigured
         self._validate_batch_lines()
         self.calculate_taxes_and_totals(for_submit=True)
+        from selling.services import credit as credit_service
+
+        credit_service.enforce(self, getattr(self, "_submit_user", None))
         posting.validate_posting(self)
 
     def _validate_batch_lines(self):
@@ -369,6 +427,10 @@ class SalesInvoiceItem(TaxableLine):
     )
     qty = models.DecimalField(max_digits=18, decimal_places=3)
     rate = models.DecimalField(max_digits=18, decimal_places=2)
+    # Snapshot of the price-list rate at fetch time (6 dp; design 5.1).
+    price_list_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True
+    )
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )

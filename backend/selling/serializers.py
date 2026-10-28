@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from decimal import Decimal
 from gst.serializers import PartyGSTSerializerMixin
 from selling.models import (
     CustomerGroup,
@@ -23,10 +24,14 @@ from core.mixins import (
     PositiveQtyLineItemMixin,
     NonNegativeRateLineItemMixin,
 )
+from stock.services import pricing as pricing_service
 
 
 class CustomerGroupSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source="parent.name", read_only=True)
+    default_price_list_name = serializers.CharField(
+        source="default_price_list.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = CustomerGroup
@@ -36,6 +41,8 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
             "parent",
             "parent_name",
             "is_group",
+            "default_price_list",
+            "default_price_list_name",
             "created_at",
             "modified_at",
         )
@@ -50,6 +57,9 @@ class CustomerSerializer(
     )
     state_name = serializers.CharField(
         source="state.name", read_only=True, allow_null=True
+    )
+    default_price_list_name = serializers.CharField(
+        source="default_price_list.name", read_only=True, allow_null=True
     )
 
     class Meta:
@@ -69,6 +79,10 @@ class CustomerSerializer(
             "email",
             "phone",
             "is_active",
+            "default_price_list",
+            "default_price_list_name",
+            "credit_limit",
+            "bypass_credit_limit_check",
             "created_at",
             "modified_at",
         )
@@ -84,6 +98,13 @@ class SalesOrderItemSerializer(
         source="warehouse.name", read_only=True, allow_null=True
     )
     batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
+    rate = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
 
     class Meta:
         model = SalesOrderItem
@@ -96,12 +117,13 @@ class SalesOrderItemSerializer(
             "warehouse_name",
             "qty",
             "rate",
+            "price_list_rate",
             "amount",
             "batch",
             "batch_no",
             *LINE_GST_FIELDS,
         )
-        read_only_fields = LINE_GST_FIELDS
+        read_only_fields = ("price_list_rate", *LINE_GST_FIELDS)
 
 
 SalesOrderTaxSerializer = tax_row_serializer(SalesOrderTax)
@@ -122,6 +144,9 @@ class SalesOrderSerializer(
         source="taxes_and_charges.title", read_only=True, allow_null=True
     )
     customer_name = serializers.CharField(source="customer.name", read_only=True)
+    price_list_name = serializers.CharField(
+        source="price_list.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = SalesOrder
@@ -131,6 +156,8 @@ class SalesOrderSerializer(
             "customer",
             "customer_name",
             "company",
+            "price_list",
+            "price_list_name",
             "transaction_date",
             "delivery_date",
             "grand_total",
@@ -154,6 +181,16 @@ class SalesOrderSerializer(
             "modified_at",
         )
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return pricing_service.apply_line_rates(
+            self,
+            attrs,
+            selling=True,
+            party_field="customer",
+            date_field="transaction_date",
+        )
+
 
 class SalesInvoiceItemSerializer(
     PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
@@ -164,6 +201,13 @@ class SalesInvoiceItemSerializer(
         source="warehouse.name", read_only=True, allow_null=True
     )
     batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
+    rate = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0"),
+    )
 
     class Meta:
         model = SalesInvoiceItem
@@ -176,12 +220,13 @@ class SalesInvoiceItemSerializer(
             "warehouse_name",
             "qty",
             "rate",
+            "price_list_rate",
             "amount",
             "batch",
             "batch_no",
             *LINE_GST_FIELDS,
         )
-        read_only_fields = LINE_GST_FIELDS
+        read_only_fields = ("price_list_rate", *LINE_GST_FIELDS)
 
 
 SalesInvoiceTaxSerializer = tax_row_serializer(SalesInvoiceTax)
@@ -211,6 +256,9 @@ class SalesInvoiceSerializer(
     income_account_name = serializers.CharField(
         source="income_account.name", read_only=True
     )
+    price_list_name = serializers.CharField(
+        source="price_list.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = SalesInvoice
@@ -220,6 +268,8 @@ class SalesInvoiceSerializer(
             "customer",
             "customer_name",
             "company",
+            "price_list",
+            "price_list_name",
             "posting_date",
             "due_date",
             "sales_order",
@@ -256,4 +306,14 @@ class SalesInvoiceSerializer(
             *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return pricing_service.apply_line_rates(
+            self,
+            attrs,
+            selling=True,
+            party_field="customer",
+            date_field="posting_date",
         )

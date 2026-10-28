@@ -227,6 +227,8 @@ class CompanySerializer(serializers.ModelSerializer):
             "default_inventory_account",
             "stock_adjustment_account",
             "default_expense_account",
+            "default_selling_price_list",
+            "default_buying_price_list",
             "state",
             "gst_category",
             "hsn_min_digits",
