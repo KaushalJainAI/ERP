@@ -742,6 +742,18 @@ const hi: Record<string, unknown> = {
     no_accounts: "इन फ़िल्टरों से कोई GST कर खाता मेल नहीं खाता।",
     view_gl: "सामान्य खाता-बही में खोलें",
   },
+  ageing: {
+    receivable_title: "प्राप्य आयु विश्लेषण",
+    party_type: "पक्षकार प्रकार",
+    as_on: "तिथि पर",
+    party: "पक्षकार",
+    invoice: "चालान",
+    days_overdue: "अतिदेय दिन",
+    outstanding: "बकाया",
+    payment_status: "भुगतान स्थिति",
+    status: { overdue: "अतिदेय", unpaid: "अवैतनिक", partly_paid: "आंशिक भुगतान", paid: "भुगतान हुआ" },
+    bucket: { "0-30": "0-30 दिन", "31-60": "31-60 दिन", "61-90": "61-90 दिन", "90+": "90+ दिन" },
+  },
 };
 
 export default hi;

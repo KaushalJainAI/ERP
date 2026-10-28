@@ -742,6 +742,18 @@ const bn: Record<string, unknown> = {
     no_accounts: "এই ফিল্টারের সঙ্গে কোনো GST কর অ্যাকাউন্ট মেলেনি।",
     view_gl: "সাধারণ খতিয়ানে খুলুন",
   },
+  ageing: {
+    receivable_title: "প্রাপ্য বয়স বিশ্লেষণ",
+    party_type: "পক্ষের ধরন",
+    as_on: "তারিখ অনুযায়ী",
+    party: "পক্ষ",
+    invoice: "চালান",
+    days_overdue: "মেয়াদোত্তীর্ণ দিন",
+    outstanding: "বকেয়া",
+    payment_status: "পেমেন্ট স্থিতি",
+    status: { overdue: "মেয়াদোত্তীর্ণ", unpaid: "অপরিশোধিত", partly_paid: "আংশিক পরিশোধিত", paid: "পরিশোধিত" },
+    bucket: { "0-30": "0-30 দিন", "31-60": "31-60 দিন", "61-90": "61-90 দিন", "90+": "90+ দিন" },
+  },
 };
 
 export default bn;

@@ -742,6 +742,18 @@ const kn: Record<string, unknown> = {
     no_accounts: "ಈ ಫಿಲ್ಟರ್‌ಗಳಿಗೆ ಹೊಂದುವ GST ತೆರಿಗೆ ಖಾತೆಗಳಿಲ್ಲ.",
     view_gl: "ಸಾಮಾನ್ಯ ಲೆಡ್ಜರ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ",
   },
+  ageing: {
+    receivable_title: "ಸ್ವೀಕಾರಾರ್ಹ ವಯಸ್ಸಿನ ವಿಶ್ಲೇಷಣೆ",
+    party_type: "ಪಕ್ಷದ ಪ್ರಕಾರ",
+    as_on: "ಈ ದಿನಾಂಕದಂತೆ",
+    party: "ಪಕ್ಷ",
+    invoice: "ಸರಕುಪಟ್ಟಿ",
+    days_overdue: "ಅವಧಿ ಮೀರಿದ ದಿನಗಳು",
+    outstanding: "ಬಾಕಿ",
+    payment_status: "ಪಾವತಿ ಸ್ಥಿತಿ",
+    status: { overdue: "ಅವಧಿ ಮೀರಿದ", unpaid: "ಪಾವತಿಸದ", partly_paid: "ಭಾಗಶಃ ಪಾವತಿಸಲಾಗಿದೆ", paid: "ಪಾವತಿಸಲಾಗಿದೆ" },
+    bucket: { "0-30": "0-30 ದಿನಗಳು", "31-60": "31-60 ದಿನಗಳು", "61-90": "61-90 ದಿನಗಳು", "90+": "90+ ದಿನಗಳು" },
+  },
 };
 
 export default kn;

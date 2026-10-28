@@ -13,6 +13,7 @@ import {
   taxesTable,
 } from "./gst";
 import { DocStatus, type ChildColumnDef, type FieldDef, type LinkDef, type ResourceConfig } from "@/types";
+import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
 
@@ -239,6 +240,7 @@ const salesInvoices: ResourceConfig = {
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
     { key: "docstatus", labelKey: "status", type: "status" },
+    ...invoiceStatusColumns,
   ],
   fields: [
     docNoField,
@@ -262,6 +264,7 @@ const salesInvoices: ResourceConfig = {
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
     ...taxHeaderFields("Sales"),
     ...taxTotalFields(),
+    ...invoiceStatusFields,
   ],
   childTables: [itemsTable, taxesTable],
   preview: taxPreview("selling.SalesInvoice", "customer"),

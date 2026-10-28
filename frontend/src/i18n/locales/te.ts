@@ -742,6 +742,18 @@ const te: Record<string, unknown> = {
     no_accounts: "ఈ ఫిల్టర్లకు సరిపోయే GST పన్ను ఖాతాలు లేవు.",
     view_gl: "సాధారణ ఖాతా పుస్తకంలో తెరవండి",
   },
+  ageing: {
+    receivable_title: "రాబడి వయస్సు విశ్లేషణ",
+    party_type: "పక్షం రకం",
+    as_on: "ఈ తేదీ నాటికి",
+    party: "పక్షం",
+    invoice: "ఇన్‌వాయిస్",
+    days_overdue: "ఆలస్య రోజులు",
+    outstanding: "బకాయి",
+    payment_status: "చెల్లింపు స్థితి",
+    status: { overdue: "గడువు మించిన", unpaid: "చెల్లించని", partly_paid: "పాక్షికంగా చెల్లించిన", paid: "చెల్లించిన" },
+    bucket: { "0-30": "0-30 రోజులు", "31-60": "31-60 రోజులు", "61-90": "61-90 రోజులు", "90+": "90+ రోజులు" },
+  },
 };
 
 export default te;

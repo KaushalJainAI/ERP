@@ -1,5 +1,5 @@
-import type { ComponentType } from "react";
-import type { FieldType, LinkDef, SelectOption } from "./index";
+import type { ComponentType, ReactNode } from "react";
+import type { ApiRecord, FieldType, LinkDef, SelectOption } from "./index";
 
 /** A filter input shown above a report; its value is sent as a query param named `key`. */
 export interface ReportFilterDef {
@@ -13,12 +13,14 @@ export interface ReportFilterDef {
 }
 
 export interface ReportColumnDef {
-  /** Property on each row. */
+  /** Property on each row. Dots address nested objects (e.g. "buckets.0-30"). */
   key: string;
   /** i18n key */
   labelKey: string;
   /** Default "text". money -> Indian currency, number -> Indian grouping, date -> dd/mm/yyyy. */
   type?: "text" | "money" | "number" | "date" | "boolean";
+  /** Custom cell rendering; receives the resolved value (dot paths already applied) and the row. */
+  render?: (value: any, row: ApiRecord) => ReactNode;
 }
 
 /**

@@ -742,6 +742,18 @@ const ur: Record<string, unknown> = {
     no_accounts: "ان فلٹرز سے کوئی GST ٹیکس اکاؤنٹ مطابقت نہیں رکھتا۔",
     view_gl: "جنرل لیجر میں کھولیں",
   },
+  ageing: {
+    receivable_title: "وصولی عمر کا تجزیہ",
+    party_type: "فریق کی قسم",
+    as_on: "اس تاریخ تک",
+    party: "فریق",
+    invoice: "انوائس",
+    days_overdue: "زائد المیعاد دن",
+    outstanding: "باقی",
+    payment_status: "ادائیگی کی حیثیت",
+    status: { overdue: "زائد المیعاد", unpaid: "غیر ادا شدہ", partly_paid: "جزوی ادا شدہ", paid: "ادا شدہ" },
+    bucket: { "0-30": "0-30 دن", "31-60": "31-60 دن", "61-90": "61-90 دن", "90+": "90+ دن" },
+  },
 };
 
 export default ur;

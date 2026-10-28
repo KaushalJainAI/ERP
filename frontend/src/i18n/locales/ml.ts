@@ -742,6 +742,18 @@ const ml: Record<string, unknown> = {
     no_accounts: "ഈ ഫിൽട്ടറുകൾക്ക് യോജിക്കുന്ന GST നികുതി അക്കൗണ്ടുകളില്ല.",
     view_gl: "ജനറൽ ലെഡ്ജറിൽ തുറക്കുക",
   },
+  ageing: {
+    receivable_title: "ലഭ്യമായ കുടിശ്ശിക പ്രായവിശകലനം",
+    party_type: "കക്ഷി തരം",
+    as_on: "ഈ തീയതി വരെ",
+    party: "കക്ഷി",
+    invoice: "ഇൻവോയ്സ്",
+    days_overdue: "കാലതാമസ ദിവസങ്ങൾ",
+    outstanding: "കുടിശ്ശിക",
+    payment_status: "പേയ്‌മെന്റ് നില",
+    status: { overdue: "കാലഹരണപ്പെട്ടത്", unpaid: "അടയ്ക്കാത്തത്", partly_paid: "ഭാഗികമായി അടച്ചത്", paid: "അടച്ചത്" },
+    bucket: { "0-30": "0-30 ദിവസം", "31-60": "31-60 ദിവസം", "61-90": "61-90 ദിവസം", "90+": "90+ ദിവസം" },
+  },
 };
 
 export default ml;

@@ -7,6 +7,7 @@ import { buyingResources } from "./buying";
 import { gstResources } from "./gstMasters";
 import { gstReportLinks } from "./gstReports";
 import { stockReports, stockResources } from "./stock";
+import { ageingReports } from "./ageing";
 import { usersLinks, usersResources } from "./users";
 
 /**
@@ -49,7 +50,7 @@ export const MODULES: ModuleDef[] = [
 ];
 
 /** Read-only report pages (routes /<module>/reports/<key>, shown in the sidebar). Append other modules' reports here. */
-export const REPORTS: ReportConfig[] = [...stockReports];
+export const REPORTS: ReportConfig[] = [...stockReports, ...ageingReports];
 
 export const reportsOf = (moduleKey: string) => REPORTS.filter((r) => r.module === moduleKey && !r.hideInSidebar);
 

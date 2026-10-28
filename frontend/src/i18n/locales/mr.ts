@@ -742,6 +742,18 @@ const mr: Record<string, unknown> = {
     no_accounts: "या फिल्टरशी जुळणारे GST कर खाते नाही.",
     view_gl: "सामान्य खतावणीत उघडा",
   },
+  ageing: {
+    receivable_title: "प्राप्य वय विश्लेषण",
+    party_type: "पक्ष प्रकार",
+    as_on: "या तारखेपर्यंत",
+    party: "पक्ष",
+    invoice: "बीजक",
+    days_overdue: "थकीत दिवस",
+    outstanding: "थकबाकी",
+    payment_status: "देयक स्थिती",
+    status: { overdue: "थकीत", unpaid: "अदत्त", partly_paid: "अंशतः अदत्त", paid: "अदा केले" },
+    bucket: { "0-30": "0-30 दिवस", "31-60": "31-60 दिवस", "61-90": "61-90 दिवस", "90+": "90+ दिवस" },
+  },
 };
 
 export default mr;

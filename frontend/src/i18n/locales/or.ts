@@ -742,6 +742,18 @@ const or: Record<string, unknown> = {
     no_accounts: "ଏହି ଫିଲ୍ଟର ସହ ମେଳ ଖାଉଥିବା କୌଣସି GST ଟିକସ ଖାତା ନାହିଁ।",
     view_gl: "ଜେନେରାଲ୍ ଲେଜରରେ ଖୋଲନ୍ତୁ",
   },
+  ageing: {
+    receivable_title: "ପ୍ରାପ୍ୟ ବାକି ବୟସ ବିଶ୍ଳେଷଣ",
+    party_type: "ପକ୍ଷ ପ୍ରକାର",
+    as_on: "ଏହି ତାରିଖ ସୁଦ୍ଧା",
+    party: "ପକ୍ଷ",
+    invoice: "ଇନଭଏସ",
+    days_overdue: "ବିଳମ୍ବିତ ଦିନ",
+    outstanding: "ବାକି",
+    payment_status: "ଦେୟ ସ୍ଥିତି",
+    status: { overdue: "ମିଆଦ ଉତୀର୍ଣ୍ଣ", unpaid: "ଅପରିଶୋଧିତ", partly_paid: "ଆଂଶିକ ପରିଶୋଧିତ", paid: "ପରିଶୋଧିତ" },
+    bucket: { "0-30": "0-30 ଦିନ", "31-60": "31-60 ଦିନ", "61-90": "61-90 ଦିନ", "90+": "90+ ଦିନ" },
+  },
 };
 
 export default or;

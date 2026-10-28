@@ -27,3 +27,9 @@ erpnext/
 
 # Tally import reconciliation: real customer names and balances, keep local
 backend/docs/tally_import_report.md
+
+# Test/coverage and session transcripts
+backend/.coverage
+.coverage
+2026-*.txt
+

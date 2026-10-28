@@ -29,6 +29,10 @@ const extractRows = (data: any, rowsKey?: string): ApiRecord[] => {
   return [];
 };
 
+/** Resolve a dotted property path; plain keys behave as before. */
+const getPath = (obj: any, path: string): any =>
+  path.split(".").reduce((acc, part) => (acc === null || acc === undefined ? undefined : acc[part]), obj);
+
 const alignRight = (c: ReportColumnDef) => c.type === "money" || c.type === "number";
 
 /**
@@ -56,7 +60,8 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
   const err = error ? normaliseError(error) : null;
   const rows = extractRows(data, config.rowsKey);
 
-  const renderCell = (col: ReportColumnDef, value: any): React.ReactNode => {
+  const renderCell = (col: ReportColumnDef, value: any, row?: ApiRecord): React.ReactNode => {
+    if (col.render) return col.render(value, row ?? {});
     switch (col.type) {
       case "money":
         return <span className="tabular-nums">{formatIndianCurrency(value)}</span>;
@@ -147,7 +152,7 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
                     <tr key={String(row.id ?? i)} className="hover:bg-slate-800/40 transition-colors">
                       {config.columns.map((c) => (
                         <td key={c.key} className={`px-5 py-3 ${alignRight(c) ? "text-right" : ""}`}>
-                          {renderCell(c, row[c.key])}
+                          {renderCell(c, getPath(row, c.key), row)}
                         </td>
                       ))}
                     </tr>
@@ -164,7 +169,7 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
                           {idx === 0 && !src
                             ? t(config.totalsLabelKey ?? "bs.report.total")
                             : src
-                              ? renderCell(c, (data as any)[src])
+                              ? renderCell(c, getPath(data, src))
                               : ""}
                         </td>
                       );

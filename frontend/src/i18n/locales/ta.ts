@@ -742,6 +742,18 @@ const ta: Record<string, unknown> = {
     no_accounts: "இந்த வடிகட்டிகளுக்குப் பொருந்தும் GST வரி கணக்குகள் இல்லை.",
     view_gl: "பொது பேரேட்டில் திற",
   },
+  ageing: {
+    receivable_title: "வரவு வயது பகுப்பாய்வு",
+    party_type: "தரப்பு வகை",
+    as_on: "இந்தத் தேதியில்",
+    party: "தரப்பு",
+    invoice: "விலைப்பட்டியல்",
+    days_overdue: "தாமத நாட்கள்",
+    outstanding: "நிலுவை",
+    payment_status: "கட்டண நிலை",
+    status: { overdue: "தாமதம்", unpaid: "செலுத்தப்படவில்லை", partly_paid: "பகுதி செலுத்தப்பட்டது", paid: "செலுத்தப்பட்டது" },
+    bucket: { "0-30": "0-30 நாட்கள்", "31-60": "31-60 நாட்கள்", "61-90": "61-90 நாட்கள்", "90+": "90+ நாட்கள்" },
+  },
 };
 
 export default ta;

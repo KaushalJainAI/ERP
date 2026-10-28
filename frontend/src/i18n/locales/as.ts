@@ -742,6 +742,18 @@ const as: Record<string, unknown> = {
     no_accounts: "এই ফিল্টাৰৰ সৈতে মিল থকা কোনো GST কৰ একাউণ্ট নাই।",
     view_gl: "জেনেৰেল লেজাৰত খোলক",
   },
+  ageing: {
+    receivable_title: "প্ৰাপ্য বাকী বয়স বিশ্লেষণ",
+    party_type: "পক্ষৰ প্ৰকাৰ",
+    as_on: "এই তাৰিখলৈ",
+    party: "পক্ষ",
+    invoice: "ইনভয়েছ",
+    days_overdue: "বিলম্বিত দিন",
+    outstanding: "বাকী",
+    payment_status: "পেমেন্ট স্থিতি",
+    status: { overdue: "ম্যাদ উকলি যোৱা", unpaid: "অপৰিশোধিত", partly_paid: "আংশিক পৰিশোধিত", paid: "পৰিশোধিত" },
+    bucket: { "0-30": "0-30 দিন", "31-60": "31-60 দিন", "61-90": "61-90 দিন", "90+": "90+ দিন" },
+  },
 };
 
 export default as;

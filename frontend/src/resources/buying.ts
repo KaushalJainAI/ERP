@@ -2,6 +2,7 @@ import { FilePlus2, Receipt, ShoppingBag, Truck, Users, Wallet } from "lucide-re
 import { todayISO } from "@/lib/format";
 import { DocStatus, type LinkDef, type ResourceConfig } from "@/types";
 import { accountLink, companyField, docNoField, itemsTable } from "./selling";
+import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 import {
   gstOptionCell,
   partyGstFields,
@@ -153,6 +154,7 @@ const purchaseInvoices: ResourceConfig = {
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
     { key: "docstatus", labelKey: "status", type: "status" },
+    ...invoiceStatusColumns,
   ],
   fields: [
     docNoField,
@@ -176,6 +178,7 @@ const purchaseInvoices: ResourceConfig = {
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
     ...taxHeaderFields("Purchase"),
     ...taxTotalFields(),
+    ...invoiceStatusFields,
   ],
   childTables: [itemsTable, taxesTable],
   preview: taxPreview("buying.PurchaseInvoice", "supplier"),

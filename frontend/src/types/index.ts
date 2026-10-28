@@ -116,6 +116,8 @@ export interface FieldDef {
    * changes. After a save the server value is shown (server is the source of truth).
    */
   preview?: (values: Record<string, any>) => string | null;
+  /** Custom display of a `preview` (computed) field in the totals block, e.g. a status badge. */
+  renderValue?: (value: any, values: Record<string, any>) => ReactNode;
   /** i18n key for a hint under the input */
   helpKey?: string;
   /** Keys of other fields to reset when this one changes (e.g. company -> customer). */

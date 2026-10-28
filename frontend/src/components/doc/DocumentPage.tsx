@@ -655,7 +655,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
                 <div key={f.key} className="flex items-baseline justify-between gap-4">
                   <dt className="text-xs uppercase tracking-wider text-slate-400">{t(f.labelKey)}</dt>
                   <dd className="text-lg font-semibold text-slate-100 tabular-nums">
-                    {formatReadOnly(f, live)}
+                    {f.renderValue ? f.renderValue(live, formValues) : formatReadOnly(f, live)}
                     {previewState?.pending ? (
                       <Loader2 className="inline w-3 h-3 ml-2 animate-spin text-slate-500" aria-label={t("common.loading")} />
                     ) : (

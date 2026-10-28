@@ -742,6 +742,18 @@ const gu: Record<string, unknown> = {
     no_accounts: "આ ફિલ્ટર સાથે મેળ ખાતું કોઈ GST કર ખાતું નથી.",
     view_gl: "સામાન્ય ખાતાવહીમાં ખોલો",
   },
+  ageing: {
+    receivable_title: "લેણાં વય વિશ્લેષણ",
+    party_type: "પક્ષ પ્રકાર",
+    as_on: "આ તારીખે",
+    party: "પક્ષ",
+    invoice: "ઇન્વોઇસ",
+    days_overdue: "મુદતવીતી દિવસ",
+    outstanding: "બાકી",
+    payment_status: "ચુકવણી સ્થિતિ",
+    status: { overdue: "મુદતવીતી", unpaid: "ચૂકવેલ નથી", partly_paid: "આંશિક ચૂકવેલ", paid: "ચૂકવેલ" },
+    bucket: { "0-30": "0-30 દિવસ", "31-60": "31-60 દિવસ", "61-90": "61-90 દિવસ", "90+": "90+ દિવસ" },
+  },
 };
 
 export default gu;

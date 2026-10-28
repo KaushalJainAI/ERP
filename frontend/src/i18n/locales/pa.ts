@@ -742,6 +742,18 @@ const pa: Record<string, unknown> = {
     no_accounts: "ਇਨ੍ਹਾਂ ਫਿਲਟਰਾਂ ਨਾਲ ਮੇਲ ਖਾਂਦਾ ਕੋਈ GST ਟੈਕਸ ਖਾਤਾ ਨਹੀਂ।",
     view_gl: "ਜਨਰਲ ਲੇਜ਼ਰ ਵਿੱਚ ਖੋਲ੍ਹੋ",
   },
+  ageing: {
+    receivable_title: "ਪ੍ਰਾਪਤੀਯੋਗ ਬਕਾਇਆ ਉਮਰ ਵਿਸ਼ਲੇਸ਼ਣ",
+    party_type: "ਪਾਰਟੀ ਕਿਸਮ",
+    as_on: "ਇਸ ਤਾਰੀਖ ਤੱਕ",
+    party: "ਪਾਰਟੀ",
+    invoice: "ਇਨਵੌਇਸ",
+    days_overdue: "ਬਕਾਇਆ ਦਿਨ",
+    outstanding: "ਬਕਾਇਆ",
+    payment_status: "ਭੁਗਤਾਨ ਸਥਿਤੀ",
+    status: { overdue: "ਮਿਆਦ ਪੁੱਗੀ", unpaid: "ਅਦਾਇਗੀ ਨਹੀਂ ਹੋਈ", partly_paid: "ਅੰਸ਼ਕ ਅਦਾਇਗੀ", paid: "ਅਦਾ ਕੀਤਾ" },
+    bucket: { "0-30": "0-30 ਦਿਨ", "31-60": "31-60 ਦਿਨ", "61-90": "61-90 ਦਿਨ", "90+": "90+ ਦਿਨ" },
+  },
 };
 
 export default pa;

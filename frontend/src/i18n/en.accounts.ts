@@ -4,6 +4,28 @@
  * avoid clobbering other modules' `fields` / `res` / `nav` objects.
  */
 export const enAccounts = {
+  ageing: {
+    receivable_title: "Receivable Ageing",
+    party_type: "Party Type",
+    as_on: "As On",
+    party: "Party",
+    invoice: "Invoice",
+    days_overdue: "Days Overdue",
+    outstanding: "Outstanding",
+    payment_status: "Payment Status",
+    status: {
+      overdue: "Overdue",
+      unpaid: "Unpaid",
+      partly_paid: "Partly Paid",
+      paid: "Paid",
+    },
+    bucket: {
+      "0-30": "0-30 Days",
+      "31-60": "31-60 Days",
+      "61-90": "61-90 Days",
+      "90+": "90+ Days",
+    },
+  },
   acc: {
     nav: {
       reports: "Reports",
