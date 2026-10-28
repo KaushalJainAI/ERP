@@ -4,6 +4,7 @@ import { isValidDecimalInput } from "@/lib/decimal";
 import { formatIndianCurrency, formatIndianNumber } from "@/lib/numberFormat";
 import { LinkField } from "./LinkField";
 import { MultiSelectField } from "./MultiSelectField";
+import { Select } from "@/components/ui/Select";
 import type { FieldType, LinkDef, LinkRecord, SelectOption } from "@/types";
 
 export interface InputDef {
@@ -53,7 +54,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
 }) => {
   const { t } = useTranslation();
   const pad = compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm";
-  const base = `w-full bg-slate-950 border rounded-lg text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed ${pad} ${
+  const base = `w-full bg-slate-950 border rounded-lg text-slate-200 placeholder:text-slate-500 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${pad} ${
     invalid ? "border-rose-500" : "border-slate-800"
   }`;
 
@@ -116,20 +117,19 @@ export const FieldInput: React.FC<FieldInputProps> = ({
 
     case "select":
       return (
-        <select
+        <Select
           id={id}
-          value={value ?? ""}
+          value={value == null ? "" : String(value)}
           disabled={readOnly}
-          onChange={(e) => onChange(e.target.value)}
-          className={base}
-        >
-          {!def.required && <option value="" />}
-          {(def.options || []).map((o) => (
-            <option key={String(o.value)} value={o.value}>
-              {t(o.labelKey)}
-            </option>
-          ))}
-        </select>
+          invalid={invalid}
+          compact={compact}
+          placeholder={placeholder || t("common.select")}
+          onChange={onChange}
+          options={[
+            ...(def.required ? [] : [{ value: "", label: "" }]),
+            ...(def.options || []).map((o) => ({ value: String(o.value), label: t(o.labelKey) })),
+          ]}
+        />
       );
 
     case "textarea":

@@ -62,7 +62,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return (
             <div
               key={toast.id}
-              className={`flex items-start gap-2 px-3.5 py-3 rounded-lg border shadow-xl text-sm ${STYLES[toast.kind]}`}
+              className={`flex items-start gap-2 px-3.5 py-3 rounded-xl border shadow-2xl text-sm ${STYLES[toast.kind]}`}
             >
               <Icon className="w-4 h-4 mt-0.5 shrink-0" />
               <span className="flex-1 break-words">{toast.message}</span>

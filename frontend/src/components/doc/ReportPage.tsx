@@ -77,7 +77,7 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
     <Layout>
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
         <div className="p-5 border-b border-slate-800 space-y-4">
-          <h1 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
             {t(config.titleKey)}
             {isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
           </h1>
@@ -102,7 +102,7 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
               <button
                 type="button"
                 onClick={() => setFilters(initialFilters(config.filters))}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-sm flex items-center gap-1.5"
+                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm text-slate-200 px-3 py-2 rounded-lg text-sm flex items-center gap-1.5"
               >
                 <RotateCcw className="w-4 h-4" />
                 {t("bs.report.reset")}

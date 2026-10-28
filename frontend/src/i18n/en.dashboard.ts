@@ -82,6 +82,11 @@ export const enDashboard = {
     loading_session: "Loading your session...",
   },
   shell: {
+    menu: "Menu",
+    theme_dark: "Dark mode",
+    theme_light: "Light mode",
+    section_records: "Documents & masters",
+    section_reports: "Reports",
     tagline: "Indian Market",
     sign_out: "Sign out",
     my_profile: "My profile",

@@ -27,6 +27,7 @@ import { normaliseError } from "@/api/endpoints";
 import { formatIndianCurrency, formatIndianNumber } from "@/lib/format";
 import { firstListRoute, listRoute, newRoute } from "@/resources/links";
 import type { DashboardData, DashboardIntegrity, DraftKey } from "@/types/dashboard";
+import { Select } from "@/components/ui/Select";
 
 /* ------------------------------------------------------------------ */
 /* Data                                                                */
@@ -96,7 +97,7 @@ const KpiCard: React.FC<KpiProps> = ({ title, value, hint, icon: Icon, color, to
         </div>
       </div>
       <div>
-        <h3 className="text-xl font-bold text-slate-100 tabular-nums break-words">{value}</h3>
+        <h3 className="text-xl font-semibold text-slate-100 tabular-nums break-words">{value}</h3>
         <span className="text-[11px] font-medium text-slate-400">{hint}</span>
       </div>
     </>
@@ -141,7 +142,7 @@ const IntegrityPanel: React.FC<{ integrity: DashboardIntegrity }> = ({ integrity
   return (
     <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-        <h2 className="text-base font-bold text-slate-100">{t("dash.integrity.title")}</h2>
+        <h2 className="text-base font-semibold text-slate-100">{t("dash.integrity.title")}</h2>
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${style.box}`}>
           <Icon className="w-3.5 h-3.5" />
           {label}
@@ -286,24 +287,19 @@ export const Dashboard: React.FC = () => {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100 tracking-tight">{t("dash.title")}</h1>
+            <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">{t("dash.title")}</h1>
             <p className="text-slate-400 text-xs mt-1">{t("dash.subtitle")}</p>
           </div>
           <div className="flex items-center gap-3">
             {companies && companies.length > 1 ? (
               <label className="flex items-center gap-2 text-xs text-slate-400">
                 <span>{t("dash.company")}</span>
-                <select
-                  value={company?.id ?? companyId ?? ""}
-                  onChange={(e) => setCompanyId(Number(e.target.value))}
-                  className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-                >
-                  {companies.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={String(company?.id ?? companyId ?? "")}
+                  onChange={(v) => setCompanyId(Number(v))}
+                  className="w-56"
+                  options={companies.map((c) => ({ value: String(c.id), label: c.name }))}
+                />
               </label>
             ) : (
               company && (
@@ -379,9 +375,9 @@ export const Dashboard: React.FC = () => {
                   <Link
                     key={q.labelKey}
                     to={q.to as string}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium shadow-lg shadow-indigo-600/20"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-800 bg-slate-900 hover:border-indigo-700 hover:text-indigo-300 text-slate-200 text-sm font-medium shadow-sm transition-colors"
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 text-indigo-400" />
                     {t(q.labelKey)}
                   </Link>
                 );
@@ -395,7 +391,7 @@ export const Dashboard: React.FC = () => {
           {drafts !== null && (
             <section className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                <h2 className="text-base font-bold text-slate-100">{t("dash.drafts.title")}</h2>
+                <h2 className="text-base font-semibold text-slate-100">{t("dash.drafts.title")}</h2>
                 {drafts.total > 0 && (
                   <span className="text-xs text-slate-400">
                     {t("dash.drafts.total", { count: drafts.total })}

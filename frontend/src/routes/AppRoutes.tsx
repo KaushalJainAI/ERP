@@ -14,7 +14,8 @@ import { BalanceSheetPage } from "@/pages/reports/BalanceSheetPage";
 import { ListPage } from "@/components/doc/ListPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
 import { ReportPage } from "@/components/doc/ReportPage";
-import { REPORTS, RESOURCES } from "@/resources/registry";
+import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
+import { ModulePage } from "@/pages/ModulePage";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
@@ -153,6 +154,18 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      {/* Module landing pages: /accounts, /stock, ... (one per MODULES entry). */}
+      {MODULES.map((m) => (
+        <Route
+          key={`module-${m.key}`}
+          path={`/${m.key}`}
+          element={
+            <ProtectedRoute>
+              <ModulePage key={m.key} moduleKey={m.key} />
+            </ProtectedRoute>
+          }
+        />
+      ))}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

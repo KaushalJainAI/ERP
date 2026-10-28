@@ -488,7 +488,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
           <Link to={base} className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800" aria-label={t("common.back_to_list")}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-xl font-bold text-slate-100 truncate">{title}</h1>
+          <h1 className="text-xl font-semibold text-slate-100 truncate">{title}</h1>
           {submittable && !isNew && <StatusBadge docstatus={docstatus} />}
           {submittable && isNew && <StatusBadge docstatus={DocStatus.DRAFT} />}
           {dirty && !isNew && (
@@ -507,7 +507,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
                 type="button"
                 disabled={busy || requestMut.isPending}
                 onClick={() => runAction(a)}
-                className={`${btn} bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700`}
+                className={`${btn} bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm text-slate-100`}
               >
                 {Icon && <Icon className="w-4 h-4" />} {t(a.labelKey)}
               </button>
@@ -537,7 +537,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
               type="button"
               disabled={busy || (!isNew && !dirty)}
               onClick={onSave}
-              className={`${btn} bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700`}
+              className={`${btn} bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm text-slate-100`}
             >
               {saveMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {submittable ? t("save") : t("common.save_short")}

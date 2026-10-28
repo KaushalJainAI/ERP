@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, Loader2, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, X } from "lucide-react";
 import { getRecord, listRecords } from "@/api/endpoints";
 import { useDebounced } from "@/hooks/useDebounced";
 import type { LinkDef, LinkRecord } from "@/types";
@@ -143,7 +143,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
   };
 
   const base =
-    "w-full bg-slate-950 border rounded-lg text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed " +
+    "w-full bg-slate-950 border rounded-lg text-slate-200 placeholder:text-slate-500 hover:border-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed " +
     (compact ? "px-2 py-1.5 text-xs " : "px-3 py-2 text-sm ") +
     (invalid ? "border-rose-500" : "border-slate-800");
 
@@ -182,7 +182,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
             tabIndex={-1}
             onMouseDown={(e) => e.preventDefault()}
             onClick={clear}
-            className="hover:text-slate-200"
+            className="p-0.5 rounded hover:text-slate-200 hover:bg-slate-800"
             aria-label={t("common.clear")}
           >
             <X className="w-3.5 h-3.5" />
@@ -197,7 +197,7 @@ export const LinkField: React.FC<LinkFieldProps> = ({
           <ul
             role="listbox"
             style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width }}
-            className="z-[80] max-h-60 overflow-auto bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1 text-sm"
+            className="z-[80] max-h-64 overflow-auto bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-1 text-sm animate-pop-in"
           >
             {(options ?? []).map((rec, idx) => (
               <li
@@ -209,18 +209,23 @@ export const LinkField: React.FC<LinkFieldProps> = ({
                   choose(rec);
                 }}
                 onMouseEnter={() => setHighlight(idx)}
-                className={`px-3 py-2 cursor-pointer ${
-                  idx === highlight ? "bg-indigo-600/30 text-slate-100" : "text-slate-300"
+                className={`flex items-center gap-2 rounded-lg px-2.5 py-2 cursor-pointer ${
+                  idx === highlight ? "bg-slate-800/70 text-slate-100" : "text-slate-300"
                 }`}
               >
-                <div className="truncate">{recordLabel(link, rec)}</div>
-                {link.subLabel?.(rec) && <div className="text-[11px] text-slate-500 truncate">{link.subLabel(rec)}</div>}
+                <div className="flex-1 min-w-0">
+                  <div className={`truncate ${String(rec[valueField]) === String(value) ? "font-medium text-indigo-300" : ""}`}>
+                    {recordLabel(link, rec)}
+                  </div>
+                  {link.subLabel?.(rec) && <div className="text-[11px] text-slate-500 truncate">{link.subLabel(rec)}</div>}
+                </div>
+                {String(rec[valueField]) === String(value) && <Check className="w-4 h-4 shrink-0 text-indigo-400" />}
               </li>
             ))}
             {!isFetching && (options ?? []).length === 0 && (
-              <li className="px-3 py-2 text-slate-500">{t("common.no_results")}</li>
+              <li className="px-2.5 py-2 text-slate-500">{t("common.no_results")}</li>
             )}
-            {isFetching && !options && <li className="px-3 py-2 text-slate-500">{t("common.loading")}</li>}
+            {isFetching && !options && <li className="px-2.5 py-2 text-slate-500">{t("common.loading")}</li>}
           </ul>,
           document.body
         )}

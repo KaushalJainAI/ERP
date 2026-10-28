@@ -8,6 +8,7 @@ import { fetchCompanies } from "@/api/lookups";
 import { normaliseError } from "@/api/endpoints";
 import { sumDec } from "@/lib/decimal";
 import { negDec } from "@/components/accounts/BalanceBanner";
+import { Select } from "@/components/ui/Select";
 
 export const inputCls =
   "bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500";
@@ -67,13 +68,13 @@ export const CompanySelect: React.FC<{
       <label htmlFor="rep-company" className="block text-xs font-medium text-slate-400">
         {t("acc.report.company")}
       </label>
-      <select id="rep-company" value={value} onChange={(e) => onChange(e.target.value)} className={`${inputCls} w-56`}>
-        {companies.map((c) => (
-          <option key={String(c.id)} value={String(c.id)}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      <Select
+        id="rep-company"
+        value={value}
+        onChange={onChange}
+        className="w-56"
+        options={companies.map((c) => ({ value: String(c.id), label: String(c.name) }))}
+      />
     </div>
   );
 };
@@ -112,7 +113,7 @@ export const ReportShell: React.FC<{
       <div className="max-w-6xl mx-auto bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
         <div className="p-5 border-b border-slate-800 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
               {t(titleKey)}
               {loading && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
             </h1>

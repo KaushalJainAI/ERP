@@ -5,7 +5,7 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const ta: Record<string, unknown> = {
-  appName: "எண்டர்பிரைஸ் ஈஆர்பி",
+  appName: "நிதி ERP",
   dashboard: "முகப்புப் பலகை",
   selling: "விற்பனை",
   buying: "கொள்முதல்",
@@ -301,6 +301,11 @@ const ta: Record<string, unknown> = {
     loading_session: "உங்கள் அமர்வு ஏற்றப்படுகிறது...",
   },
   shell: {
+    menu: "பட்டியல்",
+    theme_dark: "இருண்ட பயன்முறை",
+    theme_light: "ஒளி பயன்முறை",
+    section_records: "ஆவணங்கள் & முதன்மைத் தரவு",
+    section_reports: "அறிக்கைகள்",
     tagline: "இந்திய சந்தை",
     sign_out: "வெளியேறு",
     my_profile: "என் சுயவிவரம்",

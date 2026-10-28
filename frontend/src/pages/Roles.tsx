@@ -40,7 +40,7 @@ export const Roles: React.FC = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">{t("roles.title")}</h1>
+          <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">{t("roles.title")}</h1>
           <p className="text-slate-400 text-xs mt-1">{t("roles.subtitle")}</p>
         </div>
 

@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useChangeLanguage } from "@/hooks/useChangeLanguage";
 import { ChangePasswordSection } from "@/components/users/ChangePasswordSection";
 import { SUPPORTED_LANGUAGES } from "@/i18n/i18n";
+import { Select } from "@/components/ui/Select";
 
 const inputClass =
   "w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 disabled:opacity-60";
@@ -89,7 +90,7 @@ export const Profile: React.FC = () => {
     <Layout>
       <div className="max-w-2xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">{t("profile.title")}</h1>
+          <h1 className="text-2xl font-semibold text-slate-100 tracking-tight">{t("profile.title")}</h1>
           <p className="text-slate-400 text-xs mt-1">{t("profile.subtitle")}</p>
         </div>
 
@@ -124,13 +125,11 @@ export const Profile: React.FC = () => {
 
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl space-y-5">
           <Field label={t("profile.language")} help={t("profile.language_help")}>
-            <select value={currentLang} onChange={(e) => onLanguage(e.target.value)} className={inputClass}>
-              {SUPPORTED_LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={currentLang}
+              onChange={onLanguage}
+              options={SUPPORTED_LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
+            />
           </Field>
 
           <div className="space-y-1.5">

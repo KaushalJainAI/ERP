@@ -22,6 +22,7 @@ import { useDebounced } from "@/hooks/useDebounced";
 import { flattenTree, matchWithAncestors, parentIds } from "@/lib/tree";
 import { formatDate, formatIndianCurrency, formatIndianNumber } from "@/lib/format";
 import type { ApiRecord, ListColumnDef, ResourceConfig } from "@/types";
+import { Select } from "@/components/ui/Select";
 
 const DOCSTATUS_FILTERS = [
   { value: "", labelKey: "common.all_statuses" },
@@ -149,24 +150,19 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
     <Layout>
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
         <div className="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
             {t(config.titleKey)}
             {isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
           </h1>
           <div className="flex flex-wrap items-center gap-3">
             {config.submittable && (
-              <select
+              <Select
                 value={docstatus}
-                onChange={(e) => setDocstatus(e.target.value)}
+                onChange={setDocstatus}
                 aria-label={t("status")}
-                className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-              >
-                {DOCSTATUS_FILTERS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {t(o.labelKey)}
-                  </option>
-                ))}
-              </select>
+                className="w-40"
+                options={DOCSTATUS_FILTERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+              />
             )}
             {tree && (
               <div className="flex items-center gap-1">
@@ -175,14 +171,14 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                     <button
                       type="button"
                       onClick={expandAll}
-                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-800 hover:bg-slate-700"
+                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm"
                     >
                       {t("common.expand_all")}
                     </button>
                     <button
                       type="button"
                       onClick={collapseAll}
-                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-800 hover:bg-slate-700"
+                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm"
                     >
                       {t("common.collapse_all")}
                     </button>
@@ -348,7 +344,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
-                className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-40"
+                className="p-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm disabled:opacity-40"
                 aria-label={t("common.previous")}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -358,7 +354,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                 type="button"
                 disabled={!data?.next}
                 onClick={() => setPage((p) => p + 1)}
-                className="p-1.5 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-40"
+                className="p-1.5 rounded-md bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm disabled:opacity-40"
                 aria-label={t("common.next")}
               >
                 <ChevronRight className="w-4 h-4" />

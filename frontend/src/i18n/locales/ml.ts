@@ -5,7 +5,7 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const ml: Record<string, unknown> = {
-  appName: "എന്റർപ്രൈസ് ഇആർപി",
+  appName: "നിധി ERP",
   dashboard: "ഡാഷ്ബോർഡ്",
   selling: "വിൽപ്പന",
   buying: "വാങ്ങൽ",
@@ -301,6 +301,11 @@ const ml: Record<string, unknown> = {
     loading_session: "നിങ്ങളുടെ സെഷൻ ലോഡ് ചെയ്യുന്നു...",
   },
   shell: {
+    menu: "മെനു",
+    theme_dark: "ഡാർക്ക് മോഡ്",
+    theme_light: "ലൈറ്റ് മോഡ്",
+    section_records: "രേഖകളും മാസ്റ്ററുകളും",
+    section_reports: "റിപ്പോർട്ടുകൾ",
     tagline: "ഇന്ത്യൻ വിപണി",
     sign_out: "സൈൻ ഔട്ട്",
     my_profile: "എന്റെ പ്രൊഫൈൽ",

@@ -1,6 +1,6 @@
 /** Base (top-level) English UI strings: app chrome, document lifecycle, common list labels. */
 export const enCore = {
-  appName: "Enterprise ERP",
+  appName: "Nidhi ERP",
   dashboard: "Dashboard",
   selling: "Selling",
   buying: "Buying",
