@@ -225,15 +225,17 @@ class AmendCopiesChildrenTests(TestCase):
             paid_amount=Decimal("50.00"),
             received_amount=Decimal("50.00"),
         )
+        pe.submit()
+        pe.cancel()
+        pe.refresh_from_db()
+        # Submit now validates references against real invoices, so attach the row to
+        # the cancelled entry directly: this test is about amend copying child rows.
         PaymentEntryReference.objects.create(
             payment_entry=pe,
             reference_doctype="selling.SalesInvoice",
             reference_name="SINV-X",
             allocated_amount=Decimal("50.00"),
         )
-        pe.submit()
-        pe.cancel()
-        pe.refresh_from_db()
 
         new = pe.amend()
 

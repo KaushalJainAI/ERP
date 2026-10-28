@@ -24,6 +24,7 @@ from accounts.serializers import (
     TaxCalculateSerializer,
     TaxTemplateSerializer,
 )
+from accounts.services import outstanding as outstanding_service
 from core.models import State
 from gst.constants import GSTSupplyType
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
@@ -389,6 +390,37 @@ def balance_sheet(request):
             "total_equity": str(total_equity),
             "accounts": asset_rows + liab_rows + eq_rows,
         }
+    )
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
+)
+def ageing(request):
+    """Accounts receivable / payable ageing.
+
+    ``party_type`` (``Customer`` | ``Supplier``, required), ``company``, ``as_on``
+    (date, default today) and ``party`` (exact party name). One row per submitted
+    invoice with an outstanding amount posted on/before ``as_on``, bucketed by days
+    past due (0-30 / 31-60 / 61-90 / 90+), with totals per party and a grand total.
+    The invoice's *current* outstanding is used, not its balance on ``as_on``.
+    """
+    party_type = request.query_params.get("party_type")
+    if party_type not in ("Customer", "Supplier"):
+        raise ValidationError(
+            {"party_type": _("party_type must be 'Customer' or 'Supplier'.")}
+        )
+    company_id = request.query_params.get("company")
+    if company_id and not company_id.isdigit():
+        raise ValidationError({"company": _("Enter a valid company id.")})
+    return Response(
+        outstanding_service.ageing_report(
+            party_type,
+            as_on=_date_param(request, "as_on"),
+            company_id=company_id,
+            party=request.query_params.get("party"),
+        )
     )
 
 

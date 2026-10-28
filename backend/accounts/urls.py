@@ -12,6 +12,7 @@ from accounts.views import (
     general_ledger,
     profit_and_loss,
     balance_sheet,
+    ageing,
 )
 
 app_name = "accounts"
@@ -32,5 +33,6 @@ urlpatterns = [
     path("reports/general-ledger/", general_ledger, name="general-ledger"),
     path("reports/profit-and-loss/", profit_and_loss, name="profit-and-loss"),
     path("reports/balance-sheet/", balance_sheet, name="balance-sheet"),
+    path("reports/ageing/", ageing, name="ageing"),
     path("", include(router.urls)),
 ]

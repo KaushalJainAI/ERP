@@ -4,6 +4,7 @@ from decimal import Decimal
 from io import StringIO
 
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
@@ -126,13 +127,19 @@ class DashboardTests(APITestCase):
     def test_cancelled_invoice_drops_out_of_totals(self):
         from selling.models import SalesInvoice
 
+        from accounts.models import PaymentEntry
+
+        # An invoice with a submitted payment cannot be cancelled until the payment is.
+        with self.assertRaises(ValidationError):
+            SalesInvoice.objects.get(name="SINV-DEMO-0001").cancel(user=self.admin)
+        PaymentEntry.objects.get(name="PE-DEMO-0001").cancel(user=self.admin)
         SalesInvoice.objects.get(name="SINV-DEMO-0001").cancel(user=self.admin)
         self.client.force_authenticate(self.admin)
         data = self.client.get(URL).data
         self.assertEqual(data["total_sales"], "5920.00")
-        # Payment of 5000 remains on the ledger against a now-cancelled invoice:
-        # 2760 + 3696 (the two GST demo invoices) - 5000.
-        self.assertEqual(data["receivables_outstanding"], "1456.00")
+        # Both the invoice and its payment are reversed: only the two GST demo
+        # invoices (2760 + 3696) remain receivable.
+        self.assertEqual(data["receivables_outstanding"], "6456.00")
         # The order is open again once its invoice is cancelled (net values).
         self.assertEqual(data["open_sales_orders"]["count"], 2)
         self.assertEqual(data["open_sales_orders"]["value"], "21110.00")

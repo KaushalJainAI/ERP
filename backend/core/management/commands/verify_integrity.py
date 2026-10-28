@@ -4,6 +4,7 @@ from django.db.models import Sum
 from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
 from core.models import Company, SystemHealthCheck
+from accounts.services import outstanding as outstanding_service
 from gst.services import integrity as gst_integrity
 
 
@@ -115,6 +116,22 @@ class Command(BaseCommand):
         errors.extend(gst_errors)
         for warning in gst_warnings:
             self.stdout.write(self.style.WARNING(f"[GST warning] {warning}"))
+
+        # 6. Invoice outstanding / payment status: the stored projection must equal the
+        #    value derived from the GL rows tagged against each invoice.
+        outstanding_errors = outstanding_service.check_integrity()
+        SystemHealthCheck.objects.create(
+            check_name="invoice_outstanding",
+            status="alert" if outstanding_errors else "ok",
+            details=(
+                {"errors": outstanding_errors}
+                if outstanding_errors
+                else {
+                    "message": "Invoice outstanding amounts and statuses match the ledger."
+                }
+            ),
+        )
+        errors.extend(outstanding_errors)
 
         # Record Health Status
         status_str = "alert" if errors else "ok"

@@ -200,8 +200,16 @@ def allocated_amount(reference_doctype, reference_name):
 
 
 def invoice_outstanding(invoice):
-    """Derived outstanding amount: the rounded (tax-inclusive) total less submitted
-    allocations. ``rounded_total`` is what the party line of the voucher carries."""
+    """Outstanding amount of an invoice. A submitted invoice carries it as a ledger
+    projection (``outstanding_amount``, kept by ``accounts.services.outstanding``).
+    For any other docstatus fall back to the document formula: the rounded
+    (tax-inclusive) total, which is what the party line of the voucher carries, less
+    submitted allocations."""
+    if invoice.docstatus == DocStatus.SUBMITTED:
+        # Re-read: the projection is updated by payments after the object was loaded.
+        return type(invoice).objects.values_list("outstanding_amount", flat=True).get(
+            pk=invoice.pk
+        )
     label = f"{invoice._meta.app_label}.{invoice._meta.object_name}"
     return invoice.rounded_total - allocated_amount(label, invoice.name)
 

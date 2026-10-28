@@ -74,12 +74,29 @@ This document outlines key technical decisions and architectural enhancements ma
   **In progress (2026-10-27):** the masters are in (see "GST masters" below); the tax
   engine, document fields and GL posting follow (docs/gst_design.md, Tasks 2-3).
 
-### G6. No AR/AP outstanding or payment allocation
-- Invoices have no `outstanding_amount`; `PaymentEntryReference` rows are stored but
-  `PaymentEntry.on_submit` never allocates against an invoice, never sets
-  `against_voucher_*`, and never reduces an outstanding balance. There is therefore no
-  aging, no partial-settlement, and no paid/unpaid status. ERPNext tracks this through
-  GL `against_voucher` + the Payment Ledger.
+### G6. Invoice outstanding, payment allocation and status (implemented 2026-10-28)
+- Sales / Purchase Invoices carry a **derived** `outstanding_amount` (CHECK `>= 0`) and
+  `status` (Draft / Unpaid / Partly Paid / Paid / Cancelled). On submit the invoice's own
+  party GL line is tagged `against_voucher_type/no` = itself (ERPNext), and a Payment Entry
+  splits its party leg into one line per `PaymentEntryReference` tagged against that invoice
+  plus an untagged remainder (advance / on account). Outstanding = Σ of the live tagged rows
+  on the party account (`accounts/services/outstanding.py`), refreshed inside the posting
+  transaction under a row lock; `repost_outstanding` rebuilds it and `verify_integrity`
+  (`invoice_outstanding`) detects drift. An invoice with a submitted payment cannot be
+  cancelled (ERPNext default); `is_overdue` / `display_status = "Overdue"` are computed, not stored.
+- **Deviation:** no Payment Ledger Entry table; the GL `against_voucher` tags are the only
+  link. Allocation lives on `PaymentEntryReference` only (Sales / Purchase Invoice).
+- **Deviation:** no Journal Entry / credit-note / return allocation, no unallocated-advance
+  matching to later invoices (the untagged remainder stays on account), no write-off or
+  exchange-gain/loss, no payment terms schedule; single-currency.
+- **Deviation:** the invoice and the payment must use the same party account (ERPNext nets per
+  party across accounts less strictly), and the allocated amount may not exceed the invoice's
+  current outstanding (ERPNext allows over-allocation to be flagged as unallocated).
+- **Deviation:** legacy invoices (submitted before tagging) have an untagged own row; they use
+  the document formula `rounded_total - submitted allocations` and are not re-tagged (GL is immutable).
+- **Deviation (Accounts Receivable / Payable ageing, `reports/ageing/`):** `as_on` uses each
+  invoice's *current* outstanding, not its historical balance on that date; invoices not yet due
+  fall in the 0-30 bucket; ageing is by due date (posting date if none); fixed buckets 30/60/90.
 
 ### G7. Fiscal year — enforced and stamped (2026-10-27)
 - `gl.post()` / `ledger.post()` resolve `FiscalYear.for_date(posting_date)` and refuse a

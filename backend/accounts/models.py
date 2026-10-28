@@ -1,7 +1,9 @@
 from decimal import ROUND_HALF_UP, Decimal
 from django.core.exceptions import ValidationError
-from django.db import models
-from core.models import TimeStampedModel, SubmittableDocument, Company
+from django.db import models, transaction
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from core.models import DocStatus, TimeStampedModel, SubmittableDocument, Company
 from gst.constants import (
     AddDeduct,
     ChargeType,
@@ -266,51 +268,225 @@ class PaymentEntry(SubmittableDocument):
     )
     reference_no = models.CharField(max_length=100, null=True, blank=True)
 
+    # ------------------------------------------------------------- allocation
+
+    #: ``reference_doctype`` -> (payment_type, party_type, invoice party-account field)
+    ALLOCATION_TARGETS = {
+        "selling.SalesInvoice": (PaymentType.RECEIVE, "Customer", "debit_to"),
+        "buying.PurchaseInvoice": (PaymentType.PAY, "Supplier", "credit_to"),
+    }
+
+    @property
+    def party_account(self):
+        """The party-side (receivable / payable) leg of the voucher: ``paid_from`` for a
+        Receive (the debtor is credited), ``paid_to`` for a Pay (the creditor is
+        debited). The other leg is the bank / cash account."""
+        if self.payment_type == PaymentType.RECEIVE:
+            return self.paid_from
+        return self.paid_to
+
+    @staticmethod
+    def invoice_model(reference_doctype):
+        from django.apps import apps
+
+        return apps.get_model(reference_doctype)
+
+    def _locked_allocations(self):
+        """``[(reference, locked invoice)]``, validated against this entry.
+
+        The invoice rows are locked (``select_for_update``, always in the same
+        order) so that two payments cannot both allocate the same outstanding
+        amount; the outstanding amount is read *after* the lock, from the ledger.
+        """
+        from accounts.services import outstanding as outstanding_service
+
+        refs = list(self.references.all().order_by("pk"))
+        if not refs:
+            return []
+        if self.payment_type == PaymentType.INTERNAL_TRANSFER:
+            raise ValidationError(
+                _("An internal transfer cannot be allocated against invoices.")
+            )
+        seen = set()
+        total = Decimal("0.00")
+        for ref in refs:
+            target = self.ALLOCATION_TARGETS.get(ref.reference_doctype)
+            if target is None:
+                raise ValidationError(
+                    _(
+                        "Payments can only be allocated against a Sales Invoice or "
+                        "a Purchase Invoice, not '%(doctype)s'."
+                    )
+                    % {"doctype": ref.reference_doctype}
+                )
+            payment_type, party_type, _account_field = target
+            if self.payment_type != payment_type or self.party_type != party_type:
+                raise ValidationError(
+                    _(
+                        "A %(payment_type)s payment for a %(party_type)s cannot be "
+                        "allocated against %(doctype)s '%(name)s'."
+                    )
+                    % {
+                        "payment_type": self.payment_type,
+                        "party_type": self.party_type,
+                        "doctype": ref.reference_doctype,
+                        "name": ref.reference_name,
+                    }
+                )
+            key = (ref.reference_doctype, ref.reference_name)
+            if key in seen:
+                raise ValidationError(
+                    _("Invoice '%(name)s' is referenced more than once.")
+                    % {"name": ref.reference_name}
+                )
+            seen.add(key)
+            if ref.allocated_amount is None or ref.allocated_amount <= 0:
+                raise ValidationError(
+                    _("The amount allocated to '%(name)s' must be greater than zero.")
+                    % {"name": ref.reference_name}
+                )
+            total += ref.allocated_amount
+        if total > self.paid_amount:
+            raise ValidationError(
+                _("Total allocated (%(allocated)s) exceeds the paid amount (%(paid)s).")
+                % {"allocated": total, "paid": self.paid_amount}
+            )
+
+        party_account = self.party_account
+        allocations = []
+        for ref in sorted(refs, key=lambda r: (r.reference_doctype, r.reference_name)):
+            model = self.invoice_model(ref.reference_doctype)
+            account_field = self.ALLOCATION_TARGETS[ref.reference_doctype][2]
+            invoice = (
+                model.objects.select_for_update()
+                .filter(name=ref.reference_name)
+                .first()
+            )
+            if invoice is None:
+                raise ValidationError(
+                    _("Invoice '%(name)s' does not exist.")
+                    % {"name": ref.reference_name}
+                )
+            if invoice.docstatus != DocStatus.SUBMITTED:
+                raise ValidationError(
+                    _("Invoice '%(name)s' is not submitted.")
+                    % {"name": ref.reference_name}
+                )
+            if invoice.company_id != self.company_id:
+                raise ValidationError(
+                    _("Invoice '%(name)s' belongs to a different company.")
+                    % {"name": ref.reference_name}
+                )
+            if invoice.party.name != self.party_name:
+                raise ValidationError(
+                    _("Invoice '%(name)s' belongs to a different party.")
+                    % {"name": ref.reference_name}
+                )
+            if getattr(invoice, f"{account_field}_id") != party_account.pk:
+                raise ValidationError(
+                    _(
+                        "Invoice '%(name)s' is booked to a different account than "
+                        "this payment's party account."
+                    )
+                    % {"name": ref.reference_name}
+                )
+            open_amount = outstanding_service.current_outstanding(invoice)
+            if ref.allocated_amount > open_amount:
+                raise ValidationError(
+                    _(
+                        "Allocated amount (%(allocated)s) exceeds the outstanding "
+                        "amount (%(outstanding)s) of '%(name)s'."
+                    )
+                    % {
+                        "allocated": ref.allocated_amount,
+                        "outstanding": open_amount,
+                        "name": ref.reference_name,
+                    }
+                )
+            allocations.append((ref, invoice))
+        return allocations
+
     def validate_before_submit(self):
         if self.paid_amount <= 0:
-            raise ValidationError("Paid amount must be greater than zero.")
+            raise ValidationError(_("Paid amount must be greater than zero."))
         if self.paid_from.is_group or self.paid_to.is_group:
-            raise ValidationError("Posting to group accounts is not allowed.")
+            raise ValidationError(_("Posting to group accounts is not allowed."))
         if self.paid_from_id == self.paid_to_id:
-            raise ValidationError("Paid From and Paid To accounts must be different.")
+            raise ValidationError(
+                _("Paid From and Paid To accounts must be different.")
+            )
         if (
             self.paid_from.company_id != self.company_id
             or self.paid_to.company_id != self.company_id
         ):
             raise ValidationError(
-                "Payment accounts must belong to the payment's company."
+                _("Payment accounts must belong to the payment's company.")
             )
+        self._locked_allocations()
 
     def on_submit(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
 
-        entries = [
-            {
-                "account": self.paid_to,
-                "debit": self.paid_amount,
-                "credit": Decimal("0.00"),
-                "party_type": self.party_type,
-                "party": self.party_name,
-            },
-            {
-                "account": self.paid_from,
-                "debit": Decimal("0.00"),
-                "credit": self.paid_amount,
-                "party_type": self.party_type,
-                "party": self.party_name,
-            },
-        ]
+        zero = Decimal("0.00")
+        allocations = self._locked_allocations()
+        party = {"party_type": self.party_type, "party": self.party_name}
+        party_account = self.party_account
+        receive = self.payment_type == PaymentType.RECEIVE
+
+        def party_line(amount, ref=None):
+            line = {
+                "account": party_account,
+                "debit": zero if receive else amount,
+                "credit": amount if receive else zero,
+                **party,
+            }
+            if ref is not None:
+                line["against_voucher_type"] = ref.reference_doctype
+                line["against_voucher_no"] = ref.reference_name
+            return line
+
+        # The bank / cash leg is one line. The party leg is split into one line per
+        # allocated invoice (tagged ``against_voucher_*``, so the invoice's tagged
+        # rows net to its outstanding) plus an untagged remainder (an advance / on
+        # account, as in ERPNext). Still one balanced voucher.
+        other_line = {
+            "account": self.paid_to if receive else self.paid_from,
+            "debit": self.paid_amount if receive else zero,
+            "credit": zero if receive else self.paid_amount,
+            **party,
+        }
+        party_lines = [party_line(ref.allocated_amount, ref) for ref, _inv in allocations]
+        remainder = self.paid_amount - sum(
+            (ref.allocated_amount for ref, _inv in allocations), zero
+        )
+        if remainder > 0:
+            party_lines.append(party_line(remainder))
+        entries = [other_line, *party_lines] if receive else [*party_lines, other_line]
         gl_service.post(
             self,
             entries,
             posting_date=self.posting_date,
             remarks=f"Payment {self.payment_type}: {self.reference_no or ''}",
         )
+        for _ref, invoice in allocations:
+            outstanding_service.refresh(invoice)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
 
         gl_service.reverse(self)
+        for ref in self.references.all().order_by("reference_doctype", "reference_name"):
+            if ref.reference_doctype not in self.ALLOCATION_TARGETS:
+                continue
+            invoice = (
+                self.invoice_model(ref.reference_doctype)
+                .objects.filter(name=ref.reference_name)
+                .first()
+            )
+            if invoice is not None:
+                outstanding_service.refresh(invoice)
 
     def __str__(self):
         return f"{self.name} [{self.payment_type}] - {self.paid_amount}"
@@ -323,6 +499,14 @@ class PaymentEntryReference(models.Model):
     reference_doctype = models.CharField(max_length=60)
     reference_name = models.CharField(max_length=60)
     allocated_amount = models.DecimalField(max_digits=18, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(allocated_amount__gt=0),
+                name="check_payment_reference_allocated_gt_0",
+            )
+        ]
 
     def __str__(self):
         return f"{self.payment_entry.name} -> {self.reference_doctype}:{self.reference_name} ({self.allocated_amount})"
@@ -645,6 +829,104 @@ class TaxableDocument(models.Model):
             )
             supply.persist(self, outcome)
         return outcome
+
+
+class InvoiceStatus(models.TextChoices):
+    """Stored payment status of an invoice. *Overdue* is deliberately not stored (it
+    depends on today's date); see ``PayableDocument.display_status``."""
+
+    DRAFT = "Draft", "Draft"
+    UNPAID = "Unpaid", "Unpaid"
+    PARTLY_PAID = "Partly Paid", "Partly Paid"
+    PAID = "Paid", "Paid"
+    CANCELLED = "Cancelled", "Cancelled"
+
+
+class PayableDocument(models.Model):
+    """Receivable / payable invoice header: a **derived** ``outstanding_amount`` and
+    ``status``.
+
+    Both are projections of the ledger (``accounts.services.outstanding`` rebuilds
+    them from the GL rows tagged ``against_voucher`` = this invoice) -- never
+    written by a client. Concrete models set ``PARTY_TYPE`` (``"Customer"`` /
+    ``"Supplier"``), ``PARTY_ACCOUNT_FIELD`` (``"debit_to"`` / ``"credit_to"``) and
+    ``OUTSTANDING_SIGN`` (+1 where the party line is a debit, -1 where it is a
+    credit), and declare ``posting_date`` / ``due_date``.
+    """
+
+    PARTY_TYPE = ""
+    PARTY_ACCOUNT_FIELD = ""
+    OUTSTANDING_SIGN = 1
+
+    outstanding_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    status = models.CharField(
+        max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT
+    )
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def voucher_label(cls):
+        """``app_label.ObjectName``: the ``voucher_type`` / ``against_voucher_type``
+        / ``PaymentEntryReference.reference_doctype`` string of this document."""
+        return f"{cls._meta.app_label}.{cls._meta.object_name}"
+
+    @staticmethod
+    def outstanding_constraint():
+        return models.CheckConstraint(
+            check=models.Q(outstanding_amount__gte=0),
+            name="%(app_label)s_%(class)s_outstanding_gte_0",
+        )
+
+    @property
+    def party_account(self):
+        return getattr(self, self.PARTY_ACCOUNT_FIELD)
+
+    @property
+    def is_overdue(self):
+        return bool(
+            self.docstatus == DocStatus.SUBMITTED
+            and self.outstanding_amount > 0
+            and self.due_date is not None
+            and self.due_date < timezone.localdate()
+        )
+
+    @property
+    def display_status(self):
+        """The stored status, or ``"Overdue"`` while unpaid past the due date."""
+        return "Overdue" if self.is_overdue else self.status
+
+    def ensure_no_linked_payments(self):
+        """ERPNext's default: an invoice with a submitted payment cannot be cancelled."""
+        linked = PaymentEntryReference.objects.filter(
+            payment_entry__docstatus=DocStatus.SUBMITTED,
+            reference_doctype=self.voucher_label(),
+            reference_name=self.name,
+        ).values_list("payment_entry__name", flat=True)
+        names = sorted(set(linked))
+        if names:
+            raise ValidationError(
+                _(
+                    "Cannot cancel '%(name)s': cancel the linked payment entries "
+                    "first (%(payments)s)."
+                )
+                % {"name": self.name, "payments": ", ".join(names)}
+            )
+
+    def amend(self, new_name=None):
+        """Amend, then reset the derived payment fields: the copy of a cancelled
+        invoice must not carry the old ``Cancelled`` status."""
+        with transaction.atomic():
+            amendment = super().amend(new_name=new_name)
+            type(self).objects.filter(pk=amendment.pk).update(
+                outstanding_amount=Decimal("0.00"), status=InvoiceStatus.DRAFT
+            )
+            amendment.outstanding_amount = Decimal("0.00")
+            amendment.status = InvoiceStatus.DRAFT
+        return amendment
 
 
 class TaxLine(models.Model):

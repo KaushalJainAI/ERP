@@ -12,6 +12,7 @@ from gst.services import posting
 from gst.validators import validate_gstin_format
 from accounts.models import (
     Account,
+    PayableDocument,
     TaxableDocument,
     TaxableLine,
     TaxLine,
@@ -137,14 +138,20 @@ class PurchaseOrderItem(TaxableLine):
         )
 
 
-class PurchaseInvoice(TaxableDocument, SubmittableDocument):
+class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     """Purchase Invoice document."""
 
     GST_DIRECTION = "Purchase"
     party_field = "supplier"
+    PARTY_TYPE = "Supplier"
+    PARTY_ACCOUNT_FIELD = "credit_to"
+    OUTSTANDING_SIGN = -1  # the party line is a credit
 
     class Meta(TaxableDocument.Meta):
-        pass
+        constraints = [
+            *TaxableDocument.Meta.constraints,
+            PayableDocument.outstanding_constraint(),
+        ]
 
     supplier = models.ForeignKey(
         Supplier, on_delete=models.PROTECT, related_name="purchase_invoices"
@@ -195,6 +202,7 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
 
     def on_submit(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
         from stock.services import ledger as stock_service
 
         posting.validate_posting(self)
@@ -269,18 +277,24 @@ class PurchaseInvoice(TaxableDocument, SubmittableDocument):
                 "credit": self.rounded_total,
                 "party_type": "Supplier",
                 "party": self.supplier.name,
+                "against_voucher_type": self.voucher_label(),
+                "against_voucher_no": self.name,
             }
         )
         gl_entries.extend(posting.purchase_tax_entries(self))
         gl_service.post(self, gl_entries, posting_date=self.posting_date)
+        outstanding_service.refresh(self)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
         from stock.services import ledger as stock_service
 
+        self.ensure_no_linked_payments()
         gl_service.reverse(self)
         if self.update_stock:
             stock_service.reverse(self)
+        outstanding_service.refresh(self)
 
     def __str__(self):
         return f"{self.name} - {self.supplier.name} ({self.grand_total})"

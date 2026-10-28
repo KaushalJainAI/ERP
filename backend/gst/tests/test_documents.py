@@ -1264,8 +1264,11 @@ class DBConstraintTests(GSTDocBase):
             self.assertEqual(len(names), 7, names)
         for model in (SalesInvoiceItem, PurchaseInvoiceItem, PurchaseOrderItem):
             self.assertEqual(len(model._meta.constraints), 4)
-        for model in (SalesOrder, SalesInvoice, PurchaseOrder, PurchaseInvoice):
+        for model in (SalesOrder, PurchaseOrder):
             self.assertEqual(len(model._meta.constraints), 3)
+        # Invoices also carry the outstanding_amount >= 0 CHECK.
+        for model in (SalesInvoice, PurchaseInvoice):
+            self.assertEqual(len(model._meta.constraints), 4)
 
 
 class DryRunTests(GSTDocBase):

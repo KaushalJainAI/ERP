@@ -182,6 +182,9 @@ class PaymentEntryReferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentEntryReference
         fields = ("id", "reference_doctype", "reference_name", "allocated_amount")
+        extra_kwargs = {
+            "allocated_amount": {"min_value": Decimal("0.01")},
+        }
 
 
 class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):

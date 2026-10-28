@@ -323,7 +323,14 @@ class DraftEditAPITests(BaseAPITest):
                 self.assertEqual(len(got.data[children]), len(create[children]))
 
     def test_put_on_submitted_payment_entry_is_409(self):
-        url, create, edited, children, _t = self._spec()["pe"]
+        spec = self._spec()
+        # Submitting a payment validates its references: allocate to a real invoice.
+        si_url, si_create = spec["si"][0], spec["si"][1]
+        si = self.client.post(si_url, si_create, format="json")
+        self.client.post(f"{si_url}{si.data['id']}/submit/")
+        url, create, edited, children, _t = spec["pe"]
+        create["references"][0]["reference_name"] = si_create["name"]
+        create["references"][0]["allocated_amount"] = "10.00"
         res = self.client.post(url, create, format="json")
         sub = self.client.post(f"{url}{res.data['id']}/submit/")
         self.assertEqual(sub.status_code, status.HTTP_200_OK, sub.content)
@@ -333,7 +340,7 @@ class DraftEditAPITests(BaseAPITest):
             self.client.get(f"{url}{res.data['id']}/").data[children][0][
                 "reference_name"
             ],
-            "X-1",
+            si_create["name"],
         )
 
 

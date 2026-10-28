@@ -12,6 +12,7 @@ from gst.services import posting
 from gst.validators import validate_gstin_format
 from accounts.models import (
     Account,
+    PayableDocument,
     TaxableDocument,
     TaxableLine,
     TaxLine,
@@ -135,14 +136,20 @@ class SalesOrderItem(TaxableLine):
         return f"{self.sales_order.name} - {self.item.code} ({self.qty} @ {self.rate})"
 
 
-class SalesInvoice(TaxableDocument, SubmittableDocument):
+class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     """Sales Invoice document."""
 
     GST_DIRECTION = "Sales"
     party_field = "customer"
+    PARTY_TYPE = "Customer"
+    PARTY_ACCOUNT_FIELD = "debit_to"
+    OUTSTANDING_SIGN = 1  # the party line is a debit
 
     class Meta(TaxableDocument.Meta):
-        pass
+        constraints = [
+            *TaxableDocument.Meta.constraints,
+            PayableDocument.outstanding_constraint(),
+        ]
 
     customer = models.ForeignKey(
         Customer, on_delete=models.PROTECT, related_name="sales_invoices"
@@ -197,6 +204,7 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
 
     def on_submit(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
         from stock.services import ledger as stock_service
 
         posting.validate_posting(self)
@@ -245,6 +253,10 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
                 "credit": Decimal("0.00"),
                 "party_type": "Customer",
                 "party": self.customer.name,
+                # ERPNext: the invoice's own party line is "against" itself, so the
+                # payments allocated to it net against it in the ledger.
+                "against_voucher_type": self.voucher_label(),
+                "against_voucher_no": self.name,
             },
             {
                 "account": self.income_account,
@@ -271,14 +283,18 @@ class SalesInvoice(TaxableDocument, SubmittableDocument):
                 }
             )
         gl_service.post(self, gl_entries, posting_date=self.posting_date)
+        outstanding_service.refresh(self)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+        from accounts.services import outstanding as outstanding_service
         from stock.services import ledger as stock_service
 
+        self.ensure_no_linked_payments()
         gl_service.reverse(self)
         if self.update_stock:
             stock_service.reverse(self)
+        outstanding_service.refresh(self)
 
     def __str__(self):
         return f"{self.name} - {self.customer.name} ({self.grand_total})"
