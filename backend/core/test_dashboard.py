@@ -13,7 +13,9 @@ from rest_framework.test import APITestCase
 
 from accounts.models import GLEntry
 from core.models import Company
-from stock.models import Bin, StockLedgerEntry
+from manufacturing.models import BOM, WorkOrder, WorkOrderStatus
+from selling.models import SalesOrder
+from stock.models import Bin, PriceList, StockLedgerEntry
 from users.models import Role, RolePermission, User, UserRole
 
 URL = "/api/core/dashboard/"
@@ -41,6 +43,19 @@ class SeedDemoTests(TestCase):
         self.assertEqual(User.objects.filter(username="admin").count(), 1)
         # Every voucher balances and the Bins tie to the ledger.
         call_command("verify_integrity", stdout=StringIO())
+
+    def test_seed_demo_includes_manufacturing_and_pricing(self):
+        call_command("seed_demo", stdout=StringIO())
+        self.assertTrue(BOM.objects.filter(name="BOM-DEMO-0001").exists())
+        work_order = WorkOrder.objects.get(name="WO-DEMO-0001")
+        self.assertEqual(work_order.status, WorkOrderStatus.COMPLETED)
+        self.assertEqual(work_order.produced_qty, Decimal("10.000"))
+        self.assertGreater(work_order.process_loss_qty, 0)
+        self.assertTrue(PriceList.objects.filter(name="Retail INR").exists())
+        over_limit = SalesOrder.objects.get(name="SO-DEMO-0004")
+        self.assertGreater(
+            over_limit.grand_total, over_limit.customer.credit_limit
+        )
 
     def test_seed_demo_creates_known_superuser(self):
         call_command("seed_demo", stdout=StringIO())
@@ -95,8 +110,9 @@ class DashboardTests(APITestCase):
         self.assertEqual(data["payables_outstanding"], "35196.00")
         self.assertEqual(data["open_sales_orders"], {"count": 1, "value": "10360.00"})
         self.assertEqual(data["stock_value"], "181560.00")
-        self.assertEqual(data["draft_documents"]["sales_orders"], 1)
-        self.assertEqual(data["draft_documents"]["total"], 1)
+        # SO-DEMO-0002 plus the over-limit SO-DEMO-0004.
+        self.assertEqual(data["draft_documents"]["sales_orders"], 2)
+        self.assertEqual(data["draft_documents"]["total"], 2)
         # Money is serialised as strings, like the rest of the API.
         for key in (
             "total_sales",

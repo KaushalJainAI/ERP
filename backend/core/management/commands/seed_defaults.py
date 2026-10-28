@@ -38,6 +38,7 @@ ROLES_SEED = [
     ("Accounts Manager", "Full permission over GL, invoices, and payments"),
     ("Sales Manager", "Full permission over selling chain"),
     ("Purchase Manager", "Full permission over buying chain"),
+    ("Manufacturing Manager", "Full permission over BOMs, Work Orders and production entries"),
     ("Credit Controller", "May override a customer credit-limit block"),
     ("System Manager", "System administration role"),
 ]
@@ -240,6 +241,22 @@ ROLE_PERMISSION_MATRIX = {
             ),
             READ,
         ),
+    },
+    # Production authority: recipes, work orders, production entries and the
+    # batch/bin projections the yield report reads.
+    "Manufacturing Manager": {
+        **_scope(
+            (
+                "manufacturing.BOM",
+                "manufacturing.WorkOrder",
+                "stock.StockEntry",
+                "stock.Batch",
+                "stock.Bin",
+            ),
+            FULL,
+        ),
+        **_scope(_MASTER_LABELS, READ),
+        **_scope(("accounts.GLEntry",), READ),
     },
     # The control plane: every business model, plus authority to grant it.
     "System Manager": {
@@ -465,9 +482,18 @@ class Command(BaseCommand):
         )
 
         # 7. Master Group Roots
-        ItemGroup.objects.get_or_create(
+        item_group_root, _ = ItemGroup.objects.get_or_create(
             name="All Item Groups", defaults={"is_group": True}
         )
+        for name in (
+            "Raw Material",
+            "Semi-Finished Goods",
+            "Finished Goods",
+            "Packing Material",
+        ):
+            ItemGroup.objects.get_or_create(
+                name=name, defaults={"parent": item_group_root, "is_group": False}
+            )
         CustomerGroup.objects.get_or_create(
             name="All Customer Groups", defaults={"is_group": True}
         )

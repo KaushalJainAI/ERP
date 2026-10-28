@@ -37,6 +37,8 @@ from buying.models import (
 )
 from core.models import Company, FiscalYear
 from gst.services import seeding as gst_seeding
+from manufacturing.models import BOM, BOMItem, BOMScrapItem, WorkOrder
+from manufacturing.services import work_orders as wo_service
 from selling.models import (
     Customer,
     CustomerGroup,
@@ -49,6 +51,8 @@ from stock.models import (
     UOM,
     Item,
     ItemGroup,
+    ItemPrice,
+    PriceList,
     StockEntry,
     StockEntryItem,
     StockEntryType,
@@ -91,6 +95,13 @@ ITEMS = [
     ("PEN-001", "Ball Pen Blue", "Stationery", "Box", "120", "85", "100"),
     ("STAP-001", "Stapler", "Stationery", "Nos", "150", "105", "80"),
     ("PAPER-001", "A4 Copier Paper Ream", "Stationery", "Box", "350", "290", "120"),
+]
+
+# Demo manufactured output and its by-product. These are created without GST
+# metadata so manufacturing can be demonstrated before a sales document exists.
+MANUFACTURED_ITEMS = [
+    ("MASALA-001", "Demo Masala Mix", "Groceries", "Kg", "240"),
+    ("BRAN-001", "Rice Bran (by-product)", "Groceries", "Kg", "10"),
 ]
 
 # name, group, GSTIN (checksum-valid), state code, email, phone
@@ -209,6 +220,8 @@ class Command(BaseCommand):
         created += self._open_sales_order()
         created += self._draft_sales_order()
         created += self._gst_documents()
+        created += self._price_lists_and_credit()
+        created += self._manufacturing()
 
         if created:
             self.stdout.write(self.style.SUCCESS("Created: " + ", ".join(created)))
@@ -248,8 +261,22 @@ class Command(BaseCommand):
         return Account.objects.get(company=self.company, name=name)
 
     def _ensure_accounts(self):
+        asset_root = Account.objects.get(
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            parent__isnull=True,
+        )
         expense_root = self._acct("Expenses")
         equity_root = self._acct("Equity")
+        Account.objects.get_or_create(
+            company=self.company,
+            name="Work In Progress",
+            defaults={
+                "parent": asset_root,
+                "root_type": AccountRootType.ASSET,
+                "is_group": False,
+            },
+        )
         Account.objects.get_or_create(
             company=self.company,
             name="Rent Expense",
@@ -284,6 +311,7 @@ class Command(BaseCommand):
             "Creditors",
             "Sales Account",
             "Stock Assets",
+            "Work In Progress",
             "Cost of Goods Sold",
             "Stock Adjustment",
         ):
@@ -360,13 +388,22 @@ class Command(BaseCommand):
         wh_root, _ = Warehouse.objects.get_or_create(
             company=self.company, name="All Warehouses", defaults={"is_group": True}
         )
-        for name in ("Stores", "Finished Goods"):
+        for name in ("Stores", "Finished Goods", "Work In Progress", "Scrap"):
             Warehouse.objects.get_or_create(
                 company=self.company,
                 name=name,
                 defaults={"parent": wh_root, "is_group": False},
             )
         self.stores = Warehouse.objects.get(company=self.company, name="Stores")
+        self.finished_goods = Warehouse.objects.get(
+            company=self.company, name="Finished Goods"
+        )
+        self.wip = Warehouse.objects.get(company=self.company, name="Work In Progress")
+        self.scrap = Warehouse.objects.get(company=self.company, name="Scrap")
+        wip_account = self._acct("Work In Progress")
+        if self.wip.account_id != wip_account.pk:
+            self.wip.account = wip_account
+            self.wip.save(update_fields=["account"])
 
         self.items = {}
         for code, name, group, uom, sell, _buy, _qty in ITEMS:
@@ -390,6 +427,20 @@ class Command(BaseCommand):
                     ItemTaxTemplate.objects.get(name=template_name)
                 )
                 item.save(update_fields=["gst_hsn_code", "item_tax_template"])
+
+        for code, name, group, uom, rate in MANUFACTURED_ITEMS:
+            item, _ = Item.objects.get_or_create(
+                code=code,
+                defaults={
+                    "name": name,
+                    "item_group": ItemGroup.objects.get(name=group),
+                    "stock_uom": UOM.objects.get(name=uom),
+                    "is_stock_item": True,
+                    "valuation_method": ValuationMethod.MOVING_AVERAGE,
+                    "standard_rate": _d(rate),
+                },
+            )
+            self.items[code] = item
 
         for model, group_model, group_field, rows in (
             (Customer, CustomerGroup, "customer_group", CUSTOMERS),
@@ -415,6 +466,242 @@ class Command(BaseCommand):
                     party.state_id = state
                     party.gst_category = "Registered Regular"
                     party.save(update_fields=["gstin", "state", "gst_category"])
+
+    # ------------------------------------------------------- pricing / credit
+
+    def _price_lists_and_credit(self):
+        """Price lists, party defaults and one over-limit draft order.
+
+        Runs after the historical documents so the seeded credit limits never
+        change whether an older demo invoice could be submitted.
+        """
+        created = []
+        currency = self.company.default_currency or "INR"
+        specs = (
+            ("Retail INR", True, False),
+            ("Wholesale INR", True, False),
+            ("Vendor INR", False, True),
+        )
+        lists = {}
+        for name, selling, buying in specs:
+            price_list, was_created = PriceList.objects.get_or_create(
+                name=name,
+                defaults={
+                    "currency": currency,
+                    "selling": selling,
+                    "buying": buying,
+                    "enabled": True,
+                },
+            )
+            updates = {}
+            if price_list.selling != selling:
+                price_list.selling = selling
+                updates["selling"] = selling
+            if price_list.buying != buying:
+                price_list.buying = buying
+                updates["buying"] = buying
+            if price_list.currency != currency:
+                price_list.currency = currency
+                updates["currency"] = currency
+            if not price_list.enabled:
+                price_list.enabled = True
+                updates["enabled"] = True
+            if updates:
+                price_list.save(update_fields=list(updates))
+            if was_created:
+                created.append(name)
+            lists[name] = price_list
+
+        retail = lists["Retail INR"]
+        wholesale = lists["Wholesale INR"]
+        vendor = lists["Vendor INR"]
+
+        self.company.default_selling_price_list = retail
+        self.company.default_buying_price_list = vendor
+        self.company.save(
+            update_fields=[
+                "default_selling_price_list",
+                "default_buying_price_list",
+            ]
+        )
+        CustomerGroup.objects.filter(name="Retail").update(default_price_list=retail)
+        CustomerGroup.objects.filter(name="Wholesale").update(
+            default_price_list=wholesale
+        )
+        Supplier.objects.filter(company=self.company).update(default_price_list=vendor)
+
+        prices = {
+            retail: {
+                "RICE-001": "100",
+                "SUGAR-001": "50",
+                "ATTA-001": "44",
+                "TEA-001": "340",
+                "NB-001": "65",
+                "PEN-001": "125",
+                "STAP-001": "160",
+                "PAPER-001": "365",
+                "MASALA-001": "250",
+                "BRAN-001": "12",
+            },
+            wholesale: {
+                "RICE-001": "92",
+                "SUGAR-001": "46",
+                "ATTA-001": "40",
+                "TEA-001": "315",
+                "NB-001": "58",
+                "PEN-001": "115",
+                "STAP-001": "145",
+                "PAPER-001": "340",
+                "MASALA-001": "230",
+                "BRAN-001": "10",
+            },
+            vendor: {
+                "RICE-001": "80",
+                "SUGAR-001": "40",
+                "ATTA-001": "34",
+                "TEA-001": "250",
+                "NB-001": "42",
+                "PEN-001": "85",
+                "STAP-001": "105",
+                "PAPER-001": "290",
+                "MASALA-001": "180",
+                "BRAN-001": "8",
+            },
+        }
+        for price_list, rates in prices.items():
+            for code, rate in rates.items():
+                ItemPrice.objects.update_or_create(
+                    item=self.items[code],
+                    price_list=price_list,
+                    uom=None,
+                    valid_from=None,
+                    defaults={"rate": _d(rate), "valid_upto": None},
+                )
+
+        # A date-bounded row: the latest valid_from wins over the open-ended 100.
+        ItemPrice.objects.update_or_create(
+            item=self.items["RICE-001"],
+            price_list=retail,
+            uom=None,
+            valid_from=self.d(7),
+            defaults={"rate": _d("98"), "valid_upto": self.d(-30)},
+        )
+
+        limits = {
+            "Sharma Traders": "100000",
+            "Iyer & Sons Supermart": "100000",
+            "Kulkarni Provision Stores": "15000",
+        }
+        for name, limit in limits.items():
+            customer = self._customer(name)
+            if customer.credit_limit == 0:
+                customer.credit_limit = _d(limit)
+                customer.save(update_fields=["credit_limit"])
+
+        # Draft order that deliberately exceeds Kulkarni's limit, so the credit
+        # block can be demonstrated without changing any historical document.
+        name = "SO-DEMO-0004"
+        if not SalesOrder.objects.filter(name=name).exists():
+            customer = self._customer("Kulkarni Provision Stores")
+            order = SalesOrder.objects.create(
+                name=name,
+                customer=customer,
+                company=self.company,
+                transaction_date=self.d(1),
+                delivery_date=self.d(-6),
+                price_list=wholesale,
+                created_by=self.admin,
+            )
+            SalesOrderItem.objects.create(
+                sales_order=order,
+                item=self.items["RICE-001"],
+                warehouse=self.stores,
+                qty=_d("200"),
+                rate=_d("92"),
+            )
+            order.calculate_taxes_and_totals(auto_select=True)
+            created.append(name)
+        return created
+
+    # -------------------------------------------------------- manufacturing
+
+    def _manufacturing(self):
+        """One completed Work Order (with WIP transfer) and one draft WO."""
+        bom_name = "BOM-DEMO-0001"
+        if BOM.objects.filter(name=bom_name).exists():
+            return []
+        created = []
+        bom = BOM.objects.create(
+            name=bom_name,
+            company=self.company,
+            item=self.items["MASALA-001"],
+            quantity=_d("10"),
+            process_loss_percentage=_d("5"),
+            is_active=True,
+            is_default=True,
+            description="Demo recipe: 10 kg basis with 5% process loss.",
+        )
+        for idx, (code, qty) in enumerate(
+            (("RICE-001", "5"), ("SUGAR-001", "2"), ("ATTA-001", "3")), start=1
+        ):
+            BOMItem.objects.create(
+                bom=bom, idx=idx, item=self.items[code], qty=_d(qty)
+            )
+        BOMScrapItem.objects.create(
+            bom=bom,
+            idx=1,
+            item=self.items["BRAN-001"],
+            qty=_d("1"),
+            rate=_d("10"),
+        )
+        created.append(bom.name)
+
+        work_order = WorkOrder.objects.create(
+            name="WO-DEMO-0001",
+            company=self.company,
+            production_item=self.items["MASALA-001"],
+            bom=bom,
+            qty=_d("10"),
+            source_warehouse=self.stores,
+            wip_warehouse=self.wip,
+            fg_warehouse=self.finished_goods,
+            scrap_warehouse=self.scrap,
+            planned_start_date=self.d(6),
+            expected_end_date=self.d(2),
+            created_by=self.admin,
+        )
+        work_order.submit(user=self.admin)
+        created.append(work_order.name)
+
+        transfer = wo_service.make_stock_entry(
+            work_order, StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE
+        )
+        transfer.submit(user=self.admin)
+        created.append(transfer.name)
+
+        manufacture = wo_service.make_stock_entry(
+            work_order, StockEntryType.MANUFACTURE
+        )
+        manufacture.submit(user=self.admin)
+        created.append(manufacture.name)
+
+        if not WorkOrder.objects.filter(name="WO-DEMO-0002").exists():
+            WorkOrder.objects.create(
+                name="WO-DEMO-0002",
+                company=self.company,
+                production_item=self.items["MASALA-001"],
+                bom=bom,
+                qty=_d("5"),
+                source_warehouse=self.stores,
+                wip_warehouse=self.wip,
+                fg_warehouse=self.finished_goods,
+                scrap_warehouse=self.scrap,
+                planned_start_date=self.d(1),
+                expected_end_date=self.d(-5),
+                created_by=self.admin,
+            )
+            created.append("WO-DEMO-0002")
+        return created
 
     # ------------------------------------------------------------- documents
 

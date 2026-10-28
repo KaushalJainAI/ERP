@@ -165,3 +165,61 @@ Full backend audit; fixes below are in code + tests (`verify_integrity` green,
       role management moved onto RBAC; the seeded role matrix is scoped, validated
       against the app registry, and authoritative on re-seed — which is what makes the
       reports reachable again. 26 new tests (`users/test_rbac.py`); suite at 113.
+
+---
+
+## Phase 6 — ERP completion (2026-10-28)
+
+### 6.1 Invoice status and ageing
+- [x] `SalesInvoice` / `PurchaseInvoice` expose `billing_status`, `outstanding_amount`
+      and `ageing_bucket`; payment allocation is reflected without rewriting invoices
+- [x] Receivable / payable ageing report endpoint with bucket totals
+- [x] Frontend list status badges and ageing report screen
+
+### 6.2 Batches on document lines
+- [x] `Batch` master, balance and expiry derived from the stock ledger
+- [x] Batch + manufacturing/expiry dates on sales and purchase document lines
+- [x] Batch-aware stock posting, FEFO selection and expiry blocking
+- [x] Batch trace / recall and expiry reports
+- [x] Frontend batch picker and batch list
+
+### 6.3 Manufacturing backend
+- [x] `BOM`, `BOMItem`, `BOMScrapItem` with cost rollup, sub-BOM explosion and
+      usage lock (master, not submittable)
+- [x] `WorkOrder` / `WorkOrderItem`; `qty` is desired good output and required
+      materials are grossed up by the BOM process loss (design §14)
+- [x] Material Transfer for Manufacture / Manufacture / Repack stock entries,
+      WIP transfer, scrap valuation, process-loss calculation and batch output
+- [x] WIP warehouse account and per-account stock GL posting
+- [x] Work Order stop/resume/cancel guard, progress projection, `repost_work_orders`
+- [x] Production yield and BOM cost reports; API + divergence docs
+- [x] 33 manufacturing tests; full suite green (`verify_integrity` clean)
+
+### 6.4 Price lists and credit limits
+- [x] `PriceList` / `ItemPrice` masters with currency, UOM and date windows
+- [x] One resolver: explicit header → party → customer-group ancestor → company
+      default; omitted line rates filled server-side, `price_list_rate` snapshot
+- [x] Draft-only `update-rates` action on all four sales/purchase documents
+- [x] Customer `credit_limit` / bypass; submit gate uses live receivable plus
+      unbilled orders; superuser / `Credit Controller` override is audited
+- [x] Customer credit-status endpoint; seeded `Credit Controller` and
+      `Manufacturing Manager` roles
+- [x] Price-list/credit API and divergence docs
+
+### 6.5 Frontend screens
+- [x] Manufacturing module: BOM and Work Order list/form, read-only required
+      items, stop/resume, make-transfer/make-manufacture actions
+- [x] Stock Entry manufacturing fields and entry types restored
+- [x] Price list and item price screens; customer/supplier price-list fields and
+      credit limit; document headers and list-rate columns; Update Rates actions
+- [x] English strings plus all 12 locale bundles at 100% i18n key coverage;
+      `lint`, `build` and `i18n:check` green
+
+### 6.6 Demo, docs and final verification
+- [x] `seed_demo`: WIP/scrap warehouses, completed and draft Work Orders,
+      retail/wholesale/vendor price lists, credit limits and an over-limit draft order
+- [x] Seed idempotency test and manufacturing/pricing assertions; `verify_integrity`
+      green on an existing and a fresh database
+- [x] `backend/docs/manufacturing.md` operator how-to; README demo description updated
+- [x] Full backend suite (694 passing), ruff, frontend lint, build and i18n
+      check all green; `makemigrations --check` reports no drift

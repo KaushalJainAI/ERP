@@ -82,10 +82,12 @@ python manage.py runserver          # http://localhost:8000
 ```
 
 `seed_demo` is idempotent and refuses to run unless `DEBUG` is true. It loads
-realistic Indian demo data (8 items, 2 warehouses, 4 customers, 3 suppliers, opening
-stock, a PO→Purchase Invoice, a SO→Sales Invoice with a partial Payment Entry, an open
-and a draft Sales Order, and Journal Entries) by submitting normal documents, so the
-ledgers stay consistent (`python manage.py verify_integrity` is green afterwards).
+realistic Indian demo data (10 items, 4 warehouses, 5 customers, 3 suppliers,
+opening stock, purchase and sales chains with GST, a partial Payment Entry, open
+and draft Sales Orders, price lists, credit limits, a completed Work Order with a
+WIP transfer and manufacture entry, a draft Work Order, and Journal Entries) by
+submitting normal documents, so the ledgers stay consistent
+(`python manage.py verify_integrity` is green afterwards).
 Demo login (superuser): **`admin` / `admin123`**.
 
 **Frontend** (from `frontend/`):
