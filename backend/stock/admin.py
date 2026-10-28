@@ -90,10 +90,10 @@ class BatchAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
 
 @admin.register(Warehouse)
 class WarehouseAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-    list_display = ("name", "company", "parent", "is_group")
+    list_display = ("name", "company", "parent", "account", "is_group")
     list_filter = ("company", "is_group")
     search_fields = ("name",)
-    autocomplete_fields = ("company", "parent")
+    autocomplete_fields = ("company", "parent", "account")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("company", "name")
 
@@ -180,6 +180,9 @@ class StockEntryItemInline(admin.TabularInline):
         "supplier_batch_no",
         "manufacturing_date",
         "expiry_date",
+        "is_finished_item",
+        "is_scrap_item",
+        "cost_allocation_per",
     )
 
 
@@ -190,12 +193,13 @@ class StockEntryAdmin(SubmittableDocumentAdmin):
         "stock_entry_type",
         "posting_date",
         "company",
+        "work_order",
         "docstatus",
     )
     list_filter = ("docstatus", "stock_entry_type", "company", "posting_date")
     search_fields = ("name",)
     date_hierarchy = "posting_date"
-    autocomplete_fields = ("company", "amended_from")
+    autocomplete_fields = ("company", "amended_from", "work_order", "bom")
     inlines = [StockEntryItemInline]
     fieldsets = (
         (
@@ -208,6 +212,18 @@ class StockEntryAdmin(SubmittableDocumentAdmin):
                     "posting_date",
                     "posting_time",
                 )
+            },
+        ),
+        (
+            "Manufacturing",
+            {
+                "fields": (
+                    "work_order",
+                    "bom",
+                    "fg_completed_qty",
+                    "process_loss_qty",
+                ),
+                "classes": ("collapse",),
             },
         ),
         ("Status", {"fields": ("docstatus", "amended_from")}),

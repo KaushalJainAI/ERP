@@ -137,7 +137,14 @@ class Item(TimeStampedModel):
 
 
 class Warehouse(TimeStampedModel):
-    """Warehouse tree node."""
+    """Warehouse tree node.
+
+    ``account`` optionally puts this warehouse on its own balance-sheet account
+    (design §14.4: Work In Progress is its own line). ``None`` means the
+    company's ``default_inventory_account``. Stock moves between warehouses whose
+    effective accounts differ therefore post GL (the account-neutral case posts
+    nothing).
+    """
 
     name = models.CharField(max_length=200)
     company = models.ForeignKey(
@@ -151,6 +158,13 @@ class Warehouse(TimeStampedModel):
         related_name="children",
     )
     is_group = models.BooleanField(default=False)
+    account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
 
     class Meta:
         constraints = [
@@ -158,6 +172,28 @@ class Warehouse(TimeStampedModel):
                 fields=["company", "name"], name="unique_warehouse_per_company"
             )
         ]
+
+    def save(self, *args, **kwargs):
+        if self.account_id:
+            account = self.account
+            if account.company_id != self.company_id:
+                raise ValidationError(
+                    _(
+                        "Warehouse account '%(account)s' belongs to a different company."
+                    )
+                    % {"account": account.name}
+                )
+            if account.is_group:
+                raise ValidationError(
+                    _("Warehouse account '%(account)s' must not be a group account.")
+                    % {"account": account.name}
+                )
+            if account.account_type != "Stock":
+                raise ValidationError(
+                    _("Warehouse account '%(account)s' must be a Stock account.")
+                    % {"account": account.name}
+                )
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.company.abbr})"
@@ -310,23 +346,81 @@ class StockEntryType(models.TextChoices):
     MATERIAL_RECEIPT = "Material Receipt", "Material Receipt"
     MATERIAL_ISSUE = "Material Issue", "Material Issue"
     MATERIAL_TRANSFER = "Material Transfer", "Material Transfer"
+    MATERIAL_TRANSFER_FOR_MANUFACTURE = (
+        "Material Transfer for Manufacture",
+        "Material Transfer for Manufacture",
+    )
+    MANUFACTURE = "Manufacture", "Manufacture"
+    REPACK = "Repack", "Repack"
+
+
+#: Entry types whose posting is owned by ``manufacturing.services.production``.
+MANUFACTURING_ENTRY_TYPES = (
+    StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE,
+    StockEntryType.MANUFACTURE,
+    StockEntryType.REPACK,
+)
 
 
 class StockEntry(SubmittableDocument):
-    stock_entry_type = models.CharField(max_length=25, choices=StockEntryType.choices)
+    stock_entry_type = models.CharField(max_length=40, choices=StockEntryType.choices)
     posting_date = models.DateField()
     posting_time = models.TimeField(null=True, blank=True)
     company = models.ForeignKey(
         Company, on_delete=models.PROTECT, related_name="stock_entries"
     )
+    # Manufacturing. ``fg_completed_qty`` is the good output completed by this
+    # entry (design §14.2 plans by desired output, not by input); it is
+    # server-filled from the finished row when it is left at zero.
+    # ``process_loss_qty`` is server-owned: the gross input equivalent consumed
+    # minus the good output.
+    work_order = models.ForeignKey(
+        "manufacturing.WorkOrder",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="stock_entries",
+    )
+    bom = models.ForeignKey(
+        "manufacturing.BOM",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    fg_completed_qty = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal("0.000")
+    )
+    process_loss_qty = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal("0.000")
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(fg_completed_qty__gte=0)
+                & models.Q(process_loss_qty__gte=0),
+                name="check_stockentry_manufacturing_qty_bounds",
+            )
+        ]
 
     def validate_before_submit(self):
-        items = self.items.all()
-        if not items.exists():
+        items = list(
+            self.items.select_related(
+                "item", "batch", "source_warehouse", "target_warehouse"
+            )
+        )
+        if not items:
             raise ValidationError("Stock Entry must have at least one item.")
         self.company.get_perpetual_accounts(
-            need_adjustment=self.stock_entry_type != StockEntryType.MATERIAL_TRANSFER
+            need_adjustment=self.stock_entry_type
+            in (StockEntryType.MATERIAL_RECEIPT, StockEntryType.MATERIAL_ISSUE)
         )  # raises if perpetual is on but misconfigured
+        if self.stock_entry_type in MANUFACTURING_ENTRY_TYPES:
+            from manufacturing.services import production
+
+            production.validate_entry(self, items)
+            return
         for item in items:
             if (
                 self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT
@@ -345,6 +439,17 @@ class StockEntry(SubmittableDocument):
                     "Material Transfer requires both Source and Target Warehouses."
                 )
             self._validate_batch_line(item)
+
+    def _is_inward_line(self, line) -> bool:
+        """True when this row brings stock in (so a batch may be created)."""
+        if self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT:
+            return True
+        if self.stock_entry_type in (
+            StockEntryType.MANUFACTURE,
+            StockEntryType.REPACK,
+        ):
+            return bool(line.is_finished_item or line.is_scrap_item)
+        return False
 
     def _validate_batch_line(self, line):
         """Batch rules for one line (the submit gate; ``ledger.post`` re-asserts
@@ -372,7 +477,9 @@ class StockEntry(SubmittableDocument):
                     % {"code": item.code}
                 )
             return
-        if self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT:
+        if self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT or self._is_inward_line(
+            line
+        ):
             # A new batch will be created at submit: refuse now if it cannot be
             # given an expiry date.
             batch_service.resolve_dates(
@@ -392,6 +499,23 @@ class StockEntry(SubmittableDocument):
         )
 
     def on_submit(self):
+        from manufacturing.services import production
+
+        if self.stock_entry_type in (
+            StockEntryType.MANUFACTURE,
+            StockEntryType.REPACK,
+        ):
+            sles = production.post_manufacture(self)
+        elif self.stock_entry_type == (
+            StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE
+        ):
+            sles = production.post_transfer_for_manufacture(self)
+        else:
+            sles = self._post_regular()
+        self._post_inventory_gl(sles)
+
+    def _post_regular(self):
+        """Material Receipt / Issue / Transfer posting (unchanged engine)."""
         from stock.services import batches as batch_service
         from stock.services import ledger as stock_service
 
@@ -459,50 +583,74 @@ class StockEntry(SubmittableDocument):
                         "use_outgoing_rate": True,
                     }
                 )
-        sles = stock_service.post(
+        return stock_service.post(
             self,
             sle_list,
             posting_date=self.posting_date,
             posting_time=self.posting_time,
         )
 
-        # Perpetual inventory: receipts/issues change the inventory account against
-        # the stock adjustment account; a transfer within one company moves stock
-        # between warehouses that share the inventory account, so it posts no GL.
-        perpetual = self.company.get_perpetual_accounts(
-            need_adjustment=self.stock_entry_type != StockEntryType.MATERIAL_TRANSFER
-        )
-        if not perpetual or self.stock_entry_type == StockEntryType.MATERIAL_TRANSFER:
-            return
-        value = sum((s.stock_value_difference for s in sles), Decimal("0.00"))
-        if not value:
-            return
-        inventory = perpetual["default_inventory_account"]
-        adjustment = perpetual["stock_adjustment_account"]
-        amount = abs(value)
-        zero = Decimal("0.00")
-        if value > 0:  # Material Receipt
-            gl_entries = [
-                {"account": inventory, "debit": amount, "credit": zero},
-                {"account": adjustment, "debit": zero, "credit": amount},
-            ]
-        else:  # Material Issue
-            gl_entries = [
-                {"account": adjustment, "debit": amount, "credit": zero},
-                {"account": inventory, "debit": zero, "credit": amount},
-            ]
+    def _post_inventory_gl(self, sles):
+        """Post the value each warehouse account gained or lost (design §14.4).
+
+        Every leg contributes its ``stock_value_difference`` to its warehouse's
+        effective account (the warehouse's own ``account`` or the company
+        inventory account). Accounts whose net is zero post nothing, so a transfer
+        between warehouses that share the inventory account stays GL-neutral and a
+        manufacturing voucher posts ``Dr Finished Goods / Cr Work In Progress``.
+        A non-zero net (a receipt or an issue) is balanced against the stock
+        adjustment account.
+        """
         from accounts.services import gl as gl_service
 
-        gl_service.post(self, gl_entries, posting_date=self.posting_date)
+        perpetual = self.company.get_perpetual_accounts(
+            need_adjustment=self.stock_entry_type
+            in (StockEntryType.MATERIAL_RECEIPT, StockEntryType.MATERIAL_ISSUE)
+        )
+        if not perpetual:
+            return
+        inventory = perpetual["default_inventory_account"]
+        balances = {}
+        for sle in sles:
+            account = sle.warehouse.account or inventory
+            balances[account] = balances.get(account, Decimal("0.00")) + (
+                sle.stock_value_difference
+            )
+
+        zero = Decimal("0.00")
+        gl_entries = []
+        for account, value in balances.items():
+            value = value.quantize(Decimal("0.01"))
+            if value > 0:
+                gl_entries.append({"account": account, "debit": value, "credit": zero})
+            elif value < 0:
+                gl_entries.append({"account": account, "debit": zero, "credit": -value})
+
+        net = sum(balances.values(), Decimal("0.00")).quantize(Decimal("0.01"))
+        if net:
+            adjustment = perpetual["stock_adjustment_account"]
+            if net > 0:
+                gl_entries.append(
+                    {"account": adjustment, "debit": zero, "credit": net}
+                )
+            else:
+                gl_entries.append(
+                    {"account": adjustment, "debit": -net, "credit": zero}
+                )
+        if gl_entries:
+            gl_service.post(self, gl_entries, posting_date=self.posting_date)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
+        from manufacturing.services import production
         from stock.services import ledger as stock_service
 
         stock_service.reverse(self)
         gl_service.reverse(
             self
         )  # no-op when the entry posted no GL (transfer / perpetual off)
+        if self.work_order_id:
+            production.refresh_bound_work_order(self)
 
     def __str__(self):
         return f"{self.name} [{self.stock_entry_type}]"
@@ -547,6 +695,15 @@ class StockEntryItem(models.Model):
     manufacturing_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
 
+    # Manufacturing (design §3.2): one finished row per Manufacture/Repack, any
+    # number of consumption rows, optional scrap rows. ``cost_allocation_per`` is
+    # used only by Repack with several finished rows.
+    is_finished_item = models.BooleanField(default=False)
+    is_scrap_item = models.BooleanField(default=False)
+    cost_allocation_per = models.DecimalField(
+        max_digits=7, decimal_places=3, null=True, blank=True
+    )
+
     class Meta:
         constraints = [
             models.CheckConstraint(
@@ -554,7 +711,19 @@ class StockEntryItem(models.Model):
                 | models.Q(manufacturing_date__isnull=True)
                 | models.Q(expiry_date__gte=models.F("manufacturing_date")),
                 name="check_stockentryitem_expiry_after_manufacturing",
-            )
+            ),
+            models.CheckConstraint(
+                check=~(models.Q(is_finished_item=True) & models.Q(is_scrap_item=True)),
+                name="check_stockentryitem_finished_xor_scrap",
+            ),
+            models.CheckConstraint(
+                check=models.Q(cost_allocation_per__isnull=True)
+                | (
+                    models.Q(cost_allocation_per__gte=0)
+                    & models.Q(cost_allocation_per__lte=100)
+                ),
+                name="check_stockentryitem_cost_allocation_per",
+            ),
         ]
 
     def __str__(self):

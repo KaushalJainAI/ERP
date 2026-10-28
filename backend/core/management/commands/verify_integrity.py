@@ -153,6 +153,25 @@ class Command(BaseCommand):
         for warning in batch_warnings:
             self.stdout.write(self.style.WARNING(f"[batch warning] {warning}"))
 
+        # 8. Manufacturing: each Manufacture/Repack voucher conserves value, the
+        #    header completed quantity equals its finished rows, and every Work
+        #    Order projection matches the ledger (design §7).
+        from manufacturing.services import integrity as manufacturing_integrity
+
+        manu_errors, manu_warnings = manufacturing_integrity.check()
+        SystemHealthCheck.objects.create(
+            check_name="manufacturing_integrity",
+            status="alert" if manu_errors else "ok",
+            details={
+                "errors": manu_errors,
+                "warnings": manu_warnings,
+                "message": "" if manu_errors else "Manufacturing vouchers and Work Order progress agree.",
+            },
+        )
+        errors.extend(manu_errors)
+        for warning in manu_warnings:
+            self.stdout.write(self.style.WARNING(f"[manufacturing warning] {warning}"))
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
         details_payload = (
@@ -182,33 +201,74 @@ class Command(BaseCommand):
         )
 
     def _check_perpetual_inventory_balance(self):
+        """GL balance per effective warehouse account equals its Bin value.
+
+        Every warehouse posts to its own ``account`` when set (Work In Progress,
+        design §14.4) and to the company default inventory account otherwise.
+        Comparing per account rather than in aggregate is what catches a WIP
+        warehouse posting to the wrong ledger.
+        """
+        from stock.models import Warehouse
+
         errors = []
         companies = Company.objects.filter(
             enable_perpetual_inventory=True, default_inventory_account__isnull=False
         ).select_related("default_inventory_account")
         for company in companies:
-            account = company.default_inventory_account
-            gl = GLEntry.objects.filter(account=account, is_cancelled=False).aggregate(
-                dr=Sum("debit"), cr=Sum("credit")
+            default = company.default_inventory_account
+            expected = {default.pk: Decimal("0.00")}
+            warehouses = Warehouse.objects.filter(company=company).select_related(
+                "account"
             )
-            gl_balance = (gl["dr"] or Decimal("0.00")) - (gl["cr"] or Decimal("0.00"))
-            stock_value = Bin.objects.filter(warehouse__company=company).aggregate(
-                v=Sum("stock_value")
-            )["v"] or Decimal("0.00")
-            voucher_count = (
-                StockLedgerEntry.objects.filter(
-                    warehouse__company=company, is_cancelled=False
+            for warehouse in warehouses:
+                account = warehouse.account or default
+                value = (
+                    Bin.objects.filter(warehouse=warehouse).aggregate(
+                        v=Sum("stock_value")
+                    )["v"]
+                    or Decimal("0.00")
                 )
-                .values("voucher_type", "voucher_no")
-                .distinct()
-                .count()
-            )
-            # Each voucher may round its valuation by up to a cent.
-            tolerance = Decimal("0.01") * voucher_count
-            if abs(gl_balance - stock_value) > tolerance:
-                errors.append(
-                    f"Perpetual Inventory Drift for {company.name}: GL balance of "
-                    f"'{account.name}' ({gl_balance}) != Bin stock value ({stock_value}), "
-                    f"tolerance {tolerance}"
+                expected[account.pk] = expected.get(account.pk, Decimal("0.00")) + value
+
+            for account_pk, stock_value in expected.items():
+                gl = GLEntry.objects.filter(
+                    account_id=account_pk, is_cancelled=False
+                ).aggregate(dr=Sum("debit"), cr=Sum("credit"))
+                gl_balance = (gl["dr"] or Decimal("0.00")) - (
+                    gl["cr"] or Decimal("0.00")
                 )
+                voucher_count = (
+                    StockLedgerEntry.objects.filter(
+                        warehouse__company=company,
+                        warehouse__account_id=account_pk,
+                        is_cancelled=False,
+                    )
+                    .values("voucher_type", "voucher_no")
+                    .distinct()
+                    .count()
+                    if account_pk != default.pk
+                    else StockLedgerEntry.objects.filter(
+                        warehouse__company=company,
+                        warehouse__account__isnull=True,
+                        is_cancelled=False,
+                    )
+                    .values("voucher_type", "voucher_no")
+                    .distinct()
+                    .count()
+                )
+                # Each voucher may round its valuation by up to a cent.
+                tolerance = Decimal("0.01") * voucher_count
+                if abs(gl_balance - stock_value) > tolerance:
+                    account = self._account_label(account_pk)
+                    errors.append(
+                        f"Perpetual Inventory Drift for {company.name}: GL balance of "
+                        f"'{account}' ({gl_balance}) != Bin stock value ({stock_value}), "
+                        f"tolerance {tolerance}"
+                    )
         return errors
+
+    @staticmethod
+    def _account_label(account_pk):
+        from accounts.models import Account
+
+        return Account.objects.filter(pk=account_pk).values_list("name", flat=True).first()

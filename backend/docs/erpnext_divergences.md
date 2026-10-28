@@ -459,3 +459,12 @@ now match that posture.
   transactions first"), in addition to the Bin guard; reversal rows copy `batch`.
 - New optional SLE keys on `ledger.post()`: `batch`, `incoming_value` (exact stock-in value; rate = value/qty)
   and `allow_expired`.
+
+## Manufacturing (2026-10-28, docs/manufacturing_design.md)
+
+- **BOM is a master, not a document.** It has no `docstatus`; a submitted Work Order or Stock Entry snapshots it and locks edits (409). Costs are derived on read from the live rows, never stored.
+- **Work Order quantity is good output (design section 14.2 overrides 3/10).** `qty` is the desired saleable output; required raw material is grossed up by `1 / (1 - process_loss_percentage/100)`. `fg_completed_qty` is good output. `process_loss_qty` is server-owned actual loss: the BOM basis represented by the consumed components minus the good output. The old `process_loss_qty <= fg_completed_qty` CHECK is dropped; loss can exceed output above 50% loss.
+- **WIP is its own balance-sheet line.** `Warehouse.account` is a nullable FK; a warehouse posts stock to its own account when set, otherwise to the company default inventory account. `seed_defaults` creates a `Work In Progress` Stock account. The design's "manufacturing vouchers post no GL" check is superseded: transfer and manufacture vouchers post through the same per-account perpetual path as every other stock document.
+- **No serial numbers and no Serial and Batch Bundle.** One batch per line; multi-batch issues are multiple rows. `Manufacture` auto-creates a finished-goods batch with the item shelf life; `Repack` does the same. Consumption uses FEFO and refuses expired lots.
+- **Repack** allocates consumed value by `cost_allocation_per` (must total 100) over its finished rows; it has no process loss and cannot reference a Work Order.
+- **Production Yield** is reported per manufacturing voucher, with `process_loss_qty` and `loss_percent = loss / (output + loss) * 100`.

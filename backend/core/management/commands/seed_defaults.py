@@ -7,7 +7,7 @@ from django.db import transaction
 from core.models import Company, FiscalYear, Language
 from users.models import Role, RolePermission
 from users.permissions import PERMISSION_FLAGS
-from stock.models import UOM, ItemGroup
+from stock.models import UOM, ItemGroup, Warehouse
 from selling.models import CustomerGroup
 from buying.models import SupplierGroup
 from accounts.models import Account, AccountRootType, AccountType
@@ -75,6 +75,7 @@ _MASTER_LABELS = (
     "stock.Item",
     "stock.Batch",
     "stock.Warehouse",
+    "manufacturing.BOM",
     "selling.CustomerGroup",
     "selling.Customer",
     "buying.SupplierGroup",
@@ -101,6 +102,7 @@ _DOCUMENT_LABELS = (
     "selling.SalesInvoice",
     "buying.PurchaseOrder",
     "buying.PurchaseInvoice",
+    "manufacturing.WorkOrder",
 )
 
 #: Immutable ledgers. Read access here is read access to the books: the report
@@ -120,6 +122,8 @@ _STOCK_LABELS = (
     "stock.StockLedgerEntry",
     "stock.Bin",
     "stock.StockEntry",
+    "manufacturing.BOM",
+    "manufacturing.WorkOrder",
 )
 
 _ACCOUNTS_LABELS = (
@@ -381,6 +385,24 @@ class Command(BaseCommand):
                 "is_group": False,
             },
         )
+        # Work In Progress is its own balance-sheet line (design §14.4). The WIP
+        # warehouse, when one exists, posts here; every other warehouse stays on
+        # the company default inventory account.
+        wip_account, _ = Account.objects.get_or_create(
+            company=company,
+            name="Work In Progress",
+            defaults={
+                "parent": root_nodes[AccountRootType.ASSET],
+                "root_type": AccountRootType.ASSET,
+                "account_type": AccountType.STOCK,
+                "is_group": False,
+            },
+        )
+        for warehouse in Warehouse.objects.filter(
+            company=company, name__iexact="Work In Progress", account__isnull=True
+        ):
+            warehouse.account = wip_account
+            warehouse.save(update_fields=["account"])
 
         # Sub accounts under Liabilities
         Account.objects.get_or_create(

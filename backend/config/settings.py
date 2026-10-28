@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "selling.apps.SellingConfig",
     "buying.apps.BuyingConfig",
     "gst.apps.GstConfig",
+    "manufacturing.apps.ManufacturingConfig",
 ]
 
 MIDDLEWARE = [

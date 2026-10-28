@@ -257,6 +257,9 @@ class BatchSerializer(serializers.ModelSerializer):
 class WarehouseSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True)
     parent_name = serializers.CharField(source="parent.name", read_only=True)
+    account_name = serializers.CharField(
+        source="account.name", read_only=True, default=None
+    )
 
     class Meta:
         model = Warehouse
@@ -268,6 +271,8 @@ class WarehouseSerializer(serializers.ModelSerializer):
             "parent",
             "parent_name",
             "is_group",
+            "account",
+            "account_name",
             "created_at",
             "modified_at",
         )
@@ -400,6 +405,9 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
             "supplier_batch_no",
             "manufacturing_date",
             "expiry_date",
+            "is_finished_item",
+            "is_scrap_item",
+            "cost_allocation_per",
         )
 
 
@@ -418,10 +426,21 @@ class StockEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
             "posting_date",
             "posting_time",
             "company",
+            "work_order",
+            "bom",
+            "fg_completed_qty",
+            "process_loss_qty",
             "docstatus",
             "amended_from",
             "items",
             "created_at",
             "modified_at",
         )
-        read_only_fields = ("id", "docstatus", "created_at", "modified_at")
+        read_only_fields = (
+            "id",
+            "fg_completed_qty",
+            "process_loss_qty",
+            "docstatus",
+            "created_at",
+            "modified_at",
+        )

@@ -248,3 +248,22 @@ models used by selling/buying. Flag as models-only when reviewing.
   matching `RolePermission` grant exists in the seed (`docs/seed_defaults.md`).
 - **i18n**: translatable fields are swapped at serialization via `TranslatedSerializerMixin`
   + `FieldTranslation` — responses vary by `User.language` / `Accept-Language`.
+
+## Manufacturing (BOM, Work Order, production)
+
+| Endpoint | Method | Purpose | Notes |
+|---|---|---|---|
+| `manufacturing/boms/` | GET/POST | List / create a BOM | Nested `items` and `scrap_items` are written with the header. `name` is optional and defaults to `BOM-####`. `cost` fields are derived on read. |
+| `manufacturing/boms/{pk}/` | GET/PATCH/DELETE | BOM detail | PATCH is refused with **409** once a submitted Work Order or Stock Entry references the BOM (`BOMUsageLocked`). |
+| `manufacturing/boms/{pk}/cost/` | GET | Component rates, scrap value, good output and unit cost | Valuation Rate blends the company moving average; Standard Rate uses `Item.standard_rate`. |
+| `manufacturing/boms/{pk}/explode/` | GET | Multi-level flattened tree | Rows below level 0 are informational; a row that names a sub-BOM is expanded. |
+| `manufacturing/work-orders/` | GET/POST | List / create a Work Order | `qty` is the **desired good output**. The server generates `required_items` (grossed up by `1 / (1 - process_loss_percentage/100)`) and ignores client-supplied rows. |
+| `manufacturing/work-orders/{pk}/submit/` `cancel/` `amend/` | POST | Standard document lifecycle | Submit validates the BOM, warehouses and quantity. Cancel is refused while non-cancelled stock entries reference the Work Order. |
+| `manufacturing/work-orders/{pk}/stop/` `resume/` | POST | Pause / resume production | Refused for draft documents and completed Work Orders. |
+| `manufacturing/work-orders/{pk}/make-stock-entry/` | POST | Create a draft `Material Transfer for Manufacture` or `Manufacture` entry | Body `{ "type": "material_transfer" | "manufacture", "qty": "..." }`; `qty` defaults to the remaining output. 201 returns the draft; submit it to post the ledger. |
+| `manufacturing/reports/production-yield/` | GET | Planned versus actual output and loss | Filters: `company`, `from_date`, `to_date`, `work_order`, `bom`. Returns per-entry rows and totals. |
+| `manufacturing/reports/bom-cost/` | GET | BOM unit cost and last actual cost | Filters: `company`, `item`, `is_active` (default `1`). |
+
+**Stock Entry manufacturing types.** `Material Transfer for Manufacture`, `Manufacture` and `Repack` are regular `StockEntry` documents (`stock/stock-entries/`). Manufacturing entries accept `work_order`, `bom`, `is_finished_item`, `is_scrap_item` and `cost_allocation_per` (Repack). `fg_completed_qty` and `process_loss_qty` are server-owned read-only fields. A Manufacture consumes exactly the Work Order's components from the WIP warehouse and produces one finished row; a Repack allocates the consumed value across finished rows by `cost_allocation_per` (must total 100).
+
+**GL.** A WIP warehouse may carry its own Stock account (`Warehouse.account`); stock posts to that account instead of the company default inventory account. A Material Transfer for Manufacture debits WIP and credits the source warehouses; a Manufacture credits WIP and debits the finished/scrap warehouses for the same total value (value conservation is asserted at submit). A `Manufacture` or `Repack` voucher posts no other GL row; the net residual goes to the stock adjustment account only when rounding leaves one.
