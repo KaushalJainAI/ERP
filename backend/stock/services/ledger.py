@@ -4,7 +4,8 @@ from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from core.models import FiscalYear
-from stock.models import Item, Warehouse, StockLedgerEntry, Bin
+from stock.models import Batch, Item, Warehouse, StockLedgerEntry, Bin
+from stock.services import batches as batch_service
 
 
 def quantize_qty(val: Any) -> Decimal:
@@ -39,6 +40,13 @@ def post(
 ) -> List[StockLedgerEntry]:
     """
     Atomically posts StockLedgerEntry rows and updates derived Bin balances.
+
+    Optional keys per SLE dict (all default to the pre-batch behaviour):
+      ``batch``          Batch | pk. Required iff the item is batch-tracked.
+      ``incoming_value`` Decimal. Stock-in only: the exact value of the leg
+                         (rate becomes value/qty), instead of qty * rate.
+      ``allow_expired``  bool. Stock-out only: permit issuing an expired batch
+                         (Material Issue, the write-off path).
     """
     if not sle_entries:
         raise ValidationError("Cannot post empty stock ledger entries.")
@@ -84,6 +92,10 @@ def post(
 
             rate = quantize_rate(item_data.get("valuation_rate", 0))
 
+            batch = item_data.get("batch")
+            if isinstance(batch, (int, str)):
+                batch = Batch.objects.get(pk=batch)
+
             # Fetch or initialize Bin
             bin_obj, _ = Bin.objects.select_for_update().get_or_create(
                 item=item,
@@ -93,6 +105,17 @@ def post(
                     "valuation_rate": Decimal("0.000000"),
                     "stock_value": Decimal("0.00"),
                 },
+            )
+
+            # Batch invariants, checked under the Bin lock so concurrent postings
+            # to the same item+warehouse cannot both pass the balance check.
+            batch_position = batch_service.validate_leg(
+                item,
+                batch,
+                qty,
+                warehouse,
+                date_to_use,
+                allow_expired=bool(item_data.get("allow_expired")),
             )
 
             # Valuation math: Moving Average. FIFO is not yet implemented — see
@@ -107,7 +130,11 @@ def post(
                     and last_outgoing_rate is not None
                 ):
                     rate = quantize_rate(last_outgoing_rate)
-                incoming_value = quantize_value(qty * rate)
+                if item_data.get("incoming_value") is not None:
+                    incoming_value = quantize_value(item_data["incoming_value"])
+                    rate = quantize_rate(incoming_value / qty)
+                else:
+                    incoming_value = quantize_value(qty * rate)
                 new_stock_value = quantize_value(bin_obj.stock_value + incoming_value)
                 new_valuation_rate = (
                     quantize_rate(new_stock_value / new_qty)
@@ -122,10 +149,25 @@ def post(
                         f"Insufficient stock for Item '{item.code}' in Warehouse '{warehouse.name}'. "
                         f"Available: {bin_obj.actual_qty}, Required: {abs(qty)}"
                     )
-                outgoing_rate = (
-                    bin_obj.valuation_rate if bin_obj.valuation_rate > 0 else rate
-                )
+                # A batch-tracked item is costed at its batch's own average (ERPNext's
+                # batch-wise valuation); otherwise (and when the batch carries no
+                # cost) at the Bin average, else the passed rate.
+                outgoing_rate = None
+                batch_cost = None
+                if batch_position is not None:
+                    b_qty, b_value = batch_position
+                    if b_qty > 0 and b_value > 0:
+                        outgoing_rate = quantize_rate(b_value / b_qty)
+                        batch_cost = b_value
+                if not outgoing_rate:
+                    outgoing_rate = (
+                        bin_obj.valuation_rate if bin_obj.valuation_rate > 0 else rate
+                    )
                 outgoing_value = quantize_value(abs(qty) * outgoing_rate)
+                # Issuing a batch's whole balance releases exactly its value, so no
+                # paisa of rounding is stranded on an empty batch.
+                if batch_cost is not None and batch_position[0] == abs(qty):
+                    outgoing_value = quantize_value(batch_cost)
                 new_stock_value = quantize_value(bin_obj.stock_value - outgoing_value)
                 new_valuation_rate = (
                     quantize_rate(new_stock_value / new_qty)
@@ -160,6 +202,7 @@ def post(
                 voucher_type=voucher_type,
                 voucher_no=voucher_no,
                 is_cancelled=False,
+                batch=batch,
             )
             created_sles.append(sle)
 
@@ -211,6 +254,20 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
                     f"(available {bin_obj.actual_qty}, reversal {rev_qty}). "
                     f"Cancel the later transactions that consumed this stock first."
                 )
+            # Same guard per batch: cancelling an inward leg must not leave its
+            # batch negative (the original is already flagged cancelled, so the
+            # derived balance excludes it).
+            if orig.batch_id and orig.qty > 0:
+                left = batch_service.batch_balance(
+                    orig.item_id, orig.warehouse_id, orig.batch_id
+                )
+                if left < 0:
+                    raise ValidationError(
+                        f"Cannot cancel: reversing this entry would leave negative stock "
+                        f"in batch '{orig.batch.batch_no}' of Item '{orig.item.code}' "
+                        f"in Warehouse '{orig.warehouse.name}' (short by {-left}). "
+                        f"Cancel the later transactions that consumed this batch first."
+                    )
             new_value = quantize_value(bin_obj.stock_value + rev_diff)
             new_rate = (
                 quantize_rate(new_value / new_qty)
@@ -241,6 +298,7 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
                 voucher_type=orig.voucher_type,
                 voucher_no=orig.voucher_no,
                 is_cancelled=True,
+                batch_id=orig.batch_id,
             )
             reversal_sles.append(rev_sle)
 

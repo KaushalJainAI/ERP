@@ -417,3 +417,45 @@ now match that posture.
   columns of the period's invoices, booked on the invoice date (design 11.6). 6.1 is informational: output =
   3.1(a)+(b)+(d), ITC = 4C, no cash / credit ledger offset order.
 - **Tax ledger** `party` is the voucher's receivable / payable party (tax GL rows carry none).
+
+## Batches (2026-10-28, docs/manufacturing_design.md section 1, phase-3 Task 1a)
+
+- **No Serial and Batch Bundle document and no serial numbers.** `batch` is a direct nullable FK on
+  `StockLedgerEntry` and `StockEntryItem`; one batch per line (a multi-batch issue is several lines).
+- **Batch balance is derived, not stored**: `SUM(qty)` over the batch's non-cancelled SLE in a warehouse
+  (`stock/services/batches.py::batch_balance`). There is no per-batch Bin (ERPNext's `Batch.batch_qty` is also
+  only a cache). The "no negative batch" guard in `ledger.post()` / `reverse()` runs under the item+warehouse
+  Bin lock, so it is race-free; there is no DB constraint for it (it is derived), and
+  `batches.integrity_errors()` detects it.
+- **Valuation stays Moving Average (G1).** For batch-tracked items the *outgoing* rate is the batch's own
+  average in that warehouse (`SUM(value)/SUM(qty)`, ERPNext's default batch-wise valuation); the Bin remains the
+  sum of its batches. If a batch has no positive cost the leg falls back to the Bin rate, then the passed rate
+  (the non-batch behaviour). Issuing a batch's whole balance releases exactly its value (no stranded paisa).
+  FIFO is not attempted.
+- **Batch is mandatory on every leg of a batch-tracked item** (and forbidden on others): asserted centrally in
+  `ledger.post()`, and at the Stock Entry submit gate with a FEFO suggestion ("Batch required for Item X. FEFO
+  suggests B1 (400.000), B2 (100.000)."). ERPNext auto-picks batches; we do not, so the document records the lot
+  actually issued. Allocation is read-only (`batches/fefo/`), nothing is reserved.
+- **Expiry blocking**: any stock-out of a batch whose `expiry_date < posting_date` is refused, including
+  Material Transfer, except **Material Issue** (the write-off path; `allow_expired`). No minimum-remaining-
+  shelf-life rule. An expiry date is only allowed on items with `has_expiry_date`.
+- **Batch numbering** `ITEMCODE-YYMMDD-NN` (NamingSeries, per posting date); a manual `batch_no` is always
+  allowed. Auto numbering is refused when the prefix would not fit `NamingSeries.prefix` (40 chars): enter the
+  number manually. User decision 2026-10-28.
+- **Inward batches**: a Material Receipt line either picks an existing batch or carries the new-batch fields
+  (`supplier_batch_no`, `manufacturing_date`, `expiry_date`); the batch is created at submit inside the posting
+  transaction and written back to the line, with `reference_doctype/reference_name` naming the voucher
+  (provenance; deliberately no Supplier FK). Expiry = manufacturing date (default: posting date) +
+  `Item.shelf_life_in_days`; refused if an expiry-tracked item has no expiry source. Picking and entering is a
+  400. `amend()` copies `batch`, so a re-submitted amendment reuses the same lot (the batch's reference keeps
+  naming the first voucher).
+- **Item flags frozen once stock exists**: `has_batch_no` / `has_expiry_date` cannot change after the item has any
+  SLE (serializer 400, and `Item.save()` raises for the ORM/admin). There is no stock reconciliation document to
+  batch-assign opening stock. DB CHECKs: expiry requires batch tracking; shelf life only with expiry and > 0.
+- **Batch master**: `item` is immutable once the batch has SLEs, `batch_no` cannot be renamed, `expiry_date`
+  stays editable; delete of a used batch is 409 (disable it instead); a disabled batch is refused on every leg.
+  Provenance fields are server-owned (read-only in the API).
+- **Reverse guard**: cancelling an inward leg that would leave its batch negative is refused ("cancel the later
+  transactions first"), in addition to the Bin guard; reversal rows copy `batch`.
+- New optional SLE keys on `ledger.post()`: `batch`, `incoming_value` (exact stock-in value; rate = value/qty)
+  and `allow_expired`.

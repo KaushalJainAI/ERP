@@ -12,6 +12,7 @@ from core.admin import (
     TimeStampedAdminMixin,
 )
 from stock.models import (
+    Batch,
     Bin,
     Item,
     ItemGroup,
@@ -51,11 +52,13 @@ class ItemAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         "is_stock_item",
         "valuation_method",
         "standard_rate",
+        "has_batch_no",
         "is_active",
     )
     list_filter = (
         "is_active",
         "is_stock_item",
+        "has_batch_no",
         "valuation_method",
         "item_group",
     )
@@ -63,6 +66,26 @@ class ItemAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     autocomplete_fields = ("item_group", "stock_uom", "item_tax_template")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("code",)
+
+
+@admin.register(Batch)
+class BatchAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = (
+        "batch_no",
+        "item",
+        "manufacturing_date",
+        "expiry_date",
+        "supplier_batch_no",
+        "is_disabled",
+    )
+    list_filter = ("is_disabled",)
+    search_fields = ("batch_no", "supplier_batch_no", "item__code", "item__name")
+    autocomplete_fields = ("item",)
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields + (
+        "reference_doctype",
+        "reference_name",
+    )
+    ordering = ("-created_at",)
 
 
 @admin.register(Warehouse)
@@ -87,6 +110,7 @@ class StockLedgerEntryAdmin(ReadOnlyModelAdmin):
         "stock_value_difference",
         "voucher_type",
         "voucher_no",
+        "batch",
         "is_cancelled",
     )
     list_filter = ("is_cancelled", "voucher_type", "posting_date", "warehouse")
@@ -107,6 +131,7 @@ class StockLedgerEntryAdmin(ReadOnlyModelAdmin):
         "stock_value_difference",
         "voucher_type",
         "voucher_no",
+        "batch",
         "is_cancelled",
         "created_at",
     )
@@ -144,13 +169,17 @@ class BinAdmin(ReadOnlyModelAdmin):
 class StockEntryItemInline(admin.TabularInline):
     model = StockEntryItem
     extra = 1
-    autocomplete_fields = ("item", "source_warehouse", "target_warehouse")
+    autocomplete_fields = ("item", "source_warehouse", "target_warehouse", "batch")
     fields = (
         "item",
         "source_warehouse",
         "target_warehouse",
         "qty",
         "valuation_rate",
+        "batch",
+        "supplier_batch_no",
+        "manufacturing_date",
+        "expiry_date",
     )
 
 

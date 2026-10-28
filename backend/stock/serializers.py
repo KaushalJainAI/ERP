@@ -1,3 +1,6 @@
+import datetime
+
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -6,11 +9,13 @@ from stock.models import (
     ItemGroup,
     Item,
     Warehouse,
+    Batch,
     StockLedgerEntry,
     Bin,
     StockEntry,
     StockEntryItem,
 )
+from stock.services import batches as batch_service
 from core.mixins import (
     DraftNestedWriteMixin,
     TranslatedSerializerMixin,
@@ -69,6 +74,9 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
             "item_tax_template",
             "item_tax_template_name",
             "item_tax_rate",
+            "has_batch_no",
+            "has_expiry_date",
+            "shelf_life_in_days",
             "created_at",
             "modified_at",
         )
@@ -97,7 +105,153 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
                     )
                 }
             )
+
+        has_batch = current("has_batch_no")
+        has_expiry = current("has_expiry_date")
+        shelf_life = (
+            attrs["shelf_life_in_days"]
+            if "shelf_life_in_days" in attrs
+            else getattr(inst, "shelf_life_in_days", None)
+        )
+        if has_expiry and not has_batch:
+            raise serializers.ValidationError(
+                {
+                    "has_expiry_date": _(
+                        "An item that tracks expiry must also be batch-tracked."
+                    )
+                }
+            )
+        if shelf_life is not None and not (has_expiry and shelf_life > 0):
+            raise serializers.ValidationError(
+                {
+                    "shelf_life_in_days": _(
+                        "Shelf life must be positive and needs 'has expiry date'."
+                    )
+                }
+            )
+        # Batch tracking is frozen once the item has ledger entries.
+        if inst is not None and (
+            has_batch != inst.has_batch_no or has_expiry != inst.has_expiry_date
+        ):
+            if StockLedgerEntry.objects.filter(item=inst).exists():
+                raise serializers.ValidationError(
+                    {
+                        "has_batch_no": _(
+                            "Batch tracking cannot be changed once the item has "
+                            "stock ledger entries."
+                        )
+                    }
+                )
         return attrs
+
+
+class BatchSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="item.code", read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    # Derived on read (from the ledger); in one warehouse when the list is
+    # filtered by ``warehouse``, else across all warehouses.
+    available_qty = serializers.DecimalField(
+        max_digits=18, decimal_places=3, read_only=True, default=None
+    )
+    days_to_expiry = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Batch
+        fields = (
+            "id",
+            "batch_no",
+            "item",
+            "item_code",
+            "item_name",
+            "manufacturing_date",
+            "expiry_date",
+            "supplier_batch_no",
+            "reference_doctype",
+            "reference_name",
+            "description",
+            "is_disabled",
+            "available_qty",
+            "days_to_expiry",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = ("reference_doctype", "reference_name")
+        extra_kwargs = {"batch_no": {"required": False}}
+
+    def get_days_to_expiry(self, obj):
+        if not obj.expiry_date:
+            return None
+        ref = self.context.get("reference_date") or datetime.date.today()
+        return (obj.expiry_date - ref).days
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        inst = self.instance
+
+        def cur(name):
+            return attrs[name] if name in attrs else getattr(inst, name, None)
+
+        item = cur("item")
+        if not item.has_batch_no:
+            raise serializers.ValidationError(
+                {
+                    "item": _("Item '%(code)s' is not batch-tracked.")
+                    % {"code": item.code}
+                }
+            )
+        if inst is not None and item.pk != inst.item_id:
+            if StockLedgerEntry.objects.filter(batch=inst).exists():
+                raise serializers.ValidationError(
+                    {"item": _("The item of a batch cannot change once it has stock.")}
+                )
+        mfg, exp = cur("manufacturing_date"), cur("expiry_date")
+        if inst is None:
+            # New batch: apply the shelf-life default / expiry rules.
+            try:
+                mfg, exp = batch_service.resolve_dates(item, mfg, exp)
+            except DjangoValidationError as e:
+                raise serializers.ValidationError({"expiry_date": e.messages})
+            attrs["manufacturing_date"], attrs["expiry_date"] = mfg, exp
+        else:
+            if exp and not item.has_expiry_date:
+                raise serializers.ValidationError(
+                    {"expiry_date": _("Item does not track expiry.")}
+                )
+            if item.has_expiry_date and not exp:
+                raise serializers.ValidationError(
+                    {"expiry_date": _("This item tracks expiry; a date is required.")}
+                )
+            if exp and mfg and exp < mfg:
+                raise serializers.ValidationError(
+                    {"expiry_date": _("Expiry cannot be before manufacturing.")}
+                )
+        return attrs
+
+    def create(self, validated_data):
+        batch_no = validated_data.get("batch_no")
+        try:
+            return batch_service.create_batch(
+                validated_data["item"],
+                batch_no=batch_no,
+                manufacturing_date=validated_data.get("manufacturing_date"),
+                expiry_date=validated_data.get("expiry_date"),
+                supplier_batch_no=validated_data.get("supplier_batch_no", ""),
+                description=validated_data.get("description", ""),
+                numbering_date=datetime.date.today(),
+            )
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"batch_no": e.messages})
+
+    def update(self, instance, validated_data):
+        # The batch number is fixed after creation.
+        if (
+            "batch_no" in validated_data
+            and validated_data["batch_no"] != instance.batch_no
+        ):
+            raise serializers.ValidationError(
+                {"batch_no": _("The batch number cannot be changed.")}
+            )
+        return super().update(instance, validated_data)
 
 
 class WarehouseSerializer(serializers.ModelSerializer):
@@ -125,6 +279,9 @@ class StockLedgerEntrySerializer(serializers.ModelSerializer):
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
 
     class Meta:
         model = StockLedgerEntry
@@ -143,6 +300,8 @@ class StockLedgerEntrySerializer(serializers.ModelSerializer):
             "voucher_type",
             "voucher_no",
             "is_cancelled",
+            "batch",
+            "batch_no",
             "created_at",
         )
         read_only_fields = fields
@@ -182,10 +341,46 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
         source="target_warehouse.name", read_only=True, allow_null=True
     )
 
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
+
     def validate_valuation_rate(self, value):
         if value is not None and value < 0:
             raise DRFValidationError("Valuation rate cannot be negative.")
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        batch = attrs.get("batch")
+        item = attrs.get("item")
+        if batch is not None and item is not None:
+            if batch.item_id != item.pk:
+                raise DRFValidationError(
+                    {"batch": _("Batch does not belong to this item.")}
+                )
+            if not item.has_batch_no:
+                raise DRFValidationError(
+                    {
+                        "batch": _("Item '%(code)s' is not batch-tracked.")
+                        % {"code": item.code}
+                    }
+                )
+        new_fields = bool(
+            attrs.get("supplier_batch_no")
+            or attrs.get("manufacturing_date")
+            or attrs.get("expiry_date")
+        )
+        if batch is not None and new_fields:
+            raise DRFValidationError(
+                _("Pick an existing batch or enter new-batch details, not both.")
+            )
+        mfg, exp = attrs.get("manufacturing_date"), attrs.get("expiry_date")
+        if mfg and exp and exp < mfg:
+            raise DRFValidationError(
+                {"expiry_date": _("Expiry cannot be before manufacturing.")}
+            )
+        return attrs
 
     class Meta:
         model = StockEntryItem
@@ -200,6 +395,11 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
             "target_warehouse_name",
             "qty",
             "valuation_rate",
+            "batch",
+            "batch_no",
+            "supplier_batch_no",
+            "manufacturing_date",
+            "expiry_date",
         )
 
 
