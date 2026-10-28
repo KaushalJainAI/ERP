@@ -742,6 +742,13 @@ class ManufacturingApiTests(ManuBase):
         )
         self.assertEqual(r.status_code, 409, r.content)
 
+    def test_bom_list_renders_computed_costs(self):
+        self.bom(rate_basis="Standard Rate")
+        r = self.c.get("/api/manufacturing/boms/")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.data["count"], 1)
+        self.assertEqual(r.data["results"][0]["raw_material_cost"], "8400.00")
+
     def test_bom_cost_and_explode_endpoints(self):
         bom = self.bom(rate_basis="Standard Rate")
         r = self.c.get(f"/api/manufacturing/boms/{bom.pk}/cost/")

@@ -92,34 +92,37 @@ class BOMSerializer(NestedMasterWriteMixin, serializers.ModelSerializer):
         # unique-together validator from the conditional constraint.
         validators = []
 
-    def _cost(self):
-        if not self.instance or not self.instance.pk:
+    def _cost(self, obj=None):
+        # With many=True DRF keeps the *list* on ``self.instance`` and calls the
+        # child serializer once per row; use the row passed in, not the list.
+        obj = self.instance if obj is None else obj
+        if not obj or not getattr(obj, "pk", None):
             return None
         try:
-            return costing.bom_cost(self.instance)
+            return costing.bom_cost(obj)
         except Exception:
             # A cycle can only exist in legacy data; still render the header.
             return None
 
     def get_raw_material_cost(self, obj):
-        cost = self._cost()
+        cost = self._cost(obj)
         return str(cost["raw_material_cost"]) if cost else None
 
     def get_scrap_value(self, obj):
-        cost = self._cost()
+        cost = self._cost(obj)
         return str(cost["scrap_value"]) if cost else None
 
     def get_good_qty(self, obj):
-        cost = self._cost()
+        cost = self._cost(obj)
         return str(cost["good_qty"]) if cost else None
 
     def get_unit_cost(self, obj):
-        cost = self._cost()
+        cost = self._cost(obj)
         return str(cost["unit_cost"]) if cost else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        cost = self._cost()
+        cost = self._cost(instance)
         if cost:
             by_row = {row["row"]: row for row in cost["components"]}
             for row in data.get("items", []):
