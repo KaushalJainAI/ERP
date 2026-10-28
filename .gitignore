@@ -24,3 +24,6 @@ frontend/.env.local
 erpnext/
 
 
+
+# Tally import reconciliation: real customer names and balances, keep local
+backend/docs/tally_import_report.md
