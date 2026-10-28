@@ -34,9 +34,10 @@ const DOCSTATUS_FILTERS = [
 export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  // The status filter lives in the URL (?docstatus=0|1|2) so dashboard cards can deep-link to it.
+  // The status filter lives in the URL (?docstatus=0|1|2) so dashboard cards can deep-link to it;
+  // ?search= pre-fills the search box (the GST reports link invoices by document number).
   const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
   const rawStatus = searchParams.get("docstatus") ?? "";
   const docstatus = DOCSTATUS_FILTERS.some((f) => f.value === rawStatus) ? rawStatus : "";
   const setDocstatus = (value: string) =>

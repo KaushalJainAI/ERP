@@ -5,6 +5,7 @@ import { sellingResources } from "./selling";
 import { accountsLinks, accountsResources } from "./accounts";
 import { buyingResources } from "./buying";
 import { gstResources } from "./gstMasters";
+import { gstReportLinks } from "./gstReports";
 import { stockReports, stockResources } from "./stock";
 import { usersLinks, usersResources } from "./users";
 
@@ -43,7 +44,7 @@ export const MODULES: ModuleDef[] = [
   },
   { key: "selling", titleKey: "selling", icon: ShoppingCart },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
-  { key: "gst", titleKey: "gst.title", icon: Percent },
+  { key: "gst", titleKey: "gst.title", icon: Percent, extraLinks: gstReportLinks },
   { key: "users", titleKey: "users", icon: Users, extraLinks: usersLinks },
 ];
 

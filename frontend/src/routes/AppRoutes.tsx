@@ -11,6 +11,9 @@ import { TrialBalancePage } from "@/pages/reports/TrialBalancePage";
 import { GeneralLedgerPage } from "@/pages/reports/GeneralLedgerPage";
 import { ProfitLossPage } from "@/pages/reports/ProfitLossPage";
 import { BalanceSheetPage } from "@/pages/reports/BalanceSheetPage";
+import { Gstr1Page } from "@/pages/reports/gst/Gstr1Page";
+import { Gstr3bPage } from "@/pages/reports/gst/Gstr3bPage";
+import { TaxLedgerPage } from "@/pages/reports/gst/TaxLedgerPage";
 import { ListPage } from "@/components/doc/ListPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
 import { ReportPage } from "@/components/doc/ReportPage";
@@ -127,6 +130,31 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ProfitLossPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* GST reports (hand-written pages, see pages/reports/gst/). */}
+      <Route
+        path="/gst/reports/gstr1"
+        element={
+          <ProtectedRoute>
+            <Gstr1Page />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/gst/reports/gstr3b"
+        element={
+          <ProtectedRoute>
+            <Gstr3bPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/gst/reports/tax-ledger"
+        element={
+          <ProtectedRoute>
+            <TaxLedgerPage />
           </ProtectedRoute>
         }
       />
