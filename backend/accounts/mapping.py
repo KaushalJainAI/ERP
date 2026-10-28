@@ -150,6 +150,7 @@ def remaining_order_lines(order_items, invoiced_items):
                     "warehouse": line.warehouse,
                     "qty": qty,
                     "rate": line.rate,
+                    "batch": getattr(line, "batch", None),
                     # GST snapshots of the order line (as ERPNext copies
                     # item_tax_template / item_tax_rate onto the invoice line).
                     **{name: getattr(line, name) for name in GST_SNAPSHOT_FIELDS},

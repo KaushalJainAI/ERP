@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 from core.models import (
     Company,
     GSTCategory,
@@ -17,7 +18,7 @@ from accounts.models import (
     TaxableLine,
     TaxLine,
 )
-from stock.models import Item, Warehouse
+from stock.models import Batch, Item, Warehouse
 
 
 class SupplierGroup(TimeStampedModel):
@@ -197,12 +198,71 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             raise ValidationError("Supplier must belong to the invoice's company.")
         if self.update_stock:
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
+        self._validate_batch_lines()
         self.calculate_taxes_and_totals(for_submit=True)
         posting.validate_posting(self)
+
+    def _validate_batch_lines(self):
+        """Batch rules at the submit gate (``ledger.post`` re-asserts them centrally)."""
+        from stock.services import batches as batch_service
+
+        for line in self.items.all():
+            item = line.item
+            new_fields = bool(
+                line.supplier_batch_no or line.manufacturing_date or line.expiry_date
+            )
+            if not self.update_stock:
+                if line.batch_id or new_fields:
+                    raise ValidationError(
+                        _(
+                            "Purchase Invoice '%(name)s' does not update stock: remove "
+                            "the batch details from item '%(code)s'."
+                        )
+                        % {"name": self.name, "code": item.code}
+                    )
+                continue
+            if not item.is_stock_item:
+                continue
+            if not item.has_batch_no:
+                if line.batch_id or new_fields:
+                    raise ValidationError(
+                        _(
+                            "Item '%(code)s' is not batch-tracked; remove the batch "
+                            "details."
+                        )
+                        % {"code": item.code}
+                    )
+                continue
+            if line.batch_id:
+                if new_fields:
+                    raise ValidationError(
+                        _(
+                            "Item '%(code)s': pick an existing batch or enter "
+                            "new-batch details, not both."
+                        )
+                        % {"code": item.code}
+                    )
+                if line.batch.item_id != item.pk:
+                    raise ValidationError(
+                        _(
+                            "Item '%(code)s': batch '%(batch)s' belongs to a "
+                            "different item."
+                        )
+                        % {"code": item.code, "batch": line.batch.batch_no}
+                    )
+                continue
+            # A new batch is created at submit: refuse now if it cannot be dated.
+            batch_service.resolve_dates(
+                item,
+                line.manufacturing_date,
+                line.expiry_date,
+                default_manufacturing_date=self.posting_date,
+            )
 
     def on_submit(self):
         from accounts.services import gl as gl_service
         from accounts.services import outstanding as outstanding_service
+        from stock.services import batches as batch_service
         from stock.services import ledger as stock_service
 
         posting.validate_posting(self)
@@ -220,12 +280,27 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     raise ValidationError(
                         f"Warehouse required for item '{item.item.code}' when update_stock is enabled."
                     )
+                batch = item.batch
+                if item.item.has_batch_no and batch is None:
+                    batch = batch_service.create_batch(
+                        item.item,
+                        manufacturing_date=item.manufacturing_date,
+                        expiry_date=item.expiry_date,
+                        supplier_batch_no=item.supplier_batch_no,
+                        default_manufacturing_date=self.posting_date,
+                        numbering_date=self.posting_date,
+                        reference_doctype=f"{self._meta.app_label}.{self._meta.object_name}",
+                        reference_name=self.name,
+                    )
+                    item.batch = batch
+                    item.save(update_fields=["batch"])
                 sle_list.append(
                     {
                         "item": item.item,
                         "warehouse": item.warehouse,
                         "qty": abs(item.qty),
                         "valuation_rate": item.rate,
+                        "batch": batch,
                     }
                 )
             if sle_list:
@@ -313,6 +388,29 @@ class PurchaseInvoiceItem(TaxableLine):
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
+    # Batch tracking (only when ``update_stock``): pick an existing ``batch`` OR
+    # fill the new-batch fields and the batch is created at submit.
+    batch = models.ForeignKey(
+        Batch,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="pi_items",
+    )
+    supplier_batch_no = models.CharField(max_length=100, blank=True, default="")
+    manufacturing_date = models.DateField(null=True, blank=True)
+    expiry_date = models.DateField(null=True, blank=True)
+
+    class Meta(TaxableLine.Meta):
+        constraints = [
+            *TaxableLine.Meta.constraints,
+            models.CheckConstraint(
+                check=models.Q(expiry_date__isnull=True)
+                | models.Q(manufacturing_date__isnull=True)
+                | models.Q(expiry_date__gte=models.F("manufacturing_date")),
+                name="check_purchaseinvoiceitem_expiry_after_manufacturing",
+            )
+        ]
 
     def save(self, *args, **kwargs):
         self.amount = self.compute_amount()

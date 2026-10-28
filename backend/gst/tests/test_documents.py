@@ -1262,8 +1262,27 @@ class DBConstraintTests(GSTDocBase):
         for model in (SalesInvoiceTax, PurchaseOrderTax):
             names = {c.name for c in model._meta.constraints}
             self.assertEqual(len(names), 7, names)
+        # Every line model carries the four GST line constraints (names are
+        # expanded per model). PurchaseInvoiceItem additionally has the batch
+        # expiry-ordering CHECK (Task 1b of the manufacturing design).
+        gst_line_suffixes = {
+            "gst_rate_0_100",
+            "gst_amounts_gte_0",
+            "only_taxable_has_gst",
+            "no_igst_with_cgst",
+        }
         for model in (SalesInvoiceItem, PurchaseInvoiceItem, PurchaseOrderItem):
-            self.assertEqual(len(model._meta.constraints), 4)
+            prefix = f"{model._meta.app_label}_{model._meta.model_name}_"
+            suffixes = {
+                c.name.removeprefix(prefix)
+                for c in model._meta.constraints
+                if c.name.startswith(prefix)
+            }
+            self.assertEqual(suffixes, gst_line_suffixes, model.__name__)
+        self.assertIn(
+            "check_purchaseinvoiceitem_expiry_after_manufacturing",
+            {c.name for c in PurchaseInvoiceItem._meta.constraints},
+        )
         for model in (SalesOrder, PurchaseOrder):
             self.assertEqual(len(model._meta.constraints), 3)
         # Invoices also carry the outstanding_amount >= 0 CHECK.

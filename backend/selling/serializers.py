@@ -83,6 +83,7 @@ class SalesOrderItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
+    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
 
     class Meta:
         model = SalesOrderItem
@@ -96,6 +97,8 @@ class SalesOrderItemSerializer(
             "qty",
             "rate",
             "amount",
+            "batch",
+            "batch_no",
             *LINE_GST_FIELDS,
         )
         read_only_fields = LINE_GST_FIELDS
@@ -160,6 +163,7 @@ class SalesInvoiceItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
+    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
 
     class Meta:
         model = SalesInvoiceItem
@@ -173,6 +177,8 @@ class SalesInvoiceItemSerializer(
             "qty",
             "rate",
             "amount",
+            "batch",
+            "batch_no",
             *LINE_GST_FIELDS,
         )
         read_only_fields = LINE_GST_FIELDS

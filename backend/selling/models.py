@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 from core.models import (
     Company,
     GSTCategory,
@@ -17,7 +18,7 @@ from accounts.models import (
     TaxableLine,
     TaxLine,
 )
-from stock.models import Item, Warehouse
+from stock.models import Batch, Item, Warehouse
 
 
 class CustomerGroup(TimeStampedModel):
@@ -102,6 +103,14 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
         items = self.items.all()
         if not items.exists():
             raise ValidationError("Sales Order must have at least one line item.")
+        for line in items:
+            if line.batch_id and line.batch.item_id != line.item_id:
+                raise ValidationError(
+                    _(
+                        "Item '%(code)s': batch '%(batch)s' belongs to a different item."
+                    )
+                    % {"code": line.item.code, "batch": line.batch.batch_no}
+                )
         self.calculate_taxes_and_totals(for_submit=True)
 
     def on_submit(self):
@@ -126,6 +135,15 @@ class SalesOrderItem(TaxableLine):
     rate = models.DecimalField(max_digits=18, decimal_places=2)
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    # Informational preferred lot: a Sales Order moves no stock, so this is only
+    # validated for the item match and copied to the invoice line.
+    batch = models.ForeignKey(
+        Batch,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="so_items",
     )
 
     def save(self, *args, **kwargs):
@@ -199,8 +217,48 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             self.company.get_perpetual_accounts(
                 need_cogs=True
             )  # raises if perpetual is on but misconfigured
+        self._validate_batch_lines()
         self.calculate_taxes_and_totals(for_submit=True)
         posting.validate_posting(self)
+
+    def _validate_batch_lines(self):
+        """Batch rules at the submit gate (``ledger.post`` re-asserts them centrally)."""
+        from stock.services import batches as batch_service
+
+        for line in self.items.all():
+            item = line.item
+            if not self.update_stock:
+                if line.batch_id:
+                    raise ValidationError(
+                        _(
+                            "Sales Invoice '%(name)s' does not update stock: remove the "
+                            "batch from item '%(code)s'."
+                        )
+                        % {"name": self.name, "code": item.code}
+                    )
+                continue
+            if not item.is_stock_item:
+                continue
+            if not item.has_batch_no:
+                if line.batch_id:
+                    raise ValidationError(
+                        _("Item '%(code)s' is not batch-tracked; remove the batch.")
+                        % {"code": item.code}
+                    )
+                continue
+            if not line.batch_id:
+                raise ValidationError(
+                    batch_service.batch_required_message(
+                        item, line.warehouse, line.qty, self.posting_date
+                    )
+                )
+            if line.batch.item_id != item.pk:
+                raise ValidationError(
+                    _(
+                        "Item '%(code)s': batch '%(batch)s' belongs to a different item."
+                    )
+                    % {"code": item.code, "batch": line.batch.batch_no}
+                )
 
     def on_submit(self):
         from accounts.services import gl as gl_service
@@ -232,6 +290,7 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                         "warehouse": item.warehouse,
                         "qty": -abs(item.qty),
                         "valuation_rate": item.rate,
+                        "batch": item.batch,
                     }
                 )
             if sle_list:
@@ -312,6 +371,15 @@ class SalesInvoiceItem(TaxableLine):
     rate = models.DecimalField(max_digits=18, decimal_places=2)
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    # The lot sold. Required for batch-tracked items when ``update_stock`` is on;
+    # refused when the invoice moves no stock (no false traceability).
+    batch = models.ForeignKey(
+        Batch,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="si_items",
     )
 
     def save(self, *args, **kwargs):

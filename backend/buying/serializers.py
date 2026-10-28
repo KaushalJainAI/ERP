@@ -160,6 +160,7 @@ class PurchaseInvoiceItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
+    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
 
     class Meta:
         model = PurchaseInvoiceItem
@@ -173,6 +174,11 @@ class PurchaseInvoiceItemSerializer(
             "qty",
             "rate",
             "amount",
+            "batch",
+            "batch_no",
+            "supplier_batch_no",
+            "manufacturing_date",
+            "expiry_date",
             *LINE_GST_FIELDS,
         )
         read_only_fields = LINE_GST_FIELDS

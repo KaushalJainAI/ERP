@@ -5,6 +5,7 @@ from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
 from core.models import Company, SystemHealthCheck
 from accounts.services import outstanding as outstanding_service
+from stock.services import batches as batch_service
 from gst.services import integrity as gst_integrity
 
 
@@ -132,6 +133,25 @@ class Command(BaseCommand):
             ),
         )
         errors.extend(outstanding_errors)
+
+        # 7. Batch invariants: batch present iff the item is batch-tracked, the
+        #    batch belongs to the item, no negative batch balance and each
+        #    batch-tracked item's batches sum to its Bin. Expired stock is a
+        #    warning only.
+        batch_errors = batch_service.integrity_errors()
+        batch_warnings = batch_service.integrity_warnings()
+        SystemHealthCheck.objects.create(
+            check_name="batch_integrity",
+            status="alert" if batch_errors else "ok",
+            details={
+                "errors": batch_errors,
+                "warnings": batch_warnings,
+                "message": "" if batch_errors else "Batch balances and ledger rows agree.",
+            },
+        )
+        errors.extend(batch_errors)
+        for warning in batch_warnings:
+            self.stdout.write(self.style.WARNING(f"[batch warning] {warning}"))
 
         # Record Health Status
         status_str = "alert" if errors else "ok"
