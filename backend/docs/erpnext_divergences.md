@@ -383,3 +383,20 @@ now match that posture.
   for invalid GSTINs on masters / snapshots, missing place of supply or HSN, and the count of
   legacy documents. Kind consistency for purchases uses the snapshot GSTIN prefix, else the
   supplier's current state.
+
+## GST reports (2026-10-28, docs/gst_design.md Task 4a)
+
+- **Not the GSTN JSON**: field names are ours (a `?shape=gstn` variant is a later, additive change). No CDNR /
+  CDNUR / amendment tables (no credit notes in v1), no cess, no e-invoice or portal upload.
+- **Invoice-bearing GSTR-1 sections list Taxable lines only** (rates, including a 0% row for zero-rated
+  exports / SEZ without payment); Nil-Rated / Exempted / Non-GST lines go to `nil_exempt_non_gst` (Table 8),
+  and exports' non-taxable lines are not reported there. An invoice with no taxable line has no invoice row.
+- **B2CL** needs `rounded_total` strictly above the threshold in force on the posting date (a boundary value is
+  B2CS); SEZ and exports are never B2CL. **HSN** skips Non-GST lines; a blank HSN is excluded and counted in
+  `warnings.lines_without_hsn`; an empty UQC is reported as `OTH`; exports count in the `b2c` half.
+- **GSTR-3B**: SEZ and export taxable lines (with or without payment) are 3.1(b); nil + exempt lines are 3.1(c).
+  Table 5 is inter / intra totals of non-taxable inward lines plus composition and non-RCM unregistered supplier
+  lines (the supplier State is the GSTIN prefix, else the master). ITC (4A(3) RCM, 4A(5) other) is the line
+  columns of the period's invoices, booked on the invoice date (design 11.6). 6.1 is informational: output =
+  3.1(a)+(b)+(d), ITC = 4C, no cash / credit ledger offset order.
+- **Tax ledger** `party` is the voucher's receivable / payable party (tax GL rows carry none).

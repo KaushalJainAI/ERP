@@ -111,3 +111,80 @@ def supply_context(request):
             ),
         }
     )
+
+
+# ---------------------------------------------------------------------- reports
+
+
+def require_all_model_permissions(*model_labels, flag="can_read"):
+    """DRF permission class: the user must hold ``flag`` on *every* label."""
+    from users.permissions import user_has_model_permission
+
+    class _RequireAllModelPermissions(permissions.BasePermission):
+        def has_permission(self, request, view):
+            return all(
+                user_has_model_permission(request.user, label, flag)
+                for label in model_labels
+            )
+
+    return _RequireAllModelPermissions
+
+
+def _report_context(request, period_required=True):
+    from gst import reports
+
+    company = reports.resolve_company(request.query_params)
+    from_date, to_date = reports.resolve_period(request.query_params, period_required)
+    return company, from_date, to_date
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_all_model_permissions("selling.SalesInvoice")]
+)
+def gstr1_report(request):
+    """GSTR-1 (``GET /api/gst/reports/gstr1/?company=&month=YYYY-MM``).
+
+    Period: ``month`` or ``from_date`` + ``to_date`` (ISO). Sections b2b, b2cl, b2cs,
+    exports, nil_exempt_non_gst, hsn, docs_issued, warnings; money = 2dp strings.
+    400 on a missing / malformed period, an unknown company or a company without GSTIN.
+    """
+    from gst.reports import gstr1
+
+    return Response(gstr1.build(*_report_context(request)))
+
+
+@api_view(["GET"])
+@permission_classes(
+    [
+        permissions.IsAuthenticated,
+        require_all_model_permissions("selling.SalesInvoice", "buying.PurchaseInvoice"),
+    ]
+)
+def gstr3b_report(request):
+    """GSTR-3B (``GET /api/gst/reports/gstr3b/?company=&month=YYYY-MM``).
+
+    Needs read on both Sales and Purchase Invoices. Tables 3.1, 3.2, 4, 5 and the
+    informational 6.1; same parameters and errors as GSTR-1.
+    """
+    from gst.reports import gstr3b
+
+    return Response(gstr3b.build(*_report_context(request)))
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_all_model_permissions("accounts.GLEntry")]
+)
+def tax_ledger_report(request):
+    """GST tax ledger (``GET /api/gst/reports/tax-ledger/?company=``).
+
+    Optional ``month`` or ``from_date`` / ``to_date`` (open-ended when omitted),
+    ``component`` (CGST / SGST / IGST / CESS), ``direction`` (Input / Output /
+    Reverse Charge), ``summary=1`` (omit entries). GL rows on tagged accounts,
+    ``is_cancelled=False`` only; balance = debit minus credit.
+    """
+    from gst.reports import tax_ledger
+
+    company, from_date, to_date = _report_context(request, period_required=False)
+    return Response(tax_ledger.build(company, from_date, to_date, request.query_params))
