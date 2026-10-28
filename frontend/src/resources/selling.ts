@@ -42,6 +42,9 @@ export const itemLink: LinkDef = {
     gst_hsn_code: r.gst_hsn_code ?? "",
     rate: roundDec(r.standard_rate, 2) ?? row.rate ?? "",
     qty: row.qty ? row.qty : "1",
+    // UI-only: lets line columns show the batch picker for batch-tracked items.
+    // Never sent to the server (buildPayload writes only declared columns).
+    _has_batch_no: !!r.has_batch_no,
   }),
 };
 
@@ -62,9 +65,34 @@ export const accountLink = (rootType: string): LinkDef => ({
 
 const lineAmount = (row: Record<string, any>) => mulDec(row.qty, row.rate, 2);
 
+/** Batch (lot) picker for invoice / order lines; FEFO-ordered by the server. */
+const lineBatchLink: LinkDef = {
+  endpoint: "/stock/batches/",
+  labelField: "batch_no",
+  subLabel: (r) =>
+    [r.expiry_date ? `exp ${r.expiry_date}` : null, r.available_qty != null ? `${Number(r.available_qty)} avail` : null]
+      .filter(Boolean)
+      .join(" · ") || undefined,
+  filters: (row, form) => ({
+    item: row.item,
+    ...(row.warehouse ? { warehouse: row.warehouse, available: 1 } : {}),
+    posting_date: form.posting_date ?? form.transaction_date,
+  }),
+};
+
 const itemColumns: ChildColumnDef[] = [
   { key: "item", labelKey: "fields.item", type: "link", required: true, link: itemLink, widthClass: "min-w-[16rem]" },
   { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]" },
+  {
+    key: "batch",
+    labelKey: "bs.fields.batch",
+    type: "link",
+    link: lineBatchLink,
+    widthClass: "min-w-[12rem]",
+    // Only for batch-tracked items, and only when the invoice moves stock (an
+    // SI with update_stock off refuses batches: no false traceability).
+    hidden: (row, form) => form.update_stock === false || (!row._has_batch_no && !row.batch),
+  },
   { key: "qty", labelKey: "fields.qty", type: "number", required: true, widthClass: "w-28" },
   { key: "rate", labelKey: "fields.rate", type: "decimal", required: true, widthClass: "w-32" },
   {

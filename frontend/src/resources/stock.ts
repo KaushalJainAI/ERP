@@ -1,9 +1,10 @@
-import { ArrowLeftRight, BarChart3, FolderTree, Layers, Package, Ruler, ScrollText, Warehouse } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CalendarClock, FolderTree, Layers, Package, Ruler, ScrollText, Tags, Warehouse } from "lucide-react";
+import { createElement } from "react";
 import { roundDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import type { LinkDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { companyField, docNoField, itemLink, warehouseLink } from "./selling";
+import { companyField, companyLink, docNoField, itemLink, warehouseLink } from "./selling";
 import { itemGstFields } from "./gst";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
@@ -20,7 +21,7 @@ export const uomLink: LinkDef = {
   display: (v) => v.stock_uom_name,
 };
 
-/** Item picker for stock-entry lines (no `rate`; seeds the valuation rate from the standard rate). */
+/** Item picker for stock-entry lines (seeds the valuation rate and the batch hint). */
 const stockEntryItemLink: LinkDef = {
   ...itemLink,
   fill: (r, row) => ({
@@ -28,6 +29,28 @@ const stockEntryItemLink: LinkDef = {
     item_name: r.name,
     valuation_rate: roundDec(r.standard_rate, 6) ?? row.valuation_rate ?? "",
     qty: row.qty ? row.qty : "1",
+    _has_batch_no: !!r.has_batch_no,
+  }),
+};
+
+/**
+ * Batch picker. Outward legs show only usable lots in FEFO order (the server
+ * filters expired and empty batches and sorts by expiry); an inward leg may also
+ * pick an existing lot, or leave it blank and fill the new-batch fields.
+ */
+export const batchLink: LinkDef = {
+  endpoint: "/stock/batches/",
+  labelField: "batch_no",
+  subLabel: (r) =>
+    [r.expiry_date ? `exp ${r.expiry_date}` : null, r.available_qty != null ? `${Number(r.available_qty)} avail` : null]
+      .filter(Boolean)
+      .join(" · ") || undefined,
+  filters: (row, form) => ({
+    item: row.item,
+    ...(form.stock_entry_type === "Material Receipt" || !row.source_warehouse
+      ? {}
+      : { warehouse: row.source_warehouse, available: 1 }),
+    posting_date: form.posting_date,
   }),
 };
 
@@ -119,6 +142,7 @@ const items: ResourceConfig = {
     { key: "item_tax_template_name", labelKey: "gst.fields.item_tax_template" },
     { key: "valuation_method", labelKey: "bs.fields.valuation_method" },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "number", render: rateCell },
+    { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean" },
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
   ],
@@ -137,6 +161,23 @@ const items: ResourceConfig = {
     },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "decimal", decimals: 6, defaultValue: "0" },
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true },
+    // Batch tracking is frozen by the server once the item has ledger entries.
+    { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean", defaultValue: false, helpKey: "bs.help.has_batch_no" },
+    {
+      key: "has_expiry_date",
+      labelKey: "bs.fields.has_expiry_date",
+      type: "boolean",
+      defaultValue: false,
+      hidden: (v) => !v.has_batch_no,
+      helpKey: "bs.help.has_expiry_date",
+    },
+    {
+      key: "shelf_life_in_days",
+      labelKey: "bs.fields.shelf_life_in_days",
+      type: "number",
+      hidden: (v) => !v.has_expiry_date,
+      helpKey: "bs.help.shelf_life_in_days",
+    },
     ...itemGstFields(),
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
     { key: "description", labelKey: "bs.fields.description", type: "textarea" },
@@ -227,8 +268,78 @@ const stockEntries: ResourceConfig = {
           hidden: (_row, form) => form.stock_entry_type === "Material Issue" },
         { key: "qty", labelKey: "fields.qty", type: "number", required: true, widthClass: "w-28" },
         { key: "valuation_rate", labelKey: "bs.fields.valuation_rate", type: "decimal", decimals: 6, widthClass: "w-32" },
+        {
+          key: "batch",
+          labelKey: "bs.fields.batch",
+          type: "link",
+          link: batchLink,
+          widthClass: "min-w-[12rem]",
+          // Batch-tracked lines only. A saved line keeps its batch even before
+          // the item is re-picked (the server sends `batch` but not the hint).
+          hidden: (row) => !row._has_batch_no && !row.batch,
+        },
+        {
+          key: "supplier_batch_no",
+          labelKey: "bs.fields.supplier_batch_no",
+          type: "text",
+          widthClass: "w-36",
+          hidden: (row, form) =>
+            form.stock_entry_type !== "Material Receipt" || !row._has_batch_no || !!row.batch,
+        },
+        {
+          key: "manufacturing_date",
+          labelKey: "bs.fields.manufacturing_date",
+          type: "date",
+          widthClass: "w-36",
+          hidden: (row, form) =>
+            form.stock_entry_type !== "Material Receipt" || !row._has_batch_no || !!row.batch,
+        },
+        {
+          key: "expiry_date",
+          labelKey: "bs.fields.expiry_date",
+          type: "date",
+          widthClass: "w-36",
+          hidden: (row, form) =>
+            form.stock_entry_type !== "Material Receipt" || !row._has_batch_no || !!row.batch,
+        },
       ],
     },
+  ],
+};
+
+const batches: ResourceConfig = {
+  key: "batches",
+  module: "stock",
+  endpoint: "/stock/batches/",
+  titleKey: "bs.res.batches",
+  singularKey: "bs.res.batch",
+  icon: Tags,
+  titleField: "batch_no",
+  ordering: "-created_at",
+  columns: [
+    { key: "batch_no", labelKey: "bs.fields.batch_no" },
+    { key: "item_code", labelKey: "bs.fields.item_code" },
+    { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date" },
+    { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date" },
+    { key: "available_qty", labelKey: "bs.fields.available_qty", type: "number", render: qtyCell },
+    { key: "days_to_expiry", labelKey: "bs.fields.days_to_expiry", type: "number" },
+    { key: "is_disabled", labelKey: "bs.fields.is_disabled", type: "boolean" },
+  ],
+  fields: [
+    {
+      key: "item",
+      labelKey: "fields.item",
+      type: "link",
+      required: true,
+      link: { ...itemLink, fill: undefined, filters: () => ({ is_active: true, has_batch_no: true }) },
+    },
+    { key: "batch_no", labelKey: "bs.fields.batch_no", type: "text", readOnlyAfterCreate: true, helpKey: "bs.help.batch_no" },
+    { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date" },
+    { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date", helpKey: "bs.help.expiry_date" },
+    { key: "supplier_batch_no", labelKey: "bs.fields.supplier_batch_no", type: "text" },
+    { key: "description", labelKey: "bs.fields.description", type: "textarea" },
+    { key: "is_disabled", labelKey: "bs.fields.is_disabled", type: "boolean", defaultValue: false },
   ],
 };
 
@@ -282,6 +393,7 @@ export const stockResources: ResourceConfig[] = [
   itemGroups,
   uoms,
   warehouses,
+  batches,
   stockEntries,
   bins,
   stockLedger,
@@ -310,4 +422,73 @@ const stockBalance: ReportConfig = {
   totals: { actual_qty: "total_actual_qty", stock_value: "total_stock_value" },
 };
 
-export const stockReports: ReportConfig[] = [stockBalance];
+const batchWiseBalance: ReportConfig = {
+  key: "batch-wise-balance",
+  module: "stock",
+  endpoint: "/stock/reports/batch-wise-balance/",
+  titleKey: "bs.res.batch_wise_balance",
+  icon: Tags,
+  filters: [
+    { key: "item", labelKey: "fields.item", type: "link", link: { ...itemLink, fill: undefined } },
+    { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },
+    { key: "batch", labelKey: "bs.fields.batch", type: "link", link: { endpoint: "/stock/batches/", labelField: "batch_no" } },
+    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+    { key: "as_of", labelKey: "bs.fields.as_of", type: "date" },
+    { key: "include_zero", labelKey: "bs.fields.include_zero", type: "boolean", defaultValue: false },
+  ],
+  columns: [
+    { key: "item_code", labelKey: "bs.fields.item_code" },
+    { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "warehouse_name", labelKey: "fields.warehouse" },
+    { key: "batch_no", labelKey: "bs.fields.batch_no" },
+    { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date" },
+    { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date" },
+    { key: "days_to_expiry", labelKey: "bs.fields.days_to_expiry", type: "number" },
+    { key: "balance_qty", labelKey: "bs.fields.balance_qty", type: "number", render: qtyCell },
+    { key: "valuation_rate", labelKey: "bs.fields.valuation_rate", type: "number", render: rateCell },
+    { key: "stock_value", labelKey: "bs.fields.stock_value", type: "money" },
+  ],
+  totals: { balance_qty: "total_balance_qty", stock_value: "total_stock_value" },
+};
+
+/** Expiry status badge (Expired / Expiring), server-classified. */
+const expiryBadge = (value: any) => {
+  const status = value ? String(value) : "";
+  const cls =
+    status === "Expired"
+      ? "bg-rose-950/60 text-rose-300 border-rose-800/60"
+      : "bg-amber-950/40 text-amber-300 border-amber-800/50";
+  return createElement(
+    "span",
+    { className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${cls}` },
+    status
+  );
+};
+
+const expiryReport: ReportConfig = {
+  key: "batch-expiry",
+  module: "stock",
+  endpoint: "/stock/reports/expiry/",
+  titleKey: "bs.res.expiry_report",
+  icon: CalendarClock,
+  filters: [
+    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+    { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },
+    { key: "within_days", labelKey: "bs.fields.within_days", type: "number", defaultValue: 60 },
+    { key: "include_expired", labelKey: "bs.fields.include_expired", type: "boolean", defaultValue: true },
+  ],
+  columns: [
+    { key: "batch_no", labelKey: "bs.fields.batch_no" },
+    { key: "item_code", labelKey: "bs.fields.item_code" },
+    { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "warehouse_name", labelKey: "fields.warehouse" },
+    { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date" },
+    { key: "days_to_expiry", labelKey: "bs.fields.days_to_expiry", type: "number" },
+    { key: "status", labelKey: "bs.fields.expiry_status", render: expiryBadge },
+    { key: "balance_qty", labelKey: "bs.fields.balance_qty", type: "number", render: qtyCell },
+    { key: "stock_value", labelKey: "bs.fields.stock_value", type: "money" },
+  ],
+  totals: { balance_qty: "total_balance_qty", stock_value: "total_stock_value" },
+};
+
+export const stockReports: ReportConfig[] = [stockBalance, batchWiseBalance, expiryReport];

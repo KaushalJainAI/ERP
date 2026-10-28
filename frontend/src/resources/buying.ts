@@ -1,6 +1,6 @@
 import { FilePlus2, Receipt, ShoppingBag, Truck, Users, Wallet } from "lucide-react";
 import { todayISO } from "@/lib/format";
-import { DocStatus, type LinkDef, type ResourceConfig } from "@/types";
+import { DocStatus, type ChildColumnDef, type LinkDef, type ResourceConfig } from "@/types";
 import { accountLink, companyField, docNoField, itemsTable } from "./selling";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 import {
@@ -28,6 +28,45 @@ const supplierGroupLink: LinkDef = {
   endpoint: "/buying/supplier-groups/",
   labelField: "name",
   display: (v) => v.supplier_group_name,
+};
+
+/* ---- line tables ---- */
+
+// A Purchase Order does not move stock, so it carries no batch.
+const purchaseOrderItemsTable = {
+  ...itemsTable,
+  columns: itemsTable.columns.filter((c) => c.key !== "batch"),
+};
+
+// A Purchase Invoice with update_stock may receive into an existing batch or
+// create a new one from the three new-batch fields (server-side at submit).
+const newBatchColumns: ChildColumnDef[] = [
+  {
+    key: "supplier_batch_no",
+    labelKey: "bs.fields.supplier_batch_no",
+    type: "text",
+    widthClass: "w-36",
+    hidden: (row, form) => form.update_stock === false || !row._has_batch_no || !!row.batch,
+  },
+  {
+    key: "manufacturing_date",
+    labelKey: "bs.fields.manufacturing_date",
+    type: "date",
+    widthClass: "w-36",
+    hidden: (row, form) => form.update_stock === false || !row._has_batch_no || !!row.batch,
+  },
+  {
+    key: "expiry_date",
+    labelKey: "bs.fields.expiry_date",
+    type: "date",
+    widthClass: "w-36",
+    hidden: (row, form) => form.update_stock === false || !row._has_batch_no || !!row.batch,
+  },
+];
+
+const purchaseInvoiceItemsTable = {
+  ...itemsTable,
+  columns: [...itemsTable.columns, ...newBatchColumns],
 };
 
 /* ---- resources ---- */
@@ -122,7 +161,7 @@ const purchaseOrders: ResourceConfig = {
     ...taxHeaderFields("Purchase"),
     ...taxTotalFields(),
   ],
-  childTables: [itemsTable, taxesTable],
+  childTables: [purchaseOrderItemsTable, taxesTable],
   preview: taxPreview("buying.PurchaseOrder", "supplier"),
   renderSummary: renderGstSummary("supplier"),
   actions: [
@@ -180,7 +219,7 @@ const purchaseInvoices: ResourceConfig = {
     ...taxTotalFields(),
     ...invoiceStatusFields,
   ],
-  childTables: [itemsTable, taxesTable],
+  childTables: [purchaseInvoiceItemsTable, taxesTable],
   preview: taxPreview("buying.PurchaseInvoice", "supplier"),
   renderSummary: renderGstSummary("supplier"),
   actions: [
