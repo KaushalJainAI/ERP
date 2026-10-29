@@ -263,3 +263,87 @@ def test_negative_stock_simulation():
     ]
     low = simulate_negative_items(openings, events)
     assert low == {"A": Decimal("-1.000"), "B": Decimal("-5.000")}
+
+
+# -- archive / header helpers ----------------------------------------------
+
+from core.tally_import import archive as a  # noqa: E402
+from core.tally_import.vouchers import je_header  # noqa: E402
+
+
+def test_je_header_types_and_reference():
+    assert je_header("Receipt", "CHQ 12", ["Receivable", "Bank"]) == {
+        "voucher_type": "Bank Entry",
+        "cheque_no": "CHQ 12",
+    }
+    assert (
+        je_header("Payment", None, ["Cash", "Payable"])["voucher_type"] == "Cash Entry"
+    )
+    assert je_header("Receipt", "", [None])["voucher_type"] == "Journal Entry"
+    assert je_header("Contra", None, ["Bank", "Cash"]) == {
+        "voucher_type": "Contra Entry"
+    }
+    assert je_header("Purchase", " INV/9 ", []) == {
+        "voucher_type": "Journal Entry",
+        "bill_no": "INV/9",
+    }
+    assert je_header("Debit Note", "R1", [])["bill_no"] == "R1"
+    assert je_header("Sales", "x" * 200, [])["cheque_no"] == "x" * 140
+
+
+def test_item_tax_template_name():
+    f = m.item_tax_template_name
+    assert f("Taxable", None, Decimal("5")) == "GST 5%"
+    assert f("Taxable", None, Decimal("12.00")) == "GST 12%"
+    assert f("Taxable", None, Decimal("0.25")) == "GST 0.25%"
+    assert f("Exempt", None, Decimal("0")) == "Exempted"
+    assert f("Nil Rated", None, None) == "Nil Rated"
+    assert f(None, "Yes", Decimal("5")) == "Non-GST"
+    assert f("Taxable", None, None) is None
+
+
+def test_item_line_values_signs_and_units():
+    v = a.item_line_values(
+        {
+            "stockitemname": "Haldi ",
+            "isdeemedpositive": True,
+            "actualqty_num": Decimal("40"),
+            "billedqty_num": Decimal("38.5"),
+            "actualqty_unit": "k.g",
+            "rate_num": Decimal("254.29"),
+            "discount": Decimal("0"),
+            "amount": Decimal("-10171.60"),
+            "ledgername": "Purchase Gst",
+        },
+        {"k.g": "Kg"},
+    )
+    assert v["is_inward"] is True
+    assert v["amount"] == Decimal("10171.60")
+    assert v["qty"] == Decimal("40.000") and v["billed_qty"] == Decimal("38.500")
+    assert v["uom"] == "Kg" and v["item_name"] == "Haldi"
+    assert v["discount_percent"] is None
+    v = a.item_line_values(
+        {"stockitemname": "X", "isdeemedpositive": False, "amount": None}, {}
+    )
+    assert v["qty"] is None and v["amount"] == Decimal("0.00") and not v["is_inward"]
+
+
+def test_address_values():
+    v = a.address_values(
+        "Ram Kirana-Barnagar",
+        {
+            "lines": ["Main  Road", "", "Near Bus Stand"],
+            "pincode": Decimal("456771"),
+            "state": "Madhya Pradesh",
+            "country": "India",
+            "mailingname": "Ram Kirana",
+        },
+    )
+    assert v["address_title"] == "Ram Kirana"
+    assert v["address_line1"] == "Main Road"
+    assert v["address_line2"] == "Near Bus Stand"
+    assert v["pincode"] == "456771" and v["state_id"] == "23"
+    bad = a.address_values("L", {"lines": ["x"], "pincode": Decimal("4567")})
+    assert bad["pincode"] == "" and bad["pincode_raw"] == "4567"
+    assert bad["address_title"] == "L"
+    assert a.address_values("L", {"lines": ["  "]}) is None

@@ -9,6 +9,8 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { ChildTable, isColumnHidden, newRowKey, type Row } from "./ChildTable";
+import { AttachmentsPanel } from "./AttachmentsPanel";
+import { FetchRowsBar } from "./FetchRowsBar";
 import { FieldInput, formatReadOnly } from "./FieldInput";
 import {
   createRecord,
@@ -371,6 +373,8 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
       setServerErr(null);
       setConfirm(null);
       toast.success(t("common.submitted_ok"));
+      // Server notices raised while submitting (e.g. a return that kept its own outstanding).
+      ((saved as { notices?: string[] }).notices ?? []).forEach((n) => toast.info(n));
       qc.setQueryData(["doc", config.endpoint, String(saved.id)], saved);
       invalidate(saved.id);
     },
@@ -628,6 +632,16 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
           if (m) rowErrs[+m[1]] = { ...(rowErrs[+m[1]] ?? {}), [m[2]]: [msg] };
         });
         return (
+          <React.Fragment key={tb.key}>
+          {tb.fetchRows && editable && !tb.readOnly && (
+            <FetchRowsBar
+              def={tb}
+              cacheKeyBase={`${config.key}.${tb.key}`}
+              rows={tables[tb.key] ?? []}
+              form={values}
+              onRows={(rows) => setTables((prev) => ({ ...prev, [tb.key]: rows }))}
+            />
+          )}
           <ChildTable
             key={tb.key}
             def={tb}
@@ -643,6 +657,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
               setServerErr((s) => (s ? { ...s, rows: { ...s.rows, [tb.key]: {} } } : s));
             }}
           />
+          </React.Fragment>
         );
       })}
 
@@ -674,6 +689,15 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
       )}
 
       {config.renderSummary?.({ values: formValues, dirty, editable, preview: previewState })}
+
+      {/* proof documents: every document and master can carry them */}
+      {!config.listOnly && !config.noAttachments && (
+        <AttachmentsPanel
+          endpoint={config.endpoint}
+          objectId={doc?.id}
+          locked={submittable && docstatus !== DocStatus.DRAFT}
+        />
+      )}
 
       {/* confirmations */}
       <ConfirmDialog

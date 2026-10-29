@@ -1,4 +1,17 @@
-import { BookOpen, Boxes, Factory, Percent, ShoppingBag, ShoppingCart, Users } from "lucide-react";
+import {
+  BookOpen,
+  Boxes,
+  Building2,
+  Contact,
+  Factory,
+  HardDrive,
+  History,
+  Percent,
+  ShoppingBag,
+  ShoppingCart,
+  Users,
+  UserRound,
+} from "lucide-react";
 import type { ModuleDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { sellingResources } from "./selling";
@@ -10,6 +23,11 @@ import { stockReports, stockResources } from "./stock";
 import { manufacturingReports, manufacturingResources } from "./manufacturing";
 import { ageingReports } from "./ageing";
 import { usersLinks, usersResources } from "./users";
+import { contactsResources } from "./contacts";
+import { legacyResources } from "./legacy";
+import { tallyExportLinks, tallyExportResources } from "./tallyExport";
+import { hrLinks, hrResources } from "./hr";
+import { hasReadAccess } from "./workspaces";
 
 /**
  * Central registry. To add a module's documents:
@@ -26,6 +44,10 @@ export const RESOURCES: ResourceConfig[] = [
   ...accountsResources,
   ...gstResources,
   ...usersResources,
+  ...contactsResources,
+  ...legacyResources,
+  ...tallyExportResources,
+  ...hrResources,
 ];
 
 /**
@@ -38,7 +60,7 @@ export const MODULES: ModuleDef[] = [
     key: "accounts",
     titleKey: "accounts",
     icon: BookOpen,
-    extraLinks: accountsLinks,
+    extraLinks: [...accountsLinks, ...tallyExportLinks],
   },
   {
     key: "stock",
@@ -48,7 +70,24 @@ export const MODULES: ModuleDef[] = [
   { key: "selling", titleKey: "selling", icon: ShoppingCart },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
   { key: "manufacturing", titleKey: "manufacturing", icon: Factory },
+  { key: "contacts", titleKey: "contacts", icon: Contact },
+  {
+    key: "organisation",
+    titleKey: "organisation.title",
+    icon: Building2,
+    extraLinks: [
+      {
+        path: "/organisation/company",
+        labelKey: "organisation.company",
+        icon: Building2,
+        visible: (user) => hasReadAccess(user.readable_models, ["core.Company"]),
+      },
+      { path: "/organisation/drive", labelKey: "organisation.drive", icon: HardDrive },
+    ],
+  },
+  { key: "history", titleKey: "tally_history", icon: History },
   { key: "gst", titleKey: "gst.title", icon: Percent, extraLinks: gstReportLinks },
+  { key: "hr", titleKey: "hrm.title", icon: UserRound, extraLinks: hrLinks },
   { key: "users", titleKey: "users", icon: Users, extraLinks: usersLinks },
 ];
 

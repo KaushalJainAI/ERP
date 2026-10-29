@@ -13,6 +13,9 @@ from selling.models import (
 )
 from accounts.serializers import (
     LINE_GST_FIELDS,
+    RETURN_HEADER_FIELDS,
+    ReturnSerializerMixin,
+    SignedQtyLineItemMixin,
     TAX_HEADER_READ_ONLY,
     TAX_HEADER_WRITABLE,
     TaxableSerializerMixin,
@@ -193,7 +196,7 @@ class SalesOrderSerializer(
 
 
 class SalesInvoiceItemSerializer(
-    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+    SignedQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
 ):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
@@ -224,6 +227,7 @@ class SalesInvoiceItemSerializer(
             "amount",
             "batch",
             "batch_no",
+            "sales_invoice_item",
             *LINE_GST_FIELDS,
         )
         read_only_fields = ("price_list_rate", *LINE_GST_FIELDS)
@@ -233,10 +237,14 @@ SalesInvoiceTaxSerializer = tax_row_serializer(SalesInvoiceTax)
 
 
 class SalesInvoiceSerializer(
-    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+    ReturnSerializerMixin,
+    TaxableSerializerMixin,
+    DraftNestedWriteMixin,
+    serializers.ModelSerializer,
 ):
     children_field = "items"
     name_prefix = "SINV-2026-"
+    return_name_prefix = "SRET-2026-"
 
     items = SalesInvoiceItemSerializer(many=True)
     taxes = SalesInvoiceTaxSerializer(many=True, required=False)
@@ -251,6 +259,9 @@ class SalesInvoiceSerializer(
     # drops a null dotted source from the output).
     sales_order_name = serializers.CharField(
         source="sales_order.name", read_only=True, allow_null=True
+    )
+    return_against_name = serializers.CharField(
+        source="return_against.name", read_only=True, allow_null=True
     )
     debit_to_name = serializers.CharField(source="debit_to.name", read_only=True)
     income_account_name = serializers.CharField(
@@ -275,6 +286,7 @@ class SalesInvoiceSerializer(
             "sales_order",
             "sales_order_name",
             "update_stock",
+            *RETURN_HEADER_FIELDS,
             "debit_to",
             "debit_to_name",
             "income_account",

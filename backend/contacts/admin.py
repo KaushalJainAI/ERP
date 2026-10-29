@@ -1,4 +1,5 @@
-"""Django admin for contacts.
+from django.contrib import admin
 
-No concrete models yet — reserved for Address / Contact when added.
-"""
+from contacts.models import Address
+
+admin.site.register(Address)

@@ -1,4 +1,13 @@
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from contacts.views import AddressViewSet
 
 app_name = "contacts"
 
-urlpatterns = []
+router = DefaultRouter()
+router.register("addresses", AddressViewSet, basename="address")
+
+urlpatterns = [
+    path("", include(router.urls)),
+]

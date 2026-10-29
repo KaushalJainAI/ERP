@@ -33,3 +33,11 @@ backend/.coverage
 .coverage
 2026-*.txt
 
+
+# Uploaded proof documents (core.Attachment)
+backend/media/
+media/
+
+# Local DB backups (contain real books)
+backend/backups/
+frontend/i18n-dump.json

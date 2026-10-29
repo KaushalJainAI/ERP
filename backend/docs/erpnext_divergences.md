@@ -477,3 +477,129 @@ now match that posture.
 - **Credit exposure is GL-derived.** `credit_limit == 0` means no limit. Exposure = the customer's live Receivable balance (`accounts.services.outstanding.customer_outstanding`) + the remaining value of other submitted Sales Orders prorated by their `rounded_total` + the document being submitted. The gate is strictly greater-than, matching ERPNext.
 - **Override is audited, not silent.** A superuser or a `Credit Controller` role member may submit past the limit; the audit log gets a `credit_limit_override` row with the limit, existing exposure, document total and resulting exposure. Without a user the check fails closed.
 - **`update-rates` is draft-only.** It re-resolves every line and recalculates taxes and totals; submitted documents return **409**. The mapping from an order to its invoice copies the header list and each line's snapshot.
+
+## Tally history, addresses, Journal Entry header (2026-10-28)
+
+- **Address links to one party.** ERPNext links an `Address` to any number of parties through Dynamic Links. Here an address has a `customer` *or* a `supplier` FK (DB CHECK: exactly one). A party that is both gets one row per side. One primary address per party (partial UNIQUE). `city` is optional (ERPNext requires it): Tally's free-text address lines don't say which line is the town, so imported addresses leave it blank rather than guess.
+- **Journal Entry `voucher_type` is informational.** It takes ERPNext's values. ERPNext requires `cheque_no` / `cheque_date` on a Bank Entry; this ERP does not, because 20,000+ imported Tally receipts and payments carry no instrument details (never extracted). `cheque_no` holds Tally's voucher reference for most types, `bill_no` the supplier bill reference for Purchase / Debit Note.
+- **`legacy` app has no ERPNext counterpart.** `TallyRecord` (every Tally master and voucher with its original XML and the ERP document it became) and `TallyItemLine` (item-wise sales / purchase history of the Tally years) are append-only and read-only over the API. ERPNext migrations usually re-key old invoices as Opening Invoices. Here the Tally years stay as JEs, matching Tally to the paisa, plus this history. Tally kept bill-wise detail for only 84 ledgers, so per-invoice outstanding can't be rebuilt honestly (see `tally_data_gaps.md` G1).
+- **Item tax template from Tally.** The importer sets each item's `item_tax_template` from Tally's latest IGST rate (`GST n%`, `Nil Rated`, `Exempted`, `Non-GST`), including the legacy 12% / 28% slabs when Tally still has them.
+
+## HR and payroll (2026-10-28)
+
+ERPNext core only ships the employee masters (`setup/doctype`: Employee, Department, Designation, Branch, Holiday List); attendance, leave and payroll live in the separate hrms app, which is not in `erpnext/`. The `hr` app mirrors the masters (trimmed) and **designs payroll itself** for a daily-wage workforce.
+
+- **Payroll is custom, not hrms.** There is no Salary Structure, Salary Structure Assignment, Payroll Period, Additional Salary, Employee Loan or Payment Entry-for-salary. Pay is set **per employee** in `EmployeeWageRate` (effective-dated: `from_date`, `daily_rate` for Daily or `monthly_salary` for Monthly staff, `ot_hourly_rate`). The rate for a date is the latest row with `from_date <= date`. A rate row is frozen (400) once a submitted slip of that employee ends on or after its `from_date`; pay changes are new, later-dated rows.
+- **Pay any day.** A `SalarySlip` covers any `start_date..end_date` (max 366 days); there is no payroll frequency. Submitted slips of one employee may not overlap (checked under a row lock on the employee, and by `verify_integrity`). `PayrollEntry` is only a convenience to draft/submit many slips for a range and filters, not a period of record.
+- **Day rules.** Present = 1 day, Half Day = 0.5, Paid Leave = 1, Absent / no record = 0. Daily: units × that day's `daily_rate`. Monthly: units × `monthly_salary / days in that calendar month`; a holiday in the employee's holiday list (weekly offs included) with no attendance record is one paid day, **Monthly staff only**. Overtime = `ot_hours × that day's ot_hourly_rate`. Days before joining / after relieving earn nothing. Paid Leave stands in for the leave module (checklist 7.3 deferred).
+- **Attendance is tracked and locked.** `Attendance` is a plain record, UNIQUE(employee, date), that cannot be created, changed or deleted while a **submitted** slip of the employee covers its date (model-level `ValidationError`, API 400); cancelling the slip unlocks it. A draft slip stores generated Wages / Overtime rows that are rebuilt on every draft save and re-verified at submit ("attendance or rates changed, recompute"), so a posted slip always equals the attendance it locked.
+- **Components, not hard-coded columns.** Earnings and deductions are `SalaryComponent` rows with a GL account. Wages, Overtime and Advance Recovery are seeded system components; PF / ESI will be added later as ordinary deduction components. No PF/ESI logic exists today (`uan`, `esic_no` are inert fields).
+- **HRSettings instead of Company fields.** ERPNext keeps payroll accounts on `Company`; here a per-company `HRSettings` holds the wage expense, payroll payable, employee advance and default payment accounts (created by `ensure_hr_setup`, also called from `seed_defaults`; changing the payable/advance accounts is refused once anything is posted). A slip computed for a company without settings is a clear 400, never an implicit account creation.
+- **Posting.** Slip submit: Dr each earning component's account (gross); Cr payroll payable (net, party `Employee`); Cr employee advances (party `Employee`, tagged against the advance) for recovery rows; Cr the component account for any other deduction. Cancel = `gl.reverse`; refused if the employee's wages payable would go negative (the wages were already paid).
+- **`EmployeeAdvance` and `EmployeePayment` are their own documents**, not Payment Entry / Employee Advance-in-hrms. Advance: Dr employee advances (party `Employee`) / Cr cash or bank. Payment: Dr payroll payable (party `Employee`) / Cr cash or bank, refused when it exceeds the employee's wages payable (live GL balance). `PayrollEntry.make-payments` creates and submits one payment per slip in one transaction.
+- **Advance outstanding is derived, not stored.** `recovered_amount` = recovery rows of submitted slips; `outstanding = amount - recovered`; status Paid / Partly Recovered / Recovered is computed on read. Nothing to repost; `verify_integrity` checks the sum of outstanding against the ledger balance of the advance account. A slip proposes recovery of the instalment (or the full balance) capped so net pay stays ≥ 0; the admin can edit the amount in draft. An advance with recoveries in submitted slips cannot be cancelled.
+- **Aadhaar** is stored in full and returned masked (`XXXX-XXXX-1234`) unless the caller has `can_write` on `hr.Employee` (superusers included); the audit log always stores it masked. Reads of the PII are not audited (no per-field read audit in this codebase).
+- **Employee number** is `EMP-####` from the naming series and cannot be set by the client; `mobile_no` is UNIQUE when set (future portal login); `user` (portal link) exists on the model but is not exposed yet.
+- **Not built (yet):** leave types/allocation/application, salary structures, minimum-wage warnings, piece-rate, PF, ESI, professional tax, bank transfer file, salary / wage registers (checklist 7.3, 7.4 partly, 7.7-7.10).
+
+## Stock Reconciliation (2026-10-29)
+
+- **The SLE stores the delta, not a reset.** ERPNext's reconciliation SLE sets `qty_after_transaction` / valuation absolutely and reposts every later entry. This ledger keeps no running per-entry balance (the Bin and `verify_integrity` are plain sums over non-cancelled SLEs), so `ledger.post_reconciliation` resolves the absolute target against the live position *under the Bin lock* and writes the difference: `qty` = counted - current and `stock_value_difference` = counted value - current value. A rate-only change is an SLE with `qty = 0` and a non-zero value difference. `repost_stock`, `verify_integrity` and `reverse()` therefore need no special mode and a repost rebuilds identical Bins. Cancel is a plain negation of the delta (ERPNext re-posts the later entries from the pre-count state; the final qty is the same, a later moving-average rate can differ by rounding).
+- **Backdating is blocked, not reposted.** The ledger does not reprice later entries, so a reconciliation dated before the latest live SLE of the same item + warehouse (date and time) is refused with a message to reconcile at or after the latest movement. ERPNext would accept it and repost. A date earlier than every movement of that item is fine. (This also makes the opening stock of an item with Tally-imported history a count dated on/after its last movement.)
+- **Blank qty / rate keep the current value**, like ERPNext. Where ERPNext falls back to the Item Price list or `Item.valuation_rate` when no rate can be found, this ERP **refuses**: a count into a position with no current rate (current qty <= 0) needs an explicit rate > 0. A zero-valued stock position would silently understate the books.
+- **Rows with no change are removed at submit** (ERPNext removes them at validate); the submit is refused when nothing is left. Snapshots (`current_qty`, `current_valuation_rate`, `current_amount`, `quantity_difference`, `amount`, `amount_difference`) are server-derived: refreshed on every draft save and re-computed against the live ledger at submit, which also writes the resolved qty / rate back to the row.
+- **Opening-entry rule** follows ERPNext (`Opening Stock` purpose, or the company's first live SLE, needs a balance-sheet difference account), but the "first entry" test is per company, not global. Under perpetual inventory off no difference account is required and no GL is posted.
+- **Batch-tracked items are counted per batch** (a row names the batch and states that batch's absolute qty / rate); the Bin moves by the batch's delta. Counting stock into a batch that does not exist yet is not possible: create the batch first. Serial numbers, inventory dimensions, putaway rules, reserved-stock checks and Item Standard Cost do not exist here and are not modelled. A disabled or expired batch can still be counted (the physical count is the truth).
+- **Cancelling a count-up is refused** when the stock it created has since been consumed (the reversal would leave the Bin or a batch negative), exactly like cancelling a Material Receipt.
+- **`fetch-items`** returns the Bins (and per-batch balances) of a leaf warehouse, or of the leaves under a group warehouse, optionally filtered by item or item group; empty positions only with `include_zero`. Negative balances are included so they can be counted. ERPNext's version also lists the item's default-warehouse items with no Bin; here only existing Bins appear (nothing to count if there never was a movement; add the row by hand for an opening line).
+- **`verify_integrity`** adds `stock_reconciliation_integrity`: a submitted document's live SLEs must sum to its `difference_amount`, and no live reconciliation SLE may belong to a document that is not submitted.
+
+
+## Attachments (2026-10-29)
+
+ERPNext's `File` doctype (`attached_to_doctype` / `attached_to_name`) is the model. `core.Attachment` keeps that shape (`model_label` + `object_id`) but is stricter, because attachments here are audit proof:
+
+- **Immutable.** An attachment row is never edited (model guard, queryset `update` refused, DB `UPDATE` trigger on SQLite and PostgreSQL). ERPNext lets users rename or re-point a File.
+- **No deletion after submit.** ERPNext lets anyone with write access remove an attachment from a submitted document (it only blocks it for `Attach` fields marked read-only). Here, once the parent is submitted or cancelled the proof can be added to but never deleted, by anyone including superusers. On drafts and masters only the uploader or a manager (`can_delete` on the parent model, or superuser) may delete.
+- **Type allow-list, checked by content.** PDF, JPEG, PNG, WebP, HEIC, XLSX, CSV only, verified by extension **and** magic bytes (the client content-type is ignored); 10 MB cap (`ATTACHMENT_MAX_BYTES`). ERPNext accepts almost anything and only restricts by an optional extension list.
+- **No public files, no `is_private` flag.** Every file is private: bytes are served only through the authenticated `download` endpoint after a parent-record read check. ERPNext serves public Files from `/files/`.
+- **Authority is inherited from the parent record** (read to list/download; write, submit or create to upload) instead of a separate `File` permission.
+- **One copy per record.** The same bytes (SHA-256) cannot be attached twice to one record.
+- **`verify_integrity`** adds `attachment_integrity`: file present, size and SHA-256 match, parent still exists.
+- Not implemented (ERPNext has them): folders, thumbnails, attach-from-URL, "attach image" fields.
+
+## Sales / Purchase returns (2026-10-29)
+
+`is_return` credit notes (Sales Invoice) and debit notes (Purchase Invoice), ERPNext v15
+semantics: negative quantities, lines, tax rows and totals; optional `return_against`;
+`update_outstanding_for_self` default on. Code: `accounts/services/returns.py`.
+
+- **Sign storage.** Stored negative as in ERPNext. The old rule "returns will be their own
+  document types, not negative lines" (`core.mixins.PositiveQtyLineItemMixin` docstring) is
+  superseded for **invoices only**; orders, delivery and stock documents still reject negative
+  quantities. The DB CHECKs are per `is_return`: header `net_total` / `grand_total` /
+  `rounded_total` and `outstanding_amount` are `>= 0` for a normal invoice and `<= 0` for a
+  return (`<salesinvoice|purchaseinvoice>_amount_sign`, `_outstanding_sign`). The per-line / per-tax-row
+  `>= 0` CHECKs on **invoice** lines and tax rows are relaxed to "all GST amounts of a line share
+  one sign" (a child row cannot see its parent's `is_return`); the header CHECK is the real guarantee.
+- **Tax engine.** A return is calculated as its positive twin and negated (`taxes.negate`), so its
+  tax and round-off are the exact mirror of the original (half-up rounding is symmetric).
+- **GL.** Built with the original's code from the negative amounts, then normalised
+  (`gl.mirror_entries`): a negative debit becomes a credit of the same size. `gl.post` still refuses
+  negative amounts. GST integrity (`gst_integrity`) therefore needs no special case.
+- **Sales return stock** re-enters at the **original outgoing valuation** (pro rata of the original
+  voucher's outgoing SLE value for the item / batch); standalone returns use the bin rate, else the
+  item's standard rate. **Purchase return stock** goes out at the ledger's current batch / bin
+  average (ERPNext uses the original incoming rate); the difference to the debit-note value is
+  posted to the expense account so GL inventory still equals `Bin.stock_value`. Expired batches may
+  be returned out to a supplier (`allow_expired`) and back in from a customer.
+- **Stricter than ERPNext.** The return rate may not exceed the original line's rate (ERPNext skips
+  this for Moving Average items); unlinked return lines are only accepted for items on the original
+  and are capped per item as well as per linked line; a return of a return is refused; the party
+  account must equal the original's (the outstanding tagging relies on it); a return posts no earlier
+  than the original; batch-tracked lines must use the original's batch. A credit note skips the
+  credit-limit check.
+- **Statuses.** `Return`, `Credit Note Issued` / `Debit Note Issued` (a settled invoice with a
+  submitted return) added to `InvoiceStatus`. A return's own `outstanding_amount` is negative
+  (its credit / debit balance) and is settled by the **opposite Payment Entry flow** (refund:
+  Pay/Customer, Receive/Supplier), also built by `make-payment-entry`. **Not done:** netting a
+  standalone credit note against *other* invoices (ERPNext Payment Reconciliation / Journal Entry
+  "Credit Note" allocation); use `update_outstanding_for_self` off on the return, or a refund.
+- **Naming.** Returns are numbered `SRET-2026-` / `PRET-2026-` (GST caps the document number at 16
+  characters, `SINV-RET-2026-0001` is 18), which also gives GSTR-1 table 13 a separate series.
+- **GSTR-1.** New `cdnr` / `cdnur` sections (signed, negative values, `note_type` "C"); other
+  unregistered credit notes net into `b2cs`; HSN, nil / exempt and the summary are net of returns.
+  Debit notes to suppliers are not in GSTR-1; in GSTR-3B they reduce ITC through the negative lines
+  (there is no separate 4(B) reversal row, see the zero sections of the 3B report).
+- **Sales return against a non-stock invoice** (`update_stock` off) is refused when the return would
+  update stock, as in ERPNext.
+
+## Tally export (2026-10-29, app `tally_export`, docs/tally_export.md)
+
+ERPNext has no Tally export (its Tally integration is a one-way *import* of a Tally
+backup). This is new behaviour for the ERP-feeds-Tally direction.
+
+- **Vouchers are derived, not stored.** A Tally voucher is rebuilt from the immutable
+  `GLEntry` rows (and `StockLedgerEntry` for Stock Journals) every time; the only state is
+  the ledger / item maps and the append-only `TallyExportBatch` / `TallyExportedVoucher`
+  log. "Pending" is derived from the ledger and that log.
+- **Stock-valuation legs are not exported.** Tally values stock itself (the Nidhi books are
+  periodic), so the Stock In Hand / Cost of Goods Sold legs of an invoice are dropped;
+  their net (purchase stock cost) is folded into the purchase ledger. Stock Entries go as
+  quantity-only Stock Journals; their stock-adjustment GL (perpetual inventory) is not sent
+  unless the voucher type is overridden to `Journal`.
+- **Party lines map per party.** A Receivable / Payable line is never silently sent to its
+  control account: an unmapped party blocks the export.
+- **`TLY-*` documents and Opening Entry journals are never exported** (already in Tally).
+- **Cancelled after export** is sent as `ACTION="Cancel"` with the same `REMOTEID`; a
+  voucher cancelled before it was ever exported is simply not sent.
+
+## NGU online-store catalogue (no ERPNext equivalent)
+
+- **Crosswalk, not import.** `ngu.NguCatalogEntry` mirrors NGU `products_productvariant` /
+  `products_productcombo` (identity: NGU id; SKUs are blank, names differ from Tally) and links
+  a variant to a `stock.Item` by hand. The importer never creates or edits Items; it only
+  auto-links an unambiguous exact name match.
+- **Out of scope for now:** NGU invoices, payments, refunds, stock and invoice numbering.
+- Combos are stored with their `components` and cannot be linked to an Item. A combo's
+  `price` is NGU's `discount_price` (the combo table has no base price).

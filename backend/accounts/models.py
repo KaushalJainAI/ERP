@@ -152,6 +152,18 @@ class GLEntry(models.Model):
         return f"{self.posting_date} - {self.voucher_type}:{self.voucher_no} - {self.account.name} (Dr:{self.debit}/Cr:{self.credit})"
 
 
+class JournalEntryType(models.TextChoices):
+    JOURNAL_ENTRY = "Journal Entry", "Journal Entry"
+    BANK_ENTRY = "Bank Entry", "Bank Entry"
+    CASH_ENTRY = "Cash Entry", "Cash Entry"
+    CONTRA_ENTRY = "Contra Entry", "Contra Entry"
+    CREDIT_NOTE = "Credit Note", "Credit Note"
+    DEBIT_NOTE = "Debit Note", "Debit Note"
+    OPENING_ENTRY = "Opening Entry", "Opening Entry"
+    DEPRECIATION_ENTRY = "Depreciation Entry", "Depreciation Entry"
+    WRITE_OFF_ENTRY = "Write Off Entry", "Write Off Entry"
+
+
 class JournalEntry(SubmittableDocument):
     posting_date = models.DateField()
     company = models.ForeignKey(
@@ -164,6 +176,18 @@ class JournalEntry(SubmittableDocument):
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
     user_remark = models.TextField(null=True, blank=True)
+    # ERPNext's entry type; informational (it does not change the posting).
+    voucher_type = models.CharField(
+        max_length=30,
+        choices=JournalEntryType.choices,
+        default=JournalEntryType.JOURNAL_ENTRY,
+    )
+    # ERPNext labels these "Reference Number" / "Reference Date".
+    cheque_no = models.CharField(max_length=140, null=True, blank=True)
+    cheque_date = models.DateField(null=True, blank=True)
+    # The supplier's own bill number / date being booked.
+    bill_no = models.CharField(max_length=140, null=True, blank=True)
+    bill_date = models.DateField(null=True, blank=True)
 
     def recompute_totals(self):
         """Set ``total_debit``/``total_credit`` from the lines (they are derived
@@ -276,6 +300,9 @@ class PaymentEntry(SubmittableDocument):
         "buying.PurchaseInvoice": (PaymentType.PAY, "Supplier", "credit_to"),
     }
 
+    #: Settling a return (credit / debit note) is the opposite flow of an invoice.
+    REFUND_FLOW = {PaymentType.RECEIVE: PaymentType.PAY, PaymentType.PAY: PaymentType.RECEIVE}
+
     @property
     def party_account(self):
         """The party-side (receivable / payable) leg of the voucher: ``paid_from`` for a
@@ -320,7 +347,13 @@ class PaymentEntry(SubmittableDocument):
                     % {"doctype": ref.reference_doctype}
                 )
             payment_type, party_type, _account_field = target
-            if self.payment_type != payment_type or self.party_type != party_type:
+            # A return (credit / debit note) is settled by the opposite flow -- a
+            # refund -- so either direction passes here; the invoice-level check
+            # below picks the right one once the invoice is loaded.
+            if (
+                self.payment_type not in (payment_type, self.REFUND_FLOW[payment_type])
+                or self.party_type != party_type
+            ):
                 raise ValidationError(
                     _(
                         "A %(payment_type)s payment for a %(party_type)s cannot be "
@@ -390,7 +423,28 @@ class PaymentEntry(SubmittableDocument):
                     )
                     % {"name": ref.reference_name}
                 )
+            payment_type = self.ALLOCATION_TARGETS[ref.reference_doctype][0]
+            expected_type = (
+                self.REFUND_FLOW[payment_type] if invoice.is_return else payment_type
+            )
+            if self.payment_type != expected_type:
+                raise ValidationError(
+                    _(
+                        "A %(payment_type)s payment for a %(party_type)s cannot be "
+                        "allocated against %(doctype)s '%(name)s'."
+                    )
+                    % {
+                        "payment_type": self.payment_type,
+                        "party_type": self.party_type,
+                        "doctype": ref.reference_doctype,
+                        "name": ref.reference_name,
+                    }
+                )
+            # A return's own outstanding is negative (a credit / debit balance); the
+            # refund may settle up to its absolute value.
             open_amount = outstanding_service.current_outstanding(invoice)
+            if invoice.is_return:
+                open_amount = -open_amount
             if ref.allocated_amount > open_amount:
                 raise ValidationError(
                     _(
@@ -840,6 +894,11 @@ class InvoiceStatus(models.TextChoices):
     PARTLY_PAID = "Partly Paid", "Partly Paid"
     PAID = "Paid", "Paid"
     CANCELLED = "Cancelled", "Cancelled"
+    # Returns (ERPNext statuses): the credit / debit note itself, and an invoice
+    # that is fully settled and has a submitted return against it.
+    RETURN = "Return", "Return"
+    CREDIT_NOTE_ISSUED = "Credit Note Issued", "Credit Note Issued"
+    DEBIT_NOTE_ISSUED = "Debit Note Issued", "Debit Note Issued"
 
 
 class PayableDocument(models.Model):
@@ -864,6 +923,20 @@ class PayableDocument(models.Model):
     status = models.CharField(
         max_length=20, choices=InvoiceStatus.choices, default=InvoiceStatus.DRAFT
     )
+    # Returns (credit note on a Sales Invoice, debit note on a Purchase Invoice),
+    # as in ERPNext v15. A return carries NEGATIVE quantities and totals;
+    # ``return_against`` is optional (a standalone return is allowed).
+    is_return = models.BooleanField(default=False)
+    return_against = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="returns",
+    )
+    # True: the return keeps its own (negative) outstanding. False and
+    # ``return_against`` set: it reduces the original's outstanding instead.
+    update_outstanding_for_self = models.BooleanField(default=True)
 
     class Meta:
         abstract = True
@@ -876,10 +949,73 @@ class PayableDocument(models.Model):
 
     @staticmethod
     def outstanding_constraint():
+        """A normal invoice owes ``>= 0``; a return's own outstanding is ``<= 0``
+        (it is a credit / debit balance)."""
         return models.CheckConstraint(
-            check=models.Q(outstanding_amount__gte=0),
-            name="%(app_label)s_%(class)s_outstanding_gte_0",
+            check=(
+                models.Q(is_return=False, outstanding_amount__gte=0)
+                | models.Q(is_return=True, outstanding_amount__lte=0)
+            ),
+            name="%(app_label)s_%(class)s_outstanding_sign",
         )
+
+    @staticmethod
+    def return_constraints():
+        """DB guarantees of the return fields and of the sign convention: a normal
+        invoice can never carry negative totals, a return never positive ones."""
+        return [
+            models.CheckConstraint(
+                check=models.Q(return_against__isnull=True)
+                | models.Q(is_return=True),
+                name="%(app_label)s_%(class)s_return_against_needs_is_return",
+            ),
+            models.CheckConstraint(
+                check=~models.Q(return_against=models.F("id")),
+                name="%(app_label)s_%(class)s_return_not_self",
+            ),
+            models.CheckConstraint(
+                check=(
+                    models.Q(
+                        is_return=False,
+                        net_total__gte=0,
+                        grand_total__gte=0,
+                        rounded_total__gte=0,
+                    )
+                    | models.Q(
+                        is_return=True,
+                        net_total__lte=0,
+                        grand_total__lte=0,
+                        rounded_total__lte=0,
+                    )
+                ),
+                name="%(app_label)s_%(class)s_amount_sign",
+            ),
+        ]
+
+    @property
+    def against_voucher(self):
+        """``(voucher_type, voucher_no)`` the party GL line is tagged with: the
+        invoice itself, except a return that updates the original's outstanding
+        (``update_outstanding_for_self`` off) -- ERPNext's ``against_voucher``."""
+        if self.is_return and self.return_against_id and not self.update_outstanding_for_self:
+            return self.voucher_label(), self.return_against.name
+        return self.voucher_label(), self.name
+
+    def ensure_no_linked_returns(self):
+        """ERPNext: an invoice with a submitted return cannot be cancelled."""
+        names = sorted(
+            type(self)
+            .objects.filter(return_against=self, docstatus=DocStatus.SUBMITTED)
+            .values_list("name", flat=True)
+        )
+        if names:
+            raise ValidationError(
+                _(
+                    "Cannot cancel '%(name)s': cancel the linked returns first "
+                    "(%(returns)s)."
+                )
+                % {"name": self.name, "returns": ", ".join(names)}
+            )
 
     @property
     def party_account(self):
@@ -988,10 +1124,19 @@ class TaxLine(models.Model):
         ]
 
     @classmethod
-    def constraints_for(cls, parent_field):
-        """Base constraints plus the per-parent uniqueness rules."""
+    def constraints_for(cls, parent_field, *, signed=False):
+        """Base constraints plus the per-parent uniqueness rules.
+
+        ``signed=True`` (invoice tax rows) drops the ``tax_amount >= 0`` CHECK: a
+        return's tax rows are negative. The sign is then guaranteed at the header
+        (``PayableDocument.return_constraints``)."""
+        base = [
+            c
+            for c in TaxLine.Meta.constraints
+            if not (signed and c.name.endswith("_tax_amount_gte_0"))
+        ]
         return [
-            *TaxLine.Meta.constraints,
+            *base,
             models.UniqueConstraint(
                 fields=[parent_field, "idx"],
                 name="%(app_label)s_%(class)s_unique_idx",
@@ -1049,6 +1194,10 @@ class TaxableLine(models.Model):
 
     class Meta:
         abstract = True
+        # PostgreSQL does not guarantee heap order, and the tax engine updates
+        # some lines in place. Without this, a saved invoice can return its lines
+        # in a different order from the form (and from the dry-run preview).
+        ordering = ["id"]
         constraints = [
             models.CheckConstraint(
                 check=models.Q(gst_rate__gte=0) & models.Q(gst_rate__lte=100),
@@ -1079,6 +1228,29 @@ class TaxableLine(models.Model):
                 name="%(app_label)s_%(class)s_no_igst_with_cgst",
             ),
         ]
+
+    @classmethod
+    def signed_constraints(cls):
+        """Constraints of an invoice line: like ``Meta.constraints`` but the GST
+        amounts may be negative (a return line), though never of mixed sign."""
+        out = []
+        for c in TaxableLine.Meta.constraints:
+            if c.name.endswith("_gst_amounts_gte_0"):
+                c = models.CheckConstraint(
+                    check=(
+                        models.Q(cgst_amount__gte=0)
+                        & models.Q(sgst_amount__gte=0)
+                        & models.Q(igst_amount__gte=0)
+                    )
+                    | (
+                        models.Q(cgst_amount__lte=0)
+                        & models.Q(sgst_amount__lte=0)
+                        & models.Q(igst_amount__lte=0)
+                    ),
+                    name="%(app_label)s_%(class)s_gst_amounts_same_sign",
+                )
+            out.append(c)
+        return out
 
     def compute_amount(self):
         """``qty * rate`` quantized to a money amount (the line's taxable value).

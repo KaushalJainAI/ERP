@@ -1,12 +1,16 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/context/CompanyContext";
 import { Login } from "@/pages/Login";
-import { Dashboard } from "@/pages/Dashboard";
+import { Home } from "@/pages/Home";
 import { Profile } from "@/pages/Profile";
 import { Roles } from "@/pages/Roles";
 import { useTranslation } from "react-i18next";
 import { GLEntriesPage } from "@/pages/GLEntriesPage";
+import { TallyExportPage } from "@/pages/TallyExportPage";
+import { CompanyPage } from "@/pages/organisation/CompanyPage";
+import { DrivePage } from "@/pages/organisation/DrivePage";
 import { TrialBalancePage } from "@/pages/reports/TrialBalancePage";
 import { GeneralLedgerPage } from "@/pages/reports/GeneralLedgerPage";
 import { ProfitLossPage } from "@/pages/reports/ProfitLossPage";
@@ -14,13 +18,41 @@ import { BalanceSheetPage } from "@/pages/reports/BalanceSheetPage";
 import { Gstr1Page } from "@/pages/reports/gst/Gstr1Page";
 import { Gstr3bPage } from "@/pages/reports/gst/Gstr3bPage";
 import { TaxLedgerPage } from "@/pages/reports/gst/TaxLedgerPage";
+import { SalesRegisterPage, PurchaseRegisterPage } from "@/pages/reports/registers/RegisterPage";
+import { DayBookPage } from "@/pages/reports/registers/DayBookPage";
+import { CashBookPage } from "@/pages/reports/registers/CashBookPage";
+import { PartyStatementPage } from "@/pages/reports/registers/PartyStatementPage";
 import { ListPage } from "@/components/doc/ListPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
 import { ReportPage } from "@/components/doc/ReportPage";
 import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { t } = useTranslation();
+  const { activeCompany, loading, error } = useCompany();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
+        {t("company.loading")}
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-rose-300 text-sm">
+        {t("company.load_failed")}
+      </div>
+    );
+  }
+  if (!activeCompany) return <Navigate to="/" replace />;
+  return <>{children}</>;
+};
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode; requireCompany?: boolean }> = ({
+  children,
+  requireCompany = true,
+}) => {
   const { t } = useTranslation();
   const { isAuthenticated, loading } = useAuth();
   if (loading) {
@@ -33,6 +65,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+  if (requireCompany) return <CompanyRequired>{children}</CompanyRequired>;
   return <>{children}</>;
 };
 
@@ -41,13 +74,23 @@ export const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route
-        path="/dashboard"
+        path="/"
         element={
-          <ProtectedRoute>
-            <Dashboard />
+          <ProtectedRoute requireCompany={false}>
+            <Home />
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute requireCompany={false}>
+            <Home />
+          </ProtectedRoute>
+        }
+      />
+      {/* Old bookmarks land on the home launcher. The API endpoint is kept. */}
+      <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
       {/* Config-driven resources: /<module>/<key>, /new, /:id (see resources/registry.ts). */}
       {RESOURCES.flatMap((config) => {
@@ -110,6 +153,14 @@ export const AppRoutes: React.FC = () => {
         }
       />
       <Route
+        path="/accounts/tally-export"
+        element={
+          <ProtectedRoute>
+            <TallyExportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/accounts/reports/trial-balance"
         element={
           <ProtectedRoute>
@@ -130,6 +181,47 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <ProfitLossPage />
+          </ProtectedRoute>
+        }
+      />
+      {/* Registers and party statement (pages/reports/registers/). */}
+      <Route
+        path="/accounts/reports/sales-register"
+        element={
+          <ProtectedRoute>
+            <SalesRegisterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/reports/purchase-register"
+        element={
+          <ProtectedRoute>
+            <PurchaseRegisterPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/reports/day-book"
+        element={
+          <ProtectedRoute>
+            <DayBookPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/reports/cash-book"
+        element={
+          <ProtectedRoute>
+            <CashBookPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/reports/party-statement"
+        element={
+          <ProtectedRoute>
+            <PartyStatementPage />
           </ProtectedRoute>
         }
       />
@@ -167,6 +259,22 @@ export const AppRoutes: React.FC = () => {
         }
       />
       <Route
+        path="/organisation/company"
+        element={
+          <ProtectedRoute>
+            <CompanyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organisation/drive"
+        element={
+          <ProtectedRoute>
+            <DrivePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/users/profile"
         element={
           <ProtectedRoute>
@@ -194,7 +302,7 @@ export const AppRoutes: React.FC = () => {
           }
         />
       ))}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

@@ -15,6 +15,30 @@ def quantize_money(amount: Any) -> Decimal:
     return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def mirror_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Normalise GL lines built from **signed** (negative) document amounts.
+
+    A return (credit / debit note) builds its voucher with the same code as the
+    original but from negative totals, so some lines carry a negative debit or
+    credit. A negative debit is a credit of the same size (and vice versa), which
+    turns the whole voucher into the exact mirror of the original. ``post``
+    itself still refuses negative amounts.
+    """
+    out = []
+    for entry in entries:
+        debit = Decimal(entry.get("debit", 0) or 0)
+        credit = Decimal(entry.get("credit", 0) or 0)
+        net = debit - credit
+        out.append(
+            {
+                **entry,
+                "debit": net if net > 0 else Decimal("0.00"),
+                "credit": -net if net < 0 else Decimal("0.00"),
+            }
+        )
+    return out
+
+
 def post(
     voucher: Any,
     entries: List[Dict[str, Any]],

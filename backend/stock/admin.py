@@ -21,6 +21,8 @@ from stock.models import (
     StockEntry,
     StockEntryItem,
     StockLedgerEntry,
+    StockReconciliation,
+    StockReconciliationItem,
     UOM,
     Warehouse,
 )
@@ -226,6 +228,46 @@ class StockEntryAdmin(SubmittableDocumentAdmin):
                     "process_loss_qty",
                 ),
                 "classes": ("collapse",),
+            },
+        ),
+        ("Status", {"fields": ("docstatus", "amended_from")}),
+        (
+            "Audit",
+            {
+                "fields": ("created_at", "modified_at", "created_by", "modified_by"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+
+class StockReconciliationItemInline(admin.TabularInline):
+    model = StockReconciliationItem
+    extra = 1
+    autocomplete_fields = ("item", "warehouse", "batch")
+    fields = ("item", "warehouse", "batch", "qty", "valuation_rate")
+
+
+@admin.register(StockReconciliation)
+class StockReconciliationAdmin(SubmittableDocumentAdmin):
+    list_display = ("name", "purpose", "posting_date", "company", "docstatus")
+    list_filter = ("docstatus", "purpose", "company", "posting_date")
+    search_fields = ("name",)
+    date_hierarchy = "posting_date"
+    autocomplete_fields = ("company", "amended_from", "expense_account")
+    inlines = [StockReconciliationItemInline]
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "name",
+                    "company",
+                    "purpose",
+                    "posting_date",
+                    "posting_time",
+                    "expense_account",
+                )
             },
         ),
         ("Status", {"fields": ("docstatus", "amended_from")}),

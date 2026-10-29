@@ -13,17 +13,16 @@ from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 BEFORE = [
+    ("core", "0012_usercompany_usercompany_unique_user_company_and_more"),
     ("selling", "0004_backfill_customer_gst"),
     ("buying", "0004_backfill_supplier_gst"),
 ]
 
 
 def latest_targets(executor):
-    return [
-        key
-        for key in executor.loader.graph.leaf_nodes()
-        if key[0] in ("selling", "buying")
-    ]
+    # Restore every app to its leaf in the finally block (the test rewinds core
+    # as well as selling/buying).
+    return list(executor.loader.graph.leaf_nodes())
 
 
 class DocumentBackfillTests(TransactionTestCase):
@@ -34,6 +33,8 @@ class DocumentBackfillTests(TransactionTestCase):
             executor.migrate(BEFORE)
             old = MigrationExecutor(connection).loader.project_state(BEFORE).apps
 
+            # ``core`` is rewound too, so the historical Company model matches
+            # the table (no company-profile columns yet).
             Company = old.get_model("core", "Company")
             company = Company.objects.create(name="Legacy Co", abbr="LGC")
             CustomerGroup = old.get_model("selling", "CustomerGroup")

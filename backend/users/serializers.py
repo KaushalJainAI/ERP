@@ -12,6 +12,7 @@ from users.permissions import user_has_model_permission
 
 class UserSerializer(serializers.ModelSerializer):
     roles = serializers.SerializerMethodField()
+    readable_models = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -26,11 +27,13 @@ class UserSerializer(serializers.ModelSerializer):
             "is_superuser",
             "is_staff",
             "roles",
+            "readable_models",
         )
         # Self-service profile (PATCH /api/auth/me/): only the four personal
         # fields below are writable. Everything else -- notably is_active,
-        # is_superuser and the derived roles -- is server-controlled, so a user
-        # can never deactivate/elevate themselves through their own profile.
+        # is_superuser and the derived roles/readable_models -- is
+        # server-controlled, so a user can never deactivate/elevate themselves
+        # through their own profile.
         read_only_fields = (
             "id",
             "username",
@@ -38,11 +41,30 @@ class UserSerializer(serializers.ModelSerializer):
             "is_superuser",
             "is_staff",
             "roles",
+            "readable_models",
         )
 
     def get_roles(self, obj):
         return list(
             UserRole.objects.filter(user=obj).values_list("role__name", flat=True)
+        )
+
+    def get_readable_models(self, obj):
+        """Model labels the caller may read, for permission-aware navigation.
+
+        Derived from the same ``RolePermission`` rows the API enforces; ``["*"]``
+        means a superuser (who bypasses RBAC everywhere). Keeping this on the
+        profile lets the UI hide workspaces the user cannot open without
+        duplicating the role matrix in the frontend.
+        """
+        if obj.is_superuser:
+            return ["*"]
+        return sorted(
+            set(
+                RolePermission.objects.filter(
+                    role__role_users__user=obj, can_read=True
+                ).values_list("model_label", flat=True)
+            )
         )
 
 

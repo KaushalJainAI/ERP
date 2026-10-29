@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { BarChart3, BookOpen, FileSpreadsheet, Landmark, Library, Scale, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, FileSpreadsheet, FileText, Landmark, Library, Scale, ScrollText, TrendingUp, Wallet } from "lucide-react";
 import i18n from "i18next";
 import { apiClient } from "@/api/client";
 import { JournalBalanceBanner, negDec, totalsOf } from "@/components/accounts/BalanceBanner";
@@ -28,6 +28,18 @@ const ROOT_TYPES = ["Asset", "Liability", "Equity", "Income", "Expense"].map(opt
 const ACCOUNT_TYPES = ["Receivable", "Payable", "Bank", "Cash", "Stock", "Tax", "Cost of Goods Sold"].map(opt);
 const PAYMENT_TYPES = ["Receive", "Pay", "Internal Transfer"].map(opt);
 const PARTY_TYPES = ["Customer", "Supplier"].map(opt);
+// accounts.JournalEntryType (ERPNext's Journal Entry voucher_type).
+const JE_TYPES = [
+  "Journal Entry",
+  "Bank Entry",
+  "Cash Entry",
+  "Contra Entry",
+  "Credit Note",
+  "Debit Note",
+  "Opening Entry",
+  "Depreciation Entry",
+  "Write Off Entry",
+].map(opt);
 // reference_doctype is stored as "<app>.<Model>" (see accounts/mapping.py build_payment_entry).
 const REFERENCE_DOCTYPES: SelectOption[] = [
   { value: "selling.SalesInvoice", labelKey: "acc.opt.sales_invoice" },
@@ -161,6 +173,7 @@ const journalEntries: ResourceConfig = {
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+    { key: "voucher_type", labelKey: "acc.fields.je_voucher_type", render: optionCell },
     { key: "user_remark", labelKey: "acc.fields.user_remark" },
     { key: "total_debit", labelKey: "acc.fields.total_debit", type: "money" },
     { key: "total_credit", labelKey: "acc.fields.total_credit", type: "money" },
@@ -170,6 +183,11 @@ const journalEntries: ResourceConfig = {
     docNoField,
     companyField,
     dateField("posting_date"),
+    { key: "voucher_type", labelKey: "acc.fields.je_voucher_type", type: "select", options: JE_TYPES, defaultValue: "Journal Entry" },
+    { key: "cheque_no", labelKey: "acc.fields.cheque_no", type: "text" },
+    { key: "cheque_date", labelKey: "acc.fields.cheque_date", type: "date" },
+    { key: "bill_no", labelKey: "acc.fields.bill_no", type: "text" },
+    { key: "bill_date", labelKey: "acc.fields.bill_date", type: "date" },
     { key: "user_remark", labelKey: "acc.fields.user_remark", type: "textarea" },
     // Display-only previews; after a save the server totals (total_debit / total_credit) are shown.
     {
@@ -322,4 +340,9 @@ export const accountsLinks: NavLink[] = [
   { path: "/accounts/reports/general-ledger", labelKey: "acc.nav.general_ledger", icon: BarChart3 },
   { path: "/accounts/reports/profit-and-loss", labelKey: "acc.nav.profit_loss", icon: TrendingUp },
   { path: "/accounts/reports/balance-sheet", labelKey: "acc.nav.balance_sheet", icon: Landmark },
+  { path: "/accounts/reports/sales-register", labelKey: "registers.nav.sales_register", icon: FileText },
+  { path: "/accounts/reports/purchase-register", labelKey: "registers.nav.purchase_register", icon: FileText },
+  { path: "/accounts/reports/day-book", labelKey: "registers.nav.day_book", icon: BookOpen },
+  { path: "/accounts/reports/cash-book", labelKey: "registers.nav.cash_book", icon: Wallet },
+  { path: "/accounts/reports/party-statement", labelKey: "registers.nav.party_statement", icon: ScrollText },
 ];

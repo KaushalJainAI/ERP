@@ -446,12 +446,15 @@ class ReportParameterTests(ReportBase):
             self.get(
                 url, 400, company=c, month="2026-10", from_date="2026-10-01"
             )  # ambiguous
-            self.get(url, 400, month="2026-10")  # no company
+            # The active company is now server-resolved; omitting `company` uses
+            # the superuser's default rather than failing.
+            self.get(url, 200, month="2026-10")
             self.get(url, 400, company="abc", month="2026-10")
-            self.get(url, 400, company=999999, month="2026-10")
+            self.get(url, 404, company=999999, month="2026-10")
         self.get(LEDGER_URL, 400, company=c, month="2026-00")
         self.get(LEDGER_URL, 400, company=c, from_date="31/10/2026")
-        self.get(LEDGER_URL, 400)
+        # Period is optional for the tax ledger; the active company is enough.
+        self.get(LEDGER_URL, 200)
 
     def test_company_without_gstin_is_400(self):
         Company.objects.filter(pk=self.company.pk).update(gstin=None)

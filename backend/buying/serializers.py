@@ -13,6 +13,9 @@ from buying.models import (
 )
 from accounts.serializers import (
     LINE_GST_FIELDS,
+    RETURN_HEADER_FIELDS,
+    ReturnSerializerMixin,
+    SignedQtyLineItemMixin,
     TAX_HEADER_READ_ONLY,
     TAX_HEADER_WRITABLE,
     TaxableSerializerMixin,
@@ -183,7 +186,7 @@ class PurchaseOrderSerializer(
 
 
 class PurchaseInvoiceItemSerializer(
-    PositiveQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
+    SignedQtyLineItemMixin, NonNegativeRateLineItemMixin, serializers.ModelSerializer
 ):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
@@ -217,6 +220,7 @@ class PurchaseInvoiceItemSerializer(
             "supplier_batch_no",
             "manufacturing_date",
             "expiry_date",
+            "purchase_invoice_item",
             *LINE_GST_FIELDS,
         )
         read_only_fields = ("price_list_rate", *LINE_GST_FIELDS)
@@ -226,10 +230,14 @@ PurchaseInvoiceTaxSerializer = tax_row_serializer(PurchaseInvoiceTax)
 
 
 class PurchaseInvoiceSerializer(
-    TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
+    ReturnSerializerMixin,
+    TaxableSerializerMixin,
+    DraftNestedWriteMixin,
+    serializers.ModelSerializer,
 ):
     children_field = "items"
     name_prefix = "PINV-2026-"
+    return_name_prefix = "PRET-2026-"
 
     items = PurchaseInvoiceItemSerializer(many=True)
     taxes = PurchaseInvoiceTaxSerializer(many=True, required=False)
@@ -244,6 +252,9 @@ class PurchaseInvoiceSerializer(
     # drops a null dotted source from the output).
     purchase_order_name = serializers.CharField(
         source="purchase_order.name", read_only=True, allow_null=True
+    )
+    return_against_name = serializers.CharField(
+        source="return_against.name", read_only=True, allow_null=True
     )
     credit_to_name = serializers.CharField(source="credit_to.name", read_only=True)
     expense_account_name = serializers.CharField(
@@ -268,6 +279,7 @@ class PurchaseInvoiceSerializer(
             "purchase_order",
             "purchase_order_name",
             "update_stock",
+            *RETURN_HEADER_FIELDS,
             "credit_to",
             "credit_to_name",
             "expense_account",

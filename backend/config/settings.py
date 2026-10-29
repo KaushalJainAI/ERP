@@ -47,6 +47,11 @@ INSTALLED_APPS = [
     "buying.apps.BuyingConfig",
     "gst.apps.GstConfig",
     "manufacturing.apps.ManufacturingConfig",
+    "hr.apps.HrConfig",
+    "drive.apps.DriveConfig",
+    "legacy.apps.LegacyConfig",
+    "ngu.apps.NguConfig",
+    "tally_export.apps.TallyExportConfig",
 ]
 
 MIDDLEWARE = [
@@ -137,9 +142,23 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Uploaded proof documents (core.Attachment). Files live under MEDIA_ROOT but are
+# NEVER served from MEDIA_URL: downloads go through the authenticated, RBAC-checked
+# /api/core/attachments/<id>/download/ endpoint.
+MEDIA_URL = "media/"
+MEDIA_ROOT = Path(env.str("MEDIA_ROOT", default=str(BASE_DIR / "media")))
+ATTACHMENT_MAX_BYTES = env.int("ATTACHMENT_MAX_BYTES", default=10 * 1024 * 1024)
+
+# Organisation drive files are also private: authenticated download endpoints only.
+DRIVE_MAX_BYTES = env.int("DRIVE_MAX_BYTES", default=25 * 1024 * 1024)
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS configuration
+# Local development only: allow any origin so the SPA works from any port or LAN
+# IP (Vite hops to 5174+ when 5173 is taken). Production stays on the explicit
+# allow-list from the environment.
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 
 # Django REST Framework configuration
@@ -164,6 +183,8 @@ REST_FRAMEWORK = {
         "anon": env("THROTTLE_ANON", default="30/min"),
         "user": env("THROTTLE_USER", default="1000/min"),
         "auth": env("THROTTLE_AUTH", default="10/min"),
+        # Employee portal login / change-PIN (hr.portal_views), per IP.
+        "portal_login": env("THROTTLE_PORTAL_LOGIN", default="10/min"),
     },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",

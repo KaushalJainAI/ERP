@@ -15,6 +15,8 @@ export interface InputDef {
   link?: LinkDef;
   decimals?: number;
   money?: boolean;
+  /** number / decimal: accept a leading minus (quantity of a return). */
+  allowNegative?: boolean;
 }
 
 interface FieldInputProps {
@@ -169,7 +171,7 @@ export const FieldInput: React.FC<FieldInputProps> = ({
           placeholder={placeholder}
           onChange={(e) => {
             const v = e.target.value.trim();
-            if (isValidDecimalInput(v, places)) onChange(v);
+            if (isValidDecimalInput(v, places, def.allowNegative)) onChange(v);
           }}
           className={`${base} text-right tabular-nums`}
         />

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, BarChart3, CalendarClock, FolderTree, Layers, Package, Ruler, ScrollText, Tags, Warehouse } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CalendarClock, ClipboardCheck, FolderTree, Layers, Package, Ruler, ScrollText, Tags, Warehouse } from "lucide-react";
 import { createElement } from "react";
 import { roundDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
@@ -80,10 +80,10 @@ const ENTRY_TYPE_OPTIONS = [
   { value: "Repack", labelKey: "bs.res.entry_repack" },
 ];
 
-/** Manufacturing vouchers carry a Work Order / BOM and the loss rows. */
-const MANUFACTURING_ENTRY_TYPES = ["Material Transfer for Manufacture", "Manufacture", "Repack"];
-const isManufacturingEntry = (values: Record<string, any>) =>
-  MANUFACTURING_ENTRY_TYPES.includes(values.stock_entry_type);
+/** Work-Order vouchers carry a Work Order / BOM; Repack carries neither. */
+const WORK_ORDER_ENTRY_TYPES = ["Material Transfer for Manufacture", "Manufacture"];
+const isWorkOrderEntry = (values: Record<string, any>) =>
+  WORK_ORDER_ENTRY_TYPES.includes(values.stock_entry_type);
 const isOutputEntry = (values: Record<string, any>) =>
   values.stock_entry_type === "Manufacture" || values.stock_entry_type === "Repack";
 
@@ -267,7 +267,7 @@ const stockEntries: ResourceConfig = {
       labelKey: "mf.fields.work_order",
       type: "link",
       link: workOrderLink,
-      hidden: (values) => !isManufacturingEntry(values),
+      hidden: (values) => !isWorkOrderEntry(values),
       helpKey: "mf.help.stock_entry_work_order",
     },
     {
@@ -275,7 +275,7 @@ const stockEntries: ResourceConfig = {
       labelKey: "mf.fields.bom",
       type: "link",
       link: bomLink,
-      hidden: (values) => !isManufacturingEntry(values),
+      hidden: (values) => !isWorkOrderEntry(values),
     },
     {
       key: "fg_completed_qty",
@@ -364,6 +364,115 @@ const stockEntries: ResourceConfig = {
           widthClass: "w-32",
           hidden: (_row, form) => form.stock_entry_type !== "Repack",
         },
+      ],
+    },
+  ],
+};
+
+/* ---- stock reconciliation (opening stock / physical count) ---- */
+
+const RECO_PURPOSE_OPTIONS = [
+  { value: "Stock Reconciliation", labelKey: "reco.purpose.reconciliation" },
+  { value: "Opening Stock", labelKey: "reco.purpose.opening" },
+];
+
+const recoItemLink: LinkDef = {
+  ...itemLink,
+  fill: (r) => ({ item_code: r.code, item_name: r.name, _has_batch_no: !!r.has_batch_no }),
+};
+const recoWarehouseLink: LinkDef = { ...warehouseLink, display: (v) => v.warehouse_name };
+const recoBatchLink: LinkDef = {
+  endpoint: "/stock/batches/",
+  labelField: "batch_no",
+  display: (v) => v.batch_no,
+  filters: (row) => ({ item: row.item }),
+};
+const recoAccountLink: LinkDef = {
+  endpoint: "/accounts/accounts/",
+  labelField: "name",
+  display: (v) => v.expense_account_name,
+  filters: (_row, form) => ({ company: form.company, is_group: false }),
+};
+
+const stockReconciliations: ResourceConfig = {
+  key: "stock-reconciliations",
+  module: "stock",
+  endpoint: "/stock/stock-reconciliations/",
+  titleKey: "reco.res.stock_reconciliations",
+  singularKey: "reco.res.stock_reconciliation",
+  icon: ClipboardCheck,
+  submittable: true,
+  ordering: "-posting_date,-created_at",
+  columns: [
+    { key: "name", labelKey: "fields.docno" },
+    { key: "purpose", labelKey: "reco.fields.purpose" },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+    { key: "difference_amount", labelKey: "reco.fields.difference_amount", type: "money" },
+    { key: "docstatus", labelKey: "status", type: "status" },
+  ],
+  fields: [
+    docNoField,
+    companyField,
+    {
+      key: "purpose",
+      labelKey: "reco.fields.purpose",
+      type: "select",
+      required: true,
+      options: RECO_PURPOSE_OPTIONS,
+      defaultValue: "Stock Reconciliation",
+    },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
+    {
+      key: "expense_account",
+      labelKey: "reco.fields.expense_account",
+      type: "link",
+      link: recoAccountLink,
+      helpKey: "reco.help.expense_account",
+    },
+    {
+      key: "difference_amount",
+      labelKey: "reco.fields.difference_amount",
+      type: "decimal",
+      money: true,
+      readOnly: true,
+    },
+  ],
+  childTables: [
+    {
+      key: "items",
+      titleKey: "res.items_table",
+      inheritFromPrevious: ["warehouse"],
+      fetchRows: {
+        labelKey: "reco.fetch.button",
+        sourceLabelKey: "reco.fetch.warehouse",
+        sourceLink: { ...warehouseLink, display: undefined },
+        endpoint: "/stock/stock-reconciliations/fetch-items/",
+        params: (warehouse, form) => (form.company ? { company: form.company, warehouse } : null),
+        mapRow: (r) => ({ ...r, _has_batch_no: !!r.batch }),
+        dedupeKeys: ["item", "warehouse", "batch"],
+        pickKey: "reco.fetch.pick",
+        notReadyKey: "reco.fetch.company_first",
+        noneKey: "reco.fetch.none",
+        doneKey: "reco.fetch.done",
+        failedKey: "reco.fetch.failed",
+      },
+      columns: [
+        { key: "item", labelKey: "fields.item", type: "link", required: true, link: recoItemLink, widthClass: "min-w-[16rem]" },
+        { key: "warehouse", labelKey: "fields.warehouse", type: "link", required: true, link: recoWarehouseLink, widthClass: "min-w-[11rem]" },
+        {
+          key: "batch",
+          labelKey: "bs.fields.batch",
+          type: "link",
+          link: recoBatchLink,
+          widthClass: "min-w-[12rem]",
+          hidden: (row) => !row._has_batch_no && !row.batch,
+        },
+        { key: "current_qty", labelKey: "reco.fields.current_qty", type: "number", readOnly: true, widthClass: "w-28" },
+        { key: "current_valuation_rate", labelKey: "reco.fields.current_rate", type: "decimal", decimals: 6, readOnly: true, widthClass: "w-32" },
+        { key: "qty", labelKey: "reco.fields.qty", type: "number", widthClass: "w-28" },
+        { key: "valuation_rate", labelKey: "reco.fields.rate", type: "decimal", decimals: 6, widthClass: "w-32" },
+        { key: "quantity_difference", labelKey: "reco.fields.qty_difference", type: "number", readOnly: true, widthClass: "w-28" },
+        { key: "amount_difference", labelKey: "reco.fields.amount_difference", type: "decimal", money: true, readOnly: true, widthClass: "w-32" },
       ],
     },
   ],
@@ -522,6 +631,7 @@ export const stockResources: ResourceConfig[] = [
   priceLists,
   itemPrices,
   stockEntries,
+  stockReconciliations,
   bins,
   stockLedger,
 ];

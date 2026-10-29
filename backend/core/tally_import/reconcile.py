@@ -20,23 +20,7 @@ from core.tally_import.masters import (
 
 REPORT_PATH = r"C:\Users\91700\Desktop\ERP\backend\docs\tally_import_report.md"
 
-MODEL_CHANGES = [
-    "JournalEntry has no voucher_type / voucher_number / reference fields: Tally voucher type, number "
-    "and guid are only in user_remark (a text field, not searchable by type).",
-    "JournalEntryLine has no bill reference / against_voucher (Tally bill-wise, 125 'On Account' rows "
-    "dropped) and no per-line remark; GLEntry.against_voucher_* is therefore never filled.",
-    "No allow-negative-stock setting (per item or per company): 7 items with negative Tally stock "
-    "could not be imported (see the stock section).",
-    "FiscalYear is global, not per company (acceptable for one company; ACME shares the 2026-2027 row).",
-    "Customer/Supplier have no address, pincode or contact-person fields (Tally ledger mailing "
-    "address, pincode and phone are not imported).",
-    "StockEntry has no remark / reference field: the Tally voucher number and guid of each "
-    "stock entry cannot be recorded (names TLY-2627-STK-<seq> follow Tally date / voucher order).",
-    "SubmittableDocument.name is max 60 chars (sufficient for TLY-yyyy-nnnnnn).",
-    "Account has no 'cost centre' / sub-ledger concept (Tally cost centres not imported).",
-    "No opening-balance / bill-wise document type: yearly opening corrections had to be a "
-    "JournalEntry to 'Difference in Opening Balances'.",
-]
+GAPS_DOC = "docs/tally_data_gaps.md"
 
 
 def _fmt(d) -> str:
@@ -57,7 +41,8 @@ def erp_balances(end_date: datetime.date, exclude_voucher: Optional[str] = None)
     for r in qs.values("account_id", "party_type", "party").annotate(
         dr=Sum("debit"), cr=Sum("credit")
     ):
-        out[(r["account_id"], r["party_type"], r["party"])] = r["dr"] - r["cr"]
+        # SQLite SUM()s decimals as floats; amounts are 2dp so rounding is exact.
+        out[(r["account_id"], r["party_type"], r["party"])] = money(r["dr"] - r["cr"])
     return out
 
 
@@ -79,7 +64,7 @@ def erp_year_profit(fy: str) -> Decimal:
         .exclude(voucher_no=je_name(fy, "PCV"))
         .aggregate(dr=Sum("debit"), cr=Sum("credit"))
     )
-    return (agg["cr"] or ZERO) - (agg["dr"] or ZERO)
+    return money((agg["cr"] or ZERO) - (agg["dr"] or ZERO))
 
 
 def ledger_key(chart, fy, ledger: str):
@@ -256,8 +241,9 @@ def build_report(
     chart_notes,
     master_counts,
     runtime,
-    not_imported,
+    archive_counts,
     sm_notes,
+    addresses=None,
 ) -> str:
     L: List[str] = []
     L += [
@@ -439,14 +425,36 @@ def build_report(
         f"nil/exempt items: {s.get('nil_exempt')}, inactive items (absent from 2026-27): {s.get('inactive')}, "
         f"code truncations: {s.get('truncated')}, code collisions: {s.get('collisions')}"
     )
+    L.append(
+        f"- item tax template set on {s.get('tax_template_set')} items; Tally rate "
+        f"with no seeded template: {s.get('tax_template_unknown')}"
+    )
     L.append("")
 
-    L += ["## Not imported (counts in the Tally database)", ""]
-    for k, v in not_imported.items():
-        L.append(f"- {k}: {v if v is not None else 'not present / not extracted'}")
+    L += [
+        "## Archive completeness",
+        "",
+        "Every Tally master and voucher of every year is kept as a `legacy.TallyRecord` "
+        "(the XML exactly as Tally exported it, linked to the ERP document it became); "
+        "every inventory line of a non-cancelled voucher as a `legacy.TallyItemLine`. "
+        f"What the ERP cannot use yet is listed in `{GAPS_DOC}`.",
+        "",
+        "| kind | rows in Tally | archived in ERP | complete |",
+        "|---|---:|---:|---|",
+    ]
+    for kind, (tally_n, erp_n) in archive_counts.items():
+        L.append(
+            f"| {kind} | {tally_n} | {erp_n} | {'yes' if tally_n == erp_n else '**NO**'} |"
+        )
     L.append("")
-
-    L += ["## Model changes needed", ""] + [f"- {m}" for m in MODEL_CHANGES] + [""]
+    if addresses:
+        L.append(
+            f"- addresses created: {addresses.get('created')}; ledgers with a mailing "
+            f"record but no address line: {addresses.get('no_lines')}; non-party ledgers "
+            f"with an address (archive only): {addresses.get('not_a_party')}; invalid PIN "
+            f"codes (left blank): {len(addresses.get('bad_pincode') or [])}"
+        )
+        L.append("")
 
     L += [
         "## verify_integrity",

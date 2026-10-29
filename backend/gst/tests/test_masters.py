@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.utils import DataError
 from rest_framework.test import APIClient, APITestCase
 
 from accounts.models import (
@@ -66,7 +67,9 @@ class StateTests(GSTBase):
         self.assertTrue(State.objects.get(pk="07").is_union_territory)
 
     def test_state_code_length_check(self):
-        with self.assertRaises(IntegrityError), transaction.atomic():
+        # PostgreSQL raises DataError for an over-length varchar; SQLite raises
+        # the check-constraint IntegrityError. Both mean "rejected by the DB".
+        with self.assertRaises((IntegrityError, DataError)), transaction.atomic():
             State.objects.create(code="123", name="Bogus")
 
     def test_list_search_and_pk_is_code(self):
@@ -165,12 +168,15 @@ class CompanyGSTTests(GSTBase):
             self.assertIn(key, res.data)
         self.assertEqual(res.data["gst_category"], "Unregistered")
         self.assertFalse(res.data["enable_rounded_total"])
-        self.assertEqual(
-            self.client.patch(
-                f"/api/core/companies/{self.company.pk}/", {"gst_category": "SEZ"}
-            ).status_code,
-            405,
+        # The company profile is editable by a caller with core.Company.can_write
+        # (the superuser here); ordinary operators only ever read it.
+        res = self.client.patch(
+            f"/api/core/companies/{self.company.pk}/",
+            {"gst_category": "SEZ"},
+            format="json",
         )
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data["gst_category"], "SEZ")
 
 
 PARTY_CASES = (
@@ -738,7 +744,9 @@ class TaxTemplateAPITests(GSTBase):
             {"idx": 1, "rate": Decimal("100.5")},
             {"idx": 1, "rate": Decimal("-1")},
         ):
-            with self.assertRaises(IntegrityError), transaction.atomic():
+            # Over-length varchar is DataError on PostgreSQL; the check
+            # constraints raise IntegrityError.
+            with self.assertRaises((IntegrityError, DataError)), transaction.atomic():
                 TaxTemplateRow.objects.create(**{**base, **extra})
         TaxTemplateRow.objects.create(**base, idx=1)
         with self.assertRaises(IntegrityError), transaction.atomic():

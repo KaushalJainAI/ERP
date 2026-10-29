@@ -4,11 +4,13 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { useModuleNav } from "@/resources/nav";
+import { badgeClass, useNavBadges } from "@/resources/navBadges";
 import type { NavLink } from "@/types";
 
 const Tile: React.FC<{ link: NavLink }> = ({ link }) => {
   const { t } = useTranslation();
   const Icon = link.icon;
+  const count = useNavBadges()[link.badge ?? ""] ?? 0;
   return (
     <Link
       to={link.path}
@@ -20,6 +22,7 @@ const Tile: React.FC<{ link: NavLink }> = ({ link }) => {
       <span className="flex-1 min-w-0 text-sm font-medium text-slate-200 group-hover:text-slate-100 truncate">
         {t(link.labelKey)}
       </span>
+      {count > 0 && <span className={badgeClass}>{count}</span>}
       <ArrowRight className="w-4 h-4 shrink-0 text-slate-600 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-400 rtl:rotate-180" />
     </Link>
   );
@@ -44,7 +47,7 @@ const Section: React.FC<{ titleKey: string; links: NavLink[] }> = ({ titleKey, l
 export const ModulePage: React.FC<{ moduleKey: string }> = ({ moduleKey }) => {
   const { t } = useTranslation();
   const entry = useModuleNav().find((n) => n.module.key === moduleKey);
-  if (!entry) return <Navigate to="/dashboard" replace />;
+  if (!entry) return <Navigate to="/" replace />;
   const Icon = entry.module.icon;
 
   return (

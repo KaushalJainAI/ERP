@@ -25,7 +25,9 @@ class UsersAppTests(TestCase):
             password="secretpassword123",
             language="hi",
         )
-        self.role = Role.objects.create(name="Stock Manager", description="Manages stock items")
+        self.role = Role.objects.create(
+            name="Stock Manager", description="Manages stock items"
+        )
 
     # -------------------------------------------------------------------------
     # Good Unit Tests
@@ -74,6 +76,34 @@ class UsersAppTests(TestCase):
         self.assertIn("access", response.data)
         self.assertIn("refresh", response.data)
 
+    def test_me_exposes_only_readable_models(self):
+        """The home page uses /me/ to decide which workspaces to show, so it
+        must expose exactly the readable model labels granted through roles."""
+        UserRole.objects.create(user=self.user, role=self.role)
+        RolePermission.objects.create(
+            role=self.role, model_label="stock.Item", can_read=True
+        )
+        RolePermission.objects.create(
+            role=self.role, model_label="accounts.GLEntry", can_read=False
+        )
+        self.client.force_authenticate(self.user)
+
+        response = self.client.get("/api/auth/me/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["readable_models"], ["stock.Item"])
+
+    def test_superuser_readable_models_wildcard(self):
+        """A superuser bypasses RBAC, so the profile exposes the wildcard."""
+        self.user.is_superuser = True
+        self.user.save(update_fields=["is_superuser"])
+        self.client.force_authenticate(self.user)
+
+        response = self.client.get("/api/auth/me/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["readable_models"], ["*"])
+
     # -------------------------------------------------------------------------
     # Bad / Error Unit Tests
     # -------------------------------------------------------------------------
@@ -87,10 +117,14 @@ class UsersAppTests(TestCase):
 
     def test_duplicate_role_permission_fails(self):
         """BAD: Duplicate (role, model_label) pair violates UNIQUE constraint."""
-        RolePermission.objects.create(role=self.role, model_label="stock.Item", can_read=True)
+        RolePermission.objects.create(
+            role=self.role, model_label="stock.Item", can_read=True
+        )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
-                RolePermission.objects.create(role=self.role, model_label="stock.Item", can_read=False)
+                RolePermission.objects.create(
+                    role=self.role, model_label="stock.Item", can_read=False
+                )
 
     def test_has_role_permission_denied_when_missing_flag(self):
         """BAD: User lacking permission flag is denied by HasRolePermission."""

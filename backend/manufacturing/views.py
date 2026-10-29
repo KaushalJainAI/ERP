@@ -8,6 +8,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
+from core.company_context import CompanyScopedMixin, active_company_id
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
 from manufacturing.models import BOM, WorkOrder, WorkOrderStatus
 from manufacturing.serializers import BOMSerializer, WorkOrderSerializer
@@ -19,7 +20,7 @@ from stock.views import _jsonable, _params_400, _parse_date, _parse_int
 from users.permissions import HasRolePermission, require_model_permission
 
 
-class BOMViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class BOMViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     """Bills of Materials, with derived cost and multi-level explosion."""
 
     queryset = (
@@ -46,7 +47,9 @@ class BOMViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return Response(_jsonable(costing.explode(bom)))
 
 
-class WorkOrderViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
+class WorkOrderViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
     """Work Orders with server-generated required-material rows."""
 
     queryset = (
@@ -160,12 +163,13 @@ def production_yield(request):
     q = request.query_params
     from_date = _parse_date(q.get("from_date"), "from_date")
     to_date = _parse_date(q.get("to_date"), "to_date")
-    company = _parse_int(q.get("company"), "company")
+    company = active_company_id(request)
     work_order = _parse_int(q.get("work_order"), "work_order")
     bom = _parse_int(q.get("bom"), "bom")
 
     entries = (
         StockEntry.objects.filter(
+            company_id=company,
             docstatus=1,
             stock_entry_type__in=(
                 StockEntryType.MANUFACTURE,
@@ -175,8 +179,6 @@ def production_yield(request):
         .select_related("work_order", "bom", "company")
         .order_by("posting_date", "id")
     )
-    if company:
-        entries = entries.filter(company_id=company)
     if work_order:
         entries = entries.filter(work_order_id=work_order)
     if bom:
@@ -255,11 +257,9 @@ def bom_cost_report(request):
     Params: company, item, is_active (default 1).
     """
     q = request.query_params
-    company = _parse_int(q.get("company"), "company")
+    company = active_company_id(request)
     item = _parse_int(q.get("item"), "item")
-    boms = BOM.objects.all().select_related("company", "item").order_by("name")
-    if company:
-        boms = boms.filter(company_id=company)
+    boms = BOM.objects.filter(company_id=company).select_related("company", "item").order_by("name")
     if item:
         boms = boms.filter(item_id=item)
     if q.get("is_active", "1") in ("1", "true", "True"):

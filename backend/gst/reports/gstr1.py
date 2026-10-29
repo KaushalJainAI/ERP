@@ -6,6 +6,11 @@ figures always agree with what the tax engine stored and what the GL posted.
 
 Sections (docs/gst_design.md section 6.1): ``b2b``, ``b2cl``, ``b2cs``, ``exports``,
 ``nil_exempt_non_gst``, ``hsn`` (B2B / B2C split), ``docs_issued``, ``warnings``.
+Credit notes (a Sales Invoice with ``is_return``, negative amounts) are reported in
+``cdnr`` (to registered persons) and ``cdnur`` (exports, and inter-State supplies to
+unregistered persons above the B2CL threshold); the rest are netted, negative, into
+``b2cs`` (GSTN rule). Every figure keeps its sign, so the summary, ``b2cs``, ``nil_exempt_non_gst``
+and ``hsn`` are already net of returns.
 Only ``Taxable`` lines appear in the invoice-bearing sections (their tax columns are
 what GSTN wants per rate); Nil-Rated / Exempted / Non-GST lines are reported in
 ``nil_exempt_non_gst`` (and, bar Non-GST, in ``hsn``).
@@ -101,6 +106,36 @@ def _section(invoice, state):
     return "b2cs"
 
 
+def _return_section(invoice, state):
+    """Where a credit note goes: ``cdnr``, ``cdnur`` or netted into ``b2cs``."""
+    if invoice.gst_category == GSTCategory.OVERSEAS:
+        return "cdnur"
+    if _is_registered(invoice):
+        return "cdnr"
+    # GSTN: a credit note to an unregistered person is CDNUR only when the
+    # original invoice was B2CL; otherwise it is netted in B2CS.
+    basis = (
+        invoice.return_against.rounded_total
+        if invoice.return_against_id
+        else (abs(invoice.rounded_total))
+    )
+    if is_inter_state(invoice, state) and basis > b2cl_threshold(invoice.posting_date):
+        return "cdnur"
+    return "b2cs"
+
+
+def _note_row(invoice, taxable_lines, state):
+    row = _invoice_row(invoice, taxable_lines, state)
+    original = invoice.return_against
+    return {
+        **row,
+        "note_type": "C",
+        "note_value": row["invoice_value"],
+        "original_invoice": original.name if original else None,
+        "original_date": original.posting_date.isoformat() if original else None,
+    }
+
+
 def _invoice_type(invoice):
     if invoice.gst_category == GSTCategory.SEZ:
         return (
@@ -178,7 +213,7 @@ def build(company, from_date, to_date):
             posting_date__lte=to_date,
             docstatus__in=(DocStatus.SUBMITTED, DocStatus.CANCELLED),
         )
-        .select_related("customer")
+        .select_related("customer", "return_against")
         .prefetch_related("items__item__stock_uom")
         .order_by("posting_date", "name")
     )
@@ -190,7 +225,7 @@ def build(company, from_date, to_date):
 
     summary = _Tax()
     invoice_value = ZERO
-    sections = {"b2b": {}, "b2cl": {}, "exports": {}}
+    sections = {"b2b": {}, "b2cl": {}, "exports": {}, "cdnr": {}, "cdnur": {}}
     b2cs = defaultdict(_Tax)
     nil = {key: dict.fromkeys(NIL_KEYS.values(), ZERO) for key, _label in NIL_BUCKETS}
     hsn = {"b2b": {}, "b2c": {}}
@@ -198,7 +233,7 @@ def build(company, from_date, to_date):
 
     for inv in invoices:
         invoice_value += inv.rounded_total
-        section = _section(inv, state)
+        section = _return_section(inv, state) if inv.is_return else _section(inv, state)
         inter = is_inter_state(inv, state)
         registered = _is_registered(inv)
         taxable_lines = []
@@ -236,15 +271,30 @@ def build(company, from_date, to_date):
                 key = (inv.place_of_supply_id or state, supply_type, line.gst_rate)
                 b2cs[key].add(line)
             continue
-        sections[section].setdefault(_group_key(section, inv, state), []).append(
-            _invoice_row(inv, taxable_lines, state)
-        )
+        if section == "cdnr":
+            sections[section].setdefault(
+                (inv.party_gstin, inv.customer.name), []
+            ).append(_note_row(inv, taxable_lines, state))
+        elif section == "cdnur":
+            kind = (
+                ("EXPWP" if inv.is_export_with_gst else "EXPWOP")
+                if inv.gst_category == GSTCategory.OVERSEAS
+                else "B2CL"
+            )
+            sections[section].setdefault(kind, []).append(
+                _note_row(inv, taxable_lines, state)
+            )
+        else:
+            sections[section].setdefault(_group_key(section, inv, state), []).append(
+                _invoice_row(inv, taxable_lines, state)
+            )
 
     return {
         "company": company_block(company),
         "period": period_block(from_date, to_date),
         "summary": {
-            "invoice_count": len(invoices),
+            "invoice_count": sum(1 for d in invoices if not d.is_return),
+            "credit_note_count": sum(1 for d in invoices if d.is_return),
             "taxable_value": money(summary.taxable),
             "igst": money(summary.igst),
             "cgst": money(summary.cgst),
@@ -271,6 +321,14 @@ def build(company, from_date, to_date):
         "exports": [
             {"export_type": kind, "invoices": rows}
             for kind, rows in sorted(sections["exports"].items())
+        ],
+        "cdnr": [
+            {"party_gstin": gstin, "party_name": name, "notes": rows}
+            for (gstin, name), rows in sorted(sections["cdnr"].items())
+        ],
+        "cdnur": [
+            {"ur_type": kind, "notes": rows}
+            for kind, rows in sorted(sections["cdnur"].items())
         ],
         "nil_exempt_non_gst": [
             {

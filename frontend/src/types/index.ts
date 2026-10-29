@@ -30,6 +30,8 @@ export interface UserProfile {
   last_name: string;
   language: string;
   roles: string[];
+  /** Model labels (`app.Model`) the user may read; `["*"]` for a superuser. */
+  readable_models: string[];
   is_superuser?: boolean;
 }
 
@@ -156,6 +158,8 @@ export interface ChildColumnDef {
   link?: LinkDef;
   decimals?: number;
   money?: boolean;
+  /** number / decimal: accept a leading minus (quantity of a return line). */
+  allowNegative?: boolean;
   options?: SelectOption[];
   /** Width hint (tailwind class), e.g. "w-28". */
   widthClass?: string;
@@ -195,6 +199,28 @@ export interface ChildTableDef {
    * until a field in `PreviewDef.rederiveOn` changes.
    */
   derived?: boolean;
+  /**
+   * "Fetch items" bar above the table (ERPNext "Fetch Items from Warehouse"):
+   * pick a source record, GET `endpoint` with `params`, append the returned
+   * `rows` (skipping ones already present by `dedupeKeys`). Draft documents only.
+   */
+  fetchRows?: {
+    /** i18n key of the button */
+    labelKey: string;
+    sourceLabelKey: string;
+    sourceLink: LinkDef;
+    endpoint: string;
+    /** Query params from the picked source and the form; null = form not ready. */
+    params: (source: string | number, form: Record<string, any>) => Record<string, any> | null;
+    mapRow?: (row: Record<string, any>) => Record<string, any>;
+    dedupeKeys?: string[];
+    pickKey: string;
+    notReadyKey: string;
+    noneKey: string;
+    /** receives {{count}} */
+    doneKey: string;
+    failedKey: string;
+  };
 }
 
 /** Context the preview hook gets when merging a response into the form. */
@@ -311,6 +337,8 @@ export interface ResourceConfig {
   tree?: TreeConfig;
   /** Hide the Delete button on masters. */
   noDelete?: boolean;
+  /** Never show the Attachments panel (default: shown wherever the API allows attachments). */
+  noAttachments?: boolean;
   /** Hide from the sidebar (still routable). */
   hideInSidebar?: boolean;
   /** List-only (ledger / projection): no "New" button, rows are not clickable, no detail/new routes. */
@@ -338,6 +366,8 @@ export interface NavLink {
   icon?: ComponentType<{ className?: string }>;
   /** Hide the link for users this returns false for (default: always shown). */
   visible?: (user: UserProfile) => boolean;
+  /** Id of a live count badge shown next to the link (see resources/navBadges.ts). */
+  badge?: string;
 }
 
 export interface ModuleDef {

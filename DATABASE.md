@@ -62,7 +62,8 @@ and seed step (see [Migrate & seed](#migrate--seed)).
 
 The repo's `docker-compose.yml` already defines a `postgres:16-alpine` service
 with database `erp_db`, user `erp_user`, password `erp_password`, exposed on
-`5432`. Bring it up standalone with:
+host port **`5433`** (5432 is taken by the Tally extract container `tally-pg`).
+Bring it up standalone with:
 
 ```bash
 docker compose up -d postgres
@@ -71,8 +72,12 @@ docker compose up -d postgres
 Then in `backend/.env`:
 
 ```
-DATABASE_URL=postgres://erp_user:erp_password@127.0.0.1:5432/erp_db
+DATABASE_URL=postgres://erp_user:erp_password@127.0.0.1:5433/erp_db
 ```
+
+This is the database that holds the real books (NIDHI GRAH UDYOG, imported from
+Tally with `python manage.py import_tally`; see
+`backend/docs/tally_import_report.md`). SQLite is for tests and throwaway dev only.
 
 (If the whole stack runs under compose, the backend service reaches it at host
 `postgres` instead of `127.0.0.1` — that value is already wired in the compose

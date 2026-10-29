@@ -116,14 +116,124 @@ class TallySource:
         )
 
     # -- vouchers ----------------------------------------------------------
+    def voucher_type_bases(self, cy: str) -> Dict[str, str]:
+        """voucher type name -> Tally base type (Sales, Receipt, ...): the
+        reserved name reached by following ``parent`` up the chain."""
+        rows = self.rows(
+            "select name, parent, reservedname from mst_vouchertype "
+            "where company_year=%s",
+            (cy,),
+        )
+        parent = {r["name"]: r["parent"] for r in rows}
+        reserved = {r["name"] for r in rows if r["reservedname"]}
+        out: Dict[str, str] = {}
+        for name in parent:
+            cur, seen = name, set()
+            while cur not in reserved and parent.get(cur) and cur not in seen:
+                seen.add(cur)
+                cur = parent[cur]
+            out[name] = cur
+        return out
+
     def vouchers(self, cy: str) -> List[dict]:
-        """All vouchers of a year (cancelled ones flagged), in (date, id) order."""
-        return self.rows(
+        """All vouchers of a year (cancelled ones flagged), in (date, id) order,
+        with ``base_type`` = the Tally base voucher type."""
+        rows = self.rows(
             "select id, row_key, date, guid, vouchertypename, vouchernumber, "
-            "narration, iscancelled "
+            "narration, iscancelled, reference, partyledgername, amount, "
+            "placeofsupply "
             "from txn_voucher where company_year=%s order by date, id",
             (cy,),
         )
+        bases = self.voucher_type_bases(cy)
+        for r in rows:
+            r["base_type"] = bases.get(r["vouchertypename"], r["vouchertypename"])
+        return rows
+
+    def stream(self, sql: str, params=None, size: int = 2000):
+        """Yield rows of a large query through a server-side cursor."""
+        with self.conn.transaction():
+            with self.conn.cursor(name="tally_stream") as cur:
+                cur.itersize = size
+                cur.execute(sql, params or ())
+                yield from cur
+
+    def master_raw(self, table: str, cy: str):
+        """(guid, name, raw_xml) of one tally_full master table for a year."""
+        return self.stream(
+            f'select guid, name, raw_xml from tally_full."{table}" '
+            "where company_year=%s order by id",
+            (cy,),
+        )
+
+    def company_raw(self, cy: str) -> List[dict]:
+        return self.rows(
+            "select raw_xml from tally_full.company_ref where company_year=%s", (cy,)
+        )
+
+    def voucher_raw(self, cy: str):
+        """(row_key, raw_xml) of every voucher of a year."""
+        return self.stream(
+            "select row_key, raw_xml from txn_voucher where company_year=%s order by id",
+            (cy,),
+        )
+
+    def item_lines(self, cy: str) -> List[dict]:
+        """Inventory lines of a year with the ledger each was booked to."""
+        return self.rows(
+            "select e.id, e.voucher_key, e.stockitemname, e.isdeemedpositive, "
+            "e.amount, e.actualqty_num, e.billedqty_num, e.actualqty_unit, "
+            "e.rate_num, e.discount, a.ledgername "
+            "from txn_voucher_inventory_entry e "
+            "left join txn_voucher_inventory_entry_accounting_alloc a "
+            "on a.parent_key = e.row_key and a.company_year = e.company_year "
+            "where e.company_year=%s order by e.id",
+            (cy,),
+        )
+
+    def ledger_addresses(self) -> Dict[str, dict]:
+        """Ledger name -> latest year's mailing data: ``lines`` (address rows in
+        order), ``pincode``, ``state``, ``country``, ``mailingname``."""
+        rows = self.rows(
+            "select l.company_year, c.fy, l.name, l.pincode, l.ledstatename, "
+            "l.countryname, l.mailingname, a.address "
+            "from mst_ledger l join company c on c.company_year = l.company_year "
+            "join mst_ledger_address a on a.master_key = l.row_key "
+            "and a.company_year = l.company_year "
+            "order by c.fy, l.name, a.id"
+        )
+        out: Dict[str, dict] = {}
+        for r in rows:
+            cur = out.get(r["name"])
+            if cur is None or cur["fy"] != r["fy"]:
+                cur = out[r["name"]] = {
+                    "fy": r["fy"],
+                    "lines": [],
+                    "pincode": r["pincode"],
+                    "state": r["ledstatename"],
+                    "country": r["countryname"],
+                    "mailingname": r["mailingname"],
+                }
+            if (r["address"] or "").strip():
+                cur["lines"].append(r["address"].strip())
+        return out
+
+    def item_gst_rates(self) -> Dict[str, Decimal]:
+        """Stock item -> IGST rate of its latest-applicable GST detail row
+        (latest year first)."""
+        rows = self.rows(
+            "select distinct on (s.name) s.name, r.gstrate "
+            "from mst_stockitem s join company c on c.company_year = s.company_year "
+            "join mst_stockitem_gstdetails g on g.parent_key = s.row_key "
+            "and g.company_year = s.company_year "
+            "join mst_stockitem_gstdetails_statewisedetails w "
+            "on w.parent_key = g.row_key and w.company_year = g.company_year "
+            "join mst_stockitem_gstdetails_statewisedetails_ratedetails r "
+            "on r.parent_key = w.row_key and r.company_year = w.company_year "
+            "where r.gstratedutyhead = 'IGST' "
+            "order by s.name, c.fy desc, g.applicablefrom desc nulls last, g.id desc"
+        )
+        return {r["name"]: Decimal(r["gstrate"] or 0) for r in rows}
 
     def voucher_lines(self, cy: str) -> Dict[str, List[tuple]]:
         """voucher row_key -> [(ledgername, amount)] = ledger entries followed
@@ -181,30 +291,26 @@ class TallySource:
         except Exception:  # missing table / column: report as "not present"
             return None
 
-    def not_imported_counts(self) -> Dict[str, Optional[int]]:
-        qs = {
-            "voucher type definitions (mst_vouchertype rows, all years)": "select count(*) from mst_vouchertype",
-            "cost categories (mst_costcategory rows)": "select count(*) from mst_costcategory",
-            "cost centres (mst_costcentre rows)": "select count(*) from mst_costcentre",
-            "voucher lines with a cost centre (vouchers.costcentrename set)": "select count(*) from txn_voucher where costcentrename is not null and costcentrename<>''",
-            "bill-wise allocations (txn_voucher_ledger_entry_bill_alloc)": "select count(*) from txn_voucher_ledger_entry_bill_alloc",
-            "batch allocations (txn_voucher_inventory_entry_batch_alloc)": "select count(*) from txn_voucher_inventory_entry_batch_alloc",
-            "BRS imported info (tally_full.ledger_brsimportedinfo)": "select count(*) from tally_full.ledger_brsimportedinfo",
-            "language names (mst_*_languagename_name: ledger/group/item/unit)": "select (select count(*) from mst_ledger_languagename_name)+(select count(*) from mst_group_languagename_name)+(select count(*) from mst_stockitem_languagename_name)",
-            "ledger GST details rows (mst_ledger_gstdetails)": "select count(*) from mst_ledger_gstdetails",
-            "stock item GST rate rows (mst_stockitem_gstdetails_statewisedetails_ratedetails)": "select count(*) from mst_stockitem_gstdetails_statewisedetails_ratedetails",
-            "stock item HSN rows (tally_full.stockitem_hsndetails)": "select count(*) from tally_full.stockitem_hsndetails",
-            "ledger GST registration history (mst_ledger_ledgstregdetails)": "select count(*) from mst_ledger_ledgstregdetails",
-            "ledger mailing addresses (mst_ledger_address)": "select count(*) from mst_ledger_address",
-            "sales/purchase order vouchers (vouchertypename like '%order%')": "select count(*) from txn_voucher where vouchertypename ilike '%order%'",
-            "payroll / attendance vouchers (vouchertypename in payroll, attendance)": "select count(*) from txn_voucher where vouchertypename ilike any (array['%payroll%','%attendance%'])",
-            "optional / deleted vouchers (isoptional or isdeleted)": "select count(*) from txn_voucher where isoptional or isdeleted",
-            "godown masters (mst_godown rows)": "select count(*) from mst_godown",
-            "Tally users / security (no table extracted)": "select null::int",
-            "cash counters (no table extracted)": "select null::int",
-            "employees (no table extracted)": "select null::int",
+    def archive_source_counts(self) -> Dict[str, int]:
+        """Rows in Tally per TallyRecord kind (+ ``item_line``), the denominator
+        of the archive-completeness check."""
+        from core.tally_import.archive import MASTER_TABLES
+
+        out = {
+            "company": self.scalar("select count(*) from tally_full.company_ref"),
+            "voucher": self.scalar("select count(*) from txn_voucher"),
+            "item_line": self.scalar(
+                "select count(*) from txn_voucher_inventory_entry e "
+                "join txn_voucher v on v.row_key = e.voucher_key "
+                "and v.company_year = e.company_year where not v.iscancelled"
+            ),
         }
-        return {k: self.count(v) for k, v in qs.items()}
+        for table, kind in MASTER_TABLES:
+            out[kind] = self.scalar(
+                "select count(distinct (company_year, coalesce(guid, name))) "
+                f'from tally_full."{table}"'
+            )
+        return {k: int(v or 0) for k, v in out.items()}
 
 
 def chunked(seq: Iterable, n: int):

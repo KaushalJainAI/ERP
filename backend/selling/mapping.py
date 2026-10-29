@@ -53,6 +53,34 @@ def make_sales_invoice(sales_order):
     return invoice
 
 
+def make_sales_return(invoice):
+    """Draft Sales Return (credit note) for the not-yet-returned part of a submitted
+    Sales Invoice (ERPNext ``make_sales_return``). Quantities are negative."""
+    mapping.require_returnable(invoice)
+    lines = mapping.return_line_values(invoice)
+    with transaction.atomic():
+        ret = SalesInvoice.objects.create(
+            name=NamingSeries.next("SRET-2026-"),
+            customer=invoice.customer,
+            company=invoice.company,
+            posting_date=max(datetime.date.today(), invoice.posting_date),
+            price_list=invoice.price_list,
+            taxes_and_charges=invoice.taxes_and_charges,
+            place_of_supply=invoice.place_of_supply,
+            is_export_with_gst=invoice.is_export_with_gst,
+            update_stock=invoice.update_stock,
+            debit_to=invoice.debit_to,
+            income_account=invoice.income_account,
+            is_return=True,
+            return_against=invoice,
+            update_outstanding_for_self=True,
+        )
+        for line in lines:
+            SalesInvoiceItem.objects.create(sales_invoice=ret, **line)
+        mapping.copy_order_taxes(invoice, ret, SalesInvoiceTax, "sales_invoice")
+    return ret
+
+
 def make_payment_entry(invoice):
     """Draft 'Receive' Payment Entry for a submitted Sales Invoice's outstanding amount."""
     return mapping.build_payment_entry(

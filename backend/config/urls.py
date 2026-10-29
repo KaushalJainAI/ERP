@@ -24,7 +24,12 @@ urlpatterns = [
     path("api/accounts/", include("accounts.urls")),
     path("api/stock/", include("stock.urls")),
     path("api/manufacturing/", include("manufacturing.urls")),
+    path("api/hr/", include("hr.urls")),
+    path("api/drive/", include("drive.urls")),
     path("api/selling/", include("selling.urls")),
     path("api/buying/", include("buying.urls")),
     path("api/gst/", include("gst.urls")),
+    path("api/legacy/", include("legacy.urls")),
+    path("api/ngu/", include("ngu.urls")),
+    path("api/tally-export/", include("tally_export.urls")),
 ]

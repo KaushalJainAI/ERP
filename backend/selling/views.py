@@ -9,6 +9,7 @@ from selling.serializers import (
     SalesInvoiceSerializer,
 )
 from accounts.serializers import PaymentEntrySerializer
+from core.company_context import CompanyScopedMixin
 from core.mixins import (
     AuditLogMixin,
     MappedDocumentActionMixin,
@@ -28,7 +29,7 @@ class CustomerGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
     search_fields = ["name"]
 
 
-class CustomerViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class CustomerViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     queryset = Customer.objects.all().select_related(
         "company", "customer_group", "state"
     )
@@ -51,7 +52,10 @@ class CustomerViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 class SalesOrderViewSet(
-    MappedDocumentActionMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+    CompanyScopedMixin,
+    MappedDocumentActionMixin,
+    SubmittableViewSetMixin,
+    viewsets.ModelViewSet,
 ):
     action_permission_flags = {
         "make_sales_invoice": "can_read",
@@ -98,10 +102,14 @@ class SalesOrderViewSet(
 
 
 class SalesInvoiceViewSet(
-    MappedDocumentActionMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+    CompanyScopedMixin,
+    MappedDocumentActionMixin,
+    SubmittableViewSetMixin,
+    viewsets.ModelViewSet,
 ):
     action_permission_flags = {
         "make_payment_entry": "can_read",
+        "make_sales_return": "can_read",
         "update_rates": "can_write",
     }
     queryset = (
@@ -111,7 +119,14 @@ class SalesInvoiceViewSet(
     )
     serializer_class = SalesInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "customer", "docstatus", "update_stock"]
+    filterset_fields = [
+        "company",
+        "customer",
+        "docstatus",
+        "update_stock",
+        "is_return",
+        "return_against",
+    ]
     search_fields = ["name", "customer__name"]
     ordering_fields = ["posting_date", "created_at"]
 
@@ -120,6 +135,11 @@ class SalesInvoiceViewSet(
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
                 {"error": "Rates can only be refreshed on a draft."},
+                status=409,
+            )
+        if doc.is_return:
+            return Response(
+                {"error": "A return keeps the rates of the original invoice."},
                 status=409,
             )
         changed = pricing_service.reapply_rates(doc)
@@ -131,6 +151,17 @@ class SalesInvoiceViewSet(
     @action(detail=True, methods=["post"], url_path="update-rates")
     def update_rates(self, request, pk=None):
         return self._update_rates(request)
+
+    @action(detail=True, methods=["post"], url_path="make-sales-return")
+    def make_sales_return(self, request, pk=None):
+        """Draft Sales Return (credit note) for the not-yet-returned quantity of this
+        submitted invoice (negative quantities)."""
+        return self.map_document(
+            request,
+            mapping.make_sales_return,
+            "selling.SalesInvoice",
+            SalesInvoiceSerializer,
+        )
 
     @action(detail=True, methods=["post"], url_path="make-payment-entry")
     def make_payment_entry(self, request, pk=None):

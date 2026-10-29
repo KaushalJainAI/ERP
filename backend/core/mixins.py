@@ -423,7 +423,13 @@ class SubmittableViewSetMixin(AuditLogMixin):
             doc.submit(user=request.user)
             record_audit_log(request.user, "submit", doc)
             serializer = self.get_serializer(doc)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            data = serializer.data
+            # Informational messages raised while submitting (e.g. a return that
+            # fell back to its own outstanding amount).
+            notices = getattr(doc, "notices", None)
+            if notices:
+                data = {**data, "notices": notices}
+            return Response(data, status=status.HTTP_200_OK)
         except (DjangoValidationError, DRFValidationError) as exc:
             msg = (
                 exc.message_dict

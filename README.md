@@ -21,6 +21,7 @@ Every transactional document moves `Draft → Submitted → Cancelled` and posts
 | Doc | What it's for |
 | --- | --- |
 | [CLAUDE.md](CLAUDE.md) | Canonical brief: goal, architecture, mandates, invariants, commands. |
+| [goals.md](goals.md) | Why the project exists: higher-level goals, success criteria, non-goals, progress snapshot. |
 | [plan.md](plan.md) | *Historical* design notes — original intent and rationale. Context, **not authoritative**. |
 | [instructions.md](instructions.md) | How to implement: golden rules, document-building recipe, Definition of Done. |
 | [checklist.md](checklist.md) | Ordered task list. Work top-to-bottom, one item per commit. |

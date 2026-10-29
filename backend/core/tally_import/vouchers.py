@@ -68,8 +68,9 @@ class JournalSkipped(Exception):
     pass
 
 
-def post_journal(company, name, posting_date, remark, lines: List[Line]):
-    """create draft -> lines -> recompute_totals -> submit. Raises on imbalance."""
+def post_journal(company, name, posting_date, remark, lines: List[Line], **header):
+    """create draft -> lines -> recompute_totals -> submit. Raises on imbalance.
+    ``header``: extra JournalEntry fields (voucher_type, cheque_no, bill_no ...)."""
     from django.db.models import Prefetch, prefetch_related_objects
 
     from accounts.models import JournalEntry, JournalEntryLine
@@ -79,7 +80,11 @@ def post_journal(company, name, posting_date, remark, lines: List[Line]):
     if dr != cr:
         raise JournalSkipped(f"unbalanced: Dr {dr} != Cr {cr}")
     je = JournalEntry(
-        name=name, posting_date=posting_date, company=company, user_remark=remark
+        name=name,
+        posting_date=posting_date,
+        company=company,
+        user_remark=remark,
+        **header,
     )
     je.save()
     JournalEntryLine.objects.bulk_create(
@@ -146,6 +151,35 @@ class LineMapper:
         if acct is None:
             raise JournalSkipped(f"no account for ledger '{ledger_name}'")
         return Line(acct, None, None, debit, credit)
+
+
+#: Tally base voucher type -> ERPNext Journal Entry ``voucher_type``.
+_JE_TYPE = {
+    "Contra": "Contra Entry",
+    "Credit Note": "Credit Note",
+    "Debit Note": "Debit Note",
+}
+#: Tally types whose ``reference`` is the supplier's bill number.
+_BILL_TYPES = ("Purchase", "Debit Note")
+
+
+def je_header(base_type: str, reference: Optional[str], account_types) -> dict:
+    """JournalEntry header fields for a Tally voucher (pure; see tests)."""
+    if base_type in ("Receipt", "Payment"):
+        types = set(account_types)
+        if "Bank" in types:
+            vtype = "Bank Entry"
+        elif "Cash" in types:
+            vtype = "Cash Entry"
+        else:
+            vtype = "Journal Entry"
+    else:
+        vtype = _JE_TYPE.get(base_type, "Journal Entry")
+    header = {"voucher_type": vtype}
+    ref = (reference or "").strip()[:140]
+    if ref:
+        header["bill_no" if base_type in _BILL_TYPES else "cheque_no"] = ref
+    return header
 
 
 def voucher_remark(v: dict) -> str:
@@ -230,9 +264,17 @@ class Progress:
 
 
 def import_year(
-    src, chart, y, bal: Balances, progress: Progress, completed: bool, log=print
+    src,
+    chart,
+    y,
+    bal: Balances,
+    progress: Progress,
+    completed: bool,
+    log=print,
+    links: Optional[Dict[str, str]] = None,
 ) -> dict:
-    """Import one Tally year inside the caller's transaction.atomic()."""
+    """Import one Tally year inside the caller's transaction.atomic().
+    ``links`` (if given) receives voucher row_key -> Journal Entry name."""
     from core.models import SystemHealthCheck
 
     company = chart.company
@@ -276,6 +318,7 @@ def import_year(
             f"Tally import: opening balances of FY {fy} as per Tally (1-Apr-{start.year}); "
             f"difference to 'Difference in Opening Balances'",
             lines,
+            voucher_type="Opening Entry",
         )
         bal.apply(lines)
         stats["opening_lines"] = len(lines)
@@ -323,13 +366,22 @@ def import_year(
 
             try:
                 with transaction.atomic():
-                    post_journal(company, name, v["date"], voucher_remark(v), jl)
+                    header = je_header(
+                        v["base_type"],
+                        v["reference"],
+                        (ln_.account.account_type for ln_ in jl),
+                    )
+                    post_journal(
+                        company, name, v["date"], voucher_remark(v), jl, **header
+                    )
             except ValidationError as e:
                 stats["skipped_error"] += 1
                 if len(stats["skipped_examples"]) < 20:
                     stats["skipped_examples"].append(f"{name}: {e}")
                 continue
             bal.apply(jl)
+            if links is not None:
+                links[v["row_key"]] = name
             stats["journals"] += 1
             stats["journal_lines"] += len(jl)
             progress.tick(fy)

@@ -53,6 +53,17 @@ def _is_tagged(invoice):
     ).exists()
 
 
+def _updates_original(invoice):
+    """A return whose party line reduces the *original's* outstanding (ERPNext:
+    ``update_outstanding_for_self`` off with ``return_against`` set). Its own
+    outstanding is 0."""
+    return bool(
+        invoice.is_return
+        and invoice.return_against_id
+        and not invoice.update_outstanding_for_self
+    )
+
+
 def document_outstanding(invoice):
     """Legacy formula: ``rounded_total`` less the submitted payment allocations."""
     allocated = PaymentEntryReference.objects.filter(
@@ -71,6 +82,8 @@ def gl_outstanding(invoice):
     to :func:`document_outstanding`.
     """
     label = invoice.voucher_label()
+    if _updates_original(invoice):
+        return ZERO  # its party line is tagged against the original, not itself
     if not _is_tagged(invoice):
         return document_outstanding(invoice)
     agg = GLEntry.objects.filter(
@@ -117,7 +130,18 @@ def customer_outstanding(customer, company=None):
 
 def status_for(invoice, outstanding):
     """Stored status for a submitted invoice with this ``outstanding``."""
+    if invoice.is_return:
+        return InvoiceStatus.RETURN
     if outstanding == 0:
+        # ERPNext: a settled invoice that has a submitted return against it.
+        if type(invoice).objects.filter(
+            return_against=invoice, docstatus=DocStatus.SUBMITTED
+        ).exists():
+            return (
+                InvoiceStatus.CREDIT_NOTE_ISSUED
+                if invoice.PARTY_TYPE == "Customer"
+                else InvoiceStatus.DEBIT_NOTE_ISSUED
+            )
         return InvoiceStatus.PAID
     if outstanding < invoice.rounded_total:
         return InvoiceStatus.PARTLY_PAID
@@ -126,12 +150,14 @@ def status_for(invoice, outstanding):
 
 def derive(invoice):
     """``(outstanding_amount, status)`` an invoice must carry, from its docstatus and
-    the ledger. Never negative: the stored column is CHECKed ``>= 0``."""
+    the ledger. The stored column is CHECKed ``>= 0`` for an invoice and ``<= 0`` for
+    a return (its own credit / debit balance), so it is clamped to that side."""
     if invoice.docstatus == DocStatus.DRAFT:
         return ZERO, InvoiceStatus.DRAFT
     if invoice.docstatus == DocStatus.CANCELLED:
         return ZERO, InvoiceStatus.CANCELLED
-    outstanding = max(gl_outstanding(invoice), ZERO)
+    raw = gl_outstanding(invoice)
+    outstanding = min(raw, ZERO) if invoice.is_return else max(raw, ZERO)
     return outstanding, status_for(invoice, outstanding)
 
 
@@ -190,14 +216,18 @@ def check_integrity():
                     f"{invoice.outstanding_amount} / {invoice.status} != ledger "
                     f"{expected} / {status}"
                 )
-            elif (
-                invoice.docstatus == DocStatus.SUBMITTED
-                and gl_outstanding(invoice) < 0
+            elif invoice.docstatus == DocStatus.SUBMITTED and (
+                gl_outstanding(invoice) > 0
+                if invoice.is_return
+                else gl_outstanding(invoice) < 0
             ):
                 errors.append(
-                    f"Invoice Over-settled: {label}:{invoice.name} has a negative "
-                    f"ledger outstanding ({gl_outstanding(invoice)})"
+                    f"Invoice Over-settled: {label}:{invoice.name} has an "
+                    f"out-of-range ledger outstanding ({gl_outstanding(invoice)})"
                 )
+    from accounts.services import returns as returns_service
+
+    errors.extend(returns_service.check_integrity())
     return errors
 
 
@@ -219,7 +249,8 @@ def ageing_report(party_type, as_on=None, company_id=None, party=None):
     """Accounts receivable (``Customer``) / payable (``Supplier``) ageing.
 
     One row per submitted invoice with an outstanding amount that was posted on or
-    before ``as_on``; the **current** outstanding is used (not the historical
+    before ``as_on`` (a credit / debit note that keeps its own outstanding is a row
+    with a negative amount, so the party total nets it); the **current** outstanding is used (not the historical
     balance at ``as_on``). ``days_overdue`` is ``as_on`` less the due date (the
     posting date if there is none), floored at 0; invoices not yet due fall in the
     first bucket, as in ERPNext.
@@ -235,10 +266,10 @@ def ageing_report(party_type, as_on=None, company_id=None, party=None):
     qs = (
         model.objects.filter(
             docstatus=DocStatus.SUBMITTED,
-            outstanding_amount__gt=0,
             posting_date__lte=as_on,
         )
-        .select_related(party_field)
+        .exclude(outstanding_amount=0)
+        .select_related(party_field, "return_against")
         .order_by(f"{party_field}__name", "posting_date", "name")
     )
     if company_id:
@@ -259,6 +290,10 @@ def ageing_report(party_type, as_on=None, company_id=None, party=None):
         rows.append(
             {
                 "invoice": inv.name,
+                "is_return": inv.is_return,
+                "return_against": inv.return_against.name
+                if inv.return_against_id
+                else None,
                 "party": party_name,
                 "posting_date": str(inv.posting_date),
                 "due_date": str(inv.due_date) if inv.due_date else None,

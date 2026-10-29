@@ -172,6 +172,68 @@ class Command(BaseCommand):
         for warning in manu_warnings:
             self.stdout.write(self.style.WARNING(f"[manufacturing warning] {warning}"))
 
+        # 9. HR: slip totals vs rows, slip / advance / payment GL, advance
+        #    outstanding vs the advance account, overlapping slips.
+        from hr.services import integrity as hr_integrity
+
+        hr_errors, hr_warnings = hr_integrity.check()
+        SystemHealthCheck.objects.create(
+            check_name="hr_integrity",
+            status="alert" if hr_errors else "ok",
+            details={
+                "errors": hr_errors,
+                "warnings": hr_warnings,
+                "message": "" if hr_errors else "HR slips, advances and payments agree with the ledger.",
+            },
+        )
+        errors.extend(hr_errors)
+        for warning in hr_warnings:
+            self.stdout.write(self.style.WARNING(f"[hr warning] {warning}"))
+
+        # 10. Attachments: every proof file is present and matches its recorded
+        #     size / SHA-256, and still has a parent record.
+        from core import attachments as attachment_service
+
+        attachment_errors = attachment_service.check_integrity()
+        SystemHealthCheck.objects.create(
+            check_name="attachment_integrity",
+            status="alert" if attachment_errors else "ok",
+            details={
+                "errors": attachment_errors,
+                "message": "" if attachment_errors else "All attachment files match their records.",
+            },
+        )
+        errors.extend(attachment_errors)
+
+        # 11. Stock Reconciliation: each submitted document's live SLEs sum to its
+        #     difference amount; no live reconciliation SLE without a submitted doc.
+        from stock.services import reconciliation as reconciliation_service
+
+        reco_errors = reconciliation_service.integrity_errors()
+        SystemHealthCheck.objects.create(
+            check_name="stock_reconciliation_integrity",
+            status="alert" if reco_errors else "ok",
+            details={
+                "errors": reco_errors,
+                "message": "" if reco_errors else "Stock Reconciliations agree with the stock ledger.",
+            },
+        )
+        errors.extend(reco_errors)
+
+        # 12. Tally export log: stored files still match their SHA-256 and counts.
+        from tally_export.services import integrity as tally_export_integrity
+
+        tally_errors = tally_export_integrity.check()
+        SystemHealthCheck.objects.create(
+            check_name="tally_export_integrity",
+            status="alert" if tally_errors else "ok",
+            details={
+                "errors": tally_errors,
+                "message": "" if tally_errors else "Tally export files match the export log.",
+            },
+        )
+        errors.extend(tally_errors)
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
         details_payload = (

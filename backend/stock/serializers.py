@@ -16,8 +16,11 @@ from stock.models import (
     Bin,
     StockEntry,
     StockEntryItem,
+    StockReconciliation,
+    StockReconciliationItem,
 )
 from stock.services import batches as batch_service
+from stock.services import reconciliation as reconciliation_service
 from core.mixins import (
     DraftNestedWriteMixin,
     TranslatedSerializerMixin,
@@ -486,6 +489,198 @@ class StockEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
             "id",
             "fg_completed_qty",
             "process_loss_qty",
+            "docstatus",
+            "created_at",
+            "modified_at",
+        )
+
+
+class StockReconciliationItemSerializer(serializers.ModelSerializer):
+    item_code = serializers.CharField(source="item.code", read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True)
+    warehouse_name = serializers.CharField(source="warehouse.name", read_only=True)
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        item = attrs.get("item")
+        batch = attrs.get("batch")
+        warehouse = attrs.get("warehouse")
+        qty, rate = attrs.get("qty"), attrs.get("valuation_rate")
+        if qty is None and rate is None:
+            raise DRFValidationError(
+                _("Please specify either Quantity or Valuation Rate or both.")
+            )
+        if qty is not None and qty < 0:
+            raise DRFValidationError({"qty": _("Negative Quantity is not allowed.")})
+        if rate is not None and rate < 0:
+            raise DRFValidationError(
+                {"valuation_rate": _("Negative Valuation Rate is not allowed.")}
+            )
+        if warehouse is not None and warehouse.is_group:
+            raise DRFValidationError(
+                {"warehouse": _("Select a leaf warehouse, not a group warehouse.")}
+            )
+        if item is not None:
+            if not item.is_stock_item:
+                raise DRFValidationError(
+                    {
+                        "item": _("Item '%(code)s' is not a stock item.")
+                        % {"code": item.code}
+                    }
+                )
+            if batch is None and item.has_batch_no:
+                raise DRFValidationError(
+                    {
+                        "batch": _(
+                            "Item '%(code)s' is batch-tracked: enter the batch counted."
+                        )
+                        % {"code": item.code}
+                    }
+                )
+            if batch is not None and not item.has_batch_no:
+                raise DRFValidationError(
+                    {
+                        "batch": _("Item '%(code)s' is not batch-tracked.")
+                        % {"code": item.code}
+                    }
+                )
+            if batch is not None and batch.item_id != item.pk:
+                raise DRFValidationError(
+                    {"batch": _("Batch does not belong to this item.")}
+                )
+        return attrs
+
+    class Meta:
+        model = StockReconciliationItem
+        fields = (
+            "id",
+            "item",
+            "item_code",
+            "item_name",
+            "warehouse",
+            "warehouse_name",
+            "batch",
+            "batch_no",
+            "qty",
+            "valuation_rate",
+            "current_qty",
+            "current_valuation_rate",
+            "quantity_difference",
+            "amount",
+            "current_amount",
+            "amount_difference",
+        )
+        read_only_fields = (
+            "current_qty",
+            "current_valuation_rate",
+            "quantity_difference",
+            "amount",
+            "current_amount",
+            "amount_difference",
+        )
+        extra_kwargs = {
+            "qty": {"required": False, "allow_null": True},
+            "valuation_rate": {"required": False, "allow_null": True},
+        }
+
+
+class StockReconciliationSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "items"
+    name_prefix = "MAT-RECO-2026-"
+
+    items = StockReconciliationItemSerializer(many=True)
+    expense_account_name = serializers.CharField(
+        source="expense_account.name", read_only=True, default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = self.instance
+        company = attrs.get("company") or (instance.company if instance else None)
+        purpose = attrs.get("purpose") or (
+            instance.purpose
+            if instance
+            else StockReconciliation._meta.get_field("purpose").default
+        )
+        if "expense_account" in attrs:
+            account = attrs["expense_account"]
+        else:
+            account = instance.expense_account if instance else None
+        if account is None and company is not None:
+            # ERPNext defaults the difference account to the Stock Adjustment account.
+            account = company.stock_adjustment_account
+            attrs["expense_account"] = account
+        if company is not None:
+            try:
+                reconciliation_service.check_difference_account(
+                    company, purpose, account
+                )
+            except DjangoValidationError as exc:
+                raise DRFValidationError(
+                    exc.message_dict if hasattr(exc, "error_dict") else exc.messages
+                )
+
+        rows = attrs.get("items")
+        if rows is not None:
+            seen = set()
+            for index, row in enumerate(rows, start=1):
+                key = (
+                    row["item"].pk,
+                    row["warehouse"].pk,
+                    row["batch"].pk if row.get("batch") else None,
+                )
+                if key in seen:
+                    raise DRFValidationError(
+                        {
+                            "items": _(
+                                "Row #%(row)s: Same item and warehouse combination "
+                                "already entered."
+                            )
+                            % {"row": index}
+                        }
+                    )
+                seen.add(key)
+                if company is not None and row["warehouse"].company_id != company.pk:
+                    raise DRFValidationError(
+                        {
+                            "items": _(
+                                "Row #%(row)s: Warehouse '%(name)s' belongs to a "
+                                "different company."
+                            )
+                            % {"row": index, "name": row["warehouse"].name}
+                        }
+                    )
+        return attrs
+
+    def refresh_totals(self, instance):
+        """Snapshot current qty/rate and the differences (server-owned)."""
+        reconciliation_service.refresh_draft(instance)
+        instance._prefetched_objects_cache = {}
+
+    class Meta:
+        model = StockReconciliation
+        fields = (
+            "id",
+            "name",
+            "company",
+            "posting_date",
+            "posting_time",
+            "purpose",
+            "expense_account",
+            "expense_account_name",
+            "difference_amount",
+            "docstatus",
+            "amended_from",
+            "items",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = (
+            "id",
+            "difference_amount",
             "docstatus",
             "created_at",
             "modified_at",

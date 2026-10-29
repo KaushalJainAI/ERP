@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { Power, PowerOff, ShieldCheck, UserCircle, Users as UsersIcon } from "lucide-react";
 import { SetPasswordPanel } from "@/components/users/SetPasswordPanel";
+import { hasReadAccess } from "./workspaces";
 import type { NavLink, ResourceConfig, SelectOption, UserProfile } from "@/types";
 
 /**
@@ -11,14 +12,14 @@ import type { NavLink, ResourceConfig, SelectOption, UserProfile } from "@/types
 /**
  * The Roles and Users pages read /auth/roles/, /auth/permissions/ and
  * /auth/users/, which are RBAC-gated on users.Role / users.RolePermission /
- * users.User (seeded System Manager, or superuser). Hide the links from
- * everyone else rather than showing pages that 403.
+ * users.User. Derive visibility from the same readable-model labels the API
+ * enforces rather than role names, so custom roles work too.
  */
 export const canViewRoles = (user: UserProfile): boolean =>
-  !!user.is_superuser || user.roles.includes("System Manager");
+  hasReadAccess(user.readable_models, ["users.Role", "users.RolePermission"]);
 
-/** Same gate for user management. */
-export const canManageUsers = canViewRoles;
+export const canManageUsers = (user: UserProfile): boolean =>
+  hasReadAccess(user.readable_models, ["users.User"]);
 
 // The 13 supported UI languages (backend settings.LANGUAGES); names live in en.users.ts.
 const LANGUAGE_CODES = ["en", "hi", "ta", "pa", "gu", "or", "bn", "kn", "as", "te", "ml", "mr", "ur"];

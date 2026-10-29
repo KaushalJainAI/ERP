@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { apiClient, AUTH_LOGOUT_EVENT } from "@/api/client";
 import { queryClient } from "@/lib/queryClient";
 import { resetCompanyCache } from "@/api/lookups";
+import { setActiveCompanyId } from "@/lib/company";
 import type { UserProfile } from "@/types";
 
 export type { UserProfile };
@@ -40,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clear = useCallback(() => {
     setUser(null);
+    setActiveCompanyId(null);
     queryClient.clear();
     resetCompanyCache();
   }, []);
@@ -59,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await apiClient.post("/auth/token/", { username, password });
       localStorage.setItem("access_token", response.data.access);
       localStorage.setItem("refresh_token", response.data.refresh);
+      setActiveCompanyId(null);
       queryClient.clear();
       resetCompanyCache();
       await fetchUser();

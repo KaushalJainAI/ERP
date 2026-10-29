@@ -13,8 +13,9 @@ import time
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Count
 
-from core.tally_import import masters, reconcile, stock, vouchers
+from core.tally_import import archive, masters, reconcile, stock, vouchers
 from core.tally_import.source import DEFAULT_DSN, TallySource
 
 
@@ -65,6 +66,7 @@ class Command(BaseCommand):
             sm = stock.build_stock_masters(src, all_years, company, log=log)
 
             if not opts["reconcile_only"]:
+                self._archive_masters(src, chart, sm, all_years, log)
                 self._import(
                     src, chart, sm, all_years, requested, opts["close_through"], log
                 )
@@ -92,6 +94,19 @@ class Command(BaseCommand):
                     f"Target already contains TLY-{code}-* stock entries."
                 )
 
+    def _archive_masters(self, src, chart, sm, all_years, log):
+        from core.models import SystemHealthCheck
+
+        log("Archiving Tally masters and importing addresses ...")
+        with transaction.atomic():
+            counts = archive.archive_masters(src, chart, sm, all_years, log)
+            addr = archive.import_addresses(src, chart, log)
+            SystemHealthCheck.objects.create(
+                check_name="tally_import:archive:masters",
+                status="ok",
+                details={"records": counts, "addresses": addr},
+            )
+
     def _import(self, src, chart, sm, all_years, requested, close_through, log):
         from core.models import FiscalYear, SystemHealthCheck
 
@@ -104,17 +119,28 @@ class Command(BaseCommand):
             log(f"FY {y.fy} ({y.cy}) ...")
             with transaction.atomic():
                 snap = bal.snapshot()
+                je_links, stock_links = {}, {}
                 try:
                     st = vouchers.import_year(
-                        src, chart, y, bal, progress, completed, log
+                        src, chart, y, bal, progress, completed, log, links=je_links
                     )
                     if y.fy == stock.STOCK_FY:
-                        sst = stock.import_stock_year(src, y, sm, chart.company, log)
+                        sst = stock.import_stock_year(
+                            src, y, sm, chart.company, log, links=stock_links
+                        )
                         SystemHealthCheck.objects.create(
                             check_name=f"tally_import:stock:{y.fy}",
                             status="ok",
                             details=sst,
                         )
+                    ast = archive.archive_year(
+                        src, chart, sm, y, je_links, stock_links, log
+                    )
+                    SystemHealthCheck.objects.create(
+                        check_name=f"tally_import:archive:{y.fy}",
+                        status="ok",
+                        details=ast,
+                    )
                 except Exception:
                     bal.restore(snap)
                     raise
@@ -192,7 +218,24 @@ class Command(BaseCommand):
             "stock ledger entries": StockLedgerEntry.objects.count(),
             "bins": Bin.objects.count(),
         }
-        not_imported = src.not_imported_counts()
+        from legacy.models import TallyItemLine, TallyRecord
+
+        archived = dict(
+            TallyRecord.objects.filter(company=chart.company)
+            .values_list("kind")
+            .annotate(n=Count("id"))
+        )
+        archived["item_line"] = TallyItemLine.objects.filter(
+            company=chart.company
+        ).count()
+        archive_counts = {
+            k: (n, archived.get(k, 0)) for k, n in src.archive_source_counts().items()
+        }
+        am = (
+            SystemHealthCheck.objects.filter(check_name="tally_import:archive:masters")
+            .order_by("-id")
+            .first()
+        )
         runtime = f"{elapsed / 60:.1f} min (this invocation)"
         text = reconcile.build_report(
             src,
@@ -204,8 +247,9 @@ class Command(BaseCommand):
             chart.notes,
             counts,
             runtime,
-            not_imported,
+            archive_counts,
             sm.notes,
+            addresses=am.details.get("addresses") if am else None,
         )
         with open(opts["report"], "w", encoding="utf-8") as f:
             f.write(text)

@@ -1,7 +1,7 @@
 import { MODULES, RESOURCES } from "./registry";
 
 /**
- * Route helpers for places that link into other modules (dashboard cards,
+ * Route helpers for places that link into other modules (home cards,
  * quick-create buttons). They return null when the target page does not exist
  * (yet), so callers can hide the link instead of sending the user to a redirect.
  */

@@ -19,9 +19,11 @@ from stock.models import (
     StockLedgerEntry,
     Bin,
     StockEntry,
+    StockReconciliation,
 )
 from stock.services import batches as batch_service
 from stock.services import pricing as pricing_service
+from stock.services import reconciliation as reconciliation_service
 from stock.serializers import (
     UOMSerializer,
     ItemGroupSerializer,
@@ -33,6 +35,12 @@ from stock.serializers import (
     StockLedgerEntrySerializer,
     BinSerializer,
     StockEntrySerializer,
+    StockReconciliationSerializer,
+)
+from core.company_context import (
+    CompanyScopedMixin,
+    active_company_id,
+    resolve_active_company,
 )
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
 from core.models import Company
@@ -76,7 +84,7 @@ class ItemViewSet(AuditLogMixin, viewsets.ModelViewSet):
     ordering_fields = ["code", "name", "created_at"]
 
 
-class WarehouseViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class WarehouseViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     queryset = Warehouse.objects.all().select_related("company", "parent")
     serializer_class = WarehouseSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -252,9 +260,10 @@ class BatchViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return Response(_jsonable(batch_service.trace(self.get_object())))
 
 
-class StockLedgerEntryViewSet(viewsets.ReadOnlyModelViewSet):
+class StockLedgerEntryViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
     """ReadOnlyModelViewSet for immutable StockLedgerEntry facts."""
 
+    company_lookup = "warehouse__company"
     queryset = StockLedgerEntry.objects.all().select_related("item", "warehouse")
     serializer_class = StockLedgerEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -271,9 +280,10 @@ class StockLedgerEntryViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["posting_date", "posting_time", "created_at"]
 
 
-class BinViewSet(viewsets.ReadOnlyModelViewSet):
+class BinViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
     """ReadOnlyModelViewSet for derived Bin stock balance projections."""
 
+    company_lookup = "warehouse__company"
     queryset = Bin.objects.all().select_related("item", "warehouse")
     serializer_class = BinSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -282,13 +292,72 @@ class BinViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["actual_qty", "stock_value", "modified_at"]
 
 
-class StockEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
+class StockEntryViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
     queryset = StockEntry.objects.all().prefetch_related("items")
     serializer_class = StockEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
     filterset_fields = ["company", "stock_entry_type", "posting_date", "docstatus"]
     search_fields = ["name"]
     ordering_fields = ["posting_date", "created_at"]
+
+
+class StockReconciliationViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = StockReconciliation.objects.all().prefetch_related("items")
+    serializer_class = StockReconciliationSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["company", "purpose", "posting_date", "docstatus"]
+    search_fields = ["name"]
+    ordering_fields = ["posting_date", "created_at"]
+
+    @action(detail=False, methods=["get"], url_path="fetch-items")
+    def fetch_items(self, request):
+        """ERPNext "Fetch Items from Warehouse": current qty / rate of the stock
+        items in a warehouse (a group warehouse expands to its leaf warehouses),
+        one row per batch for batch-tracked items, to prefill a count sheet.
+        Params: ``company`` and ``warehouse`` (required), ``item``,
+        ``item_group``, ``include_zero``."""
+        q = request.query_params
+        try:
+            company = resolve_active_company(request)
+            warehouse = Warehouse.objects.get(
+                pk=int(q.get("warehouse")), company=company
+            )
+            item = Item.objects.get(pk=int(q["item"])) if q.get("item") else None
+            group = (
+                ItemGroup.objects.get(pk=int(q["item_group"]))
+                if q.get("item_group")
+                else None
+            )
+        except (TypeError, ValueError):
+            raise DRFValidationError(
+                _("'company' and 'warehouse' are required integers.")
+            )
+        except (
+            Company.DoesNotExist,
+            Warehouse.DoesNotExist,
+            Item.DoesNotExist,
+            ItemGroup.DoesNotExist,
+        ):
+            return Response(
+                {"error": _("Unknown company, warehouse, item or item group.")},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if warehouse.company_id != company.pk:
+            raise DRFValidationError(
+                {"warehouse": _("Warehouse belongs to a different company.")}
+            )
+        rows = reconciliation_service.fetch_items(
+            company,
+            warehouse,
+            item=item,
+            item_group=group,
+            include_zero=q.get("include_zero") in ("1", "true", "True"),
+        )
+        return Response(_jsonable({"count": len(rows), "rows": rows}))
 
 
 @api_view(["GET"])
@@ -305,7 +374,7 @@ def batch_wise_balance(request):
         item=_parse_int(q.get("item"), "item"),
         warehouse=_parse_int(q.get("warehouse"), "warehouse"),
         batch=_parse_int(q.get("batch"), "batch"),
-        company=_parse_int(q.get("company"), "company"),
+        company=active_company_id(request),
         as_of=as_of,
         include_zero=q.get("include_zero") in ("1", "true", "True"),
     )
@@ -340,7 +409,7 @@ def expiry_report(request):
     if within < 0:
         raise ParamError({"within_days": _("Must not be negative.")})
     rows = batch_service.expiry_rows(
-        company=_parse_int(q.get("company"), "company"),
+        company=active_company_id(request),
         warehouse=_parse_int(q.get("warehouse"), "warehouse"),
         within_days=within,
         include_expired=q.get("include_expired", "1") not in ("0", "false", "False"),
@@ -369,7 +438,9 @@ def stock_balance(request):
     item_id = request.query_params.get("item")
     warehouse_id = request.query_params.get("warehouse")
 
-    qs = Bin.objects.all().select_related("item", "warehouse")
+    qs = Bin.objects.filter(warehouse__company_id=active_company_id(request)).select_related(
+        "item", "warehouse"
+    )
     if item_id:
         qs = qs.filter(item_id=item_id)
     if warehouse_id:
@@ -401,6 +472,7 @@ def stock_balance(request):
         }
     )
 
+
 @api_view(["GET"])
 @permission_classes(
     [permissions.IsAuthenticated, require_model_permission("stock.ItemPrice")]
@@ -416,13 +488,10 @@ def item_price_rate(request):
     """
     q = request.query_params
     item_id = _parse_int(q.get("item"), "item", required=True)
-    company_id = _parse_int(q.get("company"), "company", required=True)
+    company = resolve_active_company(request)
     item = Item.objects.filter(pk=item_id).select_related("stock_uom").first()
     if item is None:
         raise DRFValidationError({"item": _("Item not found.")})
-    company = Company.objects.filter(pk=company_id).first()
-    if company is None:
-        raise DRFValidationError({"company": _("Company not found.")})
     selling = q.get("type", "selling") != "buying"
     price_list_id = _parse_int(q.get("price_list"), "price_list")
     price_list = None
@@ -436,9 +505,7 @@ def item_price_rate(request):
         if customer_id:
             from selling.models import Customer
 
-            customer = Customer.objects.filter(
-                pk=customer_id, company=company
-            ).first()
+            customer = Customer.objects.filter(pk=customer_id, company=company).first()
             if customer is None:
                 raise DRFValidationError({"customer": _("Customer not found.")})
     else:
@@ -446,9 +513,7 @@ def item_price_rate(request):
         if supplier_id:
             from buying.models import Supplier
 
-            supplier = Supplier.objects.filter(
-                pk=supplier_id, company=company
-            ).first()
+            supplier = Supplier.objects.filter(pk=supplier_id, company=company).first()
             if supplier is None:
                 raise DRFValidationError({"supplier": _("Supplier not found.")})
     uom_id = _parse_int(q.get("uom"), "uom")

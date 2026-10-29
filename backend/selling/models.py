@@ -210,6 +210,7 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         constraints = [
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
+            *PayableDocument.return_constraints(),
         ]
 
     customer = models.ForeignKey(
@@ -274,9 +275,15 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             )  # raises if perpetual is on but misconfigured
         self._validate_batch_lines()
         self.calculate_taxes_and_totals(for_submit=True)
-        from selling.services import credit as credit_service
+        if self.is_return:
+            # A credit note only reduces what the customer owes: no credit check.
+            from accounts.services import returns as returns_service
 
-        credit_service.enforce(self, getattr(self, "_submit_user", None))
+            returns_service.validate_return(self)
+        else:
+            from selling.services import credit as credit_service
+
+            credit_service.enforce(self, getattr(self, "_submit_user", None))
         posting.validate_posting(self)
 
     def _validate_batch_lines(self):
@@ -332,6 +339,9 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
 
         # 1. Post stock first (stock lines only): the outgoing valuation it computes
         #    is the cost of goods sold booked below.
+        #    For a return (credit note) the stock comes back IN at the original
+        #    outgoing valuation, so ``outgoing_value`` comes out negative and the
+        #    COGS / inventory legs below are mirrored (Dr Stock In Hand / Cr COGS).
         outgoing_value = Decimal("0.00")
         if self.update_stock:
             sle_list = []
@@ -342,6 +352,21 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     raise ValidationError(
                         f"Warehouse required for item '{item.item.code}' when update_stock is enabled."
                     )
+                if self.is_return:
+                    from accounts.services import returns as returns_service
+
+                    sle_list.append(
+                        {
+                            "item": item.item,
+                            "warehouse": item.warehouse,
+                            "qty": abs(item.qty),
+                            "incoming_value": returns_service.sales_return_incoming_value(
+                                self, item
+                            ),
+                            "batch": item.batch,
+                        }
+                    )
+                    continue
                 sle_list.append(
                     {
                         "item": item.item,
@@ -363,6 +388,7 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         #    (one party line), Credit Income for the net total, Credit each Output tax
         #    row, the round-off, and, with perpetual inventory, Debit COGS / Credit
         #    Stock In Hand at valuation cost (tax never touches the stock legs).
+        against_type, against_no = self.against_voucher
         gl_entries = [
             {
                 "account": self.debit_to,
@@ -371,9 +397,11 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 "party_type": "Customer",
                 "party": self.customer.name,
                 # ERPNext: the invoice's own party line is "against" itself, so the
-                # payments allocated to it net against it in the ledger.
-                "against_voucher_type": self.voucher_label(),
-                "against_voucher_no": self.name,
+                # payments allocated to it net against it in the ledger. A credit
+                # note that updates the original outstanding is tagged against the
+                # original instead.
+                "against_voucher_type": against_type,
+                "against_voucher_no": against_no,
             },
             {
                 "account": self.income_account,
@@ -399,8 +427,13 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     "credit": outgoing_value,
                 }
             )
+        if self.is_return:
+            # Built from negative amounts: the exact mirror of the original voucher.
+            gl_entries = gl_service.mirror_entries(gl_entries)
         gl_service.post(self, gl_entries, posting_date=self.posting_date)
         outstanding_service.refresh(self)
+        if self.return_against_id:
+            outstanding_service.refresh(self.return_against)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
@@ -408,10 +441,13 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         from stock.services import ledger as stock_service
 
         self.ensure_no_linked_payments()
+        self.ensure_no_linked_returns()
         gl_service.reverse(self)
         if self.update_stock:
             stock_service.reverse(self)
         outstanding_service.refresh(self)
+        if self.return_against_id:
+            outstanding_service.refresh(self.return_against)
 
     def __str__(self):
         return f"{self.name} - {self.customer.name} ({self.grand_total})"
@@ -443,6 +479,24 @@ class SalesInvoiceItem(TaxableLine):
         on_delete=models.PROTECT,
         related_name="si_items",
     )
+    # On a return line: the original invoice line it returns (ERPNext
+    # ``sales_invoice_item``), so the returned quantity is enforceable per line.
+    sales_invoice_item = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_items",
+    )
+
+    class Meta(TaxableLine.Meta):
+        constraints = [
+            *TaxableLine.signed_constraints(),
+            models.CheckConstraint(
+                check=~models.Q(sales_invoice_item=models.F("id")),
+                name="check_salesinvoiceitem_not_its_own_return",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         self.amount = self.compute_amount()
@@ -469,4 +523,4 @@ class SalesInvoiceTax(TaxLine):
     )
 
     class Meta(TaxLine.Meta):
-        constraints = TaxLine.constraints_for("sales_invoice")
+        constraints = TaxLine.constraints_for("sales_invoice", signed=True)

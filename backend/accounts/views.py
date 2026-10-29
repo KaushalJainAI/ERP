@@ -25,6 +25,11 @@ from accounts.serializers import (
     TaxTemplateSerializer,
 )
 from accounts.services import outstanding as outstanding_service
+from core.company_context import (
+    CompanyScopedMixin,
+    active_company_id,
+    resolve_active_company,
+)
 from core.models import State
 from gst.constants import GSTSupplyType
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
@@ -86,7 +91,7 @@ def _root_balances(qs, root_type, debit_normal):
     return out, _q(total)
 
 
-class AccountViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class AccountViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     queryset = Account.objects.all().select_related("company", "parent")
     serializer_class = AccountSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -141,7 +146,7 @@ class TaxTemplateFilter(django_filters.FilterSet):
         return queryset.filter(Q(gst_supply_type=supply_type) | Q(gst_supply_type=""))
 
 
-class TaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class TaxTemplateViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     """Per-company Sales / Purchase Taxes and Charges templates with nested ``rows``."""
 
     queryset = (
@@ -157,7 +162,7 @@ class TaxTemplateViewSet(AuditLogMixin, viewsets.ModelViewSet):
     ordering_fields = ["title", "created_at"]
 
 
-class GLEntryViewSet(viewsets.ReadOnlyModelViewSet):
+class GLEntryViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
     """ReadOnlyModelViewSet for immutable GLEntry facts."""
 
     queryset = GLEntry.objects.all().select_related("account", "company")
@@ -175,7 +180,9 @@ class GLEntryViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["posting_date", "created_at"]
 
 
-class JournalEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
+class JournalEntryViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
     queryset = JournalEntry.objects.all().prefetch_related("lines")
     serializer_class = JournalEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -184,7 +191,9 @@ class JournalEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
     ordering_fields = ["posting_date", "created_at"]
 
 
-class PaymentEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
+class PaymentEntryViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
     queryset = PaymentEntry.objects.all().prefetch_related("references")
     serializer_class = PaymentEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -199,22 +208,20 @@ class PaymentEntryViewSet(SubmittableViewSetMixin, viewsets.ModelViewSet):
 )
 def trial_balance(request):
     """Trial Balance report endpoint. Money values are quantized to 2dp."""
-    company_id = request.query_params.get("company")
+    company_id = active_company_id(request)
     from_date = _date_param(request, "from_date")
     to_date = _date_param(request, "to_date")
 
-    accounts = Account.objects.filter(is_group=False)
-    if company_id:
-        accounts = accounts.filter(company_id=company_id)
+    accounts = Account.objects.filter(is_group=False, company_id=company_id)
 
     report_rows = []
     total_debit_sum = ZERO
     total_credit_sum = ZERO
 
     for acc in accounts:
-        qs = GLEntry.objects.filter(account=acc, is_cancelled=False)
-        if company_id:
-            qs = qs.filter(company_id=company_id)
+        qs = GLEntry.objects.filter(
+            account=acc, company_id=company_id, is_cancelled=False
+        )
         if from_date:
             qs = qs.filter(posting_date__gte=from_date)
         if to_date:
@@ -268,14 +275,12 @@ def general_ledger(request):
     balance would be meaningless: ``opening_balance``, each row's ``balance`` and
     ``closing_balance`` are all ``null``.
     """
-    company_id = request.query_params.get("company")
+    company_id = active_company_id(request)
     account_id = request.query_params.get("account")
     from_date = _date_param(request, "from_date")
     to_date = _date_param(request, "to_date")
 
-    base = GLEntry.objects.filter(is_cancelled=False)
-    if company_id:
-        base = base.filter(company_id=company_id)
+    base = GLEntry.objects.filter(company_id=company_id, is_cancelled=False)
     if account_id:
         base = base.filter(account_id=account_id)
 
@@ -334,13 +339,11 @@ def profit_and_loss(request):
     No params = all time. ``accounts`` lists the per-account breakdown
     (Income balance = credit-debit, Expense balance = debit-credit).
     """
-    company_id = request.query_params.get("company")
+    company_id = active_company_id(request)
     from_date = _date_param(request, "from_date")
     to_date = _date_param(request, "to_date")
 
-    qs = GLEntry.objects.filter(is_cancelled=False)
-    if company_id:
-        qs = qs.filter(company_id=company_id)
+    qs = GLEntry.objects.filter(company_id=company_id, is_cancelled=False)
     if from_date:
         qs = qs.filter(posting_date__gte=from_date)
     if to_date:
@@ -370,12 +373,10 @@ def balance_sheet(request):
     No ``to_date`` = all time. ``accounts`` lists the per-account breakdown
     (Asset = debit-credit; Liability/Equity = credit-debit).
     """
-    company_id = request.query_params.get("company")
+    company_id = active_company_id(request)
     to_date = _date_param(request, "to_date")
 
-    qs = GLEntry.objects.filter(is_cancelled=False)
-    if company_id:
-        qs = qs.filter(company_id=company_id)
+    qs = GLEntry.objects.filter(company_id=company_id, is_cancelled=False)
     if to_date:
         qs = qs.filter(posting_date__lte=to_date)
 
@@ -411,9 +412,7 @@ def ageing(request):
         raise ValidationError(
             {"party_type": _("party_type must be 'Customer' or 'Supplier'.")}
         )
-    company_id = request.query_params.get("company")
-    if company_id and not company_id.isdigit():
-        raise ValidationError({"company": _("Enter a valid company id.")})
+    company_id = active_company_id(request)
     return Response(
         outstanding_service.ageing_report(
             party_type,
@@ -442,7 +441,13 @@ def calculate_taxes(request):
     from gst.services import supply
     from users.permissions import user_has_model_permission
 
-    serializer = TaxCalculateSerializer(data=request.data)
+    payload = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+    company = resolve_active_company(request)
+    # The active company is authoritative; a tampered body cannot price another
+    # company's tax. The field stays in the payload because the serializer expects it.
+    payload["company"] = company.pk
+
+    serializer = TaxCalculateSerializer(data=payload)
     serializer.is_valid(raise_exception=True)
     data = serializer.validated_data
     label = data["doctype"]
@@ -451,7 +456,6 @@ def calculate_taxes(request):
 
     doc_model = apps.get_model(label)
     party_model = doc_model._meta.get_field(doc_model.party_field).related_model
-    company = data["company"]
     party = party_model.objects.filter(pk=data["party"]).first()
     if party is None:
         raise ValidationError({"party": _("Party not found.")})

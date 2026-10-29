@@ -3,12 +3,22 @@ import { initReactI18next } from "react-i18next";
 import { enCore } from "./en.core";
 import { enExtra } from "./en";
 import { enDashboard } from "./en.dashboard";
+import { enHome } from "./en.home";
 import { enAccounts } from "./en.accounts";
 import { enBuyingStock } from "./en.buying_stock";
 import { enUsers } from "./en.users";
 import { enGst } from "./en.gst";
 import { enGstReports } from "./en.gstreports";
 import { enManufacturing } from "./en.manufacturing";
+import { enLegacy } from "./en.legacy";
+import { enRegisters } from "./en.registers";
+import { enReturns } from "./en.returns";
+import { enHr } from "./en.hr";
+import { enPortal } from "./en.portal";
+import { enReco } from "./en.reco";
+import { enAttachments } from "./en.attachments";
+import { enTallyExport } from "./en.tallyexport";
+import { enOrganisation } from "./en.organisation";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -67,12 +77,22 @@ const resources = {
       ...enCore,
       ...enExtra,
       ...enDashboard,
+      ...enHome,
       ...enAccounts,
       ...enBuyingStock,
       ...enUsers,
       ...enGst,
       ...enGstReports,
       ...enManufacturing,
+      ...enLegacy,
+      ...enRegisters,
+      ...enReturns,
+      ...enHr,
+      ...enPortal,
+      ...enReco,
+      ...enAttachments,
+      ...enTallyExport,
+      ...enOrganisation,
     },
   },
 };

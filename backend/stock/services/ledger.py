@@ -209,6 +209,203 @@ def post(
         return created_sles
 
 
+def resolve_reconciliation_target(
+    cur_qty: Decimal, cur_value: Decimal, qty: Any, rate: Any
+) -> Dict[str, Decimal]:
+    """Resolve what one reconciliation row asks for against the current position.
+
+    ``qty`` / ``rate`` are the counted values; ``None`` keeps the current one (a
+    rate-only correction, or a quantity-only count that keeps the rate). Returns
+    ``cur_*``, the resolved target ``qty`` / ``rate`` / ``value`` and the deltas
+    ``dq`` / ``dv`` the posted SLE carries (0 and 0 = nothing to reconcile).
+    """
+    cur_qty = quantize_qty(cur_qty)
+    cur_value = quantize_value(cur_value)
+    cur_rate = quantize_rate(cur_value / cur_qty) if cur_qty > 0 else quantize_rate(0)
+
+    if qty is None:
+        if cur_qty < 0:
+            raise ValidationError(
+                "Current stock is negative; enter the counted quantity."
+            )
+        t_qty = cur_qty
+    else:
+        t_qty = quantize_qty(qty)
+        if t_qty < 0:
+            raise ValidationError("Negative Quantity is not allowed.")
+    if rate is not None and quantize_rate(rate) < 0:
+        raise ValidationError("Negative Valuation Rate is not allowed.")
+    t_rate = cur_rate if rate is None else quantize_rate(rate)
+
+    if t_qty == 0:
+        t_value = Decimal("0.00")
+    else:
+        if t_rate <= 0:
+            raise ValidationError(
+                "A valuation rate is required to count stock into a position "
+                "that has no current rate."
+            )
+        if cur_qty > 0 and t_qty == cur_qty and t_rate == cur_rate:
+            t_value = cur_value  # unchanged: do not invent a rounding difference
+        else:
+            t_value = quantize_value(t_qty * t_rate)
+    return {
+        "cur_qty": cur_qty,
+        "cur_value": cur_value,
+        "cur_rate": cur_rate,
+        "qty": t_qty,
+        "rate": t_rate,
+        "value": t_value,
+        "dq": quantize_qty(t_qty - cur_qty),
+        "dv": quantize_value(t_value - cur_value),
+    }
+
+
+def position(item: Any, warehouse: Any, batch: Any = None) -> tuple:
+    """Current ``(qty, stock_value)`` of an item in a warehouse, or of one batch
+    of it, read from the ledger-derived Bin / batch balance."""
+    if batch is not None:
+        return batch_service.batch_position(item, warehouse, batch)
+    bin_obj = Bin.objects.filter(item=item, warehouse=warehouse).first()
+    if bin_obj is None:
+        return Decimal("0.000"), Decimal("0.00")
+    return bin_obj.actual_qty, bin_obj.stock_value
+
+
+def post_reconciliation(
+    voucher: Any,
+    rows: List[Dict[str, Any]],
+    posting_date=None,
+    posting_time=None,
+) -> List[StockLedgerEntry]:
+    """
+    Atomically posts the SLEs of a Stock Reconciliation.
+
+    Each row states the *absolute* target (``qty`` and/or ``valuation_rate``,
+    ``None`` = keep current; ``batch`` for batch-tracked items). Under the Bin
+    lock the row is resolved against the live position and one SLE is written
+    carrying the **delta** (``qty`` and ``stock_value_difference`` may be zero
+    but not both). Because the stored facts are deltas, ``repost`` / the
+    integrity checks (plain sums over non-cancelled SLEs) replay them exactly
+    and ``reverse`` undoes them like any other voucher.
+
+    There is no later-entry repost in this ledger, so a reconciliation is
+    refused when the item+warehouse already has a live SLE after its
+    date/time (see docs/erpnext_divergences.md).
+    """
+    date_to_use = (
+        posting_date or getattr(voucher, "posting_date", None) or datetime.date.today()
+    )
+    time_to_use = (
+        posting_time
+        or getattr(voucher, "posting_time", None)
+        or datetime.datetime.now().time()
+    )
+    FiscalYear.for_date(date_to_use)
+
+    voucher_type = f"{voucher._meta.app_label}.{voucher._meta.object_name}"
+    voucher_no = getattr(voucher, "name", str(voucher.pk))
+    created: List[StockLedgerEntry] = []
+
+    with transaction.atomic():
+        for row in rows:
+            item = row["item"]
+            if isinstance(item, (int, str)):
+                item = Item.objects.get(pk=item)
+            warehouse = row["warehouse"]
+            if isinstance(warehouse, (int, str)):
+                warehouse = Warehouse.objects.get(pk=warehouse)
+            if warehouse.is_group:
+                raise ValidationError(
+                    f"Stock transaction not allowed on group warehouse '{warehouse.name}'."
+                )
+            batch = row.get("batch")
+            if isinstance(batch, (int, str)):
+                batch = Batch.objects.get(pk=batch)
+            if item.has_batch_no and batch is None:
+                raise ValidationError(
+                    f"Item '{item.code}' is batch-tracked: enter the batch counted."
+                )
+            if not item.has_batch_no and batch is not None:
+                raise ValidationError(
+                    f"Item '{item.code}' is not batch-tracked but a batch was given."
+                )
+            if batch is not None and batch.item_id != item.pk:
+                raise ValidationError(
+                    f"Batch '{batch.batch_no}' belongs to a different item than '{item.code}'."
+                )
+
+            bin_obj, _ = Bin.objects.select_for_update().get_or_create(
+                item=item,
+                warehouse=warehouse,
+                defaults={
+                    "actual_qty": Decimal("0.000"),
+                    "valuation_rate": Decimal("0.000000"),
+                    "stock_value": Decimal("0.00"),
+                },
+            )
+
+            latest = (
+                StockLedgerEntry.objects.filter(
+                    item=item, warehouse=warehouse, is_cancelled=False
+                )
+                .order_by("-posting_date", "-posting_time", "-id")
+                .first()
+            )
+            if latest is not None and (latest.posting_date, latest.posting_time) > (
+                date_to_use,
+                time_to_use,
+            ):
+                raise ValidationError(
+                    f"Cannot reconcile '{item.code}' in '{warehouse.name}' as of "
+                    f"{date_to_use} {time_to_use.strftime('%H:%M:%S')}: stock moved "
+                    f"later ({latest.posting_date} "
+                    f"{latest.posting_time.strftime('%H:%M:%S')}). "
+                    f"Reconcile at or after the latest movement."
+                )
+
+            cur_qty, cur_value = position(item, warehouse, batch)
+            target = resolve_reconciliation_target(
+                cur_qty, cur_value, row.get("qty"), row.get("valuation_rate")
+            )
+            if target["dq"] == 0 and target["dv"] == 0:
+                continue
+
+            new_qty = quantize_qty(bin_obj.actual_qty + target["dq"])
+            new_value = quantize_value(bin_obj.stock_value + target["dv"])
+            bin_obj.actual_qty = new_qty
+            bin_obj.stock_value = new_value
+            bin_obj.valuation_rate = (
+                quantize_rate(new_value / new_qty)
+                if new_qty > 0
+                else Decimal("0.000000")
+            )
+            bin_obj.save(
+                update_fields=[
+                    "actual_qty",
+                    "valuation_rate",
+                    "stock_value",
+                    "modified_at",
+                ]
+            )
+            created.append(
+                StockLedgerEntry.objects.create(
+                    posting_date=date_to_use,
+                    posting_time=time_to_use,
+                    item=item,
+                    warehouse=warehouse,
+                    qty=target["dq"],
+                    valuation_rate=target["rate"],
+                    stock_value_difference=target["dv"],
+                    voucher_type=voucher_type,
+                    voucher_no=voucher_no,
+                    is_cancelled=False,
+                    batch=batch,
+                )
+            )
+    return created
+
+
 def reverse(voucher: Any) -> List[StockLedgerEntry]:
     """
     Atomically posts reversing StockLedgerEntry rows and updates Bin balances.

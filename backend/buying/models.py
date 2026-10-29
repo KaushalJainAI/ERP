@@ -169,6 +169,7 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         constraints = [
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
+            *PayableDocument.return_constraints(),
         ]
 
     supplier = models.ForeignKey(
@@ -224,6 +225,10 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
         self._validate_batch_lines()
         self.calculate_taxes_and_totals(for_submit=True)
+        if self.is_return:
+            from accounts.services import returns as returns_service
+
+            returns_service.validate_return(self)
         posting.validate_posting(self)
 
     def _validate_batch_lines(self):
@@ -257,6 +262,17 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                         % {"code": item.code}
                     )
                 continue
+            if self.is_return:
+                # A debit note takes a lot back out: it must name the existing
+                # batch (the one the purchase created), never a new one.
+                if new_fields or not line.batch_id:
+                    raise ValidationError(
+                        _(
+                            "Item '%(code)s': a return must use the batch of the "
+                            "purchase (pick the existing batch)."
+                        )
+                        % {"code": item.code}
+                    )
             if line.batch_id:
                 if new_fields:
                     raise ValidationError(
@@ -305,6 +321,20 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                         f"Warehouse required for item '{item.item.code}' when update_stock is enabled."
                     )
                 batch = item.batch
+                if self.is_return:
+                    # Stock goes back OUT (also of an expired lot: returning bad
+                    # raw material to the supplier is the point).
+                    sle_list.append(
+                        {
+                            "item": item.item,
+                            "warehouse": item.warehouse,
+                            "qty": -abs(item.qty),
+                            "valuation_rate": item.rate,
+                            "batch": batch,
+                            "allow_expired": True,
+                        }
+                    )
+                    continue
                 if item.item.has_batch_no and batch is None:
                     batch = batch_service.create_batch(
                         item.item,
@@ -369,6 +399,7 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     "credit": -expense_amount,
                 }
             )
+        against_type, against_no = self.against_voucher
         gl_entries.append(
             {
                 "account": self.credit_to,
@@ -376,13 +407,20 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 "credit": self.rounded_total,
                 "party_type": "Supplier",
                 "party": self.supplier.name,
-                "against_voucher_type": self.voucher_label(),
-                "against_voucher_no": self.name,
+                # A debit note that updates the original outstanding is tagged
+                # against the original instead of itself.
+                "against_voucher_type": against_type,
+                "against_voucher_no": against_no,
             }
         )
         gl_entries.extend(posting.purchase_tax_entries(self))
+        if self.is_return:
+            # Built from negative amounts: the exact mirror of the purchase.
+            gl_entries = gl_service.mirror_entries(gl_entries)
         gl_service.post(self, gl_entries, posting_date=self.posting_date)
         outstanding_service.refresh(self)
+        if self.return_against_id:
+            outstanding_service.refresh(self.return_against)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
@@ -390,10 +428,13 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         from stock.services import ledger as stock_service
 
         self.ensure_no_linked_payments()
+        self.ensure_no_linked_returns()
         gl_service.reverse(self)
         if self.update_stock:
             stock_service.reverse(self)
         outstanding_service.refresh(self)
+        if self.return_against_id:
+            outstanding_service.refresh(self.return_against)
 
     def __str__(self):
         return f"{self.name} - {self.supplier.name} ({self.grand_total})"
@@ -427,10 +468,23 @@ class PurchaseInvoiceItem(TaxableLine):
     supplier_batch_no = models.CharField(max_length=100, blank=True, default="")
     manufacturing_date = models.DateField(null=True, blank=True)
     expiry_date = models.DateField(null=True, blank=True)
+    # On a return line: the original invoice line it returns (ERPNext
+    # ``purchase_invoice_item``), so the returned quantity is enforceable per line.
+    purchase_invoice_item = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="return_items",
+    )
 
     class Meta(TaxableLine.Meta):
         constraints = [
-            *TaxableLine.Meta.constraints,
+            *TaxableLine.signed_constraints(),
+            models.CheckConstraint(
+                check=~models.Q(purchase_invoice_item=models.F("id")),
+                name="check_purchaseinvoiceitem_not_its_own_return",
+            ),
             models.CheckConstraint(
                 check=models.Q(expiry_date__isnull=True)
                 | models.Q(manufacturing_date__isnull=True)
@@ -462,4 +516,4 @@ class PurchaseInvoiceTax(TaxLine):
     )
 
     class Meta(TaxLine.Meta):
-        constraints = TaxLine.constraints_for("purchase_invoice")
+        constraints = TaxLine.constraints_for("purchase_invoice", signed=True)

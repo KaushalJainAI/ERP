@@ -12,6 +12,9 @@ from selling.models import CustomerGroup
 from buying.models import SupplierGroup
 from accounts.models import Account, AccountRootType, AccountType
 from gst.services.seeding import seed_gst
+from hr.seed import HR_LABELS, HR_ROLE_MATRIX, HR_ROLES
+from hr.services.setup import ensure_hr_setup
+from tally_export.seed import TALLY_EXPORT_LABELS
 
 
 LANGUAGES_SEED = [
@@ -84,6 +87,7 @@ _MASTER_LABELS = (
     "selling.Customer",
     "buying.SupplierGroup",
     "buying.Supplier",
+    "contacts.Address",
     # GST masters (state list, per-company tax templates, global item tax templates).
     "core.State",
     "accounts.TaxTemplate",
@@ -102,6 +106,7 @@ _DOCUMENT_LABELS = (
     "accounts.JournalEntry",
     "accounts.PaymentEntry",
     "stock.StockEntry",
+    "stock.StockReconciliation",
     "selling.SalesOrder",
     "selling.SalesInvoice",
     "buying.PurchaseOrder",
@@ -128,6 +133,7 @@ _STOCK_LABELS = (
     "stock.StockLedgerEntry",
     "stock.Bin",
     "stock.StockEntry",
+    "stock.StockReconciliation",
     "manufacturing.BOM",
     "manufacturing.WorkOrder",
 )
@@ -144,6 +150,7 @@ _ACCOUNTS_LABELS = (
 _SELLING_LABELS = (
     "selling.CustomerGroup",
     "selling.Customer",
+    "contacts.Address",
     "selling.SalesOrder",
     "selling.SalesInvoice",
     "stock.PriceList",
@@ -153,11 +160,23 @@ _SELLING_LABELS = (
 _BUYING_LABELS = (
     "buying.SupplierGroup",
     "buying.Supplier",
+    "contacts.Address",
     "buying.PurchaseOrder",
     "buying.PurchaseInvoice",
     "stock.PriceList",
     "stock.ItemPrice",
 )
+
+#: Read-only Tally history (written only by import_tally; no write routes exist).
+#: The full archive is the old books, so it sits with the accounts.
+_LEGACY_LABELS = (
+    "legacy.TallyRecord",
+    "legacy.TallyItemLine",
+)
+
+#: NGU online-store catalogue crosswalk (rows written by import_ngu_catalog;
+#: people only link variants to items).
+_NGU_LABELS = ("ngu.NguCatalogEntry",)
 
 #: The RBAC control plane -- who may grant authority.
 _ADMIN_LABELS = (
@@ -177,7 +196,11 @@ EXPOSED_MODEL_LABELS = tuple(
         set(_MASTER_LABELS)
         | set(_DOCUMENT_LABELS)
         | set(_LEDGER_LABELS)
+        | set(_LEGACY_LABELS)
+        | set(_NGU_LABELS)
         | set(_ADMIN_LABELS)
+        | set(HR_LABELS)
+        | set(TALLY_EXPORT_LABELS)
     )
 )
 
@@ -200,7 +223,11 @@ ROLE_PERMISSION_MATRIX = {
     # Inventory authority, including the stock ledger and the stock balance.
     "Stock Manager": {
         **_scope(_STOCK_LABELS, FULL),
-        **_scope(("core.Company", "accounts.ItemTaxTemplate"), READ),
+        **_scope(_NGU_LABELS, FULL),
+        **_scope(
+            ("core.Company", "accounts.ItemTaxTemplate", "legacy.TallyItemLine"),
+            READ,
+        ),
     },
     # Financial authority: the GL, and therefore every accounts report.
     "Accounts Manager": {
@@ -209,10 +236,13 @@ ROLE_PERMISSION_MATRIX = {
             ("core.Company", "core.State", "selling.Customer", "buying.Supplier"),
             READ,
         ),
+        **_scope(_LEGACY_LABELS, READ),
+        **_scope(TALLY_EXPORT_LABELS, FULL),
     },
     # Selling authority, plus read access to the catalogue it sells from.
     "Sales Manager": {
         **_scope(_SELLING_LABELS, FULL),
+        **_scope(_NGU_LABELS, READ),
         **_scope(_GST_MASTER_LABELS, READ),
         **_scope(
             (
@@ -222,6 +252,7 @@ ROLE_PERMISSION_MATRIX = {
                 "stock.Item",
                 "stock.Batch",
                 "stock.Warehouse",
+                "legacy.TallyItemLine",
             ),
             READ,
         ),
@@ -238,6 +269,7 @@ ROLE_PERMISSION_MATRIX = {
                 "stock.Item",
                 "stock.Batch",
                 "stock.Warehouse",
+                "legacy.TallyItemLine",
             ),
             READ,
         ),
@@ -277,6 +309,9 @@ ROLE_PERMISSION_MATRIX = {
         **_scope(_MASTER_LABELS, READ),
     },
 }
+# HR roles (hr/seed.py) -- appended so the matrix above stays untouched.
+ROLES_SEED += HR_ROLES
+ROLE_PERMISSION_MATRIX.update(HR_ROLE_MATRIX)
 
 
 def validate_model_labels(labels):
@@ -511,6 +546,9 @@ class Command(BaseCommand):
         for comp in gst_summary["companies"]:
             for warning in comp["warnings"]:
                 self.stdout.write(self.style.WARNING(f"  GST warning: {warning}"))
+
+        # 9. HR: wage/payable/advance accounts, HR Settings, system components.
+        ensure_hr_setup(company)
 
         self.stdout.write(
             self.style.SUCCESS("Successfully seeded default data idempotently.")

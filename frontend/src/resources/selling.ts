@@ -1,6 +1,7 @@
 import { createElement } from "react";
-import { FilePlus2, Receipt, RefreshCw, ShoppingCart, UserSquare2, Users, Wallet } from "lucide-react";
+import { FilePlus2, Receipt, RefreshCw, ShoppingCart, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
+import { getActiveCompanyId } from "@/lib/company";
 import { CreditBanner } from "@/components/stock/CreditBanner";
 import { mulDec, sumDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
@@ -16,6 +17,7 @@ import {
 } from "./gst";
 import { DocStatus, type ChildColumnDef, type FieldDef, type LinkDef, type ResourceConfig } from "@/types";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
+import { returnColumns, returnHeaderFields, withReturnColumns } from "./returns";
 
 /* ---- reusable link definitions (other modules may import these) ---- */
 
@@ -57,6 +59,16 @@ export const priceListLink: LinkDef = {
   subLabel: (r) =>
     [r.currency, r.selling ? "Selling" : null, r.buying ? "Buying" : null].filter(Boolean).join(" · ") || undefined,
   filters: () => ({ enabled: true }),
+};
+
+/** Direction-aware pickers: a document must use a list that supports its side. */
+export const sellingPriceListLink: LinkDef = {
+  ...priceListLink,
+  filters: () => ({ enabled: true, selling: true }),
+};
+export const buyingPriceListLink: LinkDef = {
+  ...priceListLink,
+  filters: () => ({ enabled: true, buying: true }),
 };
 
 export const warehouseLink: LinkDef = {
@@ -151,6 +163,11 @@ export const companyField: FieldDef = {
   required: true,
   readOnlyAfterCreate: true,
   link: companyLink,
+  // The company is chosen once on the home screen. The form still carries the id
+  // so every dependent link (customer, account, warehouse, tax template) filters
+  // to the same company, but the operator never edits it here.
+  defaultValue: () => getActiveCompanyId() ?? "",
+  hidden: () => true,
 };
 
 export const grandTotal = (itemsKey = "items"): FieldDef => ({
@@ -235,7 +252,7 @@ const customers: ResourceConfig = {
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
-    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.customer_list" },
+    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.customer_list" },
     { key: "credit_limit", labelKey: "pl.fields.credit_limit", type: "decimal", defaultValue: "0.00", helpKey: "pl.help.credit_limit" },
     { key: "bypass_credit_limit_check", labelKey: "pl.fields.bypass_credit_limit", type: "boolean", defaultValue: false },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
@@ -265,7 +282,7 @@ const salesOrders: ResourceConfig = {
     { ...companyField, clears: ["customer", "taxes_and_charges", "place_of_supply"] },
     // A new party forgets the place of supply so the server re-defaults it from the party state.
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "delivery_date", labelKey: "fields.delivery_date", type: "date" },
     ...taxHeaderFields("Sales"),
@@ -295,6 +312,9 @@ const salesOrders: ResourceConfig = {
   ],
 };
 
+// A Sales Invoice may also be a return (credit note): negative quantities, linked rows.
+const salesInvoiceItemsTable = withReturnColumns(itemsTable, "sales_invoice_item");
+
 const salesInvoices: ResourceConfig = {
   key: "sales-invoices",
   module: "selling",
@@ -313,12 +333,13 @@ const salesInvoices: ResourceConfig = {
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
     { key: "docstatus", labelKey: "status", type: "status" },
     ...invoiceStatusColumns,
+    ...returnColumns("credit", "/selling/sales-invoices"),
   ],
   fields: [
     docNoField,
     { ...companyField, clears: ["customer", "debit_to", "income_account", "sales_order", "taxes_and_charges", "place_of_supply"] },
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -335,11 +356,12 @@ const salesInvoices: ResourceConfig = {
     { key: "debit_to", labelKey: "fields.debit_to", type: "link", required: true, link: accountLink("Asset") },
     { key: "income_account", labelKey: "fields.income_account", type: "link", required: true, link: accountLink("Income") },
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
+    ...returnHeaderFields("credit", "/selling/sales-invoices", "/selling/sales-invoices/", "customer", "customer_name"),
     ...taxHeaderFields("Sales"),
     ...taxTotalFields(),
     ...invoiceStatusFields,
   ],
-  childTables: [itemsTable, taxesTable],
+  childTables: [salesInvoiceItemsTable, taxesTable],
   preview: taxPreview("selling.SalesInvoice", "customer"),
   renderSummary: renderSalesSummary,
   actions: [
@@ -352,6 +374,15 @@ const salesInvoices: ResourceConfig = {
       url: (d) => `/selling/sales-invoices/${d.id}/make-payment-entry/`,
       // Opened in the Accounts module's Payment Entry document page.
       resultTo: (r) => `/accounts/payment-entries/${r.id}`,
+    },
+    {
+      key: "make_sales_return",
+      labelKey: "ret.create_credit_note",
+      icon: Undo2,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.SUBMITTED && !d.is_return,
+      url: (d) => `/selling/sales-invoices/${d.id}/make-sales-return/`,
+      resultTo: (r) => `/selling/sales-invoices/${r.id}`,
     },
     {
       key: "update_rates",

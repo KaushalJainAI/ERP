@@ -17,6 +17,7 @@ from core.models import (
     Outbox,
     State,
     SystemHealthCheck,
+    UserCompany,
 )
 
 
@@ -87,6 +88,16 @@ class CompanyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     autocomplete_fields = ("state", "round_off_account")
     readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
     ordering = ("name",)
+
+
+@admin.register(UserCompany)
+class UserCompanyAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = ("user", "company", "is_default", "is_active")
+    list_filter = ("is_default", "is_active", "company")
+    search_fields = ("user__email", "user__username", "company__name", "company__abbr")
+    autocomplete_fields = ("user", "company")
+    readonly_fields = TimeStampedAdminMixin.readonly_timestamp_fields
+    ordering = ("company", "-is_default", "user__email")
 
 
 @admin.register(State)

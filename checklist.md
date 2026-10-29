@@ -223,3 +223,201 @@ Full backend audit; fixes below are in code + tests (`verify_integrity` green,
 - [x] `backend/docs/manufacturing.md` operator how-to; README demo description updated
 - [x] Full backend suite (694 passing), ruff, frontend lint, build and i18n
       check all green; `makemigrations --check` reports no drift
+
+### 6.7 Tally cutover: lose nothing (2026-10-28)
+- [x] ERP on Postgres (`docker-compose.yml` `postgres`, host port 5433); SQLite stays dev/test only
+- [x] `legacy.TallyRecord`: every Tally master and voucher of every year with its original XML and ERP link; append-only; read-only API
+- [x] `legacy.TallyItemLine`: item-wise sales / purchase / note history of all 10 years; read-only API
+- [x] `contacts.Address` (ERPNext Address, one party per row) + CRUD API; Tally mailing addresses imported
+- [x] Journal Entry `voucher_type`, `cheque_no/date`, `bill_no/date`; filled from Tally type and reference
+- [x] Item tax templates set from Tally's latest GST rate
+- [x] Import report proves archive completeness row-for-row; ledgers reconcile per year **(V)**
+- [ ] Get the sender's Day Book + All Masters XML per year (`Desktop\Tally\SENDER_REQUEST.md`) and import it: stock-journal lines, bank instrument details, invoice consignee / e-way bill, company GSTIN (`backend/docs/tally_data_gaps.md` §2)
+- [ ] Physical count + Stock Reconciliation for the 7 negative-stock items (needs 6.8 Stock Reconciliation)
+- [ ] Accountant decision: reclassify the 20 ledgers that change type between years (profit differs in 3 years)
+- [ ] Translate the new `lg.*` strings (Addresses, Tally History) and the Journal Entry type / reference labels into the 12 Indian languages (English fallback until then)
+
+### 6.8 Go-live gaps against ERPNext (P1, `backend/docs/erpnext_gap_analysis.md`)
+- [ ] Print formats (GST Tax Invoice, Delivery Challan, PO, receipt) as PDF
+- [x] Sales / Purchase returns (`is_return` credit / debit note against an invoice, stock back in) **(V)**
+- [-] e-Way Bill; e-Invoice (IRN) — **skipped (user, 2026-10-28)**: Tally does the statutory filing
+- [x] Stock Reconciliation document (opening stock, physical count) **(V)**
+- [-] UOM conversion per item — **skipped (user, 2026-10-28)**: operators do the carton maths
+- [x] Registers: Sales, Purchase, Day Book, Cash / Bank Book, party statement (`accounts/reports/`, `accounts/test_registers.py`, `docs/reports.md`)
+- [ ] Bank Account + Bank Reconciliation (statement import, clearance date)
+- [ ] Period Closing Voucher (year-end P&L → retained earnings) **(V)**
+- [ ] Separate Input / Output GST accounts and tax templates for NIDHI GRAH UDYOG; company GSTIN
+
+### 6.9 ERP feeds Tally (user direction, 2026-10-28)
+Operators enter everything in the ERP; the accountant completes the official books
+and GST filing in Tally from what the ERP exports.
+- [x] Attachments: proof files (bill scans, photos, PDFs) on any document or master; immutable once the document is submitted (add-only); audited **(V)**
+- [ ] Purchase invoice extra charges (freight, hamali, loading) added to stock valuation, like ERPNext's landed cost but on the bill itself **(V)**
+- [x] Tally export: submitted vouchers (sales, purchase, credit / debit notes, payments, journals) and new masters as Tally import XML for a date range; each voucher marked exported, re-export on demand **(V)**
+
+## Phase 7 — HR and payroll (2026-10-28)
+
+New `hr` app. ERPNext core only ships the employee masters (`setup/doctype`);
+attendance, leave and payroll live in the separate frappe/hrms app, which is not
+in `erpnext/`. Record every design choice beyond the masters in
+`erpnext_divergences.md`. PF and ESI are **not applicable today** but get their
+own sections so they can be switched on later without reworking payroll.
+Most of the workforce is **daily wage**: the daily rate × attendance (+ OT) is
+the primary pay path; monthly salary is the secondary case.
+
+### 7.1 Employee masters
+- [x] `Department`, `Designation`, `Branch`, `HolidayList` / `Holiday`
+      (mirrors ERPNext `setup/doctype`). *Design note:* `EmployeeGroup` not built.
+- [x] `Employee`: `pay_type` Daily / Monthly (piece-rate and contract are not
+      built), joining/relieving dates, status, bank account + IFSC, PAN, Aadhaar
+      (masked in the API unless the caller has `can_write` on `hr.Employee`);
+      optional UAN and ESIC number (inert until 7.7 / 7.8); `mobile_no` UNIQUE
+      when set
+- [x] `HR User` / `HR Manager` roles (seeded); employee PII **writes** audited
+      (Aadhaar stored masked in the audit log). *Not done:* auditing PII reads
+- [ ] Screens + locale files (backend API, gettext strings and tests are done:
+      `hr/tests.py`)
+
+### 7.2 Attendance
+- [x] `Attendance` (employee, date, Present / Absent / Half Day / **Paid Leave**,
+      OT hours); UNIQUE(employee, date). *Design note:* Paid Leave stands in for
+      On Leave until 7.3
+- [x] Daily muster-roll bulk entry endpoint (`attendance/muster-roll/`, atomic
+      upsert). *Screen pending*
+- [x] Attendance locked once a **submitted salary slip** covers it (there are no
+      payroll periods in this design)
+- [x] Muster roll report (`attendance/muster-roll-report/`); tests
+
+### 7.3 Leave (basic — mainly for monthly staff; a daily wager's absence is simply unpaid)
+*Deferred:* the `Paid Leave` attendance status covers it for now.
+- [ ] `LeaveType`, `LeaveAllocation`, `LeaveApplication` (submittable);
+      approved leave marks attendance
+- [ ] Leave balance report; tests
+
+### 7.4 Salary structures
+- [x] `SalaryComponent` (earning / deduction, GL account; fixed amounts only,
+      no formulas). System components Wages / Overtime / Advance Recovery seeded
+      via `HRSettings` / `ensure_hr_setup`
+- [x] **Design differs:** no Salary Structure; `EmployeeWageRate` is the
+      effective-dated per-employee pay (daily rate or monthly salary, OT hourly
+      rate). Piece rate not built
+- [ ] MP minimum-wage rates by skill category with effective dates; warn when
+      a rate is below the minimum
+- [ ] Configurable wage-definition rule (Labour Codes 50% basic); tests
+
+### 7.5 Payroll and GL posting
+- [x] **Design differs:** no `PayrollPeriod`; a slip covers any date range and
+      the admin pays any day (submitted slips of one employee may not overlap)
+- [x] `SalarySlip` (submittable) computed from attendance and wage rates;
+      posts Dr wage expense, Cr wages payable (+ advance and other deductions);
+      cancel posts reversals
+- [x] `PayrollEntry` (submittable): bulk-create slips for a range/department/branch;
+      submit and cancel act on all its slips atomically
+- [x] **Design differs:** `EmployeePayment` (own document, not Payment Entry):
+      Dr wages payable / Cr cash or bank, capped at the wages payable;
+      `PayrollEntry.make-payments` pays a whole run. *Bank transfer file export
+      pending*
+- [ ] Salary register and wage register reports (pending)
+- [x] `verify_integrity` covers payroll GL (slips, advances, payments, overlaps);
+      tests
+
+### 7.6 Advances and loans
+- [x] `EmployeeAdvance` (submittable, posts Dr employee advance, Cr cash/bank);
+      outstanding / status derived from slips (not stored)
+- [x] Instalment recovery as a salary-slip deduction (proposed on the slip,
+      editable in draft); tests. *Advance balance report pending* (per-employee
+      figure is in `employees/{id}/summary/`)
+
+### 7.7 Provident Fund (deferred — off by default)
+- [ ] Company `pf_enabled` flag + PF registration number; when off, no PF
+      component is computed and PF fields are hidden
+- [ ] Employee/employer contribution (EPF / EPS split, wage ceiling) as
+      configurable components with payable accounts
+- [ ] PF ECR export and PF register; tests with the flag on and off
+
+### 7.8 Employees' State Insurance (deferred — off by default)
+- [ ] Company `esi_enabled` flag + ESI code; when off, no ESI component is
+      computed and ESI fields are hidden
+- [ ] Employee/employer rates and wage eligibility ceiling, configurable and
+      effective-dated, with payable accounts
+- [ ] ESI contribution return export and ESI register; tests with the flag on and off
+
+### 7.9 Other statutory items
+- [ ] MP Professional Tax slabs and MP Labour Welfare Fund as configurable deductions
+- [ ] Bonus (Payment of Bonus Act) and gratuity calculation reports
+
+### 7.10 Piece-rate linked to manufacturing
+- [ ] Record worker output against Work Orders; piece-rate wages flow into
+      salary slips and labour cost into production costing
+
+## Phase 8 — Assistant: voice + chat agent (2026-10-28)
+
+Design: [assistant_plan.md](assistant_plan.md). Non-technical staff say what
+happened; the agent looks things up and opens the **real form pre-filled**; the
+user always presses Save themselves. **The agent has no write tools** — every
+task below must keep that true. Built from the NGU assistant pattern
+(`NGU-Backend-audit/assistant`). Record in `erpnext_divergences.md`; add every
+route to `backend/docs/API.md`.
+
+### 8.0 Decisions
+- [ ] Confirm first entry types, staff languages, phone vs desktop, STT
+      provider (assistant_plan.md §10) — stop and ask before 8.4
+
+### 8.1 Backend skeleton
+- [ ] New `assistant` app: `AssistantConversation`, `AssistantMessage`,
+      `AssistantProposal` with CHECK constraints (role, input_mode, status,
+      saved fields set iff status = saved); owner-only conversation endpoints
+- [ ] LLM provider adapter (env-configured) + per-user burst/daily throttles;
+      LLM unavailable → friendly reply, never a 500
+- [ ] Gunicorn to threaded workers so a streaming turn can't block other users;
+      test two concurrent requests
+
+### 8.2 Read tools (RBAC-scoped)
+- [ ] `search_customers/suppliers/items/employees` (fuzzy + FieldTranslation
+      names), `get_stock` (Bin), `get_party_outstanding`, `get_rate`
+      (read-only `pricing.fetch_rate`), `recent_documents`, `get_document`;
+      `<<DATA>>` wrapping
+- [ ] Tests: no-write guarantee (CaptureQueriesContext over every tool), RBAC
+      denial, prompt-injection-as-data
+
+### 8.3 Agent loop + step streaming
+- [ ] Bounded loop (≤ 6 tool rounds, 20 s/LLM call, 1 retry), token-budgeted
+      history, `ask_user` and `navigate` (route allow-list)
+- [ ] `POST assistant/chat/stream/` SSE: `step` before/after every tool,
+      `question`, `proposal`, `reply`, `done`, `error`; tests
+
+### 8.4 Proposal builders (first targets)
+- [ ] Common builder: `can_create` check, ID re-validation, Decimal parsing,
+      serializer **dry-run** (`is_valid()` only) → warnings, preview total,
+      localized summary; multi-line all-or-nothing
+- [ ] `propose_sales_invoice`, `propose_purchase_invoice` (bill-total
+      mismatch warning), `propose_payment_entry` (receive); ambiguity → ask;
+      tests
+- [ ] Save tagging: `X-Assistant-Proposal` header read by a core viewset mixin
+      after a successful create → proposal `saved` + `AuditLog` source; bad or
+      reused id ignored; tests
+
+### 8.5 Frontend
+- [ ] Mic/text launcher in `Layout`, `AssistantPanel` (tappable options,
+      RTL-safe), `en.assistant.ts` + 12 locales
+- [ ] `AgentWorkingOverlay` driven by SSE `step` events, with Stop
+- [ ] Handoff: `hydrateSeed` through `LinkDef.fill`, `AssistantReviewBanner`
+      (summary, warnings, attach-bill reminder, "tell me what to change"),
+      AI-filled field highlight; Save unchanged + proposal header
+
+### 8.6 Voice
+- [ ] Port NGU `stt.py` (Voxtral → whisper.cpp fallback) as
+      `assistant/transcribe/`; language hint from `User.language`; vocabulary
+      biasing with item/party names; port `useVoiceInput` + `audio.ts`; tests
+
+### 8.7 Evaluate and pilot
+- [ ] Eval set ≥ 60 real staff utterances (Hindi/Hinglish/English, number
+      words, units) under `pytest -m eval`; pick the model on it
+- [ ] One-week pilot with 2–3 staff on the real books; review saved/opened
+      ratio and most-edited fields; fix before wider rollout
+
+### 8.8 Later
+- [ ] Bill photo → pre-filled Purchase Invoice (vision extraction + attach the
+      photo as proof)
+- [ ] Attendance / advance / employee payment proposals (after HR screens exist)
+- [ ] Spoken read-back of the summary (TTS)

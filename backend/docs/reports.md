@@ -40,3 +40,34 @@ or `from_date` + `to_date` (the tax ledger's period is optional). Malformed inpu
   are excluded everywhere except GSTR-1 `docs_issued`; the tax ledger drops `is_cancelled` GL rows
   (original and reversal), like the general ledger.
 - Tests: `gst/tests/test_reports.py`. GSTR-3B 6.1 `net_payable` equals the tax ledger's `net_payable` per head.
+
+## Registers and party statement (`/api/accounts/reports/`, app `accounts`)
+
+Code: `accounts/reports/{registers,daybook,cashbook,statement}.py`, views in `accounts/report_views.py`,
+tests in `accounts/test_registers.py`, frontend in `frontend/src/pages/reports/registers/`. The daily Tally
+views plus a printable statement for distributors. Read-only: ledgers and submitted documents only.
+`company`, `from_date` and `to_date` are required on all five (400 otherwise, also for `from_date > to_date`
+or an id of another company). Rows are paged (`page`, `page_size`, default 500, max 5000); totals always
+cover the whole period. Money is a 2dp string. CSV export is client-side (the GST report pattern) and
+walks all pages. Cancelled vouchers follow the General Ledger rule: original and reversal rows are both
+`is_cancelled`, so both are hidden.
+
+- **Sales / Purchase Register** (`sales-register/`, `purchase-register/`; ERPNext `sales_register`,
+  `purchase_register`; `can_read` on `selling.SalesInvoice` / `buying.PurchaseInvoice`): one row per
+  submitted invoice with party GSTIN, net total, one column per tax head (CGST, SGST, IGST, CESS, other),
+  grand total, rounding, rounded total and outstanding. Credit / debit notes (`is_return`) are listed with
+  negative figures. Filters: `party` (id), `item_group` (id, child groups included; it selects invoices
+  that carry such an item, the amounts stay invoice-level). Reverse-charge purchase tax is shown in
+  `reverse_charge_tax` (it is not part of the grand total).
+- **Day Book** (`day-book/`, `can_read` on `accounts.GLEntry`): live GL vouchers in creation order with
+  their Dr/Cr account lines, a total per voucher, `daily_totals` and grand totals (debit = credit).
+  Optional `voucher_type`.
+- **Cash / Bank Book** (`cash-book/`, `account` = a Cash or Bank account of the company): opening balance,
+  entries with the against account(s), party and running balance, closing balance (debit minus credit).
+- **Party Statement** (`party-statement/`, `party_type` + `party`; needs `can_read` on `accounts.GLEntry` and on
+  the party master): opening balance, every GL row on the party control accounts with a running balance
+  in the party sense (`dr_cr` names the real side), closing balance and the ageing of open invoices as on
+  `to_date`. The closing balance equals `outstanding.party_balance` when nothing is posted after `to_date`;
+  `ledger_balance` is the all-dates figure. The Accounts page offers Print / Save as PDF (CSS `@media print`,
+  company header) for sending to a distributor.
+- Tests: `accounts/test_registers.py` (hand-computed GST fixtures, a real credit note, company isolation, RBAC).

@@ -20,7 +20,7 @@ export const Login: React.FC = () => {
     setSubmitting(true);
     try {
       await login(username, password);
-      navigate("/dashboard");
+      navigate("/");
     } catch (err: any) {
       const status = err?.response?.status;
       if (!err?.response) setError(t("auth.network_error"));

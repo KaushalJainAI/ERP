@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getActiveCompanyId, setActiveCompanyId } from "@/lib/company";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -15,6 +16,7 @@ export const apiClient = axios.create({
 function clearSession() {
   localStorage.removeItem("access_token");
   localStorage.removeItem("refresh_token");
+  setActiveCompanyId(null);
   window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
 }
 
@@ -27,6 +29,8 @@ apiClient.interceptors.request.use(
     }
     const lang = localStorage.getItem("app_lang") || "en";
     config.headers["Accept-Language"] = lang;
+    const companyId = getActiveCompanyId();
+    if (companyId) config.headers["X-Company-ID"] = String(companyId);
     return config;
   },
   (error) => Promise.reject(error)

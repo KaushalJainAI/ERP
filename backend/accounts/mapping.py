@@ -180,6 +180,41 @@ def copy_order_taxes(order, invoice, tax_model, fk_name):
     invoice.calculate_taxes_and_totals(resolve_lines=False)
 
 
+def return_line_values(original):
+    """Field values for the lines of a draft return of ``original``: every line
+    (or part of one) not yet returned, with a NEGATIVE quantity, linked to the
+    original line (ERPNext ``make_return_doc``). Raises when nothing is left."""
+    from accounts.services import returns as returns_service
+
+    link = returns_service.link_field(type(original))
+    rows = []
+    for line, remaining in returns_service.returnable_lines(original):
+        rows.append(
+            {
+                "item": line.item,
+                "warehouse": line.warehouse,
+                "qty": -remaining,
+                "rate": line.rate,
+                "price_list_rate": line.price_list_rate,
+                "batch": line.batch,
+                link: line,
+                **{name: getattr(line, name) for name in GST_SNAPSHOT_FIELDS},
+            }
+        )
+    if not rows:
+        raise ValidationError(
+            f"'{original.name}' has already been returned in full."
+        )
+    return rows
+
+
+def require_returnable(original):
+    if original.docstatus != DocStatus.SUBMITTED:
+        raise ValidationError("A return can only be made from a submitted invoice.")
+    if original.is_return:
+        raise ValidationError("A return cannot be made from another return.")
+
+
 def lines_update_stock(lines):
     """Default ``update_stock``: only when every line is a stock item with a warehouse
     (submit refuses a stock-updating invoice line that has no warehouse)."""
@@ -223,6 +258,15 @@ def build_payment_entry(
     if invoice.docstatus != DocStatus.SUBMITTED:
         raise ValidationError("Payment can only be requested for a submitted invoice.")
     outstanding = invoice_outstanding(invoice)
+    if invoice.is_return:
+        # A credit / debit note keeps a negative outstanding; settling it is a
+        # refund, the opposite flow of an invoice payment.
+        outstanding = -outstanding
+        payment_type = (
+            PaymentType.PAY
+            if payment_type == PaymentType.RECEIVE
+            else PaymentType.RECEIVE
+        )
     if outstanding <= 0:
         raise ValidationError(f"Invoice '{invoice.name}' has no outstanding amount.")
     bank = default_bank_or_cash_account(invoice.company)

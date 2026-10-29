@@ -1,8 +1,9 @@
-import { FilePlus2, Receipt, RefreshCw, ShoppingBag, Truck, Users, Wallet } from "lucide-react";
+import { FilePlus2, Receipt, RefreshCw, ShoppingBag, Truck, Undo2, Users, Wallet } from "lucide-react";
 import { todayISO } from "@/lib/format";
 import { DocStatus, type ChildColumnDef, type LinkDef, type ResourceConfig } from "@/types";
-import { accountLink, companyField, docNoField, itemsTable, priceListLink } from "./selling";
+import { accountLink, buyingPriceListLink, companyField, docNoField, itemsTable } from "./selling";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
+import { returnColumns, returnHeaderFields, withReturnColumns } from "./returns";
 import {
   gstOptionCell,
   partyGstFields,
@@ -64,10 +65,13 @@ const newBatchColumns: ChildColumnDef[] = [
   },
 ];
 
-const purchaseInvoiceItemsTable = {
-  ...itemsTable,
-  columns: [...itemsTable.columns, ...newBatchColumns],
-};
+const purchaseInvoiceItemsTable = withReturnColumns(
+  {
+    ...itemsTable,
+    columns: [...itemsTable.columns, ...newBatchColumns],
+  },
+  "purchase_invoice_item"
+);
 
 /* ---- resources ---- */
 
@@ -132,7 +136,7 @@ const suppliers: ResourceConfig = {
     { key: "tax_id", labelKey: "fields.tax_id", type: "text" },
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
-    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.supplier_list" },
+    { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.supplier_list" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],
 };
@@ -159,7 +163,7 @@ const purchaseOrders: ResourceConfig = {
     docNoField,
     { ...companyField, clears: ["supplier", "taxes_and_charges", "place_of_supply"] },
     { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.document_list" },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "schedule_date", labelKey: "bs.fields.schedule_date", type: "date" },
     ...taxHeaderFields("Purchase"),
@@ -207,12 +211,13 @@ const purchaseInvoices: ResourceConfig = {
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
     { key: "docstatus", labelKey: "status", type: "status" },
     ...invoiceStatusColumns,
+    ...returnColumns("debit", "/buying/purchase-invoices"),
   ],
   fields: [
     docNoField,
     { ...companyField, clears: ["supplier", "credit_to", "expense_account", "purchase_order", "taxes_and_charges", "place_of_supply"] },
     { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: priceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.document_list" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     {
@@ -229,6 +234,7 @@ const purchaseInvoices: ResourceConfig = {
     { key: "credit_to", labelKey: "bs.fields.credit_to", type: "link", required: true, link: accountLink("Liability") },
     { key: "expense_account", labelKey: "bs.fields.expense_account", type: "link", required: true, link: accountLink("Expense") },
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
+    ...returnHeaderFields("debit", "/buying/purchase-invoices", "/buying/purchase-invoices/", "supplier", "supplier_name"),
     ...taxHeaderFields("Purchase"),
     ...taxTotalFields(),
     ...invoiceStatusFields,
@@ -246,6 +252,15 @@ const purchaseInvoices: ResourceConfig = {
       url: (d) => `/buying/purchase-invoices/${d.id}/make-payment-entry/`,
       // Opened in the Accounts module's Payment Entry document page.
       resultTo: (r) => `/accounts/payment-entries/${r.id}`,
+    },
+    {
+      key: "make_purchase_return",
+      labelKey: "ret.create_debit_note",
+      icon: Undo2,
+      kind: "request",
+      showWhen: (d) => d.docstatus === DocStatus.SUBMITTED && !d.is_return,
+      url: (d) => `/buying/purchase-invoices/${d.id}/make-purchase-return/`,
+      resultTo: (r) => `/buying/purchase-invoices/${r.id}`,
     },
     {
       key: "update_rates",

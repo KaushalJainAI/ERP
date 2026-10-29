@@ -548,9 +548,18 @@ def compute(
 
     validate_structure(doc, ctx, rows)
 
+    # A return (credit / debit note) has negative lines. It is calculated as its
+    # positive twin and negated, so the tax is the exact mirror of the original's.
+    is_return = bool(getattr(doc, "is_return", False))
+    if is_return and any(Decimal(line.amount) > 0 for line in lines):
+        raise ValidationError(
+            {"items": _("A return can only have negative quantities.")}
+        )
+    sign_amount = (lambda a: abs(a)) if is_return else (lambda a: a)
+
     eng_lines = [
         engine.LineInput(
-            amount=Decimal(line.amount),
+            amount=sign_amount(Decimal(line.amount)),
             taxable=line.gst_treatment == GSTTreatment.TAXABLE,
             item_tax_rate={
                 k: Decimal(str(v)) for k, v in (line.item_tax_rate or {}).items()
@@ -577,6 +586,8 @@ def compute(
             round_off_gst_values=company.round_off_gst_values,
         ),
     )
+    if is_return:
+        result = engine.negate(result)
 
     for line, res in zip(lines, result.lines):
         line.gst_rate = res.gst_rate

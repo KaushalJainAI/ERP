@@ -37,6 +37,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: none;
 }
 
+/* Keep table cells on one line and let the wrapper scroll sideways, instead of
+   squeezing every column into a tall, word-per-line stack (phones, and desktop
+   next to the module sidebar). */
+.overflow-x-auto > table :is(th, td):not([colspan]) {
+  white-space: nowrap;
+}
+
 @keyframes pop-in {
   from {
     opacity: 0;
@@ -49,4 +56,54 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .animate-pop-in {
   animation: pop-in 0.12s ease-out;
+}
+
+/* Party statement: a light "paper" document, shown on screen and printed (Print / Save as PDF).
+   In print the app (#root) is hidden and the .print-only portal copy is shown instead. */
+.print-only {
+  display: none;
+}
+.stmt {
+  background: #fff;
+  color: #111;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.stmt h1 { font-size: 20px; font-weight: 700; margin: 0; }
+.stmt h2 { font-size: 16px; font-weight: 700; margin: 0; }
+.stmt h3 { font-size: 13px; font-weight: 700; margin: 18px 0 6px; }
+.stmt p { margin: 2px 0; }
+.stmt-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 10px; }
+.stmt-title { text-align: end; }
+.stmt-party { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 12px 0; }
+.stmt table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.stmt th, .stmt td { border-bottom: 1px solid #ccc; padding: 4px 6px; text-align: start; vertical-align: top; }
+.stmt th { background: #f1f1f1; font-weight: 700; }
+.stmt .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stmt .strong td { font-weight: 700; background: #fafafa; }
+.stmt small { color: #555; }
+.stmt-foot { margin-top: 20px; color: #555; font-size: 11px; }
+@media print {
+  #root,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .stmt {
+    max-width: none;
+    padding: 0;
+  }
+  .stmt tr { break-inside: avoid; }
+  .stmt thead { display: table-header-group; }
+  @page {
+    margin: 12mm;
+  }
 }

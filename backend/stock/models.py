@@ -794,3 +794,148 @@ class StockEntryItem(models.Model):
 
     def __str__(self):
         return f"{self.stock_entry.name} - {self.item.code} ({self.qty})"
+
+
+class ReconciliationPurpose(models.TextChoices):
+    OPENING_STOCK = "Opening Stock", "Opening Stock"
+    STOCK_RECONCILIATION = "Stock Reconciliation", "Stock Reconciliation"
+
+
+class StockReconciliation(SubmittableDocument):
+    """Physical count / opening stock: each line states the absolute counted
+    quantity and valuation rate of an item in a warehouse (ERPNext "Stock
+    Reconciliation"). Submit posts one SLE per changed line that moves the Bin
+    to the counted state (``stock.services.ledger.post_reconciliation``) and
+    the GL difference against ``expense_account``.
+    """
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="stock_reconciliations"
+    )
+    posting_date = models.DateField()
+    posting_time = models.TimeField(null=True, blank=True)
+    purpose = models.CharField(
+        max_length=24,
+        choices=ReconciliationPurpose.choices,
+        default=ReconciliationPurpose.STOCK_RECONCILIATION,
+    )
+    # The difference account. Defaults to the company's Stock Adjustment account;
+    # an Opening Stock reconciliation needs a balance-sheet (e.g. Temporary
+    # Opening) account instead.
+    expense_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    # Derived: sum of the lines' ``amount_difference`` (refreshed on save/submit).
+    difference_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(purpose__in=ReconciliationPurpose.values),
+                name="check_stockreco_purpose",
+            )
+        ]
+
+    def validate_before_submit(self):
+        from stock.services import reconciliation
+
+        reconciliation.prepare_for_submit(self)
+
+    def on_submit(self):
+        from stock.services import reconciliation
+
+        reconciliation.post(self)
+
+    def on_cancel(self):
+        from accounts.services import gl as gl_service
+        from stock.services import ledger as stock_service
+
+        stock_service.reverse(self)
+        gl_service.reverse(self)  # no-op when perpetual inventory is off
+
+    def __str__(self):
+        return f"{self.name} [{self.purpose}]"
+
+
+class StockReconciliationItem(models.Model):
+    reconciliation = models.ForeignKey(
+        StockReconciliation, on_delete=models.CASCADE, related_name="items"
+    )
+    item = models.ForeignKey(
+        Item, on_delete=models.PROTECT, related_name="stock_reconciliation_items"
+    )
+    warehouse = models.ForeignKey(
+        Warehouse, on_delete=models.PROTECT, related_name="stock_reconciliation_items"
+    )
+    batch = models.ForeignKey(
+        Batch,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="stock_reconciliation_items",
+    )
+    # What was counted. Blank = keep the current value (a rate-only correction
+    # leaves ``qty`` blank, a quantity-only count leaves the rate blank).
+    qty = models.DecimalField(max_digits=18, decimal_places=3, null=True, blank=True)
+    valuation_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, null=True, blank=True
+    )
+    # Server-derived snapshot of the stock before / after, for display and audit.
+    current_qty = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal("0.000")
+    )
+    current_valuation_rate = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal("0.000000")
+    )
+    quantity_difference = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal("0.000")
+    )
+    amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    current_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    amount_difference = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        ordering = ("pk",)
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(qty__isnull=True) | models.Q(qty__gte=0),
+                name="check_stockrecoitem_qty_non_negative",
+            ),
+            models.CheckConstraint(
+                check=models.Q(valuation_rate__isnull=True)
+                | models.Q(valuation_rate__gte=0),
+                name="check_stockrecoitem_rate_non_negative",
+            ),
+            models.CheckConstraint(
+                check=models.Q(qty__isnull=False)
+                | models.Q(valuation_rate__isnull=False),
+                name="check_stockrecoitem_qty_or_rate",
+            ),
+            # No duplicate item+warehouse(+batch) rows; NULL batches are not
+            # equal in a plain UNIQUE, so the batch-less case is its own index.
+            models.UniqueConstraint(
+                fields=["reconciliation", "item", "warehouse", "batch"],
+                condition=models.Q(batch__isnull=False),
+                name="unique_stockrecoitem_with_batch",
+            ),
+            models.UniqueConstraint(
+                fields=["reconciliation", "item", "warehouse"],
+                condition=models.Q(batch__isnull=True),
+                name="unique_stockrecoitem_without_batch",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.reconciliation.name} - {self.item.code} @ {self.warehouse.name}"

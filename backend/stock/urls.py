@@ -8,6 +8,7 @@ from stock.views import (
     StockLedgerEntryViewSet,
     BinViewSet,
     StockEntryViewSet,
+    StockReconciliationViewSet,
     BatchViewSet,
     PriceListViewSet,
     ItemPriceViewSet,
@@ -30,6 +31,11 @@ router.register("item-prices", ItemPriceViewSet, basename="item-price")
 router.register("sle", StockLedgerEntryViewSet, basename="sle")
 router.register("bins", BinViewSet, basename="bin")
 router.register("stock-entries", StockEntryViewSet, basename="stock-entry")
+router.register(
+    "stock-reconciliations",
+    StockReconciliationViewSet,
+    basename="stock-reconciliation",
+)
 
 urlpatterns = [
     path("item-prices/rate/", item_price_rate, name="item-price-rate"),

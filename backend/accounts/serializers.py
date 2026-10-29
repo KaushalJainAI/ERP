@@ -163,6 +163,11 @@ class JournalEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "total_debit",
             "total_credit",
             "user_remark",
+            "voucher_type",
+            "cheque_no",
+            "cheque_date",
+            "bill_no",
+            "bill_date",
             "amended_from",
             "lines",
             "created_at",
@@ -510,6 +515,103 @@ class TaxableSerializerMixin:
         ):
             validated_data["place_of_supply"] = None
         return super().update(instance, validated_data)
+
+
+class SignedQtyLineItemMixin:
+    """Line serializer mixin of an invoice that may be a return: the quantity must
+    not be zero. Its sign (negative on a return, positive otherwise) depends on the
+    header, so ``ReturnSerializerMixin.validate`` checks it."""
+
+    def validate_qty(self, value):
+        if value is None or value == 0:
+            raise serializers.ValidationError(_("Quantity must not be zero."))
+        return value
+
+
+#: Header fields of an invoice that can be a return (Sales / Purchase Invoice).
+RETURN_HEADER_FIELDS = (
+    "is_return",
+    "return_against",
+    "return_against_name",
+    "update_outstanding_for_self",
+)
+
+
+class ReturnSerializerMixin:
+    """Serializer mixin for Sales / Purchase Invoice (put before
+    ``TaxableSerializerMixin``): ``is_return`` / ``return_against`` and the sign
+    convention (a return has negative quantities, an invoice positive ones).
+
+    The server re-validates all of it at submit (``accounts.services.returns``) and
+    the database CHECKs the header; this only turns the obvious mistakes into a 400
+    on save. A return is auto-numbered from ``return_name_prefix``.
+    """
+
+    return_name_prefix = ""
+
+    def validate(self, attrs):
+        from accounts.services import returns as returns_service
+
+        attrs = super().validate(attrs)
+        instance = self.instance
+        is_return = attrs.get("is_return", instance.is_return if instance else False)
+        if (
+            instance is not None
+            and "is_return" in attrs
+            and attrs["is_return"] != instance.is_return
+        ):
+            raise serializers.ValidationError(
+                {"is_return": _("A document cannot be converted to or from a return.")}
+            )
+        against = attrs.get(
+            "return_against", instance.return_against if instance else None
+        )
+        if against is not None:
+            if not is_return:
+                raise serializers.ValidationError(
+                    {"return_against": _("Only a return can point at an original.")}
+                )
+            if instance is not None and against.pk == instance.pk:
+                raise serializers.ValidationError(
+                    {
+                        "return_against": _(
+                            "A document cannot be returned against itself."
+                        )
+                    }
+                )
+        link = returns_service.link_field(self.Meta.model)
+        for index, row in enumerate(attrs.get("items") or [], start=1):
+            qty = row.get("qty")
+            if qty is not None and ((qty < 0) != is_return):
+                raise serializers.ValidationError(
+                    {
+                        "items": _(
+                            "Row %(n)s: the quantity must be negative in a return "
+                            "and positive otherwise."
+                        )
+                        % {"n": index}
+                    }
+                )
+            original_line = row.get(link)
+            if original_line is not None and (
+                against is None
+                or getattr(original_line, self.Meta.model.item_fk_name()).pk
+                != against.pk
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "items": _("Row %(n)s: the original row is not on %(name)s.")
+                        % {"n": index, "name": against.name if against else "-"}
+                    }
+                )
+        return attrs
+
+    def create(self, validated_data):
+        from core.models import NamingSeries
+
+        if validated_data.get("is_return") and not validated_data.get("name"):
+            validated_data["name"] = NamingSeries.next(self.return_name_prefix)
+        return super().create(validated_data)
 
 
 # ------------------------------------------------------- dry-run calculation

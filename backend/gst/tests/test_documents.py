@@ -914,6 +914,7 @@ class RowValidationTests(GSTDocBase):
                 "taxes": [{"account": cess.id, "rate": "2"}],
             },
             format="json",
+            HTTP_X_COMPANY_ID=str(plain.id),
         )
         self.assertEqual(res.status_code, 201, res.content)
         self.assertEqual(D(res.data["grand_total"]), D("102.00"))
@@ -938,6 +939,7 @@ class RowValidationTests(GSTDocBase):
                 "taxes": [{"account": tag.id, "rate": "9"}],
             },
             format="json",
+            HTTP_X_COMPANY_ID=str(plain.id),
         )
         self.assertEqual(res.status_code, 400, res.content)
         del roots
@@ -1259,9 +1261,13 @@ class DBConstraintTests(GSTDocBase):
         del acc
 
     def test_purchase_and_invoice_tables_carry_the_same_constraints(self):
-        for model in (SalesInvoiceTax, PurchaseOrderTax):
-            names = {c.name for c in model._meta.constraints}
-            self.assertEqual(len(names), 7, names)
+        names = {c.name for c in PurchaseOrderTax._meta.constraints}
+        self.assertEqual(len(names), 7, names)
+        # Invoice tax rows drop ``tax_amount >= 0``: a return's rows are negative
+        # (the header CHECKs carry the sign, see PayableDocument.return_constraints).
+        names = {c.name for c in SalesInvoiceTax._meta.constraints}
+        self.assertEqual(len(names), 6, names)
+        self.assertFalse([n for n in names if n.endswith("tax_amount_gte_0")])
         # Every line model carries the four GST line constraints (names are
         # expanded per model). PurchaseInvoiceItem additionally has the batch
         # expiry-ordering CHECK (Task 1b of the manufacturing design).
@@ -1278,16 +1284,22 @@ class DBConstraintTests(GSTDocBase):
                 for c in model._meta.constraints
                 if c.name.startswith(prefix)
             }
-            self.assertEqual(suffixes, gst_line_suffixes, model.__name__)
+            expected = set(gst_line_suffixes)
+            if model is not PurchaseOrderItem:
+                # Invoice lines may be returns: GST amounts share a sign instead.
+                expected.remove("gst_amounts_gte_0")
+                expected.add("gst_amounts_same_sign")
+            self.assertEqual(suffixes, expected, model.__name__)
         self.assertIn(
             "check_purchaseinvoiceitem_expiry_after_manufacturing",
             {c.name for c in PurchaseInvoiceItem._meta.constraints},
         )
         for model in (SalesOrder, PurchaseOrder):
             self.assertEqual(len(model._meta.constraints), 3)
-        # Invoices also carry the outstanding_amount >= 0 CHECK.
+        # Invoices also carry the outstanding-sign CHECK and the three return CHECKs
+        # (return_against needs is_return, not self, amount sign).
         for model in (SalesInvoice, PurchaseInvoice):
-            self.assertEqual(len(model._meta.constraints), 4)
+            self.assertEqual(len(model._meta.constraints), 7)
 
 
 class DryRunTests(GSTDocBase):

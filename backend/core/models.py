@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models, transaction
 from django.db.models import F, Q
 from django.db.models.functions import Length
@@ -286,6 +287,54 @@ class Company(TimeStampedModel):
     gstin = models.CharField(max_length=20, null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
+    # Company profile (the details an organisation needs on file for statutory
+    # documents, correspondence and its own records). Accounting/GST settings
+    # remain the source of truth for transactions; these fields are descriptive.
+    legal_name = models.CharField(max_length=250, blank=True, default="")
+    phone_no = models.CharField(max_length=30, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    website = models.URLField(blank=True, default="")
+    address_line1 = models.CharField(max_length=250, blank=True, default="")
+    address_line2 = models.CharField(max_length=250, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    pincode = models.CharField(
+        max_length=6,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(
+                regex=r"^[1-9][0-9]{5}$",
+                message=_("Enter a valid 6-digit PIN code."),
+                code="invalid_pincode",
+            )
+        ],
+    )
+    pan = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(
+                regex=r"^[A-Z]{5}[0-9]{4}[A-Z]$",
+                message=_("Enter a valid 10-character PAN."),
+                code="invalid_pan",
+            )
+        ],
+    )
+    cin = models.CharField(
+        max_length=21,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(
+                regex=r"^[LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$",
+                message=_("Enter a valid 21-character CIN."),
+                code="invalid_cin",
+            )
+        ],
+    )
+    date_of_incorporation = models.DateField(null=True, blank=True)
+
     # Perpetual inventory (ERPNext: Company.enable_perpetual_inventory and the
     # default_inventory_account / stock_adjustment_account / default_expense_account
     # [= Cost of Goods Sold] accounts). Defaults False so companies without a chart
@@ -359,8 +408,19 @@ class Company(TimeStampedModel):
         verbose_name_plural = "Companies"
 
     def clean(self):
-        """GST master checks (run by the admin form; the API for companies is read-only)."""
+        """Company master checks (admin form and the profile PATCH endpoint)."""
         from gst.validators import check_gstin, normalise_gstin
+
+        self.legal_name = (self.legal_name or "").strip()
+        self.phone_no = (self.phone_no or "").strip()
+        self.email = (self.email or "").strip()
+        self.website = (self.website or "").strip()
+        self.address_line1 = (self.address_line1 or "").strip()
+        self.address_line2 = (self.address_line2 or "").strip()
+        self.city = (self.city or "").strip()
+        self.pincode = (self.pincode or "").strip()
+        self.pan = (self.pan or "").strip().upper()
+        self.cin = (self.cin or "").strip().upper()
 
         errors = {}
         gstin = normalise_gstin(self.gstin)
@@ -426,6 +486,43 @@ class Company(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class UserCompany(TimeStampedModel):
+    """Which companies a user may enter, and which one is their default.
+
+    Company is the tenant boundary: every company-owned queryset is filtered by
+    the user's active company (``core.company_context``). Membership is the
+    permission — a user with no row here sees no company data at all. Roles stay
+    global; this model only answers *which* companies, not *what* they may do.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="company_memberships",
+    )
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="user_memberships"
+    )
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "company"], name="unique_user_company"
+            ),
+            models.UniqueConstraint(
+                fields=["user"],
+                condition=Q(is_default=True, is_active=True),
+                name="unique_default_company_per_user",
+            ),
+        ]
+        ordering = ("user_id", "-is_default", "company_id")
+
+    def __str__(self):
+        return f"{self.user} @ {self.company}"
 
 
 class FiscalYear(TimeStampedModel):
@@ -590,3 +687,114 @@ class FieldTranslation(models.Model):
         return (
             f"{self.model_label}:{self.object_id}.{self.field_name} [{self.language}]"
         )
+
+
+def attachment_upload_to(instance, filename):
+    """``attachments/YYYY/MM/DD/<uuid>.<ext>``: partitioned by date, and the stored
+    name never contains anything the client sent except the (validated) extension."""
+    import os
+    import uuid
+
+    from django.utils import timezone
+
+    ext = os.path.splitext(filename)[1].lower()
+    today = timezone.localdate()
+    return f"attachments/{today:%Y/%m/%d}/{uuid.uuid4().hex}{ext}"
+
+
+class AttachmentQuerySet(models.QuerySet):
+    """Proof is never rewritten, and bulk deletes still go through the guards."""
+
+    def update(self, **kwargs):
+        raise ValidationError(_("Attachments are immutable and cannot be updated."))
+
+    def bulk_update(self, objs, fields, batch_size=None):
+        raise ValidationError(_("Attachments are immutable and cannot be updated."))
+
+    def delete(self):
+        count = 0
+        for obj in self:
+            obj.delete()
+            count += 1
+        return count, {"core.Attachment": count}
+
+
+class Attachment(models.Model):
+    """A proof document (scan, photo, PDF...) attached to a document or master.
+
+    Mirrors ERPNext's ``File`` (``attached_to_doctype`` / ``attached_to_name``) but
+    is append-only: a row is never edited, and when the parent is submitted or
+    cancelled the row can never be deleted either (that is the proof). The upload
+    rules (type, size, RBAC) live in ``core.attachments``; the guarantees below
+    hold for any code path, API or not.
+    """
+
+    model_label = models.CharField(max_length=120)  # e.g. "selling.SalesInvoice"
+    object_id = models.CharField(max_length=60)  # str(parent.pk)
+    file = models.FileField(upload_to=attachment_upload_to, max_length=255)
+    original_filename = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100)  # sniffed, never client-sent
+    size = models.PositiveBigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    description = models.CharField(max_length=240, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    objects = AttachmentQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-uploaded_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["model_label", "object_id"], name="attachment_parent_idx"
+            )
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(size__gt=0), name="attachment_size_positive"
+            ),
+            models.CheckConstraint(
+                check=Exact(Length("sha256"), 64),
+                name="attachment_sha256_length",
+            ),
+            models.CheckConstraint(
+                check=~Q(object_id="") & ~Q(model_label="") & ~Q(original_filename=""),
+                name="attachment_parent_and_name_present",
+            ),
+            # The same bytes attached twice to one record is a slip, not proof.
+            models.UniqueConstraint(
+                fields=["model_label", "object_id", "sha256"],
+                name="attachment_unique_file_per_parent",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk and not self._state.adding:
+            raise ValidationError(_("Attachments are immutable and cannot be updated."))
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        from core import attachments
+
+        parent = attachments.get_parent(self.model_label, self.object_id)
+        if parent is not None and attachments.parent_docstatus(parent) in (
+            DocStatus.SUBMITTED,
+            DocStatus.CANCELLED,
+        ):
+            raise ValidationError(
+                _(
+                    "Proof attached to a submitted or cancelled document cannot be deleted."
+                )
+            )
+        storage, name = self.file.storage, self.file.name
+        result = super().delete(*args, **kwargs)
+        if name:
+            transaction.on_commit(lambda: storage.delete(name))
+        return result
+
+    def __str__(self):
+        return f"{self.original_filename} -> {self.model_label}:{self.object_id}"

@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { LayoutDashboard, LogOut, Menu, Moon, Sun, User as UserIcon, X } from "lucide-react";
+import { Building2, Home, LogOut, Menu, Moon, Sun, User as UserIcon, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/context/CompanyContext";
 import { useTheme } from "@/hooks/useTheme";
 import { isActivePath, useActiveModule, useModuleNav, type ModuleNav } from "@/resources/nav";
 import type { NavLink } from "@/types";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { badgeClass, useNavBadges } from "@/resources/navBadges";
 
 /** Closes a popover on outside click or Escape. */
 function useDismiss(open: boolean, close: () => void) {
@@ -103,7 +106,7 @@ const ThemeToggle: React.FC = () => {
   );
 };
 
-/** Pill link in the module sub-bar and the mobile drawer. */
+/** Pill link in the mobile drawer. */
 const SubLink: React.FC<{ link: NavLink; active: boolean }> = ({ link, active }) => {
   const { t } = useTranslation();
   const Icon = link.icon;
@@ -124,17 +127,25 @@ const SubLink: React.FC<{ link: NavLink; active: boolean }> = ({ link, active })
 const MobileDrawer: React.FC<{ nav: ModuleNav[]; onClose: () => void }> = ({ nav, onClose }) => {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+  // Open with the current page in view rather than at the top of a long list.
+  useEffect(() => {
+    navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "center" });
+  }, []);
   return (
     <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label={t("shell.main_navigation")}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
-      <nav className="absolute inset-y-0 start-0 w-[85%] max-w-xs bg-slate-900 border-e border-slate-800 shadow-2xl overflow-y-auto p-4 space-y-5">
+      <nav ref={navRef} className="absolute inset-y-0 start-0 w-[85%] max-w-xs bg-slate-900 border-e border-slate-800 shadow-2xl overflow-y-auto p-4 space-y-5">
         <div className="flex items-center justify-between">
           <img src="/logo.png" alt="" className="h-8 w-auto rounded-md bg-white p-0.5" />
           <button type="button" onClick={onClose} aria-label={t("common.close")} className="p-2 rounded-lg text-slate-500 hover:bg-slate-800/70">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <SubLink link={{ path: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard }} active={pathname === "/dashboard"} />
+        <SubLink
+          link={{ path: "/", labelKey: "home.title", icon: Home }}
+          active={pathname === "/" || pathname === "/home"}
+        />
         {nav.map((n) => (
           <div key={n.module.key} className="space-y-1">
             <Link to={n.path} className="block px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-indigo-300">
@@ -155,11 +166,14 @@ const MobileDrawer: React.FC<{ nav: ModuleNav[]; onClose: () => void }> = ({ nav
   );
 };
 
-/** App chrome: brand, module tabs, language / theme / user; plus the current module's links. */
+/** App chrome: brand, module tabs, language / theme / user. The module's own links live in <Sidebar>. */
 export const TopBar: React.FC = () => {
   const { t } = useTranslation();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { activeCompany, companies, clearActiveCompany } = useCompany();
   const nav = useModuleNav();
+  const badges = useNavBadges();
   const active = useActiveModule(nav);
   const [drawer, setDrawer] = useState(false);
   useEffect(() => setDrawer(false), [pathname]);
@@ -183,19 +197,45 @@ export const TopBar: React.FC = () => {
           <Menu className="w-5 h-5" />
         </button>
 
-        <Link to="/dashboard" className="flex items-center gap-2.5 shrink-0 me-2" aria-label={t("appName")}>
+        <Link to="/" className="flex items-center gap-2.5 shrink-0 me-2" aria-label={t("appName")}>
           <img src="/logo.png" alt="" className="h-8 w-auto rounded-md bg-white p-0.5" />
           <span className="hidden sm:block h-5 w-px bg-slate-800" />
           <span className="hidden sm:block text-sm font-semibold tracking-tight text-slate-100">{t("appName")}</span>
         </Link>
 
+        {activeCompany && (
+          <button
+            type="button"
+            onClick={() => {
+              if (companies.length > 1) {
+                clearActiveCompany();
+                navigate("/");
+              }
+            }}
+            title={
+              companies.length > 1
+                ? t("company.switch_hint", { name: activeCompany.name })
+                : activeCompany.name
+            }
+            className={`hidden lg:flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs font-medium text-slate-300 ${
+              companies.length > 1 ? "hover:border-indigo-700/70 hover:text-indigo-200" : "cursor-default"
+            }`}
+          >
+            <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span className="max-w-[9rem] truncate">{activeCompany.name}</span>
+          </button>
+        )}
         <nav className="hidden md:flex items-center min-w-0 overflow-x-auto no-scrollbar" aria-label={t("shell.main_navigation")}>
-          <Link to="/dashboard" className={tabCls(pathname === "/dashboard")}>
-            {t("dashboard")}
+          <Link to="/" className={tabCls(pathname === "/" || pathname === "/home")}>
+            {t("home.title")}
           </Link>
           {nav.map((n) => (
             <Link key={n.module.key} to={n.path} className={tabCls(active?.module.key === n.module.key)}>
               {t(n.module.titleKey)}
+              {(() => {
+                const c = [...n.records, ...n.reports].reduce((sum, l) => sum + (badges[l.badge ?? ""] ?? 0), 0);
+                return c > 0 ? <span className={badgeClass}>{c}</span> : null;
+              })()}
             </Link>
           ))}
         </nav>
@@ -209,26 +249,8 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      {active && (
-        <div className="border-t border-slate-800/70">
-          <nav
-            className="mx-auto max-w-[1440px] px-4 sm:px-6 h-11 flex items-center gap-1 overflow-x-auto no-scrollbar"
-            aria-label={t(active.module.titleKey)}
-          >
-            {active.records.map((l) => (
-              <SubLink key={l.path} link={l} active={isActivePath(pathname, l.path)} />
-            ))}
-            {active.reports.length > 0 && active.records.length > 0 && (
-              <span className="shrink-0 mx-1.5 h-4 w-px bg-slate-800" aria-hidden />
-            )}
-            {active.reports.map((l) => (
-              <SubLink key={l.path} link={l} active={isActivePath(pathname, l.path)} />
-            ))}
-          </nav>
-        </div>
-      )}
-
-      {drawer && <MobileDrawer nav={nav} onClose={() => setDrawer(false)} />}
+      {/* Portalled: the header's backdrop-filter would otherwise trap the drawer's `fixed` inside the 56px bar. */}
+      {drawer && createPortal(<MobileDrawer nav={nav} onClose={() => setDrawer(false)} />, document.body)}
     </header>
   );
 };

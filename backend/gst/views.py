@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from django.utils.translation import gettext as _
 
+from core.company_context import resolve_active_company
 from gst.validators import check_gstin
 
 
@@ -53,7 +54,7 @@ def supply_context(request):
     from rest_framework.exceptions import PermissionDenied
 
     from buying.models import Supplier
-    from core.models import Company, State
+    from core.models import State
     from gst.services import supply
     from selling.models import Customer
     from users.permissions import user_has_model_permission
@@ -63,9 +64,7 @@ def supply_context(request):
     if direction not in (supply.SALES, supply.PURCHASE):
         raise ValidationError({"direction": _("Must be 'Sales' or 'Purchase'.")})
     errors = {}
-    company = Company.objects.filter(pk=params.get("company") or 0).first()
-    if company is None:
-        errors["company"] = _("A valid company is required.")
+    company = resolve_active_company(request)
     party_model, label = (
         (Customer, "selling.Customer")
         if direction == supply.SALES
@@ -133,7 +132,13 @@ def require_all_model_permissions(*model_labels, flag="can_read"):
 def _report_context(request, period_required=True):
     from gst import reports
 
-    company = reports.resolve_company(request.query_params)
+    from core.company_context import resolve_active_company
+
+    company = resolve_active_company(request)
+    if not (company.gstin or "").strip():
+        raise ValidationError(
+            {"company": _("The company has no GSTIN; GST reports are unavailable.")}
+        )
     from_date, to_date = reports.resolve_period(request.query_params, period_required)
     return company, from_date, to_date
 

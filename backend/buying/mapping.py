@@ -56,6 +56,35 @@ def make_purchase_invoice(purchase_order):
     return invoice
 
 
+def make_purchase_return(invoice):
+    """Draft Purchase Return (debit note) for the not-yet-returned part of a
+    submitted Purchase Invoice (ERPNext ``make_purchase_return``). Quantities are
+    negative; a batch-tracked line keeps the batch the purchase created."""
+    mapping.require_returnable(invoice)
+    lines = mapping.return_line_values(invoice)
+    with transaction.atomic():
+        ret = PurchaseInvoice.objects.create(
+            name=NamingSeries.next("PRET-2026-"),
+            supplier=invoice.supplier,
+            company=invoice.company,
+            posting_date=max(datetime.date.today(), invoice.posting_date),
+            price_list=invoice.price_list,
+            taxes_and_charges=invoice.taxes_and_charges,
+            place_of_supply=invoice.place_of_supply,
+            is_reverse_charge=invoice.is_reverse_charge,
+            update_stock=invoice.update_stock,
+            credit_to=invoice.credit_to,
+            expense_account=invoice.expense_account,
+            is_return=True,
+            return_against=invoice,
+            update_outstanding_for_self=True,
+        )
+        for line in lines:
+            PurchaseInvoiceItem.objects.create(purchase_invoice=ret, **line)
+        mapping.copy_order_taxes(invoice, ret, PurchaseInvoiceTax, "purchase_invoice")
+    return ret
+
+
 def make_payment_entry(invoice):
     """Draft 'Pay' Payment Entry for a submitted Purchase Invoice's outstanding amount."""
     return mapping.build_payment_entry(

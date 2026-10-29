@@ -205,3 +205,35 @@ def calculate(
         rounding_adjustment=rounding_adjustment,
         rounded_total=rounded_total,
     )
+
+
+def negate(result: Result) -> Result:
+    """The mirror image of ``result``: every amount negated, rates untouched.
+
+    A return (credit / debit note) is calculated as its positive twin and then
+    negated, so its tax is exactly the mirror of what the original charged
+    (``ROUND_HALF_UP`` rounds away from zero, so it is symmetric) and the
+    per-line residual logic only ever sees positive amounts.
+    """
+    return Result(
+        net_total=-result.net_total,
+        lines=[
+            LineResult(
+                gst_rate=ln.gst_rate,
+                cgst_amount=-ln.cgst_amount,
+                sgst_amount=-ln.sgst_amount,
+                igst_amount=-ln.igst_amount,
+            )
+            for ln in result.lines
+        ],
+        rows=[
+            RowResult(
+                net_amount=-r.net_amount, tax_amount=-r.tax_amount, total=-r.total
+            )
+            for r in result.rows
+        ],
+        total_taxes_and_charges=-result.total_taxes_and_charges,
+        grand_total=-result.grand_total,
+        rounding_adjustment=-result.rounding_adjustment,
+        rounded_total=-result.rounded_total,
+    )

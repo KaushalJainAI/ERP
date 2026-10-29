@@ -15,6 +15,7 @@ from core.tally_import.masters import (
     clean_name,
     hsn_from_xml,
     item_gst_flags,
+    item_tax_template_name,
     normalise_hsn,
     normalise_uom,
 )
@@ -74,6 +75,7 @@ class StockMasters:
 
 def build_stock_masters(src, years, company, log=print) -> StockMasters:
     from core.models import FiscalYear  # noqa: F401  (ensures apps loaded)
+    from accounts.models import ItemTaxTemplate
     from stock.models import UOM, Item, ItemGroup, ValuationMethod, Warehouse
 
     sm = StockMasters()
@@ -138,6 +140,9 @@ def build_stock_masters(src, years, company, log=print) -> StockMasters:
     trows.sort(key=lambda r: fy_of.get(r["company_year"], ""))
     for r in trows:
         tax_by_item[r["name"]] = (r["taxability"], r["isnongstgoods"])
+    igst_by_item = src.item_gst_rates()
+    templates = {t.name: t for t in ItemTaxTemplate.objects.all()}
+    template_unknown: List[tuple] = []
 
     # ---- items (union of all years, latest year's attributes) ----
     latest_row: Dict[str, dict] = {}
@@ -161,6 +166,12 @@ def build_stock_masters(src, years, company, log=print) -> StockMasters:
         group = sm.item_groups.get(parent, root) if parent != "Primary" else root
         uom = uoms[sm.uom_map[row["baseunits"] or ""]]
         nil_exempt, non_gst = item_gst_flags(*tax_by_item.get(name, (None, None)))
+        tname = item_tax_template_name(
+            *tax_by_item.get(name, (None, None)), igst_by_item.get(name)
+        )
+        template = templates.get(tname) if tname else None
+        if tname and template is None:
+            template_unknown.append((name, tname))
         item, _ = Item.objects.get_or_create(
             code=code,
             defaults={
@@ -173,10 +184,13 @@ def build_stock_masters(src, years, company, log=print) -> StockMasters:
                 "gst_hsn_code": hsn_by_item.get(name, ""),
                 "is_nil_exempt": nil_exempt,
                 "is_non_gst": non_gst,
+                "item_tax_template": template,
             },
         )
         sm.items[name] = item
     sm.notes.update(
+        tax_template_set=sum(1 for i in sm.items.values() if i.item_tax_template_id),
+        tax_template_unknown=template_unknown,
         truncated=truncated,
         collisions=collisions,
         hsn_set=sum(1 for n in sm.items if n in hsn_by_item),
@@ -243,8 +257,9 @@ def _post_entry(company, name, etype, date, time, wh, lines):
     return se
 
 
-def import_stock_year(src, y, sm: StockMasters, company, log=print) -> dict:
-    """Post the opening receipt and every inventory voucher of one year."""
+def import_stock_year(src, y, sm: StockMasters, company, log=print, links=None) -> dict:
+    """Post the opening receipt and every inventory voucher of one year.
+    ``links`` (if given) receives voucher row_key -> [Stock Entry names]."""
     from stock.models import Bin, StockEntryType
 
     cy = y.cy
@@ -382,6 +397,8 @@ def import_stock_year(src, y, sm: StockMasters, company, log=print) -> dict:
             wh,
             lines,
         )
+        if links is not None:
+            links.setdefault(k, []).append(f"{prefix}-STK-{seq:06d}")
         stats["entries"] += 1
         stats["receipts" if is_receipt else "issues"] += 1
         stats["lines_posted"] += len(lines)

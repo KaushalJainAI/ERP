@@ -281,6 +281,21 @@ def item_gst_flags(taxability: Optional[str], non_gst: Optional[str] = None):
     return t in ("exempt", "nil rated", "nil-rated", "nil rated/exempt"), False
 
 
+def item_tax_template_name(
+    taxability: Optional[str], non_gst: Optional[str], igst_rate
+) -> Optional[str]:
+    """Seeded ItemTaxTemplate name for a Tally item (None if no rate known)."""
+    nil_exempt, is_non_gst = item_gst_flags(taxability, non_gst)
+    if is_non_gst:
+        return "Non-GST"
+    if nil_exempt:
+        return "Exempted" if "exempt" in (taxability or "").lower() else "Nil Rated"
+    if igst_rate is None:
+        return None
+    rate = Decimal(igst_rate).normalize()
+    return f"GST {rate:f}%"
+
+
 def state_code_from_name(statename: Optional[str]) -> Optional[str]:
     """Tally ledstatename -> 2-digit GST state code (None if unknown)."""
     from core.gst_states import STATES

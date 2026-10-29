@@ -82,8 +82,8 @@ export function sumDec(values: Array<string | number | null | undefined>, places
 }
 
 /** True when `value` is an in-progress/complete decimal with at most `places` fraction digits. */
-export function isValidDecimalInput(value: string, places: number): boolean {
+export function isValidDecimalInput(value: string, places: number, allowNegative = false): boolean {
   if (value === "") return true;
-  const re = new RegExp(`^\\d*(\\.\\d{0,${places}})?$`);
+  const re = new RegExp(`^${allowNegative ? "-?" : ""}\\d*(\\.\\d{0,${places}})?$`);
   return re.test(value);
 }

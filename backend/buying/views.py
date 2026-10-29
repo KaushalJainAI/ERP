@@ -10,6 +10,7 @@ from buying.serializers import (
 )
 from accounts.serializers import PaymentEntrySerializer
 from buying import mapping
+from core.company_context import CompanyScopedMixin
 from core.mixins import (
     AuditLogMixin,
     MappedDocumentActionMixin,
@@ -27,7 +28,7 @@ class SupplierGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
     search_fields = ["name"]
 
 
-class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
+class SupplierViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     queryset = Supplier.objects.all().select_related(
         "company", "supplier_group", "state"
     )
@@ -45,7 +46,10 @@ class SupplierViewSet(AuditLogMixin, viewsets.ModelViewSet):
 
 
 class PurchaseOrderViewSet(
-    MappedDocumentActionMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+    CompanyScopedMixin,
+    MappedDocumentActionMixin,
+    SubmittableViewSetMixin,
+    viewsets.ModelViewSet,
 ):
     action_permission_flags = {
         "make_purchase_invoice": "can_read",
@@ -90,10 +94,14 @@ class PurchaseOrderViewSet(
 
 
 class PurchaseInvoiceViewSet(
-    MappedDocumentActionMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+    CompanyScopedMixin,
+    MappedDocumentActionMixin,
+    SubmittableViewSetMixin,
+    viewsets.ModelViewSet,
 ):
     action_permission_flags = {
         "make_payment_entry": "can_read",
+        "make_purchase_return": "can_read",
         "update_rates": "can_write",
     }
     queryset = (
@@ -103,7 +111,14 @@ class PurchaseInvoiceViewSet(
     )
     serializer_class = PurchaseInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "supplier", "docstatus", "update_stock"]
+    filterset_fields = [
+        "company",
+        "supplier",
+        "docstatus",
+        "update_stock",
+        "is_return",
+        "return_against",
+    ]
     search_fields = ["name", "supplier__name"]
     ordering_fields = ["posting_date", "created_at"]
 
@@ -112,6 +127,11 @@ class PurchaseInvoiceViewSet(
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
                 {"error": "Rates can only be refreshed on a draft."}, status=409
+            )
+        if doc.is_return:
+            return Response(
+                {"error": "A return keeps the rates of the original invoice."},
+                status=409,
             )
         changed = pricing_service.reapply_rates(doc)
         doc.calculate_taxes_and_totals()
@@ -122,6 +142,17 @@ class PurchaseInvoiceViewSet(
     @action(detail=True, methods=["post"], url_path="update-rates")
     def update_rates(self, request, pk=None):
         return self._update_rates(request)
+
+    @action(detail=True, methods=["post"], url_path="make-purchase-return")
+    def make_purchase_return(self, request, pk=None):
+        """Draft Purchase Return (debit note) for the not-yet-returned quantity of this
+        submitted invoice (negative quantities)."""
+        return self.map_document(
+            request,
+            mapping.make_purchase_return,
+            "buying.PurchaseInvoice",
+            PurchaseInvoiceSerializer,
+        )
 
     @action(detail=True, methods=["post"], url_path="make-payment-entry")
     def make_payment_entry(self, request, pk=None):
