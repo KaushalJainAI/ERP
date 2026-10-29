@@ -28,6 +28,8 @@ from tally_export.services.maps import (
 
 ZERO = Decimal("0.00")
 INVOICES = ("selling.SalesInvoice", "buying.PurchaseInvoice")
+#: Vouchers whose unallocated party credit is an "On Account" amount in Tally.
+ON_ACCOUNT_SOURCES = ("accounts.PaymentEntry", "accounts.JournalEntry")
 #: The document attribute naming the sales / purchase account of an invoice.
 TRADE_ATTR = {
     "selling.SalesInvoice": "income_account",
@@ -73,6 +75,7 @@ class VoucherDraft:
     action: str  # Create | Cancel
     docstatus: int
     reference: str = ""
+    reference_date: Optional[datetime.date] = None
     narration: str = ""
     party_ledger: str = ""
     party_gstin: str = ""
@@ -146,6 +149,11 @@ def _reference(doc) -> str:
     return ""
 
 
+def _reference_date(doc) -> Optional[datetime.date]:
+    """The date of the party's own document (supplier bill date)."""
+    return getattr(doc, "bill_date", None) or None
+
+
 def _place_and_gstin(doc) -> Tuple[str, str]:
     state = getattr(doc, "place_of_supply", None)
     return (state.name if state else "", getattr(doc, "party_gstin", None) or "")
@@ -187,6 +195,7 @@ def build_voucher(ref: VoucherRef, company, settings, index: MapIndex) -> Vouche
         settings, ref.doctype, _variant(doc, ref.doctype)
     )
     draft.reference = _reference(doc)
+    draft.reference_date = _reference_date(doc) if draft.reference else None
     draft.place_of_supply, draft.party_gstin = _place_and_gstin(doc)
     if draft.tally_type == "Stock Journal":
         _build_stock_journal(draft, doc, index)
@@ -235,6 +244,18 @@ def _gl_lines(draft: VoucherDraft, company) -> Tuple[List[_Line], list]:
     return lines, rows
 
 
+def _eiiv_pks(doc) -> set:
+    """Pks of the *Expenses Included In Valuation* account when ``doc`` has bill
+    charges: with perpetual inventory its credit mirrors the capitalised part of the
+    stock leg, so it is folded away together with it (Tally values stock itself)."""
+    if not hasattr(doc, "charges_on_bill"):
+        return set()
+    from buying.services.charges import eiiv_account
+
+    account = eiiv_account(doc.company)
+    return {account.pk} if account is not None else set()
+
+
 def _kind(line: _Line) -> str:
     at = line.account.account_type
     if is_party_account(line.account, line.party):
@@ -270,10 +291,15 @@ def _build_accounting(draft: VoucherDraft, doc, index: MapIndex):
         # Tally values stock itself: the ERP's stock-valuation legs (Stock in
         # Hand / COGS) are not Tally entries. What they net to is part of the
         # purchase cost and is folded into the trade (sales / purchase) ledger.
-        stock_lines = [ln for ln in lines if _kind(ln) == "stock"]
+        eiiv = _eiiv_pks(doc)
+
+        def is_stock(ln):
+            return _kind(ln) == "stock" or ln.account.pk in eiiv
+
+        stock_lines = [ln for ln in lines if is_stock(ln)]
         if stock_lines and trade_account is not None:
             net = sum((ln.amount for ln in stock_lines), ZERO)
-            lines = [ln for ln in lines if _kind(ln) != "stock"]
+            lines = [ln for ln in lines if not is_stock(ln)]
             if net != 0:
                 lines.append(_Line(trade_account, None, None, net))
 
@@ -329,6 +355,11 @@ def _build_accounting(draft: VoucherDraft, doc, index: MapIndex):
 def _bill(draft: VoucherDraft, ln: _Line) -> Bill:
     if ln.against_no == draft.name:
         return Bill("New Ref", draft.name, ln.amount)
+    if ln.against_type in ON_ACCOUNT_SOURCES:
+        # A payment reconciliation consumes a receipt / advance. In Tally that money
+        # sits "On Account" (no bill name), so the debit side of the reconciling
+        # Journal is On Account too and nets against it.
+        return Bill("On Account", "", ln.amount)
     if ln.against_no:
         return Bill("Agst Ref", ln.against_no, ln.amount)
     return Bill("On Account", "", ln.amount)

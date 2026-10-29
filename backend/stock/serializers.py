@@ -1,6 +1,7 @@
 import datetime
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -8,6 +9,8 @@ from stock.models import (
     UOM,
     ItemGroup,
     Item,
+    ItemAttribute,
+    ItemAttributeValue,
     Warehouse,
     Batch,
     PriceList,
@@ -21,6 +24,7 @@ from stock.models import (
 )
 from stock.services import batches as batch_service
 from stock.services import reconciliation as reconciliation_service
+from stock.services import variants as variant_service
 from core.mixins import (
     DraftNestedWriteMixin,
     TranslatedSerializerMixin,
@@ -57,6 +61,16 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
         source="item_tax_template.name", read_only=True, allow_null=True
     )
     item_tax_rate = serializers.SerializerMethodField()
+    variant_of_code = serializers.CharField(
+        source="variant_of.code", read_only=True, allow_null=True
+    )
+    variant_label = serializers.SerializerMethodField()
+    # Read: the item's attribute rows. Write (templates only): the ids of the
+    # attributes its variants vary by.
+    attributes = serializers.SerializerMethodField()
+    template_attributes = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
 
     class Meta:
         model = Item
@@ -82,10 +96,45 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
             "has_batch_no",
             "has_expiry_date",
             "shelf_life_in_days",
+            "has_variants",
+            "variant_of",
+            "variant_of_code",
+            "variant_label",
+            "attributes",
+            "template_attributes",
             "created_at",
             "modified_at",
         )
+        # Variants are made only through ``create-variant`` (which keeps the
+        # combination unique); a plain write can never re-parent an item.
+        read_only_fields = ("variant_of",)
         translatable_fields = ["name", "description"]
+
+    def get_variant_label(self, obj):
+        return variant_service.variant_label(obj)
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # The ids a template varies by, so the form can edit the same field it saves.
+        ret["template_attributes"] = (
+            [r.attribute_id for r in instance.attributes.all()]
+            if instance.has_variants
+            else []
+        )
+        return ret
+
+    def get_attributes(self, obj):
+        return [
+            {
+                "id": r.pk,
+                "attribute": r.attribute_id,
+                "attribute_name": r.attribute.name,
+                "value": r.value_id,
+                "value_label": r.value.value if r.value_id else None,
+                "abbr": r.value.abbr if r.value_id else None,
+            }
+            for r in obj.attributes.all()
+        ]
 
     def get_item_tax_rate(self, obj):
         """``{component: rate}`` from the item's tax template, e.g.
@@ -107,6 +156,26 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
                 {
                     "is_non_gst": _(
                         "An item cannot be both nil-rated/exempt and non-GST."
+                    )
+                }
+            )
+
+        if current("has_variants"):
+            if inst is not None and inst.variant_of_id:
+                raise serializers.ValidationError(
+                    {"has_variants": _("A variant cannot itself have variants.")}
+                )
+            # A template is never stocked (DB CHECK): the flag is server-owned.
+            attrs["is_stock_item"] = False
+        elif inst is not None and inst.has_variants and inst.variants.exists():
+            raise serializers.ValidationError(
+                {"has_variants": _("This template has variants.")}
+            )
+        if attrs.get("template_attributes") and not current("has_variants"):
+            raise serializers.ValidationError(
+                {
+                    "template_attributes": _(
+                        "Only a template item (has variants) declares attributes."
                     )
                 }
             )
@@ -150,9 +219,124 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
         return attrs
 
 
+    def _apply_template_attributes(self, item, ids):
+        try:
+            variant_service.set_template_attributes(item, ids)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError({"template_attributes": e.messages})
+
+    def create(self, validated_data):
+        ids = validated_data.pop("template_attributes", None)
+        with transaction.atomic():
+            item = super().create(validated_data)
+            if ids is not None:
+                self._apply_template_attributes(item, ids)
+        item._prefetched_objects_cache = {}  # the viewset prefetches ``attributes``
+        return item
+
+    def update(self, instance, validated_data):
+        ids = validated_data.pop("template_attributes", None)
+        with transaction.atomic():
+            item = super().update(instance, validated_data)
+            if ids is not None:
+                self._apply_template_attributes(item, ids)
+        item._prefetched_objects_cache = {}  # the viewset prefetches ``attributes``
+        return item
+
+
+class ItemAttributeValueSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = ItemAttributeValue
+        fields = ("id", "value", "abbr")
+
+
+class ItemAttributeSerializer(serializers.ModelSerializer):
+    """Attribute with its allowed values, written together (ERPNext child table)."""
+
+    values = ItemAttributeValueSerializer(many=True)
+
+    class Meta:
+        model = ItemAttribute
+        fields = ("id", "name", "disabled", "values", "created_at", "modified_at")
+
+    def validate_values(self, rows):
+        seen_value, seen_abbr = set(), set()
+        for row in rows:
+            v, a = row["value"].strip().lower(), row["abbr"].strip().lower()
+            if v in seen_value or a in seen_abbr:
+                raise serializers.ValidationError(
+                    _("Values and abbreviations must be unique within an attribute.")
+                )
+            seen_value.add(v)
+            seen_abbr.add(a)
+        return rows
+
+    def _sync_values(self, attribute, rows):
+        kept = set()
+        for row in rows:
+            pk = row.get("id")
+            if pk is not None:
+                obj = attribute.values.filter(pk=pk).first()
+                if obj is None:
+                    raise serializers.ValidationError(
+                        {"values": _("Unknown attribute value.")}
+                    )
+            else:
+                # The generic form sends no row ids: match an existing value by name.
+                obj = attribute.values.filter(value__iexact=row["value"]).first()
+            if obj is not None:
+                if obj.abbr != row["abbr"] and obj.item_rows.exists():
+                    raise serializers.ValidationError(
+                        {
+                            "values": _(
+                                "The abbreviation of '%(value)s' cannot change: "
+                                "variants already use it."
+                            )
+                            % {"value": obj.value}
+                        }
+                    )
+                obj.value, obj.abbr = row["value"], row["abbr"]
+                obj.save()
+            else:
+                obj = ItemAttributeValue.objects.create(
+                    attribute=attribute, value=row["value"], abbr=row["abbr"]
+                )
+            kept.add(obj.pk)
+        for obj in attribute.values.exclude(pk__in=kept):
+            if obj.item_rows.exists():
+                raise serializers.ValidationError(
+                    {
+                        "values": _("Value '%(value)s' is used by items.")
+                        % {"value": obj.value}
+                    }
+                )
+            obj.delete()
+
+    def create(self, validated_data):
+        rows = validated_data.pop("values", [])
+        with transaction.atomic():
+            attribute = ItemAttribute.objects.create(**validated_data)
+            self._sync_values(attribute, rows)
+        return attribute
+
+    def update(self, instance, validated_data):
+        rows = validated_data.pop("values", None)
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if rows is not None:
+                self._sync_values(instance, rows)
+        # The viewset prefetches ``values``; drop the stale cache.
+        instance._prefetched_objects_cache = {}
+        return instance
+
+
 class BatchSerializer(serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
+    # "500g" / "500g, Hot" for a batch of a variant item (empty otherwise).
+    item_variant_label = serializers.SerializerMethodField()
     # Derived on read (from the ledger); in one warehouse when the list is
     # filtered by ``warehouse``, else across all warehouses.
     available_qty = serializers.DecimalField(
@@ -168,6 +352,7 @@ class BatchSerializer(serializers.ModelSerializer):
             "item",
             "item_code",
             "item_name",
+            "item_variant_label",
             "manufacturing_date",
             "expiry_date",
             "supplier_batch_no",
@@ -183,6 +368,9 @@ class BatchSerializer(serializers.ModelSerializer):
         read_only_fields = ("reference_doctype", "reference_name")
         extra_kwargs = {"batch_no": {"required": False}}
 
+    def get_item_variant_label(self, obj):
+        return variant_service.variant_label(obj.item)
+
     def get_days_to_expiry(self, obj):
         if not obj.expiry_date:
             return None
@@ -197,6 +385,16 @@ class BatchSerializer(serializers.ModelSerializer):
             return attrs[name] if name in attrs else getattr(inst, name, None)
 
         item = cur("item")
+        if item.has_variants:
+            raise serializers.ValidationError(
+                {
+                    "item": _(
+                        "Item '%(code)s' is a template with variants: pick one of "
+                        "its variants."
+                    )
+                    % {"code": item.code}
+                }
+            )
         if not item.has_batch_no:
             raise serializers.ValidationError(
                 {

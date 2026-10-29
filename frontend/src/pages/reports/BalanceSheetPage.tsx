@@ -8,9 +8,8 @@ interface BsResponse {
   total_assets: string;
   total_liabilities: string;
   total_equity: string;
-}
-interface PnlResponse {
-  net_profit: string;
+  /** Profit not yet moved to retained earnings by a Period Closing Voucher. */
+  provisional_profit: string;
 }
 
 const Line: React.FC<{ label: string; value: string; strong?: boolean }> = ({ label, value, strong }) => (
@@ -25,12 +24,11 @@ export const BalanceSheetPage: React.FC = () => {
   const { companies, company, setCompany, loadingCompanies } = useCompany();
   const enabled = !!company;
   const bs = useReport<BsResponse>("/accounts/reports/balance-sheet/", { company }, enabled);
-  // Income/expense are not closed into equity by a period-closing voucher, so the
-  // accounting equation only holds once the running P&L is included.
-  const pnl = useReport<PnlResponse>("/accounts/reports/profit-and-loss/", { company }, enabled);
+  // Until a Period Closing Voucher moves the year's profit into retained earnings the
+  // accounting equation only holds with the running (provisional) profit included.
 
-  const ready = !!bs.data && !!pnl.data;
-  const unclosed = pnl.data?.net_profit ?? "0.00";
+  const ready = !!bs.data;
+  const unclosed = bs.data?.provisional_profit ?? "0.00";
   const rightSide = ready
     ? sumDec([bs.data!.total_liabilities, bs.data!.total_equity, unclosed], 2)
     : "0.00";
@@ -40,8 +38,8 @@ export const BalanceSheetPage: React.FC = () => {
   return (
     <ReportShell
       titleKey="acc.nav.balance_sheet"
-      loading={bs.isFetching || pnl.isFetching || loadingCompanies}
-      error={bs.error ?? pnl.error}
+      loading={bs.isFetching || loadingCompanies}
+      error={bs.error}
       noCompany={!loadingCompanies && companies.length === 0}
       status={ready && <StatusPill ok={balanced} />}
       filters={<CompanySelect companies={companies} value={company} onChange={setCompany} />}

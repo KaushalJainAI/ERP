@@ -58,7 +58,8 @@ walks all pages. Cancelled vouchers follow the General Ledger rule: original and
   grand total, rounding, rounded total and outstanding. Credit / debit notes (`is_return`) are listed with
   negative figures. Filters: `party` (id), `item_group` (id, child groups included; it selects invoices
   that carry such an item, the amounts stay invoice-level). Reverse-charge purchase tax is shown in
-  `reverse_charge_tax` (it is not part of the grand total).
+  `reverse_charge_tax` (it is not part of the grand total). Purchase rows add the supplier's `bill_no` /
+  `bill_date`; freight / hamali charged on the bill are in the `OTHER` head (they are inside the grand total).
 - **Day Book** (`day-book/`, `can_read` on `accounts.GLEntry`): live GL vouchers in creation order with
   their Dr/Cr account lines, a total per voucher, `daily_totals` and grand totals (debit = credit).
   Optional `voucher_type`.

@@ -139,7 +139,9 @@ def pl_balances(company_id, start_date, end_date):
 def compute(pcv):
     """The closing plan: GL ``entries``, the ``net_profit`` (negative for a loss)
     and the number of P&L accounts closed."""
-    balances = pl_balances(pcv.company_id, pcv.fiscal_year.start_date, pcv.period_end_date)
+    balances = pl_balances(
+        pcv.company_id, pcv.fiscal_year.start_date, pcv.period_end_date
+    )
     entries = []
     total = ZERO
     for account_id, net in sorted(balances.items()):
@@ -168,9 +170,11 @@ def compute(pcv):
 
 
 def previous_fiscal_year(fiscal_year):
-    last_day = fiscal_year.start_date.fromordinal(fiscal_year.start_date.toordinal() - 1)
+    last_day = fiscal_year.start_date.fromordinal(
+        fiscal_year.start_date.toordinal() - 1
+    )
     return (
-        FiscalYear.objects.filter(start_date__lte=last_day, end_date__gte=last_day)
+        FiscalYear.objects.filter(end_date=last_day)
         .order_by("-start_date", "-pk")
         .first()
     )
@@ -219,9 +223,7 @@ def validate(pcv):
     later = others.filter(period_end_date__gt=pcv.period_end_date).first()
     if later is not None:
         raise ValidationError(
-            _(
-                "You cannot close this period because %(name)s closes a later period."
-            )
+            _("You cannot close this period because %(name)s closes a later period.")
             % {"name": later.name}
         )
     _require_previous_year_closed(pcv)
@@ -307,9 +309,11 @@ def check_integrity():
                 f"Period Closing Voucher {pcv.name}: net profit {pcv.net_profit} != "
                 f"closing account GL {posted_profit}."
             )
-        if rows.exclude(account__root_type__in=_PL_ROOTS).exclude(
-            account=pcv.closing_account_head
-        ).exists():
+        if (
+            rows.exclude(account__root_type__in=_PL_ROOTS)
+            .exclude(account=pcv.closing_account_head)
+            .exists()
+        ):
             errors.append(
                 f"Period Closing Voucher {pcv.name} posted to an account that is "
                 "neither Income / Expense nor its closing account."
@@ -335,4 +339,3 @@ def check_integrity():
                 "close (posted after the closing voucher?)."
             )
     return errors, warnings
-

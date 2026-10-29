@@ -11,14 +11,18 @@ from django.db import transaction
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from rest_framework import permissions, serializers, viewsets
-from rest_framework.decorators import action, api_view, parser_classes, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    parser_classes,
+    permission_classes,
+)
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.models import (
     Account,
-    AccountType,
     BankAccount,
     BankClearance,
     BankStatementImport,
@@ -161,7 +165,9 @@ class BankAccountSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             if validated_data.get("is_default"):
                 self._unset_other_defaults(
-                    BankAccount(pk=instance.pk, company_id=instance.company_id, is_default=True)
+                    BankAccount(
+                        pk=instance.pk, company_id=instance.company_id, is_default=True
+                    )
                 )
             return super().update(instance, validated_data)
 
@@ -266,7 +272,9 @@ class BankTransactionViewSet(
             for ba in BankAccount.objects.filter(
                 pk__in=queryset.values_list("bank_account_id", flat=True).distinct()
             ):
-                matched |= set(bank_service.transaction_links(bank_service.cleared_map(ba)))
+                matched |= set(
+                    bank_service.transaction_links(bank_service.cleared_map(ba))
+                )
             queryset = (
                 queryset.filter(pk__in=matched)
                 if wanted == "reconciled"
@@ -284,7 +292,9 @@ class BankTransactionViewSet(
         def build(tx):
             return _draft_journal_for(tx, account_id)
 
-        return self.map_document(request, build, "accounts.JournalEntry", JournalEntrySerializer)
+        return self.map_document(
+            request, build, "accounts.JournalEntry", JournalEntrySerializer
+        )
 
 
 def _draft_journal_for(tx, account_id):
@@ -296,7 +306,9 @@ def _draft_journal_for(tx, account_id):
         raise DjangoValidationError(_("Choose an active, non-group account."))
     if counter.pk == tx.bank_account.account_id:
         raise DjangoValidationError(_("The counter account must differ from the bank."))
-    if bank_service.transaction_links(bank_service.cleared_map(tx.bank_account)).get(tx.pk):
+    if bank_service.transaction_links(bank_service.cleared_map(tx.bank_account)).get(
+        tx.pk
+    ):
         raise DjangoValidationError(_("This bank transaction is already reconciled."))
     amount = abs(tx.amount)
     deposit = tx.amount > 0
@@ -328,7 +340,9 @@ def _draft_journal_for(tx, account_id):
 
 
 class BankClearanceSerializer(serializers.ModelSerializer):
-    set_by_name = serializers.CharField(source="set_by.username", read_only=True, default=None)
+    set_by_name = serializers.CharField(
+        source="set_by.username", read_only=True, default=None
+    )
 
     class Meta:
         model = BankClearance
@@ -489,7 +503,9 @@ def _leg_payload(leg):
         "posting_date": leg["posting_date"].isoformat(),
         "party": leg["party"],
         "reference_no": leg["reference_no"],
-        "reference_date": leg["reference_date"].isoformat() if leg["reference_date"] else None,
+        "reference_date": (
+            leg["reference_date"].isoformat() if leg["reference_date"] else None
+        ),
         "amount": _money(leg["net"]),
     }
 
@@ -508,10 +524,14 @@ def bank_reconciliation(request):
     from_date = _date(request, "from_date")
     to_date = _date(request, "to_date")
     try:
-        window = int(request.query_params.get("date_window", bank_service.DEFAULT_DATE_WINDOW))
+        window = int(
+            request.query_params.get("date_window", bank_service.DEFAULT_DATE_WINDOW)
+        )
     except ValueError:
         raise ValidationError({"date_window": _("Must be a number of days.")})
-    transactions = bank_service.unreconciled_transactions(bank_account, from_date, to_date)
+    transactions = bank_service.unreconciled_transactions(
+        bank_account, from_date, to_date
+    )
     vouchers = bank_service.uncleared_vouchers(
         bank_account, to_date, _date(request, "voucher_from_date")
     )
@@ -546,7 +566,10 @@ def _write_view(request, runner):
 
 @api_view(["POST"])
 @permission_classes(
-    [permissions.IsAuthenticated, require_model_permission("accounts.BankClearance", "can_create")]
+    [
+        permissions.IsAuthenticated,
+        require_model_permission("accounts.BankClearance", "can_create"),
+    ]
 )
 @parser_classes([JSONParser])
 def bank_match(request):
@@ -572,7 +595,10 @@ def bank_match(request):
 
 @api_view(["POST"])
 @permission_classes(
-    [permissions.IsAuthenticated, require_model_permission("accounts.BankClearance", "can_create")]
+    [
+        permissions.IsAuthenticated,
+        require_model_permission("accounts.BankClearance", "can_create"),
+    ]
 )
 @parser_classes([JSONParser])
 def bank_unmatch(request):
@@ -593,7 +619,10 @@ def bank_unmatch(request):
 
 @api_view(["POST"])
 @permission_classes(
-    [permissions.IsAuthenticated, require_model_permission("accounts.BankClearance", "can_create")]
+    [
+        permissions.IsAuthenticated,
+        require_model_permission("accounts.BankClearance", "can_create"),
+    ]
 )
 @parser_classes([JSONParser])
 def bank_clear(request):
@@ -604,10 +633,16 @@ def bank_clear(request):
     items = _vouchers_payload(request.data.get("vouchers"))
     for item in items:
         item["clearance_date"] = _date(
-            request, "clearance_date", source={"clearance_date": item.get("clearance_date")}
+            request,
+            "clearance_date",
+            source={"clearance_date": item.get("clearance_date")},
         )
-    rows = _write_view(request, lambda: bank_service.set_clearance(request.user, bank_account, items))
-    return Response({"bank_account": bank_account.pk, "records": [r.pk for r in rows]}, status=201)
+    rows = _write_view(
+        request, lambda: bank_service.set_clearance(request.user, bank_account, items)
+    )
+    return Response(
+        {"bank_account": bank_account.pk, "records": [r.pk for r in rows]}, status=201
+    )
 
 
 @api_view(["GET"])
@@ -616,7 +651,8 @@ def bank_clear(request):
 )
 def bank_reconciliation_statement(request):
     """Bank Reconciliation Statement: balance per GL - uncleared deposits + uncleared
-    payments = balance per bank, with the imported statement's balance for comparison."""
+    payments = balance per bank, with the imported statement's balance for comparison.
+    """
     bank_account = _bank_account(request, request.query_params.get("bank_account"))
     as_on = _date(request, "as_on") or datetime.date.today()
     report = bank_service.reconciliation_statement(bank_account, as_on)
@@ -626,7 +662,9 @@ def bank_reconciliation_statement(request):
             {
                 **r,
                 "posting_date": r["posting_date"].isoformat(),
-                "reference_date": r["reference_date"].isoformat() if r["reference_date"] else None,
+                "reference_date": (
+                    r["reference_date"].isoformat() if r["reference_date"] else None
+                ),
                 "amount": str(r["amount"]),
             }
             for r in rows

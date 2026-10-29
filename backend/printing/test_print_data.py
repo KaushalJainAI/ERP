@@ -16,7 +16,7 @@ from gst.tests import test_posting
 from gst.tests.test_documents import PO_URL, SI_URL, SO_URL
 from printing import builders
 from printing.words import amount_in_words
-from selling.models import SalesInvoice
+from selling.models import SalesInvoice, SalesInvoiceItem
 from users.models import Role, RolePermission, User, UserRole
 
 D = Decimal
@@ -90,8 +90,10 @@ class PrintBase(test_posting.PostingBase):
         for label in labels:
             RolePermission.objects.create(role=role, model_label=label, can_read=True)
         UserRole.objects.create(user=user, role=role)
-        UserCompany.objects.create(
-            user=user, company=company or self.company, is_default=True
+        UserCompany.objects.get_or_create(
+            user=user,
+            company=company or self.company,
+            defaults={"is_default": True},
         )
         client = APIClient()
         client.force_authenticate(user)
@@ -121,7 +123,9 @@ class SalesInvoicePrintTests(PrintBase):
             customer=self.cust_intra,
         )
         # 2 x 100 @18% and 1 x 200 @5%.
-        self.inv = self.sale(self.cust_intra, (self.item18, 2, 100), (self.item5, 1, 200))
+        self.inv = self.sale(
+            self.cust_intra, (self.item18, 2, 100), (self.item5, 1, 200)
+        )
 
     def test_header_blocks_and_title(self):
         data = self.get(url("sales-invoice", self.inv["id"]))
@@ -175,25 +179,29 @@ class SalesInvoicePrintTests(PrintBase):
         ):
             self.assertEqual(D(t[key]), D(self.inv[key]), key)
         self.assertEqual(t["net_total"], "400.00")
-        self.assertEqual(t["grand_total"], "441.00")  # 400 + 36 + 5
+        self.assertEqual(t["grand_total"], "446.00")  # 400 + 36 + 10
         self.assertEqual(t["total_qty"], "3.000")
-        self.assertEqual(
-            t["in_words"], "Rupees Four Hundred Forty One Only"
-        )
-        self.assertEqual(
-            sum(D(r["amount"]) for r in data["lines"]), D(t["net_total"])
-        )
+        self.assertEqual(t["in_words"], "Rupees Four Hundred Forty Six Only")
+        self.assertEqual(sum(D(r["amount"]) for r in data["lines"]), D(t["net_total"]))
 
     def test_lines(self):
         data = self.get(url("sales-invoice", self.inv["id"]))
         first, second = data["lines"]
         self.assertEqual(
-            (first["idx"], first["item_code"], first["hsn"], first["qty"], first["uom"]),
+            (
+                first["idx"],
+                first["item_code"],
+                first["hsn"],
+                first["qty"],
+                first["uom"],
+            ),
             (1, "I18", "100610", "2.000", "Nos"),
         )
         self.assertEqual((first["rate"], first["amount"]), ("100.00", "200.00"))
         self.assertEqual(first["gst_rate"], "18")
-        self.assertEqual((first["cgst_amount"], first["sgst_amount"]), ("18.00", "18.00"))
+        self.assertEqual(
+            (first["cgst_amount"], first["sgst_amount"]), ("18.00", "18.00")
+        )
         self.assertEqual(second["gst_rate"], "5")
 
     def test_intra_state_hsn_summary_matches_tax_rows(self):
@@ -203,17 +211,19 @@ class SalesInvoicePrintTests(PrintBase):
         # One row per (HSN, rate): both items share HSN 100610 but not the rate.
         self.assertEqual(
             [(r["hsn"], r["gst_rate"]) for r in hs["rows"]],
-            [("100610", "18"), ("100610", "5")],
+            [("100610", "5"), ("100610", "18")],
         )
         tax = self.tax_by_component(data)
         self.assertEqual(D(hs["totals"]["cgst"]), tax["CGST"])
         self.assertEqual(D(hs["totals"]["sgst"]), tax["SGST"])
         self.assertEqual(D(hs["totals"]["igst"]), D("0"))
-        self.assertEqual(D(hs["totals"]["taxable_value"]), D(data["totals"]["net_total"]))
+        self.assertEqual(
+            D(hs["totals"]["taxable_value"]), D(data["totals"]["net_total"])
+        )
         self.assertEqual(
             D(hs["totals"]["total_tax"]), D(data["totals"]["total_taxes_and_charges"])
         )
-        row18 = hs["rows"][0]
+        row18 = hs["rows"][1]
         self.assertEqual(
             (row18["taxable_value"], row18["cgst"], row18["sgst"], row18["total_tax"]),
             ("200.00", "18.00", "18.00", "36.00"),
@@ -235,8 +245,10 @@ class SalesInvoicePrintTests(PrintBase):
         d = self.sale(self.cust_intra, (self.item18, 1, "100.50"))
         data = self.get(url("sales-invoice", d["id"]))
         t = data["totals"]
-        self.assertEqual((t["grand_total"], t["rounding_adjustment"], t["rounded_total"]),
-                         ("118.60", "0.40", "119.00"))
+        self.assertEqual(
+            (t["grand_total"], t["rounding_adjustment"], t["rounded_total"]),
+            ("118.60", "0.40", "119.00"),
+        )
         self.assertEqual(t["in_words"], "Rupees One Hundred Nineteen Only")
 
     def test_hindi_words_and_unknown_language(self):
@@ -244,13 +256,15 @@ class SalesInvoicePrintTests(PrintBase):
         self.assertEqual(data["totals"]["words_lang"], "hi")
         self.assertEqual(
             data["totals"]["in_words"],
-            amount_in_words(D("441.00"), "hi"),
+            amount_in_words(D("446.00"), "hi"),
         )
         data = self.get(url("sales-invoice", self.inv["id"]), words_lang="ta")
         self.assertEqual(data["totals"]["words_lang"], "en")
 
     def test_copy_selector(self):
-        self.assertEqual(self.get(url("sales-invoice", self.inv["id"]))["copy"]["key"], "original")
+        self.assertEqual(
+            self.get(url("sales-invoice", self.inv["id"]))["copy"]["key"], "original"
+        )
         data = self.get(url("sales-invoice", self.inv["id"]), copy="triplicate")
         self.assertEqual(data["copy"]["key"], "triplicate")
         self.assertEqual(data["copy"]["options"], list(builders.COPIES))
@@ -258,31 +272,36 @@ class SalesInvoicePrintTests(PrintBase):
 
     def test_balances(self):
         self.pay(self.inv, "100.00", "2026-04-03")
-        second = self.sale(self.cust_intra, (self.item18, 1, 100), posting_date="2026-04-10")
+        second = self.sale(
+            self.cust_intra, (self.item18, 1, 100), posting_date="2026-04-10"
+        )
         data = self.get(url("sales-invoice", second["id"]))
         b = data["balances"]
         self.assertEqual(b["outstanding_amount"], "118.00")
-        # 441 invoiced - 100 paid, before this invoice.
-        self.assertEqual(b["previous_balance"], "341.00")
-        self.assertEqual(b["current_balance"], "459.00")
+        # 446 invoiced - 100 paid, before this invoice.
+        self.assertEqual(b["previous_balance"], "346.00")
+        self.assertEqual(b["current_balance"], "464.00")
         first = self.get(url("sales-invoice", self.inv["id"]))["balances"]
-        self.assertEqual(first["outstanding_amount"], "341.00")
+        self.assertEqual(first["outstanding_amount"], "346.00")
         self.assertEqual(first["previous_balance"], "0.00")
 
     def test_discount_from_price_list_rate(self):
-        d = self.create(
-            SI_URL,
-            self.si_body(
-                self.cust_intra,
-                [{"item": self.item18.id, "qty": "2", "rate": "90", "price_list_rate": "100"}],
-            ),
-        )
-        data = self.get(url("sales-invoice", d["id"]))
+        # The price-list snapshot is server-set; put one on the stored line directly.
+        SalesInvoiceItem.objects.filter(
+            sales_invoice_id=self.inv["id"], item=self.item18
+        ).update(price_list_rate=D("125"))
+        data = self.get(url("sales-invoice", self.inv["id"]))
         line = data["lines"][0]
-        self.assertEqual((line["discount_amount"], line["discount_percent"]), ("20.00", "10.00"))
+        self.assertEqual(
+            (
+                line["price_list_rate"],
+                line["discount_amount"],
+                line["discount_percent"],
+            ),
+            ("125.00", "50.00", "20.00"),
+        )
         # A line without a price-list snapshot has no discount.
-        plain = self.get(url("sales-invoice", self.inv["id"]))["lines"][0]
-        self.assertIsNone(plain["discount_amount"])
+        self.assertIsNone(data["lines"][1]["discount_amount"])
 
     def test_draft_is_flagged_and_has_no_balances(self):
         d = self.create(
@@ -334,21 +353,31 @@ class DeliveryChallanTests(PrintBase):
             SO_URL, self.so_body(self.cust_intra, self.lines((self.item5, 3, 50)))
         )
 
-    PRICE_KEYS = ("rate", "amount", "price_list_rate", "gst_rate", "cgst_amount", "igst_amount")
+    PRICE_KEYS = (
+        "rate",
+        "amount",
+        "price_list_rate",
+        "gst_rate",
+        "cgst_amount",
+        "igst_amount",
+    )
 
     def test_challan_from_invoice_has_no_prices(self):
         data = self.get(url("delivery-challan/sales-invoice", self.inv["id"]))
         self.assertEqual(data["title_key"], "delivery_challan")
         self.assertFalse(data["with_prices"])
         self.assertEqual(
-            data["source"], {"type": "Sales Invoice", "name": self.inv["name"], "date": "2026-04-01"}
+            data["source"],
+            {"type": "Sales Invoice", "name": self.inv["name"], "date": "2026-04-01"},
         )
         for key in ("totals", "taxes", "hsn_summary", "balances"):
             self.assertNotIn(key, data)
         line = data["lines"][0]
         for key in self.PRICE_KEYS:
             self.assertNotIn(key, line)
-        self.assertEqual((line["item_code"], line["qty"], line["uom"]), ("I18", "2.000", "Nos"))
+        self.assertEqual(
+            (line["item_code"], line["qty"], line["uom"]), ("I18", "2.000", "Nos")
+        )
         self.assertEqual(data["total_qty"], "2.000")
         self.assertEqual(data["ship_to"]["name"], "Intra Cust")
 
@@ -368,13 +397,17 @@ class DeliveryChallanTests(PrintBase):
     def test_challan_rbac_follows_the_source_document(self):
         so_only = self.user_client("selling.SalesOrder")
         self.get(url("delivery-challan/sales-order", self.so["id"]), client=so_only)
-        self.get(url("delivery-challan/sales-invoice", self.inv["id"]), 403, client=so_only)
+        self.get(
+            url("delivery-challan/sales-invoice", self.inv["id"]), 403, client=so_only
+        )
         self.get(url("sales-invoice", self.inv["id"]), 403, client=so_only)
 
 
 class PurchasePrintTests(PrintBase):
     def test_purchase_order(self):
-        po = self.create(PO_URL, self.po_body(self.sup_intra, self.lines((self.item18, 5, 20))))
+        po = self.create(
+            PO_URL, self.po_body(self.sup_intra, self.lines((self.item18, 5, 20)))
+        )
         data = self.get(url("purchase-order", po["id"]))
         self.assertEqual(data["title_key"], "purchase_order")
         self.assertEqual(data["bill_to"]["name"], "Intra Sup")
@@ -384,15 +417,25 @@ class PurchasePrintTests(PrintBase):
         self.assertTrue(data["is_draft"])
 
     def test_purchase_invoice_inter_state(self):
-        pi = self.purchase(self.sup_inter, (self.item18, 2, 100))
+        pi = self.purchase(
+            self.sup_inter,
+            (self.item18, 2, 100),
+            bill_no="SUP/001",
+            bill_date="2026-03-30",
+        )
         data = self.get(url("purchase-invoice", pi["id"]))
         self.assertEqual(data["title_key"], "purchase_invoice")
+        self.assertEqual(
+            data["supplier_invoice"], {"no": "SUP/001", "date": "2026-03-30"}
+        )
         self.assertEqual(data["hsn_summary"]["mode"], "igst")
         self.assertEqual(data["totals"]["grand_total"], "236.00")
         self.assertEqual(data["balances"]["outstanding_amount"], "236.00")
 
     def test_purchase_rbac_is_per_model(self):
-        po = self.create(PO_URL, self.po_body(self.sup_intra, self.lines((self.item18, 1, 20))))
+        po = self.create(
+            PO_URL, self.po_body(self.sup_intra, self.lines((self.item18, 1, 20)))
+        )
         client = self.user_client("buying.PurchaseInvoice")
         self.get(url("purchase-order", po["id"]), 403, client=client)
 
@@ -421,11 +464,14 @@ class PaymentPrintTests(PrintBase):
             ],
         )
         t = data["totals"]
-        self.assertEqual((t["amount"], t["allocated"], t["unallocated"]), ("100.00", "100.00", "0.00"))
+        self.assertEqual(
+            (t["amount"], t["allocated"], t["unallocated"]),
+            ("100.00", "100.00", "0.00"),
+        )
         self.assertEqual(t["in_words"], "Rupees One Hundred Only")
 
     def test_payment_voucher_to_supplier(self):
-        pi = self.purchase(self.sup_intra, (self.item18, 1, 100))
+        pi = self.purchase(self.sup_intra, (self.item18, 1, 100), bill_no="B-1")
         entry = PaymentEntry.objects.create(
             name=NamingSeries.next("PE-2026-"),
             payment_type=PaymentType.PAY,
@@ -497,5 +543,7 @@ class AccessTests(PrintBase):
     def test_print_does_not_change_anything(self):
         before = SalesInvoice.objects.filter(pk=self.inv["id"]).values().first()
         self.get(url("sales-invoice", self.inv["id"]))
-        self.assertEqual(SalesInvoice.objects.filter(pk=self.inv["id"]).values().first(), before)
+        self.assertEqual(
+            SalesInvoice.objects.filter(pk=self.inv["id"]).values().first(), before
+        )
         self.integrity_ok()

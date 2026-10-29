@@ -17,6 +17,7 @@ import type { ModuleDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { sellingResources } from "./selling";
 import { accountsLinks, accountsResources } from "./accounts";
+import { bankLinks, bankResources } from "./bank";
 import { buyingResources } from "./buying";
 import { gstResources } from "./gstMasters";
 import { gstReportLinks } from "./gstReports";
@@ -27,6 +28,7 @@ import { usersLinks, usersResources } from "./users";
 import { contactsResources } from "./contacts";
 import { legacyResources } from "./legacy";
 import { tallyExportLinks, tallyExportResources } from "./tallyExport";
+import { paymentReconciliationLinks } from "./paymentReconciliation";
 import { hrLinks, hrResources } from "./hr";
 import { hasReadAccess } from "./workspaces";
 
@@ -43,6 +45,7 @@ export const RESOURCES: ResourceConfig[] = [
   ...manufacturingResources,
   ...buyingResources,
   ...accountsResources,
+  ...bankResources,
   ...gstResources,
   ...usersResources,
   ...contactsResources,
@@ -61,7 +64,7 @@ export const MODULES: ModuleDef[] = [
     key: "accounts",
     titleKey: "accounts",
     icon: BookOpen,
-    extraLinks: [...accountsLinks, ...tallyExportLinks],
+    extraLinks: [...accountsLinks, ...bankLinks, ...paymentReconciliationLinks, ...tallyExportLinks],
   },
   {
     key: "stock",

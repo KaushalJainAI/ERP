@@ -9,102 +9,199 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0008_journalentry_bill_date_journalentry_bill_no_and_more'),
-        ('buying', '0014_alter_purchaseinvoiceitem_options_and_more'),
-        ('core', '0013_company_address_line1_company_address_line2_and_more'),
-        ('stock', '0009_stock_reconciliation'),
+        ("accounts", "0008_journalentry_bill_date_journalentry_bill_no_and_more"),
+        ("buying", "0014_alter_purchaseinvoiceitem_options_and_more"),
+        ("core", "0013_company_address_line1_company_address_line2_and_more"),
+        ("stock", "0009_stock_reconciliation"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PurchaseChargeTemplate',
+            name="PurchaseChargeTemplate",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('modified_at', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(max_length=100)),
-                ('distribute_by', models.CharField(choices=[('Amount', 'Amount'), ('Qty', 'Qty')], default='Amount', max_length=8)),
-                ('included_in_bill', models.BooleanField(default=False)),
-                ('is_active', models.BooleanField(default=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("modified_at", models.DateTimeField(auto_now=True)),
+                ("name", models.CharField(max_length=100)),
+                (
+                    "distribute_by",
+                    models.CharField(
+                        choices=[("Amount", "Amount"), ("Qty", "Qty")],
+                        default="Amount",
+                        max_length=8,
+                    ),
+                ),
+                ("included_in_bill", models.BooleanField(default=False)),
+                ("is_active", models.BooleanField(default=True)),
             ],
         ),
         migrations.CreateModel(
-            name='PurchaseInvoiceCharge',
+            name="PurchaseInvoiceCharge",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('idx', models.PositiveIntegerField(default=1)),
-                ('description', models.CharField(max_length=200)),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=18)),
-                ('distribute_by', models.CharField(choices=[('Amount', 'Amount'), ('Qty', 'Qty')], default='Amount', max_length=8)),
-                ('included_in_bill', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("idx", models.PositiveIntegerField(default=1)),
+                ("description", models.CharField(max_length=200)),
+                ("amount", models.DecimalField(decimal_places=2, max_digits=18)),
+                (
+                    "distribute_by",
+                    models.CharField(
+                        choices=[("Amount", "Amount"), ("Qty", "Qty")],
+                        default="Amount",
+                        max_length=8,
+                    ),
+                ),
+                ("included_in_bill", models.BooleanField(default=False)),
             ],
             options={
-                'ordering': ['idx', 'id'],
+                "ordering": ["idx", "id"],
             },
         ),
         migrations.AddField(
-            model_name='purchaseinvoice',
-            name='bill_date',
+            model_name="purchaseinvoice",
+            name="bill_date",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='purchaseinvoice',
-            name='bill_no',
-            field=models.CharField(blank=True, default='', max_length=140),
+            model_name="purchaseinvoice",
+            name="bill_no",
+            field=models.CharField(blank=True, default="", max_length=140),
         ),
         migrations.AddConstraint(
-            model_name='purchaseinvoice',
-            constraint=models.UniqueConstraint(django.db.models.functions.text.Lower('bill_no'), models.F('company'), models.F('supplier'), condition=models.Q(models.Q(('docstatus', 2), _negated=True), models.Q(('bill_no', ''), _negated=True)), name='buying_pi_unique_supplier_bill_no'),
+            model_name="purchaseinvoice",
+            constraint=models.UniqueConstraint(
+                django.db.models.functions.text.Lower("bill_no"),
+                models.F("company"),
+                models.F("supplier"),
+                condition=models.Q(
+                    models.Q(("docstatus", 2), _negated=True),
+                    models.Q(("bill_no", ""), _negated=True),
+                ),
+                name="buying_pi_unique_supplier_bill_no",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='purchaseinvoice',
-            constraint=models.CheckConstraint(check=models.Q(('bill_date__isnull', True), ('bill_date__lte', models.F('posting_date')), _connector='OR'), name='buying_pi_bill_date_not_after_posting'),
+            model_name="purchaseinvoice",
+            constraint=models.CheckConstraint(
+                check=models.Q(
+                    ("bill_date__isnull", True),
+                    ("bill_date__lte", models.F("posting_date")),
+                    _connector="OR",
+                ),
+                name="buying_pi_bill_date_not_after_posting",
+            ),
         ),
         migrations.AddField(
-            model_name='purchasechargetemplate',
-            name='account',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='accounts.account'),
+            model_name="purchasechargetemplate",
+            name="account",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="+",
+                to="accounts.account",
+            ),
         ),
         migrations.AddField(
-            model_name='purchasechargetemplate',
-            name='company',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='purchase_charge_templates', to='core.company'),
+            model_name="purchasechargetemplate",
+            name="company",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="purchase_charge_templates",
+                to="core.company",
+            ),
         ),
         migrations.AddField(
-            model_name='purchasechargetemplate',
-            name='created_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="purchasechargetemplate",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='purchasechargetemplate',
-            name='modified_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="purchasechargetemplate",
+            name="modified_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='purchaseinvoicecharge',
-            name='account',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='accounts.account'),
+            model_name="purchaseinvoicecharge",
+            name="account",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="+",
+                to="accounts.account",
+            ),
         ),
         migrations.AddField(
-            model_name='purchaseinvoicecharge',
-            name='purchase_invoice',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='charges', to='buying.purchaseinvoice'),
+            model_name="purchaseinvoicecharge",
+            name="purchase_invoice",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="charges",
+                to="buying.purchaseinvoice",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='purchasechargetemplate',
-            constraint=models.UniqueConstraint(fields=('company', 'name'), name='unique_charge_template_per_company'),
+            model_name="purchasechargetemplate",
+            constraint=models.UniqueConstraint(
+                fields=("company", "name"), name="unique_charge_template_per_company"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='purchasechargetemplate',
-            constraint=models.CheckConstraint(check=models.Q(('included_in_bill', False), ('account__isnull', False), _connector='OR'), name='buying_chargetemplate_bill_needs_account'),
+            model_name="purchasechargetemplate",
+            constraint=models.CheckConstraint(
+                check=models.Q(
+                    ("included_in_bill", False),
+                    ("account__isnull", False),
+                    _connector="OR",
+                ),
+                name="buying_chargetemplate_bill_needs_account",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='purchaseinvoicecharge',
-            constraint=models.CheckConstraint(check=models.Q(('amount__gt', 0)), name='buying_purchaseinvoicecharge_amount_gt_0'),
+            model_name="purchaseinvoicecharge",
+            constraint=models.CheckConstraint(
+                check=models.Q(("amount__gt", 0)),
+                name="buying_purchaseinvoicecharge_amount_gt_0",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='purchaseinvoicecharge',
-            constraint=models.CheckConstraint(check=models.Q(('included_in_bill', False), ('account__isnull', False), _connector='OR'), name='buying_purchaseinvoicecharge_bill_needs_account'),
+            model_name="purchaseinvoicecharge",
+            constraint=models.CheckConstraint(
+                check=models.Q(
+                    ("included_in_bill", False),
+                    ("account__isnull", False),
+                    _connector="OR",
+                ),
+                name="buying_purchaseinvoicecharge_bill_needs_account",
+            ),
         ),
     ]

@@ -72,10 +72,13 @@ def _root(company, root_type):
 def find_tax_group(company, name=TAX_GROUP_NAME):
     """The company's existing duties-and-taxes group (``&`` / ``and`` and case are
     ignored), or ``None``."""
-    wanted = {name.lower(), name.lower().replace("&", "and")}
-    for group in Account.objects.filter(company=company, is_group=True).order_by("id"):
-        key = group.name.lower().replace("&", "and")
-        if group.name.lower() in wanted or key in wanted:
+    groups = list(Account.objects.filter(company=company, is_group=True).order_by("id"))
+    for group in groups:  # the exact name wins
+        if group.name == name:
+            return group
+    wanted = name.lower().replace("&", "and")
+    for group in groups:
+        if group.name.lower().replace("&", "and") == wanted:
             return group
     return None
 
@@ -95,7 +98,9 @@ def ensure_accounts(company, group_name=TAX_GROUP_NAME, with_cess=False):
     liabilities = _root(company, AccountRootType.LIABILITY)
     if liabilities is None:
         result["warnings"].append(
-            _("%(company)s has no chart of accounts (no Liability root); nothing set up.")
+            _(
+                "%(company)s has no chart of accounts (no Liability root); nothing set up."
+            )
             % {"company": company.name}
         )
         return result
@@ -190,7 +195,9 @@ def _desired_rows(template_type, supply_type, rate, accounts):
     """``[(account, rate)]`` a template of this kind must carry, or ``None`` when an
     account is missing."""
     direction = (
-        GSTDirection.OUTPUT if template_type == TemplateType.SALES else GSTDirection.INPUT
+        GSTDirection.OUTPUT
+        if template_type == TemplateType.SALES
+        else GSTDirection.INPUT
     ).value
     if supply_type == GSTSupplyType.INTRA_STATE:
         parts = (("CGST", rate / 2), ("SGST", rate / 2))
@@ -244,7 +251,11 @@ def ensure_rate_templates(
                     if rows is None:
                         result["warnings"].append(
                             _("Accounts for %(title)s are missing; template skipped.")
-                            % {"title": template_title(template_type, supply_type, rate)}
+                            % {
+                                "title": template_title(
+                                    template_type, supply_type, rate
+                                )
+                            }
                         )
                         continue
                     template = _find_equivalent(
@@ -280,7 +291,9 @@ def ensure_rate_templates(
                             )
                         result["created"].append(title)
                     result["templates"][title] = template
-                    by_slot.setdefault((template_type, supply_type), {})[rate] = template
+                    by_slot.setdefault((template_type, supply_type), {})[
+                        rate
+                    ] = template
 
         # Defaults, per slot.
         for (template_type, supply_type), per_rate in by_slot.items():
@@ -393,7 +406,7 @@ def company_account_findings(company):
         out.append(
             _(
                 "Company '%(company)s' has no tagged GST account for: %(accounts)s. "
-                "Run: manage.py setup_gst_accounts --company \"%(company)s\"."
+                'Run: manage.py setup_gst_accounts --company "%(company)s".'
             )
             % {"company": company.name, "accounts": ", ".join(missing)}
         )

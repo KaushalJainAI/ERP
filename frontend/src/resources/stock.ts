@@ -1,4 +1,4 @@
-import { ArrowLeftRight, BarChart3, CalendarClock, ClipboardCheck, FolderTree, Layers, Package, Ruler, ScrollText, Tags, Warehouse } from "lucide-react";
+import { ArrowLeftRight, BarChart3, CalendarClock, ClipboardCheck, FolderTree, Layers, ListChecks, Package, Ruler, ScrollText, Shapes, Tags, Warehouse } from "lucide-react";
 import { createElement } from "react";
 import { roundDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
@@ -25,6 +25,8 @@ export const uomLink: LinkDef = {
 /** Item picker for stock-entry lines (seeds the valuation rate and the batch hint). */
 const stockEntryItemLink: LinkDef = {
   ...itemLink,
+  // A template (has variants) is never a line: pick one of its variants.
+  filters: () => ({ is_active: true, has_variants: false }),
   fill: (r, row) => ({
     item_code: r.code,
     item_name: r.name,
@@ -149,6 +151,8 @@ const items: ResourceConfig = {
     { key: "name", labelKey: "bs.fields.item_name" },
     { key: "item_group_name", labelKey: "bs.fields.item_group" },
     { key: "stock_uom_name", labelKey: "bs.fields.stock_uom" },
+    { key: "variant_of_code", labelKey: "vr.fields.variant_of" },
+    { key: "has_variants", labelKey: "vr.fields.has_variants", type: "boolean" },
     { key: "gst_hsn_code", labelKey: "gst.fields.hsn_code" },
     { key: "item_tax_template_name", labelKey: "gst.fields.item_tax_template" },
     { key: "valuation_method", labelKey: "bs.fields.valuation_method" },
@@ -171,7 +175,21 @@ const items: ResourceConfig = {
       defaultValue: "FIFO",
     },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "decimal", decimals: 6, defaultValue: "0" },
-    { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true },
+    // A template groups variants and is never stocked: the server forces this off.
+    { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true, hidden: (v) => !!v.has_variants },
+    // Variants (ERPNext Item Variants): a template varies by attributes; a variant is made with "Create Variant".
+    { key: "has_variants", labelKey: "vr.fields.has_variants", type: "boolean", defaultValue: false, helpKey: "vr.help.has_variants", hidden: (v) => !!v.variant_of },
+    {
+      key: "template_attributes",
+      labelKey: "vr.fields.template_attributes",
+      type: "multiselect",
+      span: 3,
+      helpKey: "vr.help.template_attributes",
+      hidden: (v) => !v.has_variants,
+      link: { endpoint: "/stock/item-attributes/", valueField: "id", labelField: "name" },
+    },
+    { key: "variant_of_code", labelKey: "vr.fields.variant_of", type: "text", readOnly: true, hidden: (v) => !v.variant_of },
+    { key: "variant_label", labelKey: "vr.fields.variant_label", type: "text", readOnly: true, hidden: (v) => !v.variant_of },
     // Batch tracking is frozen by the server once the item has ledger entries.
     { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean", defaultValue: false, helpKey: "bs.help.has_batch_no" },
     {
@@ -192,6 +210,45 @@ const items: ResourceConfig = {
     ...itemGstFields(),
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
     { key: "description", labelKey: "bs.fields.description", type: "textarea" },
+  ],
+  actions: [
+    {
+      key: "create-variant",
+      labelKey: "vr.actions.create_variant",
+      icon: Shapes,
+      showWhen: (doc) => !!doc.has_variants,
+      kind: "navigate",
+      navigate: (doc) => ({ to: `/stock/items/${doc.id}/create-variant` }),
+    },
+  ],
+};
+
+const itemAttributes: ResourceConfig = {
+  key: "item-attributes",
+  module: "stock",
+  endpoint: "/stock/item-attributes/",
+  titleKey: "vr.res.item_attributes",
+  singularKey: "vr.res.item_attribute",
+  icon: ListChecks,
+  titleField: "name",
+  ordering: "name",
+  columns: [
+    { key: "name", labelKey: "vr.fields.attribute_name" },
+    { key: "disabled", labelKey: "bs.fields.is_disabled", type: "boolean" },
+  ],
+  fields: [
+    { key: "name", labelKey: "vr.fields.attribute_name", type: "text", required: true },
+    { key: "disabled", labelKey: "bs.fields.is_disabled", type: "boolean", defaultValue: false },
+  ],
+  childTables: [
+    {
+      key: "values",
+      titleKey: "vr.values_table",
+      columns: [
+        { key: "value", labelKey: "vr.fields.value", type: "text", required: true },
+        { key: "abbr", labelKey: "vr.fields.abbr", type: "text", required: true, widthClass: "w-40" },
+      ],
+    },
   ],
 };
 
@@ -554,6 +611,7 @@ const batches: ResourceConfig = {
     { key: "batch_no", labelKey: "bs.fields.batch_no" },
     { key: "item_code", labelKey: "bs.fields.item_code" },
     { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "item_variant_label", labelKey: "vr.fields.variant_label" },
     { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date" },
     { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date" },
     { key: "available_qty", labelKey: "bs.fields.available_qty", type: "number", render: qtyCell },
@@ -566,10 +624,12 @@ const batches: ResourceConfig = {
       labelKey: "fields.item",
       type: "link",
       required: true,
-      link: { ...itemLink, fill: undefined, filters: () => ({ is_active: true, has_batch_no: true }) },
+      // Batch-tracked variants / plain items only: a template is never batched.
+      link: { ...itemLink, fill: undefined, filters: () => ({ is_active: true, has_batch_no: true, has_variants: false }) },
     },
     { key: "batch_no", labelKey: "bs.fields.batch_no", type: "text", readOnlyAfterCreate: true, helpKey: "bs.help.batch_no" },
-    { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date" },
+    // Dated today unless the lot was made on another day (the server applies the same default).
+    { key: "manufacturing_date", labelKey: "bs.fields.manufacturing_date", type: "date", defaultValue: todayISO, helpKey: "vr.help.batch_date" },
     { key: "expiry_date", labelKey: "bs.fields.expiry_date", type: "date", helpKey: "bs.help.expiry_date" },
     { key: "supplier_batch_no", labelKey: "bs.fields.supplier_batch_no", type: "text" },
     { key: "description", labelKey: "bs.fields.description", type: "textarea" },
@@ -624,6 +684,7 @@ const stockLedger: ResourceConfig = {
 
 export const stockResources: ResourceConfig[] = [
   items,
+  itemAttributes,
   itemGroups,
   uoms,
   warehouses,

@@ -802,6 +802,7 @@ class Command(BaseCommand):
         if not PurchaseInvoice.objects.filter(name="PINV-DEMO-0001").exists():
             pi = PurchaseInvoice.objects.create(
                 name="PINV-DEMO-0001",
+                bill_no="DEMO/INV/0001",
                 supplier=supplier,
                 company=self.company,
                 posting_date=self.d(20),
@@ -1000,6 +1001,7 @@ class Command(BaseCommand):
         if not PurchaseInvoice.objects.filter(name=name).exists():
             pi = PurchaseInvoice.objects.create(
                 name=name,
+                bill_no="DEMO/INV/0002",
                 supplier=self._supplier("Mahalaxmi Paper Mills"),
                 company=self.company,
                 posting_date=self.d(7),

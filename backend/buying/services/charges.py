@@ -209,6 +209,25 @@ def validate(invoice):
         )
 
 
+def totals_with_bill_charges(company, grand_total, total_taxes, on_bill):
+    """Header totals once ``on_bill`` charges are added to the engine's result.
+
+    Returns ``{"total_taxes_and_charges", "grand_total", "rounding_adjustment",
+    "rounded_total"}``; the rupee round-off is re-derived on the new grand total.
+    """
+    from accounts.services.taxes import whole_rupee
+
+    total_taxes = total_taxes + on_bill
+    grand_total = grand_total + on_bill
+    rounded = whole_rupee(grand_total) if company.enable_rounded_total else grand_total
+    return {
+        "total_taxes_and_charges": total_taxes,
+        "grand_total": grand_total,
+        "rounding_adjustment": rounded - grand_total,
+        "rounded_total": rounded,
+    }
+
+
 def apply_bill_charges(invoice):
     """Add the on-bill charges to the header totals the tax engine just wrote.
 
@@ -216,8 +235,6 @@ def apply_bill_charges(invoice):
     rows), and the rupee round-off is re-derived on the new grand total. The engine
     itself never sees them, so no GST is computed on a charge.
     """
-    from accounts.services.taxes import whole_rupee
-
     if invoice.is_return or not invoice.pk:
         return
     on_bill = sum(
@@ -231,21 +248,12 @@ def apply_bill_charges(invoice):
     )
     if not on_bill:
         return
-    invoice.total_taxes_and_charges += on_bill
-    invoice.grand_total += on_bill
-    if invoice.company.enable_rounded_total:
-        invoice.rounded_total = whole_rupee(invoice.grand_total)
-    else:
-        invoice.rounded_total = invoice.grand_total
-    invoice.rounding_adjustment = invoice.rounded_total - invoice.grand_total
-    invoice.save(
-        update_fields=[
-            "total_taxes_and_charges",
-            "grand_total",
-            "rounding_adjustment",
-            "rounded_total",
-        ]
+    new = totals_with_bill_charges(
+        invoice.company, invoice.grand_total, invoice.total_taxes_and_charges, on_bill
     )
+    for field, value in new.items():
+        setattr(invoice, field, value)
+    invoice.save(update_fields=list(new))
 
 
 def gl_entries(invoice, rows=None):

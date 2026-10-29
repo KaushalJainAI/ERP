@@ -1,5 +1,6 @@
 """Phase-3 Task 1(b): batches on Sales Order / Invoice and Purchase Invoice lines."""
 
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 
@@ -96,6 +97,7 @@ class DocumentBatchBase(TestCase):
 
     def purchase(self, lines, submit=True, update_stock=True):
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name=self.name("PINV"),
             supplier=self.supplier,
             company=self.company,
@@ -205,9 +207,15 @@ class SalesBatchTests(DocumentBatchBase):
         self.purchase([(self.haldi, 10, 108, {"manufacturing_date": DATE})])
         self.batch = self.haldi.pi_items.get().batch
 
-    def test_sale_requires_a_batch_and_quotes_fefo(self):
-        with self.assertRaisesMessage(ValidationError, "FEFO suggests"):
-            self.sell([(self.haldi, 2, 150)])
+    def test_sale_without_a_batch_is_fifo_picked(self):
+        si = self.sell([(self.haldi, 2, 150)])
+        sle = StockLedgerEntry.objects.get(voucher_no=si.name, item=self.haldi)
+        self.assertEqual(sle.batch_id, self.batch.pk)
+        self.assertEqual(sle.qty, D("-2.000"))
+
+    def test_sale_beyond_usable_batch_stock_is_refused(self):
+        with self.assertRaisesMessage(ValidationError, "Insufficient usable batch stock"):
+            self.sell([(self.haldi, 50, 150)])
         self.assertFalse(
             StockLedgerEntry.objects.filter(voucher_no__startswith="SINV").exists()
         )

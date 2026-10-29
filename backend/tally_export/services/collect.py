@@ -12,6 +12,7 @@ from django.apps import apps
 from django.db.models import Case, Count, IntegerField, Min, When
 
 from accounts.models import GLEntry
+from tally_export.constants import NEVER_EXPORTED_DOCTYPES
 from tally_export.models import TallyExportedVoucher
 
 Key = Tuple[str, str]  # (doctype "app.Model", voucher number)
@@ -125,6 +126,9 @@ def list_refs(
         ref.prev = prev.get(key)
         if key[0] == "accounts.JournalEntry" and key[1] in openings:
             skipped.append({**_skip(ref), "reason": "opening_entry"})
+            continue
+        if key[0] in NEVER_EXPORTED_DOCTYPES:
+            skipped.append({**_skip(ref), "reason": "period_closing"})
             continue
         if ref.action is None:
             continue  # cancelled and never in Tally: nothing to tell it

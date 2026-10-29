@@ -108,7 +108,9 @@ def voucher_element(d: VoucherDraft) -> ET.Element:
     sub(v, "VOUCHERNUMBER", d.name)
     if d.reference:
         sub(v, "REFERENCE", d.reference)
-        if d.is_invoice:
+        if d.reference_date:
+            sub(v, "REFERENCEDATE", tally_date(d.reference_date))
+        elif d.is_invoice:
             sub(v, "REFERENCEDATE", tally_date(d.posting_date))
     if d.narration:
         sub(v, "NARRATION", d.narration)

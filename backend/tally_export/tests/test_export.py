@@ -1,5 +1,6 @@
 """Tally export: vouchers derived from the GL, XML shape, maps, pre-flight, log."""
 
+from buying.testing import next_bill_no
 import datetime
 import shutil
 import tempfile
@@ -198,6 +199,7 @@ class Base(TestCase):
 
     def purchase(self, qty=10, rate=40, extra_service=None, date=DATE):
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name=self.name("PINV"),
             supplier=self.supplier,
             company=self.company,

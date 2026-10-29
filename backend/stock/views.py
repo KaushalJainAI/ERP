@@ -1,6 +1,7 @@
 import datetime
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import ProtectedError, Q, RestrictedError
 from django.utils.translation import gettext as _
 from rest_framework import status, viewsets, permissions
@@ -12,6 +13,7 @@ from stock.models import (
     UOM,
     ItemGroup,
     Item,
+    ItemAttribute,
     Warehouse,
     Batch,
     PriceList,
@@ -24,10 +26,12 @@ from stock.models import (
 from stock.services import batches as batch_service
 from stock.services import pricing as pricing_service
 from stock.services import reconciliation as reconciliation_service
+from stock.services import variants as variant_service
 from stock.serializers import (
     UOMSerializer,
     ItemGroupSerializer,
     ItemSerializer,
+    ItemAttributeSerializer,
     WarehouseSerializer,
     BatchSerializer,
     PriceListSerializer,
@@ -64,8 +68,10 @@ class ItemGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
 class ItemViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = (
         Item.objects.all()
-        .select_related("item_group", "stock_uom", "item_tax_template")
-        .prefetch_related("item_tax_template__rows")
+        .select_related("item_group", "stock_uom", "item_tax_template", "variant_of")
+        .prefetch_related(
+            "item_tax_template__rows", "attributes__attribute", "attributes__value"
+        )
     )
     serializer_class = ItemSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -79,9 +85,66 @@ class ItemViewSet(AuditLogMixin, viewsets.ModelViewSet):
         "is_non_gst",
         "has_batch_no",
         "has_expiry_date",
+        "has_variants",
+        "variant_of",
     ]
     search_fields = ["code", "name", "description", "gst_hsn_code"]
     ordering_fields = ["code", "name", "created_at"]
+
+    @action(detail=True, methods=["post"], url_path="create-variant")
+    def create_variant(self, request, pk=None):
+        """ERPNext create_variant: make the variant of this template item for
+        {"attributes": {"<attribute id>": <value id>, ...}} (a list of
+        {"attribute": id, "value": id} is also accepted). The code is the
+        template code plus the value abbreviations; optional item_code /
+        item_name override. Returns the new item (201)."""
+        template = self.get_object()
+        raw = request.data.get("attributes")
+        if isinstance(raw, list):
+            try:
+                raw = {row["attribute"]: row["value"] for row in raw}
+            except (KeyError, TypeError):
+                return Response(
+                    {"attributes": _("Each row needs an attribute and a value.")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif not isinstance(raw, dict):
+            return Response(
+                {"attributes": _("Select at least one attribute value.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            variant = variant_service.create_variant(
+                template,
+                raw,
+                item_code=(request.data.get("item_code") or "").strip() or None,
+                item_name=(request.data.get("item_name") or "").strip() or None,
+            )
+        except DjangoValidationError as e:
+            return Response({"detail": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            self.get_serializer(variant).data, status=status.HTTP_201_CREATED
+        )
+
+
+class ItemAttributeViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    """Item Attribute master with its values (used by item templates)."""
+
+    queryset = ItemAttribute.objects.all().prefetch_related("values")
+    serializer_class = ItemAttributeSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["disabled"]
+    search_fields = ["name", "values__value"]
+    ordering_fields = ["name", "created_at"]
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except (ProtectedError, RestrictedError):
+            return Response(
+                {"detail": _("This attribute is used by items; disable it instead.")},
+                status=status.HTTP_409_CONFLICT,
+            )
 
 
 class WarehouseViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
@@ -163,9 +226,10 @@ def _params_400(fn):
 
 
 class BatchViewSet(AuditLogMixin, viewsets.ModelViewSet):
-    """Batch master. The list doubles as the FEFO line-batch picker:
+    """Batch master. The list doubles as the line-batch picker:
     ``?item=&warehouse=&available=1&posting_date=`` returns only usable batches
-    (not disabled, not expired at ``posting_date``, balance > 0) in FEFO order,
+    (not disabled, not expired at ``posting_date``, balance > 0) in FIFO order
+    (oldest manufactured first, the order the server auto-picks in),
     each annotated with ``available_qty`` and ``days_to_expiry``."""
 
     queryset = Batch.objects.all().select_related("item")
@@ -194,7 +258,7 @@ class BatchViewSet(AuditLogMixin, viewsets.ModelViewSet):
         qs = batch_service.annotate_available(qs, warehouse)
         if self.request.query_params.get("available") in ("1", "true", "True"):
             ref = self._reference_date() or datetime.date.today()
-            qs = batch_service.fefo_order(
+            qs = batch_service.fifo_order(
                 qs.filter(is_disabled=False, available_qty__gt=0).filter(
                     Q(expiry_date__isnull=True) | Q(expiry_date__gte=ref)
                 )
@@ -247,6 +311,51 @@ class BatchViewSet(AuditLogMixin, viewsets.ModelViewSet):
         return Response(
             _jsonable(batch_service.fefo(item_id, wh_id, qty, posting_date))
         )
+
+    @action(detail=False, methods=["get"], url_path="fifo")
+    def fifo(self, request):
+        """Preview of the automatic FIFO pick (oldest manufactured first) for
+        ?item=&warehouse=&qty=[&posting_date=] -- what a stock-out line left
+        without a batch will consume. Nothing is reserved; the binding allocation
+        happens under lock when the document is submitted."""
+        try:
+            item_id = _parse_int(request.query_params.get("item"), "item", True)
+            wh_id = _parse_int(request.query_params.get("warehouse"), "warehouse", True)
+            posting_date = _parse_date(
+                request.query_params.get("posting_date"), "posting_date"
+            )
+        except ParamError as e:
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            qty = Decimal(request.query_params.get("qty", ""))
+            if qty <= 0:
+                raise InvalidOperation
+        except InvalidOperation:
+            return Response(
+                {"qty": _("A positive quantity is required.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not Item.objects.filter(pk=item_id).exists():
+            return Response({"item": _("Unknown item.")}, status=404)
+        if not Warehouse.objects.filter(pk=wh_id).exists():
+            return Response({"warehouse": _("Unknown warehouse.")}, status=404)
+        return Response(
+            _jsonable(batch_service.fifo(item_id, wh_id, qty, posting_date))
+        )
+
+    @action(detail=False, methods=["get"], url_path="for-voucher")
+    def for_voucher(self, request):
+        """The batches a posted voucher moved, from its live ledger entries
+        (?voucher_type=selling.SalesInvoice&voucher_no=...): shows what FIFO
+        picked for lines left without a batch."""
+        vt = request.query_params.get("voucher_type", "")
+        vn = request.query_params.get("voucher_no", "")
+        if not vt or not vn:
+            return Response(
+                {"voucher_no": _("voucher_type and voucher_no are required.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(_jsonable(batch_service.voucher_batches(vt, vn)))
 
     @action(detail=True, methods=["get"], url_path="balances")
     def balances(self, request, pk=None):

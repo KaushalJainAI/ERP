@@ -1,0 +1,126 @@
+/* Print formats: an A4 "paper" that is always light, whatever the app theme.
+   Same approach as the party statement (.stmt in index.css): in print the toolbar is hidden
+   (.no-print) and the paper is printed. index.css hides the app root in print for the
+   statement portal copy; body.print-page turns it back on for this page only. */
+.pdoc-wrap {
+  background: #e5e7eb;
+  color: #111;
+  color-scheme: light;
+  min-height: 100vh;
+  padding: 12px 12px 32px;
+}
+.pdoc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  max-width: 210mm;
+  margin: 0 auto 12px;
+  font-size: 13px;
+}
+.pdoc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid #9ca3af;
+  background: #fff;
+  color: #111;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pdoc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pdoc-btn-primary { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.pdoc-field { display: inline-flex; align-items: center; gap: 6px; }
+.pdoc-field select { padding: 6px 8px; border: 1px solid #9ca3af; border-radius: 6px; background: #fff; color: #111; }
+.pdoc-hint { color: #4b5563; font-size: 12px; }
+.pdoc-msg { max-width: 210mm; margin: 24px auto; display: flex; align-items: center; gap: 8px; color: #374151; }
+
+.pdoc {
+  page: pdoc;
+  position: relative;
+  background: #fff;
+  color: #111;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 10mm;
+  box-sizing: border-box;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.pdoc h1 { font-size: 20px; font-weight: 700; margin: 0 0 2px; }
+.pdoc h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+.pdoc h3 { font-size: 11px; font-weight: 700; margin: 0 0 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+.pdoc p { margin: 1px 0; }
+.pdoc small { color: #444; font-size: 10px; }
+.pdoc .pre { white-space: pre-line; }
+
+.pdoc-head { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #111; padding-bottom: 8px; }
+.pdoc-company { display: flex; gap: 10px; align-items: flex-start; }
+.pdoc-logo { max-height: 56px; max-width: 90px; object-fit: contain; }
+.pdoc-title { text-align: end; min-width: 38%; }
+.pdoc-title span { color: #444; }
+.pdoc-copy { display: inline-block; border: 1px solid #111; padding: 1px 6px; margin: 2px 0 4px; font-weight: 600; font-size: 10px; }
+
+.pdoc-parties { display: flex; gap: 10px; margin: 10px 0; }
+.pdoc-parties > .pdoc-box { flex: 1; }
+.pdoc-box { border: 1px solid #999; padding: 6px 8px; break-inside: avoid; }
+.pdoc-box span { color: #444; }
+.pdoc-pay { margin: 10px 0; }
+.pdoc-amount { font-size: 13px; margin-top: 6px; }
+
+.pdoc-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.pdoc-table th, .pdoc-table td { border: 1px solid #999; padding: 3px 5px; text-align: start; vertical-align: top; }
+.pdoc-table th { background: #f0f0f0; font-weight: 700; }
+.pdoc-table .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pdoc-table .c { text-align: center; width: 4%; }
+.pdoc-table .strong td { font-weight: 700; background: #f7f7f7; }
+.pdoc-table .grand td { font-size: 13px; }
+.pdoc-h3 { margin-top: 10px !important; }
+
+.pdoc-summary { display: flex; gap: 12px; align-items: flex-start; margin-top: 4px; break-inside: avoid; }
+.pdoc-words { flex: 1; padding-top: 6px; }
+.pdoc-totals { width: 46%; }
+.pdoc-balances { width: 46%; margin-inline-start: auto; }
+
+.pdoc-footer { display: flex; gap: 10px; margin-top: 10px; }
+.pdoc-footer > .pdoc-box { flex: 1; }
+.pdoc-declaration { margin-top: 10px; font-size: 10px; color: #333; }
+.pdoc-transport { display: flex; gap: 24px; margin-top: 14px; }
+.pdoc-sign { display: flex; justify-content: space-between; gap: 16px; margin-top: 14px; break-inside: avoid; }
+.pdoc-sign > div { min-width: 40%; text-align: center; }
+.pdoc-sign-space { height: 44px; }
+
+.pdoc-watermark {
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 110px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+@page pdoc {
+  size: A4;
+  margin: 10mm;
+}
+
+@media print {
+  body.print-page #root { display: block !important; }
+  body.print-page, body.print-page .pdoc-wrap { background: #fff !important; }
+  .pdoc-wrap { padding: 0; min-height: 0; }
+  .pdoc { width: auto; min-height: 0; padding: 0; box-shadow: none; margin: 0; }
+  .pdoc-table thead { display: table-header-group; }
+  .pdoc-table tfoot { display: table-row-group; }
+  .pdoc-table tr { break-inside: avoid; }
+}

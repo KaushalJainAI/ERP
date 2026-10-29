@@ -11,6 +11,10 @@ Each row is an invoice-level snapshot (``net_total`` / tax rows / ``rounded_tota
 the optional ``item_group`` filter only *selects* the invoices that carry an item of
 that group (or of a descendant group), it does not re-cut the amounts.
 
+Purchase rows also carry the supplier's ``bill_no`` / ``bill_date`` (the Tally /
+GST input-credit reference). Extra charges on the bill (freight, hamali) are part of
+``grand_total`` and are shown in the ``OTHER`` head.
+
 Reverse-charge purchase invoices carry their tax in memo rows that are not part of
 ``grand_total``; those go to the ``reverse_charge_tax`` column and not to the heads, so
 ``net_total + heads == grand_total`` always holds.
@@ -103,6 +107,20 @@ def _rows(model, invoices):
         bucket = taxes.setdefault(parent_id, {})
         bucket[head] = bucket.get(head, ZERO) + amount
 
+    bill_charges = {}
+    if hasattr(model, "charges_on_bill"):
+        for parent_id, amount in (
+            model._meta.get_field("charges")
+            .related_model.objects.filter(
+                purchase_invoice__in=[inv.pk for inv in invoices],
+                included_in_bill=True,
+            )
+            .values_list("purchase_invoice_id", "amount")
+        ):
+            bill_charges[parent_id] = bill_charges.get(parent_id, ZERO) + Decimal(
+                amount
+            )
+
     rows = []
     for inv in invoices:
         is_return = bool(inv.is_return)
@@ -113,6 +131,8 @@ def _rows(model, invoices):
             rcm_tax = sum(taxes.get(inv.pk, {}).values(), ZERO)
         else:
             heads.update(taxes.get(inv.pk, {}))
+        if bill_charges.get(inv.pk) and not is_return:
+            heads["OTHER"] += bill_charges[inv.pk]
         grand = _signed(inv.grand_total, is_return)
         rounded = _signed(inv.rounded_total, is_return)
         against = (
@@ -122,6 +142,8 @@ def _rows(model, invoices):
             {
                 "id": inv.pk,
                 "name": inv.name,
+                "bill_no": getattr(inv, "bill_no", None),
+                "bill_date": getattr(inv, "bill_date", None),
                 "posting_date": inv.posting_date,
                 "party_id": party.pk,
                 "party": party.name,
@@ -144,7 +166,7 @@ def _rows(model, invoices):
 
 
 def _out(row):
-    return {
+    out = {
         "id": row["id"],
         "name": row["name"],
         "posting_date": row["posting_date"].isoformat(),
@@ -164,6 +186,10 @@ def _out(row):
         "rounded_total": money(row["rounded_total"]),
         "outstanding": money(row["outstanding"]),
     }
+    if row["bill_no"] is not None:  # purchase register only
+        out["bill_no"] = row["bill_no"]
+        out["bill_date"] = row["bill_date"].isoformat() if row["bill_date"] else None
+    return out
 
 
 def build(kind, company, from_date, to_date, party_id, item_group_id, page, size):

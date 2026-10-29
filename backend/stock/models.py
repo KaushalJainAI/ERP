@@ -87,11 +87,46 @@ class Item(TimeStampedModel):
     has_expiry_date = models.BooleanField(default=False)
     shelf_life_in_days = models.PositiveIntegerField(null=True, blank=True)
 
+    # Variants (ERPNext Item Variants). A *template* (``has_variants``) is only a
+    # grouping master: it is never stocked, sold, bought or batched. Each *variant*
+    # (``variant_of`` -> template) is an ordinary stock item of its own whose
+    # attribute values are the ``ItemVariantAttribute`` rows. ``variant_signature``
+    # is server-derived ("attr:value|attr:value", ids sorted) and makes the attribute
+    # combination UNIQUE per template at the database level.
+    has_variants = models.BooleanField(default=False)
+    variant_of = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="variants",
+    )
+    variant_signature = models.CharField(max_length=255, blank=True, default="")
+
     class Meta:
         constraints = [
             models.CheckConstraint(
                 check=~(models.Q(is_nil_exempt=True) & models.Q(is_non_gst=True)),
                 name="check_item_not_both_nil_exempt_and_non_gst",
+            ),
+            models.CheckConstraint(
+                check=models.Q(has_variants=False) | models.Q(is_stock_item=False),
+                name="check_item_template_not_stock_item",
+            ),
+            models.CheckConstraint(
+                check=models.Q(has_variants=False) | models.Q(variant_of__isnull=True),
+                name="check_item_template_not_variant",
+            ),
+            models.CheckConstraint(
+                check=models.Q(variant_of__isnull=False)
+                | models.Q(variant_signature=""),
+                name="check_item_signature_only_on_variant",
+            ),
+            models.UniqueConstraint(
+                fields=["variant_of", "variant_signature"],
+                condition=models.Q(variant_of__isnull=False)
+                & ~models.Q(variant_signature=""),
+                name="unique_item_variant_combination",
             ),
             models.CheckConstraint(
                 check=models.Q(has_expiry_date=False) | models.Q(has_batch_no=True),
@@ -109,6 +144,16 @@ class Item(TimeStampedModel):
         touches_flags = update_fields is None or bool(
             {"has_batch_no", "has_expiry_date"} & set(update_fields)
         )
+        if self.has_variants and self.pk and StockLedgerEntry.objects.filter(
+            item_id=self.pk
+        ).exists():
+            raise ValidationError(
+                _(
+                    "Item '%(code)s' already has stock ledger entries and cannot "
+                    "become a template."
+                )
+                % {"code": self.code}
+            )
         if self.pk and touches_flags:
             before = (
                 Item.objects.filter(pk=self.pk)
@@ -134,6 +179,86 @@ class Item(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+
+class ItemAttribute(TimeStampedModel):
+    """Item Attribute master (ERPNext): a named dimension of variation such as
+    "Pack Size" or "Blend". Its allowed values are ``ItemAttributeValue`` rows.
+    (Numeric-range attributes are not built; see erpnext_divergences.md.)"""
+
+    name = models.CharField(max_length=140, unique=True)
+    disabled = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class ItemAttributeValue(TimeStampedModel):
+    """One allowed value of an attribute; ``abbr`` is what is appended to the
+    template code to form a variant code ("500g" -> "500")."""
+
+    attribute = models.ForeignKey(
+        ItemAttribute, on_delete=models.CASCADE, related_name="values"
+    )
+    value = models.CharField(max_length=140)
+    abbr = models.CharField(max_length=40)
+
+    class Meta:
+        ordering = ("attribute", "pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["attribute", "value"], name="unique_attribute_value"
+            ),
+            models.UniqueConstraint(
+                fields=["attribute", "abbr"], name="unique_attribute_abbr"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.attribute.name}: {self.value}"
+
+
+class ItemVariantAttribute(models.Model):
+    """ERPNext "Item Variant Attribute" child table.
+
+    On a template the row declares an attribute the variants vary by
+    (``value`` is NULL); on a variant it carries the chosen value. Protected
+    FKs mean an attribute / value in use can never be deleted.
+    """
+
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name="attributes")
+    attribute = models.ForeignKey(
+        ItemAttribute, on_delete=models.PROTECT, related_name="item_rows"
+    )
+    value = models.ForeignKey(
+        ItemAttributeValue,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="item_rows",
+    )
+
+    class Meta:
+        ordering = ("pk",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["item", "attribute"], name="unique_item_attribute"
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.value_id and self.value.attribute_id != self.attribute_id:
+            raise ValidationError(
+                _("Value '%(value)s' does not belong to attribute '%(attribute)s'.")
+                % {"value": self.value.value, "attribute": self.attribute.name}
+            )
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.item.code}: {self.attribute.name}={self.value.value if self.value_id else ''}"
 
 
 class Warehouse(TimeStampedModel):
@@ -298,6 +423,14 @@ class Batch(TimeStampedModel):
         indexes = [models.Index(fields=["item", "expiry_date"])]
 
     def save(self, *args, **kwargs):
+        if self.item.has_variants:
+            raise ValidationError(
+                _(
+                    "Item '%(code)s' is a template with variants: create the batch "
+                    "for one of its variants."
+                )
+                % {"code": self.item.code}
+            )
         if self.pk:
             before = Batch.objects.filter(pk=self.pk).values("item_id").first()
             if (
@@ -555,14 +688,9 @@ class StockEntry(SubmittableDocument):
                 default_manufacturing_date=self.posting_date,
             )
             return
-        raise ValidationError(
-            batch_service.batch_required_message(
-                item,
-                line.source_warehouse,
-                line.qty,
-                self.posting_date,
-            )
-        )
+        # An outward line of a batch-tracked item may leave the batch blank: the
+        # ledger service then picks the oldest manufactured batches first (FIFO).
+        return
 
     def on_submit(self):
         from manufacturing.services import production
@@ -647,6 +775,9 @@ class StockEntry(SubmittableDocument):
                         # Value the receipt at the rate the source warehouse released,
                         # so an internal transfer conserves total stock value.
                         "use_outgoing_rate": True,
+                        # A blank batch was FIFO-picked on the way out: carry the
+                        # same batch(es) into the target warehouse.
+                        "mirror_outgoing": True,
                     }
                 )
         return stock_service.post(

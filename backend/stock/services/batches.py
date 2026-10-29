@@ -100,7 +100,12 @@ def resolve_dates(
     ``set_expiry_date``): expiry = manufacturing + ``shelf_life_in_days`` when the
     item tracks expiry and none is given. Raises when an expiry-tracked batch
     would have no expiry, or the dates are inconsistent."""
-    manufacturing_date = manufacturing_date or default_manufacturing_date
+    # A batch is "made" today unless the caller says otherwise: callers that know
+    # the document date pass it as ``default_manufacturing_date``; with neither the
+    # server's current date is used.
+    manufacturing_date = (
+        manufacturing_date or default_manufacturing_date or datetime.date.today()
+    )
     if expiry_date and not item.has_expiry_date:
         raise ValidationError(
             _("Item '%(code)s' does not track expiry; remove the expiry date.")
@@ -158,7 +163,18 @@ def create_batch(
     reference_name: str = "",
     description: str = "",
 ) -> Batch:
-    """Create a batch (manual ``batch_no`` allowed, else auto-numbered)."""
+    """Create a batch (manual ``batch_no`` allowed, else auto-numbered).
+
+    ``manufacturing_date`` defaults to ``default_manufacturing_date`` (the
+    document's posting date) and, failing that, to today."""
+    if item.has_variants:
+        raise ValidationError(
+            _(
+                "Item '%(code)s' is a template with variants: create the batch "
+                "for one of its variants."
+            )
+            % {"code": item.code}
+        )
     if not item.has_batch_no:
         raise ValidationError(
             _("Item '%(code)s' is not batch-tracked.") % {"code": item.code}
@@ -260,6 +276,151 @@ def fefo(
         "shortfall": remaining,
         "allocations": allocations,
     }
+
+
+# --------------------------------------------------------------------------- #
+# FIFO (oldest manufactured first) -- the default picking rule
+# --------------------------------------------------------------------------- #
+
+
+def fifo_order(qs):
+    """FIFO ordering: oldest manufacturing date first (undated last), then the
+    order the batches were created, then id."""
+    return qs.order_by(
+        F("manufacturing_date").asc(nulls_last=True), "created_at", "id"
+    )
+
+
+def fifo_candidates(
+    item,
+    warehouse,
+    posting_date: Optional[datetime.date] = None,
+    allow_expired: bool = False,
+):
+    """Usable batches of ``item`` in ``warehouse`` in FIFO order with
+    ``available_qty``: not disabled, not expired before ``posting_date`` (unless
+    ``allow_expired``, the write-off path) and holding stock there."""
+    posting_date = posting_date or datetime.date.today()
+    qs = Batch.objects.filter(item_id=_pk(item), is_disabled=False)
+    if not allow_expired:
+        qs = qs.filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=posting_date))
+    qs = annotate_available(qs, warehouse).filter(available_qty__gt=0)
+    return fifo_order(qs)
+
+
+def fifo(
+    item,
+    warehouse,
+    qty,
+    posting_date: Optional[datetime.date] = None,
+    allow_expired: bool = False,
+) -> Dict[str, Any]:
+    """Preview which batches a stock-out of ``qty`` would consume, oldest
+    manufactured first (read-only; nothing is reserved)."""
+    qty = _q3(Decimal(str(qty)))
+    remaining = qty
+    allocations: List[Dict[str, Any]] = []
+    for b in fifo_candidates(item, warehouse, posting_date, allow_expired):
+        if remaining <= 0:
+            break
+        available = _q3(b.available_qty)
+        take = min(remaining, available)
+        allocations.append(
+            {
+                "batch": b.pk,
+                "batch_no": b.batch_no,
+                "manufacturing_date": b.manufacturing_date,
+                "expiry_date": b.expiry_date,
+                "available_qty": available,
+                "allocate_qty": take,
+            }
+        )
+        remaining -= take
+    return {
+        "item": _pk(item),
+        "warehouse": _pk(warehouse),
+        "requested_qty": qty,
+        "allocated_qty": qty - remaining,
+        "shortfall": remaining,
+        "allocations": allocations,
+    }
+
+
+def allocate_fifo(
+    item: Item,
+    warehouse,
+    qty: Decimal,
+    posting_date: datetime.date,
+    allow_expired: bool = False,
+) -> List[Tuple[Batch, Decimal]]:
+    """The binding FIFO allocation of ``qty`` (positive) as ``[(batch, qty)]``.
+
+    Must be called by ``ledger.post`` **after** it took ``select_for_update`` on
+    the (item, warehouse) ``Bin``: that lock serialises every posting that moves
+    this item in this warehouse, so the balances read here cannot be claimed twice.
+    Raises when the usable batches together hold less than ``qty``.
+    """
+    plan = fifo(item, warehouse, qty, posting_date, allow_expired)
+    if plan["shortfall"] > 0:
+        raise ValidationError(
+            _(
+                "Insufficient usable batch stock for item '%(code)s': required "
+                "%(req)s, available %(avail)s (expired, disabled and empty "
+                "batches are skipped)."
+            )
+            % {
+                "code": item.code,
+                "req": plan["requested_qty"],
+                "avail": plan["allocated_qty"],
+            }
+        )
+    batches = {
+        b.pk: b
+        for b in Batch.objects.filter(pk__in=[a["batch"] for a in plan["allocations"]])
+    }
+    return [(batches[a["batch"]], a["allocate_qty"]) for a in plan["allocations"]]
+
+
+def voucher_batches(voucher_type: str, voucher_no: str) -> List[Dict[str, Any]]:
+    """Which batches a voucher moved (derived from its live ledger entries), one row
+    per item / warehouse / batch -- shows what FIFO picked for lines left blank."""
+    rows = (
+        StockLedgerEntry.objects.filter(
+            voucher_type=voucher_type,
+            voucher_no=voucher_no,
+            is_cancelled=False,
+            batch__isnull=False,
+        )
+        .values(
+            "item_id",
+            "item__code",
+            "item__name",
+            "warehouse_id",
+            "warehouse__name",
+            "batch_id",
+            "batch__batch_no",
+            "batch__manufacturing_date",
+            "batch__expiry_date",
+        )
+        .annotate(q=Sum("qty"))
+        .order_by("item__code", "warehouse__name", "batch__manufacturing_date", "batch_id")
+    )
+    return [
+        {
+            "item": r["item_id"],
+            "item_code": r["item__code"],
+            "item_name": r["item__name"],
+            "warehouse": r["warehouse_id"],
+            "warehouse_name": r["warehouse__name"],
+            "batch": r["batch_id"],
+            "batch_no": r["batch__batch_no"],
+            "manufacturing_date": r["batch__manufacturing_date"],
+            "expiry_date": r["batch__expiry_date"],
+            "qty": _q3(r["q"]),
+            "direction": "in" if r["q"] > 0 else "out",
+        }
+        for r in rows
+    ]
 
 
 def batch_required_message(item, warehouse, qty, posting_date) -> str:
@@ -610,6 +771,24 @@ def integrity_errors() -> List[str]:
         errors.append(
             f"Batch {b.batch_no} of expiry-tracked item {b.item.code} has no expiry date"
         )
+
+    # Item variants: a template is never stocked or batched, and a variant's
+    # stored combination equals its attribute rows.
+    for item in Item.objects.filter(has_variants=True):
+        if StockLedgerEntry.objects.filter(item=item).exists():
+            errors.append(f"Template item {item.code} has stock ledger entries")
+        if Batch.objects.filter(item=item).exists():
+            errors.append(f"Template item {item.code} has batches")
+    for item in Item.objects.filter(variant_of__isnull=False).prefetch_related(
+        "attributes"
+    ):
+        rows = {r.attribute_id: r.value_id for r in item.attributes.all()}
+        if None in rows.values() or item.variant_signature != "|".join(
+            f"{a}:{v}" for a, v in sorted(rows.items())
+        ):
+            errors.append(
+                f"Variant {item.code}: attribute rows do not match its stored combination"
+            )
     return errors
 
 

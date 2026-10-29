@@ -4,6 +4,7 @@ ORM-level tests on a perpetual-inventory company (stock, valuation, batches, GL,
 outstanding, cancel, integrity). The GST / API side is in ``gst/tests/test_returns_gst.py``.
 """
 
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 
@@ -118,6 +119,7 @@ class ReturnBase(TestCase):
 
     def purchase(self, lines, submit=True, update_stock=True, date=DATE):
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name=self.name("PINV"),
             supplier=self.supplier,
             company=self.company,

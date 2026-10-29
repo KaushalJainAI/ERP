@@ -346,7 +346,9 @@ def set_clearance(user, bank_account, items):
                     )
                 if date < leg["posting_date"]:
                     raise ValidationError(
-                        _("The clearance date of %(no)s cannot be before its posting date.")
+                        _(
+                            "The clearance date of %(no)s cannot be before its posting date."
+                        )
                         % {"no": key[1]}
                     )
             rows.append((key, date))
@@ -414,8 +416,12 @@ def reconciliation_statement(bank_account, as_on):
         }
 
     order = lambda leg: (leg["posting_date"], leg["voucher_no"])  # noqa: E731
-    receipts = [line(leg) for leg in sorted(pending.values(), key=order) if leg["net"] > 0]
-    payments = [line(leg) for leg in sorted(pending.values(), key=order) if leg["net"] < 0]
+    receipts = [
+        line(leg) for leg in sorted(pending.values(), key=order) if leg["net"] > 0
+    ]
+    payments = [
+        line(leg) for leg in sorted(pending.values(), key=order) if leg["net"] < 0
+    ]
     uncleared_receipts = sum((r["amount"] for r in receipts), ZERO)
     uncleared_payments = sum((p["amount"] for p in payments), ZERO)
     bank_balance = gl_balance - uncleared_receipts + uncleared_payments
@@ -440,9 +446,11 @@ def reconciliation_statement(bank_account, as_on):
         "bank_balance": bank_balance,
         "statement_balance": statement_balance,
         "statement_balance_date": last.transaction_date if last else None,
-        "difference": (statement_balance - bank_balance)
-        if statement_balance is not None
-        else None,
+        "difference": (
+            (statement_balance - bank_balance)
+            if statement_balance is not None
+            else None
+        ),
     }
 
 
@@ -475,7 +483,9 @@ def check_integrity():
         for tx_pk, keys in transaction_links(cleared).items():
             tx = BankTransaction.objects.filter(pk=tx_pk).first()
             if tx is None or tx.bank_account_id != bank_account.pk:
-                errors.append(f"{label}: a clearance points at a foreign bank transaction.")
+                errors.append(
+                    f"{label}: a clearance points at a foreign bank transaction."
+                )
                 continue
             total = sum((legs[k]["net"] for k in keys if k in legs), ZERO)
             if total != tx.amount:

@@ -28,7 +28,9 @@ class AmountInWordsEnglish(SimpleTestCase):
 
     def test_whole_rupees_have_no_paise_clause(self):
         self.assertEqual(amount_in_words(1), "Rupees One Only")
-        self.assertEqual(amount_in_words(D("236.00")), "Rupees Two Hundred Thirty Six Only")
+        self.assertEqual(
+            amount_in_words(D("236.00")), "Rupees Two Hundred Thirty Six Only"
+        )
 
     def test_rupees_and_paise(self):
         self.assertEqual(
@@ -43,21 +45,18 @@ class AmountInWordsEnglish(SimpleTestCase):
             "Rupees Twelve Lakh Thirty Four Thousand Five Hundred Sixty Seven Only",
         )
         self.assertEqual(amount_in_words(1000), "Rupees One Thousand Only")
-        self.assertEqual(amount_in_words(99999), "Rupees Ninety Nine Thousand Nine Hundred Ninety Nine Only")
+        self.assertEqual(
+            amount_in_words(99999),
+            "Rupees Ninety Nine Thousand Nine Hundred Ninety Nine Only",
+        )
 
     def test_crore_groups_recurse(self):
         self.assertEqual(amount_in_words(10_000_000), "Rupees One Crore Only")
-        self.assertEqual(
-            integer_in_words(1_050_000_000), "One Hundred Five Crore"
-        )
+        self.assertEqual(integer_in_words(1_050_000_000), "One Hundred Five Crore")
 
     def test_skipped_groups(self):
-        self.assertEqual(
-            amount_in_words(10_000_005), "Rupees One Crore Five Only"
-        )
-        self.assertEqual(
-            amount_in_words(10_100_000), "Rupees One Crore One Lakh Only"
-        )
+        self.assertEqual(amount_in_words(10_000_005), "Rupees One Crore Five Only")
+        self.assertEqual(amount_in_words(10_100_000), "Rupees One Crore One Lakh Only")
 
     def test_rounds_half_up_to_paise(self):
         self.assertEqual(amount_in_words(D("0.005")), "One Paise Only")

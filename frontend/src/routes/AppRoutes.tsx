@@ -7,14 +7,19 @@ import { Home } from "@/pages/Home";
 import { Profile } from "@/pages/Profile";
 import { Roles } from "@/pages/Roles";
 import { useTranslation } from "react-i18next";
+import { MusterRollPage } from "@/pages/hr/MusterRollPage";
 import { GLEntriesPage } from "@/pages/GLEntriesPage";
 import { TallyExportPage } from "@/pages/TallyExportPage";
+import { PaymentReconciliationPage } from "@/pages/PaymentReconciliationPage";
 import { CompanyPage } from "@/pages/organisation/CompanyPage";
 import { DrivePage } from "@/pages/organisation/DrivePage";
 import { TrialBalancePage } from "@/pages/reports/TrialBalancePage";
 import { GeneralLedgerPage } from "@/pages/reports/GeneralLedgerPage";
 import { ProfitLossPage } from "@/pages/reports/ProfitLossPage";
 import { BalanceSheetPage } from "@/pages/reports/BalanceSheetPage";
+import { BankImportPage } from "@/pages/bank/BankImportPage";
+import { BankReconciliationPage } from "@/pages/bank/BankReconciliationPage";
+import { BankReconciliationStatementPage } from "@/pages/bank/BankReconciliationStatementPage";
 import { Gstr1Page } from "@/pages/reports/gst/Gstr1Page";
 import { Gstr3bPage } from "@/pages/reports/gst/Gstr3bPage";
 import { TaxLedgerPage } from "@/pages/reports/gst/TaxLedgerPage";
@@ -24,7 +29,9 @@ import { CashBookPage } from "@/pages/reports/registers/CashBookPage";
 import { PartyStatementPage } from "@/pages/reports/registers/PartyStatementPage";
 import { ListPage } from "@/components/doc/ListPage";
 import { PastBillsPage } from "@/pages/history/PastBillsPage";
+import { PrintPage } from "@/print/PrintPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
+import { CreateVariantPage } from "@/pages/stock/CreateVariantPage";
 import { ReportPage } from "@/components/doc/ReportPage";
 import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
@@ -144,6 +151,26 @@ export const AppRoutes: React.FC = () => {
         />
       ))}
 
+      {/* Print formats: a plain A4 view of one document, no app chrome (src/print/). */}
+      <Route
+        path="/print/:kind/:id"
+        element={
+          <ProtectedRoute>
+            <PrintPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ERPNext "Create Variant" of a template item. */}
+      <Route
+        path="/stock/items/:id/create-variant"
+        element={
+          <ProtectedRoute>
+            <CreateVariantPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Read-only Tally history as bills (all 10 years). */}
       <Route
         path="/history/bills"
@@ -160,6 +187,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <GLEntriesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/payment-reconciliation"
+        element={
+          <ProtectedRoute>
+            <PaymentReconciliationPage />
           </ProtectedRoute>
         }
       />
@@ -269,6 +304,31 @@ export const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      {/* Bank reconciliation: statement import, two-pane tool and the BRS report. */}
+      <Route
+        path="/accounts/bank-import"
+        element={
+          <ProtectedRoute>
+            <BankImportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/bank-reconciliation"
+        element={
+          <ProtectedRoute>
+            <BankReconciliationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/reports/bank-reconciliation-statement"
+        element={
+          <ProtectedRoute>
+            <BankReconciliationStatementPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/organisation/company"
         element={
@@ -298,6 +358,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Roles />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/muster-roll"
+        element={
+          <ProtectedRoute>
+            <MusterRollPage />
           </ProtectedRoute>
         }
       />

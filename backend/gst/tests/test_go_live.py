@@ -42,6 +42,10 @@ class TallyStyleBase(ReportBase):
         Account.objects.filter(
             company=self.company, gst_direction__isnull=False
         ).delete()
+        # The seeded groups are not part of a Tally-imported chart.
+        Account.objects.filter(
+            company=self.company, name__in=["Duties and Taxes", "Input Tax Credit"]
+        ).delete()
         liabilities = Account.objects.get(company=self.company, name="Liabilities")
         self.duties = Account.objects.create(
             company=self.company,
@@ -94,7 +98,13 @@ class AccountSetupTests(TallyStyleBase):
 
     def test_legacy_combined_ledgers_are_untouched(self):
         before = {
-            a.pk: (a.name, a.parent_id, a.gst_direction, a.gst_component, a.account_type)
+            a.pk: (
+                a.name,
+                a.parent_id,
+                a.gst_direction,
+                a.gst_component,
+                a.account_type,
+            )
             for a in self.legacy.values()
         }
         self.setup_gst()

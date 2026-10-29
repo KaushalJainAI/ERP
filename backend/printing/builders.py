@@ -444,6 +444,10 @@ def purchase_invoice(doc, params):
             due_date=iso(doc.due_date),
             is_return=debit,
             return_against=_return_reference(doc),
+            supplier_invoice={
+                "no": getattr(doc, "bill_no", ""),
+                "date": iso(getattr(doc, "bill_date", None)),
+            },
         ),
         "company": company_block(doc.company),
         "bill_to": bill,

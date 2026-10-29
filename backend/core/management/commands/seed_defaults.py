@@ -11,10 +11,13 @@ from stock.models import UOM, ItemGroup, Warehouse
 from selling.models import CustomerGroup
 from buying.models import SupplierGroup
 from accounts.models import Account, AccountRootType, AccountType
+from accounts.services.closing import ensure_closing_account
 from gst.services.seeding import seed_gst
 from hr.seed import HR_LABELS, HR_ROLE_MATRIX, HR_ROLES
 from hr.services.setup import ensure_hr_setup
+from buying.services.charges import ensure_charge_setup
 from tally_export.seed import TALLY_EXPORT_LABELS
+from payment_reconciliation.seed import PAYMENT_RECONCILIATION_LABELS
 
 
 LANGUAGES_SEED = [
@@ -78,6 +81,7 @@ _MASTER_LABELS = (
     "stock.UOM",
     "stock.ItemGroup",
     "stock.Item",
+    "stock.ItemAttribute",
     "stock.Batch",
     "stock.Warehouse",
     "stock.PriceList",
@@ -87,6 +91,7 @@ _MASTER_LABELS = (
     "selling.Customer",
     "buying.SupplierGroup",
     "buying.Supplier",
+    "buying.PurchaseChargeTemplate",
     "contacts.Address",
     # GST masters (state list, per-company tax templates, global item tax templates).
     "core.State",
@@ -126,6 +131,7 @@ _STOCK_LABELS = (
     "stock.UOM",
     "stock.ItemGroup",
     "stock.Item",
+    "stock.ItemAttribute",
     "stock.Batch",
     "stock.Warehouse",
     "stock.PriceList",
@@ -160,12 +166,23 @@ _SELLING_LABELS = (
 _BUYING_LABELS = (
     "buying.SupplierGroup",
     "buying.Supplier",
+    "buying.PurchaseChargeTemplate",
     "contacts.Address",
     "buying.PurchaseOrder",
     "buying.PurchaseInvoice",
     "stock.PriceList",
     "stock.ItemPrice",
 )
+
+#: Bank reconciliation and year-end closing. Statement lines are written only by
+#: the import; clearances only by the reconcile endpoints.
+_BANK_FULL_LABELS = (
+    "accounts.BankAccount",
+    "accounts.BankStatementImport",
+    "accounts.BankClearance",
+    "accounts.PeriodClosingVoucher",
+)
+_BANK_READ_LABELS = ("accounts.BankTransaction", "core.FiscalYear")
 
 #: Read-only Tally history (written only by import_tally; no write routes exist).
 #: The full archive is the old books, so it sits with the accounts.
@@ -196,11 +213,14 @@ EXPOSED_MODEL_LABELS = tuple(
         set(_MASTER_LABELS)
         | set(_DOCUMENT_LABELS)
         | set(_LEDGER_LABELS)
+        | set(_BANK_FULL_LABELS)
+        | set(_BANK_READ_LABELS)
         | set(_LEGACY_LABELS)
         | set(_NGU_LABELS)
         | set(_ADMIN_LABELS)
         | set(HR_LABELS)
         | set(TALLY_EXPORT_LABELS)
+        | set(PAYMENT_RECONCILIATION_LABELS)
     )
 )
 
@@ -232,12 +252,15 @@ ROLE_PERMISSION_MATRIX = {
     # Financial authority: the GL, and therefore every accounts report.
     "Accounts Manager": {
         **_scope(_ACCOUNTS_LABELS, FULL),
+        **_scope(_BANK_FULL_LABELS, FULL),
+        **_scope(_BANK_READ_LABELS, READ),
         **_scope(
             ("core.Company", "core.State", "selling.Customer", "buying.Supplier"),
             READ,
         ),
         **_scope(_LEGACY_LABELS, READ),
         **_scope(TALLY_EXPORT_LABELS, FULL),
+        **_scope(PAYMENT_RECONCILIATION_LABELS, FULL),
     },
     # Selling authority, plus read access to the catalogue it sells from.
     "Sales Manager": {
@@ -547,8 +570,16 @@ class Command(BaseCommand):
             for warning in comp["warnings"]:
                 self.stdout.write(self.style.WARNING(f"  GST warning: {warning}"))
 
+        # 8b. Year-end closing: the Retained Earnings account the Period Closing
+        # Voucher moves profit into (an existing Reserves & Surplus is reused).
+        ensure_closing_account(company)
+
         # 9. HR: wage/payable/advance accounts, HR Settings, system components.
         ensure_hr_setup(company)
+
+        # 10. Purchase-bill charges: Freight / Hamali accounts, Expenses Included
+        # In Valuation and the charge templates.
+        ensure_charge_setup(company)
 
         self.stdout.write(
             self.style.SUCCESS("Successfully seeded default data idempotently.")

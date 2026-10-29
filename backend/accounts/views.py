@@ -25,6 +25,7 @@ from accounts.serializers import (
     TaxTemplateSerializer,
 )
 from accounts.reports.tally import tally_lookup
+from accounts.services.closing import PCV_VOUCHER_TYPE
 from accounts.services import outstanding as outstanding_service
 from core.company_context import (
     CompanyScopedMixin,
@@ -213,6 +214,9 @@ def trial_balance(request):
     from_date = _date_param(request, "from_date")
     to_date = _date_param(request, "to_date")
 
+    # ``?exclude_closing=1`` hides Period Closing Voucher entries so a closed
+    # year's Income / Expense accounts still show their figures.
+    exclude_closing = request.query_params.get("exclude_closing") in ("1", "true")
     accounts = Account.objects.filter(is_group=False, company_id=company_id)
 
     report_rows = []
@@ -223,6 +227,8 @@ def trial_balance(request):
         qs = GLEntry.objects.filter(
             account=acc, company_id=company_id, is_cancelled=False
         )
+        if exclude_closing:
+            qs = qs.exclude(voucher_type=PCV_VOUCHER_TYPE)
         if from_date:
             qs = qs.filter(posting_date__gte=from_date)
         if to_date:
@@ -350,7 +356,11 @@ def profit_and_loss(request):
     from_date = _date_param(request, "from_date")
     to_date = _date_param(request, "to_date")
 
-    qs = GLEntry.objects.filter(company_id=company_id, is_cancelled=False)
+    # Period Closing Voucher entries zero the year's P&L accounts; excluding them
+    # keeps a closed year's figures visible (ERPNext does the same).
+    qs = GLEntry.objects.filter(company_id=company_id, is_cancelled=False).exclude(
+        voucher_type=PCV_VOUCHER_TYPE
+    )
     if from_date:
         qs = qs.filter(posting_date__gte=from_date)
     if to_date:
@@ -390,12 +400,18 @@ def balance_sheet(request):
     asset_rows, total_assets = _root_balances(qs, "Asset", debit_normal=True)
     liab_rows, total_liabilities = _root_balances(qs, "Liability", debit_normal=False)
     eq_rows, total_equity = _root_balances(qs, "Equity", debit_normal=False)
+    # Profit not yet moved to retained earnings by a Period Closing Voucher (the
+    # closing entries are included here, so closed years contribute nothing):
+    # assets = liabilities + equity + provisional_profit.
+    _rows, income = _root_balances(qs, "Income", debit_normal=False)
+    _rows, expense = _root_balances(qs, "Expense", debit_normal=True)
 
     return Response(
         {
             "total_assets": str(total_assets),
             "total_liabilities": str(total_liabilities),
             "total_equity": str(total_equity),
+            "provisional_profit": str(income - expense),
             "accounts": asset_rows + liab_rows + eq_rows,
         }
     )
@@ -518,6 +534,33 @@ def calculate_taxes(request):
         )
 
     ctx = outcome.ctx
+    totals = {
+        "net_total": doc.net_total,
+        "total_taxes_and_charges": doc.total_taxes_and_charges,
+        "grand_total": doc.grand_total,
+        "rounding_adjustment": doc.rounding_adjustment,
+        "rounded_total": doc.rounded_total,
+    }
+    if label == "buying.PurchaseInvoice":
+        # Charges the supplier put on the bill (freight...) are added after the
+        # tax engine (no GST on them), exactly as ``PurchaseInvoice`` does on save.
+        from buying.services.charges import totals_with_bill_charges
+
+        on_bill = Decimal("0.00")
+        for row in request.data.get("charges") or []:
+            if isinstance(row, dict) and row.get("included_in_bill"):
+                try:
+                    on_bill += Decimal(str(row.get("amount") or "0"))
+                except Exception:
+                    raise ValidationError(
+                        {"charges": _("Charge amounts must be numbers.")}
+                    )
+        if on_bill > 0:
+            totals.update(
+                totals_with_bill_charges(
+                    company, doc.grand_total, doc.total_taxes_and_charges, on_bill
+                )
+            )
     return Response(
         {
             "supply": {
@@ -573,10 +616,6 @@ def calculate_taxes(request):
                 }
                 for row in outcome.rows
             ],
-            "net_total": str(doc.net_total),
-            "total_taxes_and_charges": str(doc.total_taxes_and_charges),
-            "grand_total": str(doc.grand_total),
-            "rounding_adjustment": str(doc.rounding_adjustment),
-            "rounded_total": str(doc.rounded_total),
+            **{key: str(value) for key, value in totals.items()},
         }
     )

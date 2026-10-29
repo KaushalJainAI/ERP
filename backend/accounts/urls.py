@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from accounts import report_views
+from accounts import bank_views, report_views
+from accounts.closing_views import FiscalYearViewSet, PeriodClosingVoucherViewSet
 from accounts.views import (
     AccountViewSet,
     GLEntryViewSet,
@@ -27,6 +28,22 @@ router.register("tax-templates", TaxTemplateViewSet, basename="tax-template")
 router.register(
     "item-tax-templates", ItemTaxTemplateViewSet, basename="item-tax-template"
 )
+router.register("bank-accounts", bank_views.BankAccountViewSet, basename="bank-account")
+router.register(
+    "bank-transactions", bank_views.BankTransactionViewSet, basename="bank-transaction"
+)
+router.register(
+    "bank-clearances", bank_views.BankClearanceViewSet, basename="bank-clearance"
+)
+router.register(
+    "bank-statements", bank_views.BankStatementImportViewSet, basename="bank-statement"
+)
+router.register(
+    "period-closing-vouchers",
+    PeriodClosingVoucherViewSet,
+    basename="period-closing-voucher",
+)
+router.register("fiscal-years", FiscalYearViewSet, basename="fiscal-year")
 
 urlpatterns = [
     path("taxes/calculate/", calculate_taxes, name="calculate-taxes"),
@@ -47,6 +64,25 @@ urlpatterns = [
         "reports/party-statement/",
         report_views.party_statement,
         name="party-statement",
+    ),
+    path(
+        "bank-reconciliation/", bank_views.bank_reconciliation, name="bank-reconciliation"
+    ),
+    path(
+        "bank-reconciliation/match/", bank_views.bank_match, name="bank-reconciliation-match"
+    ),
+    path(
+        "bank-reconciliation/unmatch/",
+        bank_views.bank_unmatch,
+        name="bank-reconciliation-unmatch",
+    ),
+    path(
+        "bank-reconciliation/clear/", bank_views.bank_clear, name="bank-reconciliation-clear"
+    ),
+    path(
+        "reports/bank-reconciliation-statement/",
+        bank_views.bank_reconciliation_statement,
+        name="bank-reconciliation-statement",
     ),
     path("", include(router.urls)),
 ]

@@ -198,7 +198,12 @@ class PurchaseInvoiceItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
-    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
+    is_stock_item = serializers.BooleanField(
+        source="item.is_stock_item", read_only=True
+    )
     rate = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -214,6 +219,7 @@ class PurchaseInvoiceItemSerializer(
             "item",
             "item_code",
             "item_name",
+            "is_stock_item",
             "warehouse",
             "warehouse_name",
             "qty",
@@ -290,14 +296,20 @@ class PurchaseChargeTemplateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         inst = self.instance
-        in_bill = attrs.get("included_in_bill", inst.included_in_bill if inst else False)
+        in_bill = attrs.get(
+            "included_in_bill", inst.included_in_bill if inst else False
+        )
         account = attrs.get("account", inst.account if inst else None)
         company = attrs.get("company", inst.company if inst else None)
         if in_bill and account is None:
             raise serializers.ValidationError(
                 {"account": _("Choose the expense account of a charge on the bill.")}
             )
-        if account is not None and company is not None and account.company_id != company.pk:
+        if (
+            account is not None
+            and company is not None
+            and account.company_id != company.pk
+        ):
             raise serializers.ValidationError(
                 {"account": _("The account must belong to the template's company.")}
             )

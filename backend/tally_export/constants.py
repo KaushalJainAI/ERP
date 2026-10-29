@@ -49,6 +49,10 @@ GST_LEDGER_NAMES = {
     for component in ("CGST", "SGST", "IGST", "CESS")
 }
 
+#: ERP documents that are never sent to Tally: Tally closes its own years, so the
+#: year-end Period Closing Voucher would double-close the books.
+NEVER_EXPORTED_DOCTYPES = ["accounts.PeriodClosingVoucher"]
+
 #: Voucher names with these prefixes were imported from Tally; they are history.
 DEFAULT_EXCLUDED_PREFIXES = ["TLY-"]
 

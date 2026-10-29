@@ -234,6 +234,54 @@ class Command(BaseCommand):
         )
         errors.extend(tally_errors)
 
+        # 13. Bank reconciliation: every clearance references a submitted voucher
+        #     touching its bank account; a matched statement line equals its vouchers.
+        from accounts.services import bank as bank_service
+
+        bank_errors = bank_service.check_integrity()
+        SystemHealthCheck.objects.create(
+            check_name="bank_reconciliation_integrity",
+            status="alert" if bank_errors else "ok",
+            details={
+                "errors": bank_errors,
+                "message": "" if bank_errors else "Bank clearances and matches agree with the ledger.",
+            },
+        )
+        errors.extend(bank_errors)
+
+        # 14. Period closing: each submitted Period Closing Voucher's ledger rows
+        #     match what it closed. Entries posted after the close are warnings.
+        from accounts.services import closing as closing_service
+
+        pcv_errors, pcv_warnings = closing_service.check_integrity()
+        SystemHealthCheck.objects.create(
+            check_name="period_closing_integrity",
+            status="alert" if pcv_errors else "ok",
+            details={
+                "errors": pcv_errors,
+                "warnings": pcv_warnings,
+                "message": "" if pcv_errors else "Period Closing Vouchers agree with the ledger.",
+            },
+        )
+        errors.extend(pcv_errors)
+        for warning in pcv_warnings:
+            self.stdout.write(self.style.WARNING(f"[period closing warning] {warning}"))
+
+        # 15. Payment reconciliation: each submitted entry's live GL rows equal its
+        #     allocations and no payment / note is consumed beyond its balance.
+        from payment_reconciliation import services as payrecon_service
+
+        payrecon_errors = payrecon_service.integrity_errors()
+        SystemHealthCheck.objects.create(
+            check_name="payment_reconciliation_integrity",
+            status="alert" if payrecon_errors else "ok",
+            details={
+                "errors": payrecon_errors,
+                "message": "" if payrecon_errors else "Payment reconciliations agree with the ledger.",
+            },
+        )
+        errors.extend(payrecon_errors)
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
         details_payload = (

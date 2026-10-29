@@ -1,4 +1,5 @@
 import datetime
+from collections import deque
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
@@ -6,6 +7,7 @@ from django.db import transaction
 from core.models import FiscalYear
 from stock.models import Batch, Item, Warehouse, StockLedgerEntry, Bin
 from stock.services import batches as batch_service
+from stock.services import variants as variant_service
 
 
 def quantize_qty(val: Any) -> Decimal:
@@ -47,6 +49,13 @@ def post(
                          (rate becomes value/qty), instead of qty * rate.
       ``allow_expired``  bool. Stock-out only: permit issuing an expired batch
                          (Material Issue, the write-off path).
+      ``mirror_outgoing`` bool. Stock-in only (a transfer's incoming leg): carry
+                         the batch(es) of the outgoing leg(s) just posted.
+
+    A stock-out of a batch-tracked item that names no batch is allocated here,
+    FIFO (oldest manufacturing date first), across as many batches as needed: the
+    leg is replaced by one SLE per batch. The allocation runs under the Bin lock
+    taken for that item + warehouse, so concurrent postings cannot double-allocate.
     """
     if not sle_entries:
         raise ValidationError("Cannot post empty stock ledger entries.")
@@ -70,9 +79,14 @@ def post(
     # Rate computed on the most recent stock-out leg in this call. A transfer's
     # incoming leg reuses it so an internal move neither creates nor destroys value.
     last_outgoing_rate: Any = None
+    # The (batch, qty, rate, value) legs of the latest stock-out line (one line may
+    # have been split over several FIFO batches); a transfer's incoming leg mirrors it.
+    last_out_group: List[Dict[str, Any]] = []
 
     with transaction.atomic():
-        for item_data in sle_entries:
+        queue = deque(sle_entries)
+        while queue:
+            item_data = queue.popleft()
             item = item_data["item"]
             if isinstance(item, (int, str)):
                 item = Item.objects.get(pk=item)
@@ -85,6 +99,7 @@ def post(
                 raise ValidationError(
                     f"Stock transaction not allowed on group warehouse '{warehouse.name}'."
                 )
+            variant_service.assert_not_template(item)
 
             qty = quantize_qty(item_data["qty"])
             if qty == 0:
@@ -106,6 +121,49 @@ def post(
                     "stock_value": Decimal("0.00"),
                 },
             )
+
+            if item.has_batch_no and batch is None:
+                if qty < 0:
+                    # FIFO auto-pick, under the Bin lock taken above: replace this
+                    # leg by one explicit leg per allocated batch (processed next,
+                    # in order, so each sees the balances left by the previous).
+                    allocations = batch_service.allocate_fifo(
+                        item,
+                        warehouse,
+                        abs(qty),
+                        date_to_use,
+                        allow_expired=bool(item_data.get("allow_expired")),
+                    )
+                    legs = [
+                        {
+                            **item_data,
+                            "batch": picked,
+                            "qty": -picked_qty,
+                            "_group_continues": index > 0,
+                        }
+                        for index, (picked, picked_qty) in enumerate(allocations)
+                    ]
+                    queue.extendleft(reversed(legs))
+                    continue
+                if item_data.get("mirror_outgoing") and last_out_group:
+                    if sum((g["qty"] for g in last_out_group), Decimal("0")) != qty:
+                        raise ValidationError(
+                            f"Transfer of '{item.code}': incoming quantity does not "
+                            "match the quantity taken out."
+                        )
+                    legs = [
+                        {
+                            **item_data,
+                            "batch": g["batch"],
+                            "qty": g["qty"],
+                            "incoming_value": g["value"],
+                            "mirror_outgoing": False,
+                            "use_outgoing_rate": False,
+                        }
+                        for g in last_out_group
+                    ]
+                    queue.extendleft(reversed(legs))
+                    continue
 
             # Batch invariants, checked under the Bin lock so concurrent postings
             # to the same item+warehouse cannot both pass the balance check.
@@ -176,6 +234,15 @@ def post(
                 )
                 stock_value_diff = quantize_value(-outgoing_value)
                 last_outgoing_rate = outgoing_rate
+                leg = {
+                    "batch": batch,
+                    "qty": abs(qty),
+                    "value": abs(stock_value_diff),
+                }
+                if item_data.get("_group_continues"):
+                    last_out_group.append(leg)
+                else:
+                    last_out_group[:] = [leg]
 
             # Update derived Bin
             bin_obj.actual_qty = new_qty

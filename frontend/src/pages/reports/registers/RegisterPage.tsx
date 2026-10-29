@@ -32,6 +32,9 @@ interface Row {
   posting_date: string;
   party: string;
   party_gstin: string;
+  /** purchase register only: the supplier's own invoice no */
+  bill_no?: string | null;
+  bill_date?: string | null;
   is_reverse_charge: boolean;
   is_return: boolean;
   return_against: string | null;
@@ -101,7 +104,8 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
   const groupLink = useMemo<LinkDef>(() => ({ endpoint: "/stock/item-groups/", labelField: "name" }), []);
   const showRcm = !!data && (kind === "purchase" || data.rows.some((r) => r.is_reverse_charge));
   const heads = data?.heads ?? ["CGST", "SGST", "IGST", "CESS", "OTHER"];
-  const cols = 7 + heads.length + (showRcm ? 1 : 0) + 3;
+  const isPurchase = kind === "purchase";
+  const cols = 7 + heads.length + (showRcm ? 1 : 0) + 3 + (isPurchase ? 2 : 0);
 
   const exportCsv = async () => {
     const { first, items } = await fetchAllPages<Register>(cfg.path, Object.fromEntries(Object.entries(base).filter(([, v]) => v !== "")), "rows");
@@ -110,6 +114,7 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
       t("registers.number"),
       t(cfg.partyLabel),
       t("registers.gstin"),
+      ...(isPurchase ? [t("chg.bill_no"), t("chg.bill_date")] : []),
       t("registers.net_total"),
       ...first.heads.map((h) => t(HEAD_KEY[h])),
       t("registers.rcm_tax"),
@@ -123,6 +128,7 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
       r.name,
       r.party,
       r.party_gstin,
+      ...(isPurchase ? [r.bill_no ?? "", r.bill_date ?? ""] : []),
       r.net_total,
       ...first.heads.map((h) => r.taxes[h]),
       r.reverse_charge_tax,
@@ -135,7 +141,7 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
     downloadCsv(`${kind}-register_${f.from}_${f.to}`, [
       head,
       ...rows,
-      [t("acc.report.total"), "", "", "", tt.net_total, ...first.heads.map((h) => tt.taxes[h]), tt.reverse_charge_tax, tt.grand_total, tt.rounding_adjustment, tt.rounded_total, tt.outstanding],
+      [t("acc.report.total"), "", "", "", ...(isPurchase ? ["", ""] : []), tt.net_total, ...first.heads.map((h) => tt.taxes[h]), tt.reverse_charge_tax, tt.grand_total, tt.rounding_adjustment, tt.rounded_total, tt.outstanding],
     ]);
   };
 
@@ -198,6 +204,8 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
                   <th className={th}>{t("registers.number")}</th>
                   <th className={th}>{t(cfg.partyLabel)}</th>
                   <th className={th}>{t("registers.gstin")}</th>
+                  {isPurchase && <th className={th}>{t("chg.bill_no")}</th>}
+                  {isPurchase && <th className={th}>{t("chg.bill_date")}</th>}
                   <th className={thR}>{t("registers.net_total")}</th>
                   {heads.map((h) => (
                     <th key={h} className={thR}>
@@ -231,6 +239,8 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
                       </td>
                       <td className={td}>{r.party}</td>
                       <td className={`${td} whitespace-nowrap`}>{r.party_gstin}</td>
+                      {isPurchase && <td className={`${td} whitespace-nowrap`}>{r.bill_no ?? ""}</td>}
+                      {isPurchase && <td className={`${td} whitespace-nowrap`}>{r.bill_date ? formatDate(r.bill_date) : ""}</td>}
                       <td className={tdR}>{fmtMoney(r.net_total)}</td>
                       {heads.map((h) => (
                         <td key={h} className={tdR}>
@@ -249,7 +259,7 @@ const RegisterPage: React.FC<{ kind: Kind }> = ({ kind }) => {
               {data && data.rows.length > 0 && (
                 <tfoot className={tfootCls}>
                   <tr>
-                    <td className={td} colSpan={4}>
+                    <td className={td} colSpan={isPurchase ? 6 : 4}>
                       {t("acc.report.total")} ({t("acc.report.entries_count", { count: data.pagination.count })})
                     </td>
                     <td className={tdR}>{fmtMoney(data.totals.net_total)}</td>

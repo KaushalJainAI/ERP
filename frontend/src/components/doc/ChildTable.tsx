@@ -191,6 +191,7 @@ export const ChildTable: React.FC<ChildTableProps> = ({
                           values={row}
                           parentValues={parentValues}
                           invalid={!!colErrors}
+                          placeholder={col.placeholderKey ? t(col.placeholderKey) : undefined}
                           onChange={(v) => setCell(idx, { [col.key]: v })}
                           onLinkSelect={(v, rec: LinkRecord | null) => {
                             const patch = {
@@ -202,6 +203,8 @@ export const ChildTable: React.FC<ChildTableProps> = ({
                           }}
                         />
                       )}
+                      {col.emptyHint && !colErrors && (row[col.key] === undefined || row[col.key] === null || row[col.key] === "") &&
+                        col.emptyHint(row, parentValues)}
                       {colErrors && <p className="text-[11px] text-rose-400 mt-1">{colErrors.join(" ")}</p>}
                     </td>
                   );

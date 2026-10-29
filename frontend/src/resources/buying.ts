@@ -1,6 +1,9 @@
+import { createElement } from "react";
 import { FilePlus2, Receipt, RefreshCw, ShoppingBag, Truck, Undo2, Users, Wallet } from "lucide-react";
+import { LandedCostPreview } from "@/components/doc/LandedCostPreview";
+import { isDecimal } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
-import { DocStatus, type ChildColumnDef, type LinkDef, type ResourceConfig } from "@/types";
+import { DocStatus, type ChildColumnDef, type ChildTableDef, type LinkDef, type PreviewDef, type ResourceConfig } from "@/types";
 import { accountLink, buyingPriceListLink, companyField, docNoField, itemsTable } from "./selling";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 import { returnColumns, returnHeaderFields, withReturnColumns } from "./returns";
@@ -65,13 +68,90 @@ const newBatchColumns: ChildColumnDef[] = [
   },
 ];
 
+// Server-owned: the line's cost once the bill's extra charges are spread over it.
+const landedRateColumn: ChildColumnDef = {
+  key: "landed_rate",
+  labelKey: "chg.landed_rate",
+  type: "decimal",
+  decimals: 6,
+  readOnly: true,
+  widthClass: "w-32",
+  hidden: (row) => !row.landed_rate,
+};
+
 const purchaseInvoiceItemsTable = withReturnColumns(
   {
     ...itemsTable,
-    columns: [...itemsTable.columns, ...newBatchColumns],
+    columns: [...itemsTable.columns, ...newBatchColumns, landedRateColumn],
   },
   "purchase_invoice_item"
 );
+
+/* ---- extra charges (freight, hamali / loading, unloading, cartage) ---- */
+
+const chargeTemplateLink: LinkDef = {
+  endpoint: "/buying/charge-templates/",
+  labelField: "name",
+  filters: (_row, form) => ({ company: form.company, is_active: true }),
+  // Picking a preset fills the row; every value stays editable.
+  fill: (r) => ({
+    description: r.name,
+    account: r.account ?? "",
+    account_name: r.account_name ?? "",
+    distribute_by: r.distribute_by,
+    included_in_bill: !!r.included_in_bill,
+  }),
+};
+
+const DISTRIBUTE_OPTIONS = [
+  { value: "Amount", labelKey: "chg.by_amount" },
+  { value: "Qty", labelKey: "chg.by_qty" },
+];
+
+const chargesTable: ChildTableDef = {
+  key: "charges",
+  titleKey: "chg.table",
+  newRow: () => ({ distribute_by: "Amount", included_in_bill: false }),
+  columns: [
+    // UI-only picker: never sent (the serializer has no such field).
+    { key: "_template", labelKey: "chg.from_template", type: "link", link: chargeTemplateLink, widthClass: "min-w-[12rem]" },
+    { key: "description", labelKey: "chg.description", type: "text", required: true, widthClass: "min-w-[12rem]" },
+    { key: "amount", labelKey: "chg.amount", type: "decimal", money: true, required: true, widthClass: "w-32" },
+    { key: "distribute_by", labelKey: "chg.distribute_by", type: "select", required: true, options: DISTRIBUTE_OPTIONS, widthClass: "w-36" },
+    { key: "included_in_bill", labelKey: "chg.in_bill", type: "boolean", widthClass: "w-28" },
+    {
+      key: "account",
+      labelKey: "chg.account",
+      type: "link",
+      link: { ...accountLink("Expense"), display: (v) => v.account_name },
+      widthClass: "min-w-[14rem]",
+      // Only a charge on the supplier's bill is booked to an expense account.
+      hidden: (row) => !row.included_in_bill,
+    },
+  ],
+};
+
+/** The dry run also needs the charges that sit on the bill: they raise the total. */
+const basePurchasePreview = taxPreview("buying.PurchaseInvoice", "supplier");
+const purchaseInvoicePreview: PreviewDef = {
+  ...basePurchasePreview,
+  buildRequest: (v, manual) => {
+    const body = basePurchasePreview.buildRequest(v, manual);
+    if (!body) return body;
+    const rows = ((v.charges as Record<string, any>[]) ?? []).filter((c) => isDecimal(c.amount));
+    body.charges = rows.map((c) => ({ amount: c.amount, included_in_bill: !!c.included_in_bill }));
+    return body;
+  },
+};
+
+/** GST summary plus the live landed cost per stock line. */
+const renderPurchaseSummary: NonNullable<ResourceConfig["renderSummary"]> = (ctx) =>
+  createElement(
+    "div",
+    { className: "space-y-3" },
+    renderGstSummary("supplier")(ctx),
+    createElement(LandedCostPreview, { values: ctx.values })
+  );
 
 /* ---- resources ---- */
 
@@ -207,6 +287,8 @@ const purchaseInvoices: ResourceConfig = {
     { key: "name", labelKey: "fields.docno" },
     { key: "supplier_name", labelKey: "bs.fields.supplier" },
     { key: "price_list_name", labelKey: "pl.fields.price_list" },
+    { key: "bill_no", labelKey: "chg.bill_no" },
+    { key: "bill_date", labelKey: "chg.bill_date", type: "date" },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
     { key: "due_date", labelKey: "fields.due_date", type: "date" },
     { key: "grand_total", labelKey: "fields.grand_total", type: "money" },
@@ -220,6 +302,9 @@ const purchaseInvoices: ResourceConfig = {
     { key: "supplier", labelKey: "bs.fields.supplier", type: "link", required: true, link: supplierLink, clears: ["place_of_supply", "taxes_and_charges"] },
     { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.document_list", advanced: true },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
+    // The supplier's own invoice number / date: the reference the accountant needs in Tally.
+    { key: "bill_no", labelKey: "chg.bill_no", type: "text", helpKey: "chg.bill_no_help" },
+    { key: "bill_date", labelKey: "chg.bill_date", type: "date" },
     { key: "due_date", labelKey: "fields.due_date", type: "date", advanced: true },
     {
       key: "purchase_order",
@@ -241,9 +326,9 @@ const purchaseInvoices: ResourceConfig = {
     ...taxTotalFields(),
     ...invoiceStatusFields,
   ],
-  childTables: [purchaseInvoiceItemsTable, taxesTable],
-  preview: taxPreview("buying.PurchaseInvoice", "supplier"),
-  renderSummary: renderGstSummary("supplier"),
+  childTables: [purchaseInvoiceItemsTable, taxesTable, chargesTable],
+  preview: purchaseInvoicePreview,
+  renderSummary: renderPurchaseSummary,
   actions: [
     {
       key: "make_payment_entry",

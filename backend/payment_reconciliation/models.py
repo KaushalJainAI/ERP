@@ -87,7 +87,9 @@ class PaymentReconciliation(SubmittableDocument):
         services.unpost(self)
 
     def __str__(self):
-        return f"{self.name} ({self.party_type} {self.party_name}: {self.total_allocated})"
+        return (
+            f"{self.name} ({self.party_type} {self.party_name}: {self.total_allocated})"
+        )
 
 
 class PaymentReconciliationAllocation(models.Model):

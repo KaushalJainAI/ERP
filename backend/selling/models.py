@@ -312,11 +312,15 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     )
                 continue
             if not line.batch_id:
-                raise ValidationError(
-                    batch_service.batch_required_message(
-                        item, line.warehouse, line.qty, self.posting_date
+                if self.is_return:
+                    # Stock coming back needs the lot it returns to.
+                    raise ValidationError(
+                        batch_service.batch_required_message(
+                            item, line.warehouse, None, self.posting_date
+                        )
                     )
-                )
+                # A sale may leave the batch blank: FIFO picks the oldest lots.
+                continue
             if line.batch.item_id != item.pk:
                 raise ValidationError(
                     _(

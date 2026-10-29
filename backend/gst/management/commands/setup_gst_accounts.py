@@ -85,10 +85,18 @@ class Command(BaseCommand):
                 with_cess=options["with_cess"],
             )
             self.stdout.write(self.style.SUCCESS(f"{company.name}:"))
-            self.stdout.write(f"  accounts created: {', '.join(s['accounts_created']) or '-'}")
-            self.stdout.write(f"  accounts tagged:  {', '.join(s['accounts_tagged']) or '-'}")
-            self.stdout.write(f"  templates created: {', '.join(s['templates_created']) or '-'}")
-            self.stdout.write(f"  defaults set:      {', '.join(s['defaults_set']) or '-'}")
+            self.stdout.write(
+                f"  accounts created: {', '.join(s['accounts_created']) or '-'}"
+            )
+            self.stdout.write(
+                f"  accounts tagged:  {', '.join(s['accounts_tagged']) or '-'}"
+            )
+            self.stdout.write(
+                f"  templates created: {', '.join(s['templates_created']) or '-'}"
+            )
+            self.stdout.write(
+                f"  defaults set:      {', '.join(s['defaults_set']) or '-'}"
+            )
             if s["legacy_accounts"]:
                 self.stdout.write(
                     "  legacy combined ledgers left untouched: "

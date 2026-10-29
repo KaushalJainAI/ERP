@@ -8,12 +8,10 @@ import {
   ClipboardCheck,
   FileText,
   HandCoins,
-  Inbox,
   IndianRupee,
   Network,
   RefreshCw,
   Settings,
-  Table2,
   UserRound,
   Wallet,
 } from "lucide-react";
@@ -511,7 +509,5 @@ export const hrResources: ResourceConfig[] = [
 /** Hand-written pages of the HR sidebar section (shown above the resources). */
 export const hrLinks: NavLink[] = [
   { path: "/hr/muster-roll", labelKey: "hrm.res.muster_roll", icon: ClipboardCheck },
-  { path: "/hr/muster-report", labelKey: "hrm.res.muster_report", icon: Table2 },
-  { path: "/hr/inbox", labelKey: "hrm.res.inbox", icon: Inbox, badge: "hr-inbox" },
 ];
 

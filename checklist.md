@@ -238,21 +238,22 @@ Full backend audit; fixes below are in code + tests (`verify_integrity` green,
 - [ ] Translate the new `lg.*` strings (Addresses, Tally History) and the Journal Entry type / reference labels into the 12 Indian languages (English fallback until then)
 
 ### 6.8 Go-live gaps against ERPNext (P1, `backend/docs/erpnext_gap_analysis.md`)
-- [ ] Print formats (GST Tax Invoice, Delivery Challan, PO, receipt) as PDF
+- [x] Print formats (GST Tax Invoice, Delivery Challan, PO, receipt) as PDF **(V)** — `GET /api/print/…` (backend/printing), A4 view `/print/<kind>/<id>` (Print / Save as PDF = browser dialog)
 - [x] Sales / Purchase returns (`is_return` credit / debit note against an invoice, stock back in) **(V)**
 - [-] e-Way Bill; e-Invoice (IRN) — **skipped (user, 2026-10-28)**: Tally does the statutory filing
 - [x] Stock Reconciliation document (opening stock, physical count) **(V)**
 - [-] UOM conversion per item — **skipped (user, 2026-10-28)**: operators do the carton maths
 - [x] Registers: Sales, Purchase, Day Book, Cash / Bank Book, party statement (`accounts/reports/`, `accounts/test_registers.py`, `docs/reports.md`)
-- [ ] Bank Account + Bank Reconciliation (statement import, clearance date)
-- [ ] Period Closing Voucher (year-end P&L → retained earnings) **(V)**
-- [ ] Separate Input / Output GST accounts and tax templates for NIDHI GRAH UDYOG; company GSTIN
+- [x] Bank Account + Bank Reconciliation (statement import, clearance date) (`accounts/services/bank*.py`, `accounts/test_bank_reconciliation.py`; CSV import only, partial matching skipped, see divergences)
+- [x] Period Closing Voucher (year-end P&L → retained earnings) **(V)** (`accounts/services/closing.py`, `accounts/test_period_closing.py`)
+- [x] Separate Input / Output GST accounts and tax templates for NIDHI GRAH UDYOG; company GSTIN (`manage.py setup_gst_accounts --company <name>`, `gst/services/go_live.py`, `gst/tests/test_go_live.py`; `verify_integrity` warns on a missing / invalid company GSTIN or state; Tally export proposes `Input CGST` / `Output CGST` ... ledger names) **(V)**
+- [x] Payment Reconciliation tool (match advances, lump-sum receipts and credit / debit notes to open invoices; net-zero reconciliation entry, unreconcile = cancel; `payment_reconciliation/`, `/payment-reconciliation` page) **(V)**
 
 ### 6.9 ERP feeds Tally (user direction, 2026-10-28)
 Operators enter everything in the ERP; the accountant completes the official books
 and GST filing in Tally from what the ERP exports.
 - [x] Attachments: proof files (bill scans, photos, PDFs) on any document or master; immutable once the document is submitted (add-only); audited **(V)**
-- [ ] Purchase invoice extra charges (freight, hamali, loading) added to stock valuation, like ERPNext's landed cost but on the bill itself **(V)**
+- [x] Purchase invoice extra charges (freight, hamali, loading) added to stock valuation, like ERPNext's landed cost but on the bill itself **(V)**
 - [x] Tally export: submitted vouchers (sales, purchase, credit / debit notes, payments, journals) and new masters as Tally import XML for a date range; each voucher marked exported, re-export on demand **(V)**
 
 ## Phase 7 — HR and payroll (2026-10-28)

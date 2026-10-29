@@ -1,3 +1,4 @@
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 from django.core.exceptions import ValidationError
@@ -103,6 +104,7 @@ class BuyingAppTests(TestCase):
     def test_purchase_invoice_submit_and_cancel_gl_sle_posting(self):
         """GOOD: Submitting PurchaseInvoice posts GL (Expense Dr, Creditors Cr) and SLE (+qty); cancel reverses both."""
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name="PINV-2026-0001",
             supplier=self.supplier,
             company=self.company,
@@ -162,6 +164,7 @@ class BuyingAppTests(TestCase):
     def test_purchase_invoice_without_items_fails(self):
         """BAD: Submitting PurchaseInvoice without items raises ValidationError."""
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name="PINV-BAD-01",
             supplier=self.supplier,
             company=self.company,
@@ -175,6 +178,7 @@ class BuyingAppTests(TestCase):
     def test_purchase_invoice_group_account_fails(self):
         """BAD: Submitting PurchaseInvoice with a group account raises ValidationError."""
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name="PINV-BAD-02",
             supplier=self.supplier,
             company=self.company,

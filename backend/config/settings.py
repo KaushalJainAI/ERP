@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "legacy.apps.LegacyConfig",
     "ngu.apps.NguConfig",
     "tally_export.apps.TallyExportConfig",
+    "payment_reconciliation.apps.PaymentReconciliationConfig",
 ]
 
 MIDDLEWARE = [

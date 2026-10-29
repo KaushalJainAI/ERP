@@ -292,20 +292,25 @@ class StockEntryBatchTests(BatchBase):
         with self.assertRaisesMessage(ValidationError, "not batch-tracked"):
             ste.submit()
 
-    def test_issue_without_batch_quotes_fefo_suggestion(self):
-        early = self.mkbatch("EARLY", expiry_date=D0(2026, 12, 1))
-        late = self.mkbatch("LATE", expiry_date=D0(2027, 6, 1))
+    def test_issue_without_batch_picks_oldest_manufactured_first(self):
+        # FEFO would take EARLY (expiring first); FIFO takes the oldest-made lot.
+        early = self.mkbatch(
+            "EARLY", expiry_date=D0(2026, 12, 1), manufacturing_date=D0(2026, 3, 1)
+        )
+        late = self.mkbatch(
+            "LATE", expiry_date=D0(2027, 6, 1), manufacturing_date=D0(2026, 1, 1)
+        )
         self.post(self.haldi, self.wh, 30, 10, late)
         self.post(self.haldi, self.wh, 50, 10, early)
         ste = self.entry(
             StockEntryType.MATERIAL_ISSUE,
             [dict(item=self.haldi, source_warehouse=self.wh, qty=D("60"))],
         )
-        with self.assertRaises(ValidationError) as cm:
-            ste.submit()
-        msg = " ".join(cm.exception.messages)
-        self.assertIn("Batch required", msg)
-        self.assertIn("EARLY (50.000), LATE (10.000)", msg)
+        ste.submit()
+        self.assertEqual(batch_service.batch_balance(self.haldi, self.wh, late), D("0"))
+        self.assertEqual(
+            batch_service.batch_balance(self.haldi, self.wh, early), D("20")
+        )
 
     def test_material_issue_allows_expired_but_transfer_does_not(self):
         old = self.mkbatch("OLD", expiry_date=D0(2026, 3, 1))
@@ -402,8 +407,12 @@ class FefoTests(BatchBase):
         admin = User.objects.create_superuser("fefo_admin", "fa@t.com", "pw")
         c = APIClient()
         c.force_authenticate(admin)
-        e1 = self.mkbatch("API-1", expiry_date=D0(2030, 1, 1))
-        e0 = self.mkbatch("API-0", expiry_date=D0(2029, 1, 1))
+        e1 = self.mkbatch(
+            "API-1", expiry_date=D0(2030, 1, 1), manufacturing_date=D0(2019, 1, 1)
+        )
+        e0 = self.mkbatch(
+            "API-0", expiry_date=D0(2029, 1, 1), manufacturing_date=D0(2019, 2, 1)
+        )
         dead = self.mkbatch("API-DEAD", expiry_date=D0(2020, 1, 1))
         for b in (e1, e0, dead):
             self.post(self.haldi, self.wh, 10, 5, b, date=D0(2019, 6, 1))
@@ -432,10 +441,11 @@ class FefoTests(BatchBase):
         )
         self.assertEqual(lst.status_code, 200, lst.content)
         rows = lst.json()["results"]
-        self.assertEqual([r["batch_no"] for r in rows], ["API-0", "API-1"])
+        # The picker lists in FIFO order (oldest manufactured first), not by expiry.
+        self.assertEqual([r["batch_no"] for r in rows], ["API-1", "API-0"])
         self.assertEqual(rows[0]["available_qty"], "10.000")
         self.assertEqual(
-            rows[0]["days_to_expiry"], (D0(2029, 1, 1) - D0(2026, 4, 1)).days
+            rows[1]["days_to_expiry"], (D0(2029, 1, 1) - D0(2026, 4, 1)).days
         )
 
         bal = c.get(f"/api/stock/batches/{e0.id}/balances/")
@@ -487,11 +497,18 @@ class BatchApiTests(BatchBase):
             format="json",
         )
         self.assertEqual(dup.status_code, 400)
-        # expiry item with no expiry source
-        none = self.c.post(
+        # No dates at all: the manufacturing date defaults to today and the expiry
+        # follows from the item's shelf life.
+        today = batch_service.datetime.date.today()
+        auto = self.c.post(
             "/api/stock/batches/", {"item": self.haldi.id}, format="json"
         )
-        self.assertEqual(none.status_code, 400)  # no expiry, no manufacturing date
+        self.assertEqual(auto.status_code, 201, auto.content)
+        self.assertEqual(auto.data["manufacturing_date"], today.isoformat())
+        self.assertEqual(
+            auto.data["expiry_date"],
+            (today + batch_service.datetime.timedelta(days=365)).isoformat(),
+        )
 
     def test_batch_item_validation_and_delete_protection(self):
         r = self.c.post("/api/stock/batches/", {"item": self.plain.id}, format="json")

@@ -33,4 +33,5 @@ urlpatterns = [
     path("api/ngu/", include("ngu.urls")),
     path("api/tally-export/", include("tally_export.urls")),
     path("api/print/", include("printing.urls")),
+    path("api/payment-reconciliation/", include("payment_reconciliation.urls")),
 ]

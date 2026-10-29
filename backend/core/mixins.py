@@ -89,6 +89,23 @@ class DraftNestedWriteMixin:
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        # A template item (``has_variants``) is a grouping master, never a line:
+        # the line must name one of its variants.
+        for field in self._all_child_fields():
+            for row in attrs.get(field) or []:
+                line_item = row.get("item") if hasattr(row, "get") else None
+                if getattr(line_item, "has_variants", False):
+                    from django.utils.translation import gettext as _
+
+                    raise DRFValidationError(
+                        {
+                            field: _(
+                                "Item '%(code)s' is a template with variants: "
+                                "select one of its variants instead."
+                            )
+                            % {"code": line_item.code}
+                        }
+                    )
         # On a partial update DRF skips "required" for nested rows too, so a PATCH
         # replacing the children could slip an incomplete row through to the
         # database (a 500). A replacement child set must be complete, like create.

@@ -6,6 +6,7 @@ import { enDashboard } from "./en.dashboard";
 import { enHome } from "./en.home";
 import { enAccounts } from "./en.accounts";
 import { enBuyingStock } from "./en.buying_stock";
+import { enCharges } from "./en.charges";
 import { enUsers } from "./en.users";
 import { enGst } from "./en.gst";
 import { enGstReports } from "./en.gstreports";
@@ -19,6 +20,9 @@ import { enReco } from "./en.reco";
 import { enAttachments } from "./en.attachments";
 import { enTallyExport } from "./en.tallyexport";
 import { enOrganisation } from "./en.organisation";
+import { enBank } from "./en.bank";
+import { enPrint } from "./en.print";
+import { enPayRecon } from "./en.payrecon";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -93,6 +97,10 @@ const resources = {
       ...enAttachments,
       ...enTallyExport,
       ...enOrganisation,
+      ...enBank,
+      ...enPrint,
+      ...enCharges,
+      ...enPayRecon,
     },
   },
 };

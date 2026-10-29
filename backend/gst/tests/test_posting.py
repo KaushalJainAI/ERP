@@ -1,5 +1,6 @@
 """GST Task 3: GL posting of tax / round-off, mapping, outstanding, integrity, dashboard."""
 
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 from io import StringIO
@@ -707,6 +708,7 @@ class MappingTests(PostingBase):
         )
         po_obj = po_model().objects.get(pk=po["id"])
         part = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name="PINV-PART-1",
             supplier=self.sup_inter,
             company=self.company,

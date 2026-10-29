@@ -178,6 +178,10 @@ export interface ChildColumnDef {
   options?: SelectOption[];
   /** Width hint (tailwind class), e.g. "w-28". */
   widthClass?: string;
+  /** i18n key of the input placeholder (e.g. the "leave empty to auto-pick FIFO" batch hint). */
+  placeholderKey?: string;
+  /** Rendered under the input while its value is empty (e.g. the FIFO preview of a blank batch). */
+  emptyHint?: (row: Record<string, any>, parentValues: Record<string, any>) => ReactNode;
   /**
    * Computed read-only column: preview from the row's values; once saved the
    * server value (row[key]) is shown until the `dependsOn` inputs change.

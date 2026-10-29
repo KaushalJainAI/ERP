@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useToast } from "@/components/ui/Toast";
 import { ChildTable, isColumnHidden, newRowKey, type Row } from "./ChildTable";
 import { AttachmentsPanel } from "./AttachmentsPanel";
+import { PrintButton } from "@/print/PrintButton";
 import { FetchRowsBar } from "./FetchRowsBar";
 import { FieldInput, formatReadOnly } from "./FieldInput";
 import {
@@ -570,6 +571,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {!isNew && <PrintButton module={config.module} resource={config.key} id={doc?.id as string | number | undefined} />}
           {visibleActions.map((a) => {
             const Icon = a.icon;
             return (

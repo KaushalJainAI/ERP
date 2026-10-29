@@ -175,6 +175,20 @@ def _validate_lines(doc, original, lines):
         defaultdict(lambda: ZERO),
         defaultdict(set),
     )
+    # Lines sold without a batch were FIFO-picked at posting: the lots they left
+    # are only on the stock ledger, so a return may go back to those.
+    ledger_batches = defaultdict(set)
+    if doc.update_stock:
+        from stock.models import StockLedgerEntry
+
+        for item_id, batch_id in StockLedgerEntry.objects.filter(
+            voucher_type=original.voucher_label(),
+            voucher_no=original.name,
+            is_cancelled=False,
+            qty__lt=0,
+            batch__isnull=False,
+        ).values_list("item_id", "batch_id"):
+            ledger_batches[item_id].add(batch_id)
     for ln in orig_lines.values():
         item_orig_qty[ln.item_id] += ln.qty
         item_max_rate[ln.item_id] = max(item_max_rate[ln.item_id], ln.rate)
@@ -198,7 +212,9 @@ def _validate_lines(doc, original, lines):
                 continue
             this_linked[linked_to] += qty
             max_rate = orig.rate
-            allowed_batches = {orig.batch_id}
+            allowed_batches = (
+                {orig.batch_id} if orig.batch_id else ledger_batches[orig.item_id]
+            )
         else:
             if line.item_id not in item_orig_qty:
                 errors.append(
@@ -207,7 +223,7 @@ def _validate_lines(doc, original, lines):
                 continue
             this_unlinked[line.item_id] += qty
             max_rate = item_max_rate[line.item_id]
-            allowed_batches = item_batches[line.item_id]
+            allowed_batches = item_batches[line.item_id] | ledger_batches[line.item_id]
         if line.rate > max_rate:
             errors.append(
                 _(

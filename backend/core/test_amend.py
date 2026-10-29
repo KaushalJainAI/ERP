@@ -1,5 +1,6 @@
 """amend() copies child rows and recomputes derived totals."""
 
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 
@@ -183,6 +184,7 @@ class AmendCopiesChildrenTests(TestCase):
             name="Sup", company=self.company, supplier_group=sg
         )
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name="PINV-A",
             supplier=sup,
             company=self.company,

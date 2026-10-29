@@ -22,7 +22,6 @@ from manufacturing.models import (
     WorkOrderStatus,
 )
 from stock.models import StockEntry, StockEntryItem, StockEntryType
-from stock.services import batches as batch_service
 
 
 def q3(value) -> Decimal:
@@ -328,27 +327,11 @@ def _as_qty(value, default=None) -> Decimal:
 
 
 def _batch_rows(item, source_warehouse, qty, posting_date, base: Dict):
-    """One row per FEFO batch; the unallocated remainder is a row without a batch."""
-    if not item.has_batch_no:
-        return [{**base, "qty": qty, "batch": None}]
-    from stock.models import Batch
-
-    plan = batch_service.fefo(item, source_warehouse, qty, posting_date)
-    rows = []
-    for allocation in plan["allocations"]:
-        rows.append(
-            {
-                **base,
-                "qty": allocation["allocate_qty"],
-                "batch": Batch.objects.get(pk=allocation["batch"]),
-            }
-        )
-    if plan["shortfall"] > 0:
-        # Left without a batch on purpose: the submit gate reports the shortage
-        # with the FEFO suggestion instead of silently splitting or inventing a
-        # batch.
-        rows.append({**base, "qty": plan["shortfall"], "batch": None})
-    return rows
+    """One row for the whole quantity. A batch-tracked material is left without a
+    batch on purpose: the ledger service FIFO-picks the oldest manufactured lots at
+    submit (splitting over several batches when one is not enough), so the draft
+    never goes stale and a shortage is reported by the submit gate."""
+    return [{**base, "qty": qty, "batch": None}]
 
 
 def make_stock_entry(

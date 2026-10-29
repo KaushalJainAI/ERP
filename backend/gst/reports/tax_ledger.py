@@ -52,6 +52,23 @@ def _voucher_parties(live, period):
     return {(t, no): party for t, no, party in rows if (t, no) in vouchers}
 
 
+def _bill_nos(movements):
+    """``{voucher_no: supplier bill no}`` of the Purchase Invoices among ``movements``
+    (the reference the accountant claims input credit against)."""
+    from buying.models import PurchaseInvoice
+
+    names = {
+        e.voucher_no for e in movements if e.voucher_type == "buying.PurchaseInvoice"
+    }
+    if not names:
+        return {}
+    return dict(
+        PurchaseInvoice.objects.filter(name__in=names)
+        .exclude(bill_no="")
+        .values_list("name", "bill_no")
+    )
+
+
 def build(company, from_date, to_date, params):
     component = _choice_param(params, "component", GSTComponent.values)
     direction = _choice_param(params, "direction", GSTDirection.values)
@@ -88,6 +105,7 @@ def build(company, from_date, to_date, params):
 
         movements = list(period.order_by("posting_date", "id"))
         parties = {} if summary else _voucher_parties(live, movements)
+        bill_nos = {} if summary else _bill_nos(movements)
         running = opening
         total_debit = total_credit = ZERO
         entries = []
@@ -101,6 +119,7 @@ def build(company, from_date, to_date, params):
                         "posting_date": entry.posting_date.isoformat(),
                         "voucher_type": entry.voucher_type,
                         "voucher_no": entry.voucher_no,
+                        "supplier_bill_no": bill_nos.get(entry.voucher_no),
                         "party": entry.party
                         or parties.get((entry.voucher_type, entry.voucher_no)),
                         "debit": money(entry.debit),

@@ -341,6 +341,7 @@ def post_transfer_for_manufacture(se: StockEntry) -> List:
                 "valuation_rate": line.valuation_rate,
                 "batch": batch,
                 "use_outgoing_rate": True,
+                "mirror_outgoing": True,
             }
         )
     sles = stock_service.post(

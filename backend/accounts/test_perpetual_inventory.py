@@ -1,5 +1,6 @@
 """Perpetual inventory: GL <-> stock valuation reconciliation (improvements.md P0.1 / G4)."""
 
+from buying.testing import next_bill_no
 import datetime
 from decimal import Decimal
 from io import StringIO
@@ -111,6 +112,7 @@ class PerpetualInventoryTests(TestCase):
     def purchase(self, lines, submit=True, update_stock=True):
         """lines: list of (item, qty, rate)."""
         pi = PurchaseInvoice.objects.create(
+            bill_no=next_bill_no(),
             name=self._name("PINV"),
             supplier=self.supplier,
             company=self.company,

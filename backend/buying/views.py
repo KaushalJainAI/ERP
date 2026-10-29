@@ -60,9 +60,20 @@ class PurchaseChargeTemplateViewSet(
     queryset = PurchaseChargeTemplate.objects.all().select_related("account")
     serializer_class = PurchaseChargeTemplateSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    action_permission_flags = {"ensure_defaults": "can_create"}
     filterset_fields = ["company", "is_active"]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
+
+    @action(detail=False, methods=["post"], url_path="ensure-defaults")
+    def ensure_defaults(self, request):
+        """Create the standard charge accounts and templates of the active company
+        (idempotent; for companies that were not set up by ``seed_defaults``)."""
+        from buying.services.charges import ensure_charge_setup
+
+        ensure_charge_setup(self.active_company)
+        rows = self.get_queryset().order_by("name")
+        return Response(self.get_serializer(rows, many=True).data)
 
 
 class PurchaseOrderViewSet(

@@ -52,7 +52,11 @@ def _documents(model):
     return (
         model.objects.exclude(docstatus=DocStatus.DRAFT)
         .select_related("company", party)
-        .prefetch_related("items", "taxes__account")
+        .prefetch_related(
+            "items",
+            "taxes__account",
+            *(("charges",) if hasattr(model, "charges_on_bill") else ()),
+        )
         .order_by("pk")
     )
 
@@ -79,6 +83,8 @@ def _check_totals(doc, items, rows):
             f"({doc.grand_total}) + rounding_adjustment ({doc.rounding_adjustment})"
         )
     counted = sum((_signed(r) for r in rows if not _is_memo(doc, r)), ZERO)
+    # Purchase-bill charges (freight...) are in the total but are not tax rows.
+    counted += getattr(doc, "charges_on_bill", ZERO)
     if abs(counted - doc.total_taxes_and_charges) > EPS:
         errors.append(
             f"{label}: tax rows add up to {counted} but total_taxes_and_charges "
@@ -231,10 +237,18 @@ def _check_gl(doc, rows, accounts, party):
         if account_id in handled or account_id in party_accounts:
             continue
         rest += (cr - dr) if is_sale else (dr - cr)
-    if abs(rest - doc.net_total) > EPS:
+    # Charges on a purchase bill are expense lines on top of net_total (the
+    # capitalised part nets to zero against Expenses Included In Valuation).
+    expected_rest = doc.net_total + getattr(doc, "charges_on_bill", ZERO)
+    if abs(rest - expected_rest) > EPS:
         errors.append(
             f"{label}: income / expense lines in the GL add up to {rest}, "
             f"net_total is {doc.net_total}"
+            + (
+                f" and the bill charges are {expected_rest - doc.net_total}"
+                if expected_rest != doc.net_total
+                else ""
+            )
         )
     return errors
 

@@ -207,6 +207,8 @@ class PurchaseInvoiceAdmin(SubmittableDocumentAdmin):
                     "company",
                     "posting_date",
                     "due_date",
+                    "bill_no",
+                    "bill_date",
                     "purchase_order",
                     "update_stock",
                 )

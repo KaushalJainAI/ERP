@@ -33,32 +33,82 @@ ZERO = Decimal("0.00")
 
 #: Mapping field -> header names (lower case, punctuation stripped) it may carry.
 SYNONYMS = {
-    "date": ["date", "txn date", "transaction date", "tran date", "value date", "posting date"],
+    "date": [
+        "date",
+        "txn date",
+        "transaction date",
+        "tran date",
+        "value date",
+        "posting date",
+    ],
     "description": [
-        "description", "narration", "particulars", "transaction remarks",
-        "transaction details", "remarks", "details",
+        "description",
+        "narration",
+        "particulars",
+        "transaction remarks",
+        "transaction details",
+        "remarks",
+        "details",
     ],
     "reference": [
-        "reference", "ref no", "chq ref no", "chq no", "cheque no", "ref no cheque no",
-        "chequereference no", "cheque number", "instrument no", "utr no", "ref",
+        "reference",
+        "ref no",
+        "chq ref no",
+        "chq no",
+        "cheque no",
+        "ref no cheque no",
+        "chequereference no",
+        "cheque number",
+        "instrument no",
+        "utr no",
+        "ref",
     ],
     "withdrawal": [
-        "withdrawal", "withdrawal amt", "withdrawal amount", "withdrawal amount inr",
-        "debit", "debit amount", "dr", "paid out",
+        "withdrawal",
+        "withdrawal amt",
+        "withdrawal amount",
+        "withdrawal amount inr",
+        "debit",
+        "debit amount",
+        "dr",
+        "paid out",
     ],
     "deposit": [
-        "deposit", "deposit amt", "deposit amount", "deposit amount inr",
-        "credit", "credit amount", "cr", "paid in",
+        "deposit",
+        "deposit amt",
+        "deposit amount",
+        "deposit amount inr",
+        "credit",
+        "credit amount",
+        "cr",
+        "paid in",
     ],
-    "balance": ["balance", "closing balance", "running balance", "balance inr", "available balance"],
+    "balance": [
+        "balance",
+        "closing balance",
+        "running balance",
+        "balance inr",
+        "available balance",
+    ],
     "amount": ["amount", "transaction amount", "amount inr"],
     "dr_cr": ["dr cr", "cr dr", "type", "transaction type", "drcr"],
 }
 MAPPING_FIELDS = tuple(SYNONYMS)
 
 DATE_FORMATS = (
-    "%d/%m/%Y", "%d/%m/%y", "%d-%m-%Y", "%d-%m-%y", "%Y-%m-%d", "%d %b %Y", "%d-%b-%Y",
-    "%d-%b-%y", "%d %b %y", "%d %B %Y", "%d.%m.%Y", "%d.%m.%y", "%Y/%m/%d",
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    "%d-%m-%Y",
+    "%d-%m-%y",
+    "%Y-%m-%d",
+    "%d %b %Y",
+    "%d-%b-%Y",
+    "%d-%b-%y",
+    "%d %b %y",
+    "%d %B %Y",
+    "%d.%m.%Y",
+    "%d.%m.%y",
+    "%Y/%m/%d",
 )
 
 
@@ -89,8 +139,7 @@ def read_rows(raw):
     except csv.Error:
         dialect = csv.excel
     rows = [
-        [cell.strip() for cell in row]
-        for row in csv.reader(io.StringIO(text), dialect)
+        [cell.strip() for cell in row] for row in csv.reader(io.StringIO(text), dialect)
     ]
     rows = [row for row in rows if any(row)]
     if not rows:
@@ -154,7 +203,7 @@ def parse_date(text, date_format=None):
     text = (text or "").strip()
     if not text:
         return None
-    for fmt in ([date_format] if date_format else DATE_FORMATS):
+    for fmt in [date_format] if date_format else DATE_FORMATS:
         try:
             return datetime.datetime.strptime(text, fmt).date()
         except ValueError:
@@ -231,7 +280,9 @@ def parse_lines(rows, header_index, mapping, date_format=None):
             if parse_date(cell(row, "date"), date_format) is None:
                 skipped += 1  # a footer / summary row
             else:
-                errors.append({"row": offset, "error": _("Invalid amount: %(v)s") % {"v": exc}})
+                errors.append(
+                    {"row": offset, "error": _("Invalid amount: %(v)s") % {"v": exc}}
+                )
             continue
         if single is not None and withdrawal == 0 and deposit == 0:
             marker = _simplify(cell(row, "dr_cr"))
@@ -246,12 +297,18 @@ def parse_lines(rows, header_index, mapping, date_format=None):
             continue
         if date is None:
             errors.append(
-                {"row": offset, "error": _("Invalid date: %(v)s") % {"v": cell(row, "date")}}
+                {
+                    "row": offset,
+                    "error": _("Invalid date: %(v)s") % {"v": cell(row, "date")},
+                }
             )
             continue
         if withdrawal > 0 and deposit > 0:
             errors.append(
-                {"row": offset, "error": _("A line cannot have both a withdrawal and a deposit.")}
+                {
+                    "row": offset,
+                    "error": _("A line cannot have both a withdrawal and a deposit."),
+                }
             )
             continue
         lines.append(
@@ -271,7 +328,9 @@ def parse_lines(rows, header_index, mapping, date_format=None):
 # ------------------------------------------------------------------ importing
 
 
-def run_import(user, bank_account, file_name, raw, mapping, date_format=None, header_row=None):
+def run_import(
+    user, bank_account, file_name, raw, mapping, date_format=None, header_row=None
+):
     """Parse and store a statement; all or nothing. Returns the import summary."""
     rows = read_rows(raw)
     if header_row is None:

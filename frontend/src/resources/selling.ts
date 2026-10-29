@@ -50,6 +50,8 @@ export const itemLink: LinkDef = {
     // UI-only: lets line columns show the batch picker for batch-tracked items.
     // Never sent to the server (buildPayload writes only declared columns).
     _has_batch_no: !!r.has_batch_no,
+    // UI-only too: purchase-bill charges are spread over stock lines only.
+    is_stock_item: r.is_stock_item !== false,
   }),
   // Pre-fill the rate the party last paid (price list first, then their last
   // bill incl. Tally history, then the standard rate). The server applies the

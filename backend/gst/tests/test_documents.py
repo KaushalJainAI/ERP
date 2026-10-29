@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.core.cache import cache
 from django.db import IntegrityError, transaction
+from buying.testing import next_bill_no
 from rest_framework.test import APIClient, APITestCase
 
 from accounts.models import (
@@ -200,6 +201,7 @@ class GSTDocBase(APITestCase):
             "update_stock": False,
             "credit_to": self.creditors.id,
             "expense_account": self.expense.id,
+            "bill_no": next_bill_no(),
             "items": items,
         }
         body.update(extra)

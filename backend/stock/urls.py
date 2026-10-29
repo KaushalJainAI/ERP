@@ -4,6 +4,7 @@ from stock.views import (
     UOMViewSet,
     ItemGroupViewSet,
     ItemViewSet,
+    ItemAttributeViewSet,
     WarehouseViewSet,
     StockLedgerEntryViewSet,
     BinViewSet,
@@ -24,6 +25,7 @@ router = DefaultRouter()
 router.register("uoms", UOMViewSet, basename="uom")
 router.register("item-groups", ItemGroupViewSet, basename="item-group")
 router.register("items", ItemViewSet, basename="item")
+router.register("item-attributes", ItemAttributeViewSet, basename="item-attribute")
 router.register("batches", BatchViewSet, basename="batch")
 router.register("warehouses", WarehouseViewSet, basename="warehouse")
 router.register("price-lists", PriceListViewSet, basename="price-list")
