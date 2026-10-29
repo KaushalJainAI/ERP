@@ -41,12 +41,15 @@ L1–L4, L11–L13). These exist only inside the Tally company data:
 |---|---|---|
 | T1 | **Stock Journal lines.** All 54 Stock Journal vouchers came without their in/out lines | Production / transfer quantities missing in those years |
 | T2 | **Bank details on receipts / payments**: instrument no. and date, bank, clearance date | No cheque tracing or bank reconciliation history |
-| T3 | **Invoice extras**: buyer / consignee name, address and GSTIN on the invoice, dispatch, vehicle no., e-way bill, e-invoice IRN, line-level HSN | Compliance and logistics history |
+| T3 | **Invoice extras**: buyer / consignee name, address and GSTIN on the invoice, dispatch, vehicle no., e-way bill, e-invoice IRN, line-level HSN | History only. e-way bill / e-invoice are not built in the ERP (Tally does statutory output) |
 | T4 | **Company master**: own GSTIN, PAN, address | The ERP company has no GSTIN until it is typed in |
 | T5 | **Tally's own reports** (Balance Sheet, P&L, Stock Summary per year) | Extra cross-check only. Our reconciliation already uses Tally's ledger closings |
 | T6 | Edit log, deleted vouchers, users, attachments | Tally does not export these at all |
 
-**To stop needing Tally for good:**
+Tally stays as the official books (the ERP exports to it, `checklist.md` 6.9).
+What goes away is any need for the *old* Tally data, which takes this:
+
+**To stop needing the old Tally data:**
 1. Get the sender's export, already drafted in `Desktop\Tally\SENDER_REQUEST.md`:
    Day Book XML + All Masters XML per year from their licensed Tally. Then
    extend the importer to read it (`load_full.py` already parses that format),

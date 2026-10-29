@@ -155,6 +155,13 @@ def suggest_group(account, legacy_groups: Optional[Dict[str, str]] = None) -> st
     return C.G_CURRENT_ASSETS
 
 
+def suggest_ledger(account) -> str:
+    """Tally ledger name proposed for an unmapped ERP account: the conventional
+    ``Input CGST`` / ``Output IGST`` ... for a GST-tagged account, else its name."""
+    tag = (account.gst_direction, account.gst_component)
+    return C.GST_LEDGER_NAMES.get(tag) or account.name
+
+
 def party_group(party_type: str) -> str:
     return C.G_DEBTORS if party_type == "Customer" else C.G_CREDITORS
 

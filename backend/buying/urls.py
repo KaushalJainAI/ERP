@@ -5,6 +5,7 @@ from buying.views import (
     SupplierViewSet,
     PurchaseOrderViewSet,
     PurchaseInvoiceViewSet,
+    PurchaseChargeTemplateViewSet,
 )
 
 app_name = "buying"
@@ -15,6 +16,12 @@ router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-order")
 router.register(
     "purchase-invoices", PurchaseInvoiceViewSet, basename="purchase-invoice"
+)
+
+router.register(
+    "charge-templates",
+    PurchaseChargeTemplateViewSet,
+    basename="purchase-charge-template",
 )
 
 urlpatterns = [

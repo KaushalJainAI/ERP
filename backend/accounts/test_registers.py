@@ -604,9 +604,7 @@ class IsolationAndRBACTests(RegisterBase):
         for label in labels:
             RolePermission.objects.create(role=role, model_label=label, can_read=True)
         UserRole.objects.create(user=user, role=role)
-        UserCompany.objects.create(
-            user=user, company=self.company, is_default=True
-        )
+        UserCompany.objects.create(user=user, company=self.company, is_default=True)
         client = APIClient()
         client.force_authenticate(user)
         return client
@@ -690,3 +688,106 @@ class IsolationAndRBACTests(RegisterBase):
             before, (GLEntry.objects.count(), SalesInvoice.objects.count())
         )
         self.integrity_ok()
+
+
+class TallyIdentityTests(RegisterBase):
+    """Rows of an imported ``TLY-*`` Journal Entry carry Tally's own type and number
+    (``tally``); every other row has ``tally: null``."""
+
+    NAME = "TLY-2627-000001"
+
+    def setUp(self):
+        super().setUp()
+        from accounts.models import JournalEntry, JournalEntryLine
+
+        je = JournalEntry.objects.create(
+            company=self.company,
+            name=self.NAME,
+            posting_date=datetime.date(2026, 10, 21),
+            voucher_type="Journal Entry",
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je, account=self.bank, debit=D("77.00")
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.debtors,
+            credit=D("77.00"),
+            party_type="Customer",
+            party="Intra Cust",
+        )
+        je.recompute_totals()
+        je.save()
+        je.submit()
+        self.tally_record = self._record(self.company, "Receipt", "2627/1")
+        # Another company's record under the same TLY name must never leak in.
+        other = Company.objects.create(name="Other Tally Co", abbr="OTC")
+        self._record(other, "Payment", "9999/9", guid="g-other")
+
+    def _record(self, company, voucher_type, voucher_no, guid="g-1"):
+        from legacy.models import TallyRecord
+
+        return TallyRecord.objects.create(
+            company=company,
+            kind="voucher",
+            company_year="200000",
+            fiscal_year="2026-27",
+            guid=guid,
+            voucher_type=voucher_type,
+            base_voucher_type=voucher_type,
+            voucher_no=voucher_no,
+            posting_date=datetime.date(2026, 10, 21),
+            erp_name=self.NAME,
+            raw="",
+        )
+
+    @property
+    def expected(self):
+        return {
+            "id": self.tally_record.pk,
+            "voucher_type": "Receipt",
+            "voucher_no": "2627/1",
+        }
+
+    def test_cash_book(self):
+        rows = {
+            r["voucher_no"]: r
+            for r in self.get(CASHBOOK, account=self.bank.id, **OCT)["rows"]
+        }
+        self.assertEqual(rows[self.NAME]["tally"], self.expected)
+        self.assertEqual(rows[self.NAME]["voucher_type"], "accounts.JournalEntry")
+        self.assertIsNone(rows[self.p1.name]["tally"])
+
+    def test_day_book(self):
+        vouchers = {v["voucher_no"]: v for v in self.get(DAYBOOK, **OCT)["vouchers"]}
+        self.assertEqual(vouchers[self.NAME]["tally"], self.expected)
+        self.assertIsNone(vouchers[self.s1["name"]]["tally"])
+
+    def test_party_statement(self):
+        rep = self.get(
+            STATEMENT, party_type="Customer", party=self.cust_intra.id, **OCT
+        )
+        rows = {r["voucher_no"]: r for r in rep["rows"]}
+        self.assertEqual(rows[self.NAME]["tally"], self.expected)
+        self.assertIsNone(rows[self.s1["name"]]["tally"])
+
+    def test_general_ledger(self):
+        res = self.client.get(
+            "/api/accounts/reports/general-ledger/",
+            {"company": self.company.id, "account": self.bank.id, **OCT},
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        rows = {r["voucher_no"]: r for r in res.data["entries"]}
+        self.assertEqual(rows[self.NAME]["tally"], self.expected)
+        self.assertIsNone(rows[self.p1.name]["tally"])
+
+    def test_one_bulk_query_per_page_not_per_row(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as ctx:
+            self.get(CASHBOOK, account=self.bank.id, **OCT)
+        legacy_queries = [
+            q for q in ctx.captured_queries if "legacy_tallyrecord" in q["sql"]
+        ]
+        self.assertEqual(len(legacy_queries), 1)

@@ -76,17 +76,28 @@ def _require(account, what, company):
     return account
 
 
+def _company_default(company, field):
+    account = getattr(company, field, None)
+    return account if account is not None and account.is_active else None
+
+
 def default_receivable_account(company):
+    if account := _company_default(company, "default_receivable_account"):
+        return account
     qs = _postable_accounts(company).filter(account_type=AccountType.RECEIVABLE)
     return _require(_pick(qs, ("debtor", "receivable")), "Receivable", company)
 
 
 def default_payable_account(company):
+    if account := _company_default(company, "default_payable_account"):
+        return account
     qs = _postable_accounts(company).filter(account_type=AccountType.PAYABLE)
     return _require(_pick(qs, ("creditor", "payable")), "Payable", company)
 
 
 def default_income_account(company):
+    if account := _company_default(company, "default_income_account"):
+        return account
     qs = _postable_accounts(company).filter(root_type=AccountRootType.INCOME)
     return _require(_pick(qs, ("sales", "income")), "Income", company)
 
@@ -120,6 +131,39 @@ def default_bank_or_cash_account(company):
     raise ValidationError(
         f"No Bank or Cash account is configured for company '{company.name}'."
     )
+
+
+def party_account_for(company, party_type):
+    """The company's default control account for a party type, or ``None`` when the
+    type has none (the caller must then be told to pick an account)."""
+    if party_type == "Customer":
+        return default_receivable_account(company)
+    if party_type == "Supplier":
+        return default_payable_account(company)
+    return None
+
+
+def infer_party_type(company, payment_type, party_name):
+    """Customer / Supplier for a payment whose party type was left blank.
+
+    Receive -> Customer and Pay -> Supplier, unless the named party exists only as
+    the other kind in this company (a refund from a supplier, a payment to a
+    customer). Internal transfers have no party."""
+    from buying.models import Supplier
+    from selling.models import Customer
+
+    if payment_type not in (PaymentType.RECEIVE, PaymentType.PAY):
+        return None
+    usual = "Customer" if payment_type == PaymentType.RECEIVE else "Supplier"
+    other = "Supplier" if usual == "Customer" else "Customer"
+    models = {"Customer": Customer, "Supplier": Supplier}
+    if (
+        party_name
+        and not models[usual].objects.filter(company=company, name=party_name).exists()
+    ):
+        if models[other].objects.filter(company=company, name=party_name).exists():
+            return other
+    return usual
 
 
 # ------------------------------------------------------------- order -> invoice
@@ -202,9 +246,7 @@ def return_line_values(original):
             }
         )
     if not rows:
-        raise ValidationError(
-            f"'{original.name}' has already been returned in full."
-        )
+        raise ValidationError(f"'{original.name}' has already been returned in full.")
     return rows
 
 
@@ -244,8 +286,10 @@ def invoice_outstanding(invoice):
     submitted allocations."""
     if invoice.docstatus == DocStatus.SUBMITTED:
         # Re-read: the projection is updated by payments after the object was loaded.
-        return type(invoice).objects.values_list("outstanding_amount", flat=True).get(
-            pk=invoice.pk
+        return (
+            type(invoice)
+            .objects.values_list("outstanding_amount", flat=True)
+            .get(pk=invoice.pk)
         )
     label = f"{invoice._meta.app_label}.{invoice._meta.object_name}"
     return invoice.rounded_total - allocated_amount(label, invoice.name)
@@ -299,3 +343,28 @@ def build_payment_entry(
             allocated_amount=outstanding,
         )
     return entry
+
+
+def fill_default_accounts(serializer, attrs, pickers):
+    """Fill blank invoice accounts from the company defaults (ERPNext set_missing_values).
+
+    ``pickers`` maps a field to ``picker(company, attrs)``. A field left out of a
+    create, or sent as null, gets the default; an update that does not mention
+    the field keeps the stored account.
+    """
+    instance = serializer.instance
+    company = attrs.get("company") or getattr(instance, "company", None)
+    if company is None:
+        return attrs
+    for field, picker in pickers.items():
+        if attrs.get(field) is None and (instance is None or field in attrs):
+            attrs[field] = picker(company, attrs)
+    return attrs
+
+
+def optional_account_fields(fields, names):
+    """Let the client omit the accounts ``fill_default_accounts`` supplies."""
+    for name in names:
+        fields[name].required = False
+        fields[name].allow_null = True
+    return fields

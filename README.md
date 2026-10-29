@@ -25,6 +25,7 @@ Every transactional document moves `Draft → Submitted → Cancelled` and posts
 | [plan.md](plan.md) | *Historical* design notes — original intent and rationale. Context, **not authoritative**. |
 | [instructions.md](instructions.md) | How to implement: golden rules, document-building recipe, Definition of Done. |
 | [checklist.md](checklist.md) | Ordered task list. Work top-to-bottom, one item per commit. |
+| [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | Point-in-time audit of what is implemented, partial, or missing — with re-verification commands. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deploy on a VPS: Nginx + Gunicorn + systemd, Certbot/HTTPS, domain DNS. |
 | [DATABASE.md](DATABASE.md) | PostgreSQL role/database setup, migrate & seed, backups. |
 

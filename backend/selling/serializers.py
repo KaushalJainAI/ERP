@@ -27,6 +27,7 @@ from core.mixins import (
     PositiveQtyLineItemMixin,
     NonNegativeRateLineItemMixin,
 )
+from accounts import mapping as account_mapping
 from stock.services import pricing as pricing_service
 
 
@@ -320,7 +321,24 @@ class SalesInvoiceSerializer(
             "modified_at",
         )
 
+    _DEFAULT_ACCOUNTS = {
+        "debit_to": lambda company, attrs: account_mapping.default_receivable_account(
+            company
+        ),
+        "income_account": lambda company, attrs: (
+            account_mapping.default_income_account(company)
+        ),
+    }
+
+    def get_fields(self):
+        return account_mapping.optional_account_fields(
+            super().get_fields(), self._DEFAULT_ACCOUNTS
+        )
+
     def validate(self, attrs):
+        attrs = account_mapping.fill_default_accounts(
+            self, attrs, self._DEFAULT_ACCOUNTS
+        )
         attrs = super().validate(attrs)
         return pricing_service.apply_line_rates(
             self,

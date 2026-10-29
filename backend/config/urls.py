@@ -32,4 +32,5 @@ urlpatterns = [
     path("api/legacy/", include("legacy.urls")),
     path("api/ngu/", include("ngu.urls")),
     path("api/tally-export/", include("tally_export.urls")),
+    path("api/print/", include("printing.urls")),
 ]

@@ -1,9 +1,11 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
+from django.db.models.functions import Lower
 from django.utils.translation import gettext_lazy as _
 from core.models import (
     Company,
+    DocStatus,
     GSTCategory,
     State,
     SubmittableDocument,
@@ -156,6 +158,52 @@ class PurchaseOrderItem(TaxableLine):
         )
 
 
+class ChargeDistribution(models.TextChoices):
+    """How a purchase charge is spread over the stock lines (ERPNext
+    ``distribute_charges_based_on``)."""
+
+    AMOUNT = "Amount", _("Amount")
+    QTY = "Qty", _("Qty")
+
+
+class PurchaseChargeTemplate(TimeStampedModel):
+    """Preset for a purchase-bill charge row (Freight Inward, Hamali / Loading...)."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="purchase_charge_templates"
+    )
+    name = models.CharField(max_length=100)
+    account = models.ForeignKey(
+        Account,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    distribute_by = models.CharField(
+        max_length=8,
+        choices=ChargeDistribution.choices,
+        default=ChargeDistribution.AMOUNT,
+    )
+    included_in_bill = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_charge_template_per_company"
+            ),
+            models.CheckConstraint(
+                check=models.Q(included_in_bill=False)
+                | models.Q(account__isnull=False),
+                name="buying_chargetemplate_bill_needs_account",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     """Purchase Invoice document."""
 
@@ -170,6 +218,21 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
             *PayableDocument.return_constraints(),
+            # ERPNext ``validate_supplier_invoice``: one live bill number per
+            # supplier (a cancelled invoice frees it; blank is "not entered").
+            models.UniqueConstraint(
+                Lower("bill_no"),
+                "company",
+                "supplier",
+                condition=~models.Q(docstatus=DocStatus.CANCELLED)
+                & ~models.Q(bill_no=""),
+                name="buying_pi_unique_supplier_bill_no",
+            ),
+            models.CheckConstraint(
+                check=models.Q(bill_date__isnull=True)
+                | models.Q(bill_date__lte=models.F("posting_date")),
+                name="buying_pi_bill_date_not_after_posting",
+            ),
         ]
 
     supplier = models.ForeignKey(
@@ -180,6 +243,10 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     )
     posting_date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
+    # The supplier's own invoice number / date (ERPNext ``bill_no`` / ``bill_date``):
+    # required at submit (not on a return), the GST input-credit reference.
+    bill_no = models.CharField(max_length=140, blank=True, default="")
+    bill_date = models.DateField(null=True, blank=True)
     purchase_order = models.ForeignKey(
         PurchaseOrder,
         null=True,
@@ -205,10 +272,44 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         related_name="+",
     )
 
+    def save(self, *args, **kwargs):
+        self.bill_no = (self.bill_no or "").strip()
+        super().save(*args, **kwargs)
+
+    @property
+    def charges_on_bill(self):
+        """Charges the supplier put on the bill (part of ``grand_total``)."""
+        from buying.services import charges as charges_service
+
+        return charges_service.totals(self)[0]
+
+    @property
+    def charges_off_bill(self):
+        """Capitalised charges paid to a third party (stock value only)."""
+        from buying.services import charges as charges_service
+
+        return charges_service.totals(self)[1]
+
+    def calculate_taxes_and_totals(self, **kwargs):
+        # GST is computed by the engine on the line amounts only; the bill charges
+        # are added on top of its result, so no tax is ever charged on them.
+        from buying.services import charges as charges_service
+
+        with transaction.atomic():
+            outcome = super().calculate_taxes_and_totals(**kwargs)
+            charges_service.apply_bill_charges(self)
+        return outcome
+
     def validate_before_submit(self):
         items = self.items.all()
         if not items.exists():
             raise ValidationError("Purchase Invoice must have at least one line item.")
+        if not self.is_return and not (self.bill_no or "").strip():
+            raise ValidationError(
+                _("Enter the supplier's invoice number (Bill No) before submitting.")
+            )
+        if self.bill_date and self.bill_date > self.posting_date:
+            raise ValidationError(_("Bill Date cannot be after the posting date."))
         if self.credit_to.is_group or self.expense_account.is_group:
             raise ValidationError("Posting to group accounts is not allowed.")
         # Multi-tenant integrity: keep the posting inside this invoice's company.
@@ -224,6 +325,9 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         if self.update_stock:
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
         self._validate_batch_lines()
+        from buying.services import charges as charges_service
+
+        charges_service.validate(self)
         self.calculate_taxes_and_totals(for_submit=True)
         if self.is_return:
             from accounts.services import returns as returns_service
@@ -304,9 +408,13 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         from accounts.services import outstanding as outstanding_service
         from stock.services import batches as batch_service
         from stock.services import ledger as stock_service
+        from buying.services import charges as charges_service
 
         posting.validate_posting(self)
         perpetual = self.company.get_perpetual_accounts() if self.update_stock else None
+        charge_rows = [] if self.is_return else charges_service.charge_rows(self)
+        landed = charges_service.allocation(self, rows=charge_rows)
+        charges_total = sum((c.amount for c in charge_rows), Decimal("0.00"))
 
         # 1. Post stock first (stock lines only) so GL can book the value actually
         #    posted to the SLE, keeping GL inventory == Bin.stock_value exactly.
@@ -348,15 +456,18 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     )
                     item.batch = batch
                     item.save(update_fields=["batch"])
-                sle_list.append(
-                    {
-                        "item": item.item,
-                        "warehouse": item.warehouse,
-                        "qty": abs(item.qty),
-                        "valuation_rate": item.rate,
-                        "batch": batch,
-                    }
-                )
+                entry = {
+                    "item": item.item,
+                    "warehouse": item.warehouse,
+                    "qty": abs(item.qty),
+                    "valuation_rate": item.rate,
+                    "batch": batch,
+                }
+                if landed.get(item.pk):
+                    # Landed cost: the line's exact incoming value (amount + its
+                    # share of the charges); the rate becomes value / qty.
+                    entry["incoming_value"] = item.amount + landed[item.pk]
+                sle_list.append(entry)
             if sle_list:
                 sles = stock_service.post(
                     self, sle_list, posting_date=self.posting_date
@@ -379,8 +490,9 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     "credit": Decimal("0.00"),
                 }
             )
-            # Non-stock lines plus any rounding difference stay on the expense account.
-            expense_amount = self.net_total - stock_value
+            # Non-stock lines plus any rounding difference stay on the expense
+            # account; the capitalised charges are not part of net_total.
+            expense_amount = self.net_total - (stock_value - charges_total)
         else:
             expense_amount = self.net_total
         if expense_amount >= 0:
@@ -414,6 +526,7 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             }
         )
         gl_entries.extend(posting.purchase_tax_entries(self))
+        gl_entries.extend(charges_service.gl_entries(self, charge_rows))
         if self.is_return:
             # Built from negative amounts: the exact mirror of the purchase.
             gl_entries = gl_service.mirror_entries(gl_entries)
@@ -499,6 +612,53 @@ class PurchaseInvoiceItem(TaxableLine):
 
     def __str__(self):
         return f"{self.purchase_invoice.name} - {self.item.code} ({self.qty} @ {self.rate})"
+
+
+class PurchaseInvoiceCharge(models.Model):
+    """Extra cost on a purchase bill (freight, hamali, unloading, cartage) that is
+    added to the stock value of the invoice's stock lines.
+
+    ``included_in_bill``: the supplier invoiced it (part of ``grand_total``, debited
+    to ``account``); otherwise it was paid to someone else and only raises the stock
+    value. See ``buying.services.charges``.
+    """
+
+    purchase_invoice = models.ForeignKey(
+        PurchaseInvoice, on_delete=models.CASCADE, related_name="charges"
+    )
+    idx = models.PositiveIntegerField(default=1)
+    description = models.CharField(max_length=200)
+    account = models.ForeignKey(
+        Account,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    distribute_by = models.CharField(
+        max_length=8,
+        choices=ChargeDistribution.choices,
+        default=ChargeDistribution.AMOUNT,
+    )
+    included_in_bill = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["idx", "id"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(amount__gt=0),
+                name="buying_purchaseinvoicecharge_amount_gt_0",
+            ),
+            models.CheckConstraint(
+                check=models.Q(included_in_bill=False)
+                | models.Q(account__isnull=False),
+                name="buying_purchaseinvoicecharge_bill_needs_account",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.purchase_invoice.name} - {self.description} ({self.amount})"
 
 
 class PurchaseOrderTax(TaxLine):

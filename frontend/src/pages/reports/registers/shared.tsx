@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { todayISO } from "@/lib/format";
@@ -15,6 +16,44 @@ export interface PageInfo {
   count: number;
   num_pages: number;
 }
+
+/**
+ * Tally's own identity of an imported voucher (`TLY-*` Journal Entry). The server sends it
+ * as `tally` on a register row, or null for every other row.
+ */
+export interface TallyRef {
+  id: number;
+  voucher_type: string;
+  voucher_no: string;
+}
+interface VoucherLike {
+  voucher_type: string;
+  voucher_no: string;
+  tally?: TallyRef | null;
+}
+
+/** The voucher type the business knows: Tally's ("Receipt"), else the ERP's. */
+export const voucherTypeText = (r: VoucherLike): string => r.tally?.voucher_type ?? r.voucher_type;
+/** The voucher number the business knows: Tally's ("2526/1"), else the ERP's. */
+export const voucherNoText = (r: VoucherLike): string => r.tally?.voucher_no ?? r.voucher_no;
+
+/**
+ * Voucher number cell content. A Tally voucher links to its bill in Past Bills (the ERP
+ * `TLY-*` name stays as the tooltip); `plain` (print views) renders text only.
+ */
+export const VoucherNo: React.FC<{ row: VoucherLike; plain?: boolean }> = ({ row, plain }) => {
+  if (!row.tally) return <>{row.voucher_no}</>;
+  if (plain) return <>{row.tally.voucher_no}</>;
+  return (
+    <Link
+      to={`/history/bills?open=${row.tally.id}`}
+      title={row.voucher_no}
+      className="text-sky-400 hover:underline"
+    >
+      {row.tally.voucher_no}
+    </Link>
+  );
+};
 
 /** First day of the current month .. today, as YYYY-MM-DD. */
 export function defaultPeriod(): { from: string; to: string } {

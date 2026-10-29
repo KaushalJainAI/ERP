@@ -36,6 +36,19 @@ LEGACY_BASE_TO_KEYS = {
     "Stock Journal": ["stock.StockEntry"],
 }
 
+#: Suggested Tally ledger name of a GST-tagged ERP account, by (direction, component).
+#: Tally's old combined ledgers (``C Gst`` ...) are NOT used for new postings; the
+#: separate Input / Output ledgers are what GSTR-1 / GSTR-3B need.
+GST_LEDGER_NAMES = {
+    (direction, component): f"{prefix} {component}"
+    for direction, prefix in (
+        ("Input", "Input"),
+        ("Output", "Output"),
+        ("Reverse Charge", "RCM Payable"),
+    )
+    for component in ("CGST", "SGST", "IGST", "CESS")
+}
+
 #: Voucher names with these prefixes were imported from Tally; they are history.
 DEFAULT_EXCLUDED_PREFIXES = ["TLY-"]
 

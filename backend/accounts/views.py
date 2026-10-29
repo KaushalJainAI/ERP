@@ -24,6 +24,7 @@ from accounts.serializers import (
     TaxCalculateSerializer,
     TaxTemplateSerializer,
 )
+from accounts.reports.tally import tally_lookup
 from accounts.services import outstanding as outstanding_service
 from core.company_context import (
     CompanyScopedMixin,
@@ -313,12 +314,18 @@ def general_ledger(request):
                 "account_name": row.account.name,
                 "voucher_type": row.voucher_type,
                 "voucher_no": row.voucher_no,
+                "tally": None,
                 "party": row.party,
                 "debit": _money(row.debit),
                 "credit": _money(row.credit),
                 "balance": _money(running) if with_balance else None,
             }
         )
+
+    tally = tally_lookup(company_id, [e["voucher_no"] for e in entries])
+    if tally:
+        for e in entries:
+            e["tally"] = tally.get(e["voucher_no"])
 
     return Response(
         {
@@ -441,7 +448,9 @@ def calculate_taxes(request):
     from gst.services import supply
     from users.permissions import user_has_model_permission
 
-    payload = request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+    payload = (
+        request.data.copy() if hasattr(request.data, "copy") else dict(request.data)
+    )
     company = resolve_active_company(request)
     # The active company is authoritative; a tampered body cannot price another
     # company's tax. The field stays in the payload because the serializer expects it.

@@ -118,6 +118,12 @@ def post(
                 f"Unbalanced GL entry: Total Debit ({total_debit}) != Total Credit ({total_credit})."
             )
 
+        # A Period Closing Voucher closes the books up to its end date.
+        from accounts.services import closing
+
+        for company_id in {row.company_id for row in gl_rows}:
+            closing.assert_period_open(company_id, [date_to_use], voucher_type)
+
         # Bulk save GL entries
         created_entries = GLEntry.objects.bulk_create(gl_rows)
         return created_entries
@@ -140,6 +146,20 @@ def reverse(voucher: Any) -> List[GLEntry]:
         # Cancelling a document dated in a closed fiscal year is refused.
         for posting_date in sorted({e.posting_date for e in original_entries}):
             FiscalYear.for_date(posting_date)
+
+        # ... and so is one dated in a period a Period Closing Voucher has closed.
+        from accounts.services import closing
+
+        for company_id in {e.company_id for e in original_entries}:
+            closing.assert_period_open(
+                company_id,
+                [e.posting_date for e in original_entries if e.company_id == company_id],
+                voucher_type,
+            )
+        # A voucher that cleared the bank must be un-cleared before it is cancelled.
+        from accounts.services import bank as bank_service
+
+        bank_service.assert_not_cleared(voucher_type, voucher_no)
 
         reversal_rows: List[GLEntry] = []
         for orig in original_entries:

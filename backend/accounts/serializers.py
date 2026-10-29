@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
@@ -13,8 +14,14 @@ from accounts.models import (
     JournalEntryLine,
     PaymentEntry,
     PaymentEntryReference,
+    PaymentType,
     TaxTemplate,
     TaxTemplateRow,
+)
+from accounts.mapping import (
+    default_bank_or_cash_account,
+    infer_party_type,
+    party_account_for,
 )
 from core.mixins import (
     DraftNestedWriteMixin,
@@ -224,6 +231,118 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "modified_at",
         )
         read_only_fields = ("id", "docstatus", "created_at", "modified_at")
+        # Operators only enter the party, the amount and the bank / cash account;
+        # the other leg, the party type and the received amount are filled in
+        # ``validate`` (ERPNext's ``set_missing_values``).
+        extra_kwargs = {
+            "party_type": {"required": False, "allow_null": True, "allow_blank": True},
+            "paid_from": {"required": False, "allow_null": True},
+            "paid_to": {"required": False, "allow_null": True},
+            "received_amount": {"required": False, "allow_null": True},
+        }
+
+    def _fill_missing(self, attrs):
+        """Fill blank party type / accounts / received amount (create, or on update
+        only the keys explicitly sent as null)."""
+        inst = self.instance
+
+        def current(name):
+            return attrs[name] if name in attrs else getattr(inst, name, None)
+
+        def blank(name):
+            if name in attrs:
+                return attrs[name] in (None, "")
+            return inst is None
+
+        payment_type = current("payment_type")
+        company = current("company")
+        party_name = current("party_name")
+        errors = {}
+
+        if blank("party_type"):
+            if payment_type in (PaymentType.RECEIVE, PaymentType.PAY) and party_name:
+                attrs["party_type"] = infer_party_type(
+                    company, payment_type, party_name
+                )
+            else:
+                attrs["party_type"] = None
+        party_type = current("party_type")
+
+        need_from, need_to = blank("paid_from"), blank("paid_to")
+        if payment_type == PaymentType.INTERNAL_TRANSFER:
+            for name, needed in (("paid_from", need_from), ("paid_to", need_to)):
+                if needed:
+                    errors[name] = _("This field is required for an internal transfer.")
+        elif need_from or need_to:
+            if not party_name:
+                errors["party_name"] = _(
+                    "Select the party, or choose the paid from and paid to accounts."
+                )
+            else:
+                party_account = self._party_account(
+                    company, party_type, attrs.get("references")
+                )
+                if party_account is None:
+                    errors["party_type"] = _(
+                        "Choose the paid from and paid to accounts for a "
+                        "%(party_type)s payment."
+                    ) % {"party_type": party_type or _("this")}
+                else:
+                    try:
+                        bank = default_bank_or_cash_account(company)
+                    except DjangoValidationError as exc:
+                        bank_field = (
+                            "paid_to"
+                            if payment_type == PaymentType.RECEIVE
+                            else "paid_from"
+                        )
+                        errors[bank_field] = exc.messages[0]
+                        bank = None
+                    if bank is not None:
+                        receive = payment_type == PaymentType.RECEIVE
+                        if need_from:
+                            attrs["paid_from"] = party_account if receive else bank
+                        if need_to:
+                            attrs["paid_to"] = bank if receive else party_account
+        if errors:
+            raise serializers.ValidationError(errors)
+
+        if blank("received_amount"):
+            attrs["received_amount"] = current("paid_amount") or Decimal("0.00")
+        elif (
+            inst is not None
+            and "received_amount" not in attrs
+            and "paid_amount" in attrs
+            and inst.received_amount == inst.paid_amount
+        ):
+            # Same currency: keep the received amount in step with the paid amount.
+            attrs["received_amount"] = attrs["paid_amount"]
+        return attrs
+
+    @staticmethod
+    def _party_account(company, party_type, references):
+        """The party-side control account. An allocated invoice's own booked account
+        wins (the allocation check requires them to match); else the company
+        default for the party type."""
+        for row in references or ():
+            target = PaymentEntry.ALLOCATION_TARGETS.get(row.get("reference_doctype"))
+            if target is None or target[1] != party_type:
+                continue
+            invoice = (
+                PaymentEntry.invoice_model(row["reference_doctype"])
+                .objects.filter(name=row.get("reference_name"), company=company)
+                .first()
+            )
+            if invoice is not None:
+                return getattr(invoice, target[2])
+        try:
+            return party_account_for(company, party_type)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"paid_from": exc.messages[0]})
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        return self._fill_missing(attrs)
 
 
 # --------------------------------------------------------------------------- GST

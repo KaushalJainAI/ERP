@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, ArrowLeft, Ban, CheckCircle2, Loader2, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Ban, CheckCircle2, ChevronDown, Loader2, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
 import { useDebounced } from "@/hooks/useDebounced";
 import { Layout } from "@/components/Layout";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -119,6 +119,15 @@ const snapshot = (values: Values, tables: Tables) =>
     ),
   ]);
 
+/** Changes when child rows change without the header being touched (e.g. server-side row actions). */
+function childSig(config: ResourceConfig, doc: ApiRecord | undefined): string {
+  if (!doc || !config.childTables?.length) return "";
+  const str = JSON.stringify(config.childTables.map((t) => doc[t.key] ?? null));
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return String(h);
+}
+
 /* ------------------------------------------------------------------ */
 /* page: loads the document, then mounts the form                       */
 /* ------------------------------------------------------------------ */
@@ -157,7 +166,7 @@ export const DocumentPage: React.FC<{ config: ResourceConfig }> = ({ config }) =
         </div>
       ) : (
         <DocumentForm
-          key={isNew ? `new-${location.key}` : `${id}-${doc?.modified_at}-${doc?.docstatus}`}
+          key={isNew ? `new-${location.key}` : `${id}-${doc?.modified_at}-${doc?.docstatus}-${childSig(config, doc)}`}
           config={config}
           doc={doc}
           seed={seed}
@@ -191,6 +200,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const [tables, setTables] = useState<Tables>(initial.tables);
   const [initialSnap] = useState(() => snapshot(initial.values, initial.tables));
   const [serverErr, setServerErr] = useState<NormalisedError | null>(null);
+  const [showMore, setShowMore] = useState(false);
   const [clientErr, setClientErr] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [checks, setChecks] = useState<Record<string, FieldCheckResult | undefined>>({});
@@ -466,6 +476,61 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const computedFields = config.fields.filter((f) => f.preview && visible(f));
   const formFields = config.fields.filter((f) => !f.preview && visible(f));
 
+  const mainFields = formFields.filter((f) => !f.advanced);
+  const advancedFields = formFields.filter((f) => f.advanced);
+  // "More details" opens by itself when one of its fields has an error.
+  const moreOpen = showMore || advancedFields.some((f) => !!fieldErr(f.key));
+
+  const renderField = (f: FieldDef) => {
+    const err = fieldErr(f.key);
+    const ro = !editableField(f);
+    return (
+      <div key={f.key} className={spanClass(f)}>
+        {f.type === "boolean" ? (
+          <label className="flex items-center gap-2 text-sm text-slate-300 mt-6">
+            <FieldInput
+              def={f}
+              cacheKey={`${config.key}.${f.key}`}
+              value={values[f.key]}
+              values={formValues}
+              parentValues={formValues}
+              readOnly={ro}
+              onChange={(v) => setField(f, v)}
+            />
+            {t(f.labelKey)}
+          </label>
+        ) : (
+          <>
+            <label htmlFor={`f-${f.key}`} className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+              {t(f.labelKey)}
+              {f.required && editable && <span className="text-rose-400"> *</span>}
+            </label>
+            <FieldInput
+              id={`f-${f.key}`}
+              def={f}
+              cacheKey={`${config.key}.${f.key}`}
+              value={values[f.key]}
+              values={formValues}
+              parentValues={formValues}
+              readOnly={ro}
+              invalid={!!err || (!!f.check && checks[f.key]?.ok === false)}
+              onChange={(v) => setField(f, v)}
+              onLinkSelect={(v, rec) => setField(f, v, rec)}
+              onBlur={f.check ? () => void runCheck(f) : undefined}
+            />
+          </>
+        )}
+        {f.check && checks[f.key] && (
+          <p className={`text-[11px] mt-1 ${checks[f.key]!.ok ? "text-emerald-400" : "text-rose-400"}`}>
+            {checks[f.key]!.ok ? t(f.check.okKey) : checks[f.key]!.message}
+          </p>
+        )}
+        {f.helpKey && !err && editable && <p className="text-[11px] text-slate-500 mt-1">{t(f.helpKey)}</p>}
+        {err && <p className="text-[11px] text-rose-400 mt-1">{err}</p>}
+      </div>
+    );
+  };
+
   const title = isNew ? t("common.new_item", { item: t(config.singularKey) }) : String(doc?.[config.titleField ?? "name"] ?? "");
 
   const visibleActions = (config.actions ?? []).filter((a) => !isNew && (!a.showWhen || a.showWhen(doc!)));
@@ -486,7 +551,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const btn = "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5">
+    <div className="max-w-6xl mx-auto space-y-5 animate-fade-up">
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3 sticky top-16 z-30 bg-slate-950/90 backdrop-blur py-3 -mt-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -572,56 +637,36 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
       {/* header fields */}
       <section className="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4">
-          {formFields.map((f) => {
-            const err = fieldErr(f.key);
-            const ro = !editableField(f);
-            return (
-              <div key={f.key} className={spanClass(f)}>
-                {f.type === "boolean" ? (
-                  <label className="flex items-center gap-2 text-sm text-slate-300 mt-6">
-                    <FieldInput
-                      def={f}
-                      cacheKey={`${config.key}.${f.key}`}
-                      value={values[f.key]}
-                      values={formValues}
-                      parentValues={formValues}
-                      readOnly={ro}
-                      onChange={(v) => setField(f, v)}
-                    />
-                    {t(f.labelKey)}
-                  </label>
-                ) : (
-                  <>
-                    <label htmlFor={`f-${f.key}`} className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      {t(f.labelKey)}
-                      {f.required && editable && <span className="text-rose-400"> *</span>}
-                    </label>
-                    <FieldInput
-                      id={`f-${f.key}`}
-                      def={f}
-                      cacheKey={`${config.key}.${f.key}`}
-                      value={values[f.key]}
-                      values={formValues}
-                      parentValues={formValues}
-                      readOnly={ro}
-                      invalid={!!err || (!!f.check && checks[f.key]?.ok === false)}
-                      onChange={(v) => setField(f, v)}
-                      onLinkSelect={(v, rec) => setField(f, v, rec)}
-                      onBlur={f.check ? () => void runCheck(f) : undefined}
-                    />
-                  </>
-                )}
-                {f.check && checks[f.key] && (
-                  <p className={`text-[11px] mt-1 ${checks[f.key]!.ok ? "text-emerald-400" : "text-rose-400"}`}>
-                    {checks[f.key]!.ok ? t(f.check.okKey) : checks[f.key]!.message}
-                  </p>
-                )}
-                {f.helpKey && !err && editable && <p className="text-[11px] text-slate-500 mt-1">{t(f.helpKey)}</p>}
-                {err && <p className="text-[11px] text-rose-400 mt-1">{err}</p>}
-              </div>
-            );
-          })}
+          {mainFields.map(renderField)}
         </div>
+        {advancedFields.length > 0 && (
+          <div className="mt-4 border-t border-slate-800 pt-3">
+            <button
+              type="button"
+              onClick={() => setShowMore((v) => !v)}
+              aria-expanded={moreOpen}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${moreOpen ? "rotate-180" : ""}`} />
+              {moreOpen ? t("doc.fewer_details") : t("doc.more_details", { n: advancedFields.length })}
+            </button>
+            <div
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                moreOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div
+                className="overflow-hidden"
+                // Collapsed fields stay out of the tab order (React 18 has no `inert` prop).
+                ref={(el) => el?.toggleAttribute("inert", !moreOpen)}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-4 pt-4">
+                  {advancedFields.map(renderField)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* child tables */}

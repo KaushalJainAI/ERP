@@ -26,6 +26,7 @@ from tally_export.services.maps import (
     legacy_group_names,
     party_group,
     suggest_group,
+    suggest_ledger,
 )
 
 
@@ -109,7 +110,7 @@ def _unmapped_details(plan: Plan) -> dict:
                     "account_name": acct.name,
                     "root_type": acct.root_type,
                     "account_type": acct.account_type,
-                    "suggested_ledger": acct.name,
+                    "suggested_ledger": suggest_ledger(acct),
                     "suggested_group": suggest_group(acct, legacy),
                     "vouchers": used,
                 }
@@ -203,7 +204,7 @@ def _auto_map(plan: Plan) -> List:
                 TallyLedgerMap.objects.create(
                     company=plan.company,
                     account=acct,
-                    tally_ledger=acct.name,
+                    tally_ledger=suggest_ledger(acct),
                     tally_group=suggest_group(acct, legacy),
                     source="auto",
                 )

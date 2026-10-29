@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
+from django.utils.translation import gettext as _
 from gst.serializers import PartyGSTSerializerMixin
 from buying.models import (
     SupplierGroup,
@@ -10,6 +11,8 @@ from buying.models import (
     PurchaseInvoiceItem,
     PurchaseOrderTax,
     PurchaseInvoiceTax,
+    PurchaseInvoiceCharge,
+    PurchaseChargeTemplate,
 )
 from accounts.serializers import (
     LINE_GST_FIELDS,
@@ -21,12 +24,14 @@ from accounts.serializers import (
     TaxableSerializerMixin,
     tax_row_serializer,
 )
+from core.models import DocStatus
 from core.mixins import (
     DraftNestedWriteMixin,
     TranslatedSerializerMixin,
     PositiveQtyLineItemMixin,
     NonNegativeRateLineItemMixin,
 )
+from accounts import mapping as account_mapping
 from stock.services import pricing as pricing_service
 
 
@@ -229,6 +234,85 @@ class PurchaseInvoiceItemSerializer(
 PurchaseInvoiceTaxSerializer = tax_row_serializer(PurchaseInvoiceTax)
 
 
+class PurchaseInvoiceChargeSerializer(serializers.ModelSerializer):
+    """One freight / hamali / loading row of a purchase bill."""
+
+    account_name = serializers.CharField(
+        source="account.name", read_only=True, allow_null=True
+    )
+    amount = serializers.DecimalField(
+        max_digits=18, decimal_places=2, min_value=Decimal("0.01")
+    )
+
+    class Meta:
+        model = PurchaseInvoiceCharge
+        fields = (
+            "id",
+            "description",
+            "account",
+            "account_name",
+            "amount",
+            "distribute_by",
+            "included_in_bill",
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("included_in_bill") and attrs.get("account") is None:
+            raise serializers.ValidationError(
+                {"account": _("Choose the expense account of a charge on the bill.")}
+            )
+        return attrs
+
+
+class PurchaseChargeTemplateSerializer(serializers.ModelSerializer):
+    account_name = serializers.CharField(
+        source="account.name", read_only=True, allow_null=True
+    )
+
+    class Meta:
+        model = PurchaseChargeTemplate
+        fields = (
+            "id",
+            "company",
+            "name",
+            "account",
+            "account_name",
+            "distribute_by",
+            "included_in_bill",
+            "is_active",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = ("id", "created_at", "modified_at")
+        validators = []
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        inst = self.instance
+        in_bill = attrs.get("included_in_bill", inst.included_in_bill if inst else False)
+        account = attrs.get("account", inst.account if inst else None)
+        company = attrs.get("company", inst.company if inst else None)
+        if in_bill and account is None:
+            raise serializers.ValidationError(
+                {"account": _("Choose the expense account of a charge on the bill.")}
+            )
+        if account is not None and company is not None and account.company_id != company.pk:
+            raise serializers.ValidationError(
+                {"account": _("The account must belong to the template's company.")}
+            )
+        name = attrs.get("name", inst.name if inst else None)
+        if company is not None and name:
+            clash = PurchaseChargeTemplate.objects.filter(company=company, name=name)
+            if inst is not None:
+                clash = clash.exclude(pk=inst.pk)
+            if clash.exists():
+                raise serializers.ValidationError(
+                    {"name": _("A charge template with this name already exists.")}
+                )
+        return attrs
+
+
 class PurchaseInvoiceSerializer(
     ReturnSerializerMixin,
     TaxableSerializerMixin,
@@ -236,11 +320,19 @@ class PurchaseInvoiceSerializer(
     serializers.ModelSerializer,
 ):
     children_field = "items"
+    extra_children_fields = ("taxes", "charges")
     name_prefix = "PINV-2026-"
     return_name_prefix = "PRET-2026-"
 
     items = PurchaseInvoiceItemSerializer(many=True)
     taxes = PurchaseInvoiceTaxSerializer(many=True, required=False)
+    charges = PurchaseInvoiceChargeSerializer(many=True, required=False)
+    charges_on_bill = serializers.DecimalField(
+        max_digits=18, decimal_places=2, read_only=True
+    )
+    charges_off_bill = serializers.DecimalField(
+        max_digits=18, decimal_places=2, read_only=True
+    )
     place_of_supply_name = serializers.CharField(
         source="place_of_supply.name", read_only=True, allow_null=True
     )
@@ -276,6 +368,8 @@ class PurchaseInvoiceSerializer(
             "price_list_name",
             "posting_date",
             "due_date",
+            "bill_no",
+            "bill_date",
             "purchase_order",
             "purchase_order_name",
             "update_stock",
@@ -297,6 +391,9 @@ class PurchaseInvoiceSerializer(
             "amended_from",
             "items",
             "taxes",
+            "charges",
+            "charges_on_bill",
+            "charges_off_bill",
             "created_at",
             "modified_at",
         )
@@ -313,8 +410,29 @@ class PurchaseInvoiceSerializer(
             "modified_at",
         )
 
+    _DEFAULT_ACCOUNTS = {
+        "credit_to": lambda company, attrs: account_mapping.default_payable_account(
+            company
+        ),
+        "expense_account": lambda company, attrs: (
+            account_mapping.default_expense_account(
+                company, attrs.get("update_stock", True)
+            )
+        ),
+    }
+
+    def get_fields(self):
+        return account_mapping.optional_account_fields(
+            super().get_fields(), self._DEFAULT_ACCOUNTS
+        )
+
     def validate(self, attrs):
+        attrs = account_mapping.fill_default_accounts(
+            self, attrs, self._DEFAULT_ACCOUNTS
+        )
         attrs = super().validate(attrs)
+        self._validate_bill(attrs)
+        self._validate_charges(attrs)
         return pricing_service.apply_line_rates(
             self,
             attrs,
@@ -322,3 +440,87 @@ class PurchaseInvoiceSerializer(
             party_field="supplier",
             date_field="posting_date",
         )
+
+    def _validate_bill(self, attrs):
+        """Supplier bill number / date (ERPNext ``validate_supplier_invoice``)."""
+        inst = self.instance
+        bill_no = (attrs.get("bill_no", inst.bill_no if inst else "") or "").strip()
+        if "bill_no" in attrs:
+            attrs["bill_no"] = bill_no
+        posting = attrs.get("posting_date", inst.posting_date if inst else None)
+        bill_date = attrs.get("bill_date", inst.bill_date if inst else None)
+        if bill_date and posting and bill_date > posting:
+            raise serializers.ValidationError(
+                {"bill_date": _("Bill Date cannot be after the posting date.")}
+            )
+        company = attrs.get("company", inst.company if inst else None)
+        supplier = attrs.get("supplier", inst.supplier if inst else None)
+        if bill_no and company is not None and supplier is not None:
+            clash = PurchaseInvoice.objects.filter(
+                company=company, supplier=supplier, bill_no__iexact=bill_no
+            ).exclude(docstatus=DocStatus.CANCELLED)
+            if inst is not None:
+                clash = clash.exclude(pk=inst.pk)
+            other = clash.first()
+            if other is not None:
+                raise serializers.ValidationError(
+                    {
+                        "bill_no": _(
+                            "Supplier invoice no '%(bill_no)s' is already booked on "
+                            "%(name)s."
+                        )
+                        % {"bill_no": bill_no, "name": other.name}
+                    }
+                )
+
+    def _validate_charges(self, attrs):
+        rows = attrs.get("charges")
+        if not rows:
+            return
+        inst = self.instance
+        if attrs.get("is_return", inst.is_return if inst else False):
+            raise serializers.ValidationError(
+                {"charges": _("A return (debit note) cannot carry extra charges.")}
+            )
+        company = attrs.get("company", inst.company if inst else None)
+        for n, row in enumerate(rows, start=1):
+            account = row.get("account")
+            if account is not None and company is not None:
+                if account.company_id != company.pk or account.is_group:
+                    raise serializers.ValidationError(
+                        {
+                            "charges": _(
+                                "Row %(n)s: the account must be a ledger of the "
+                                "invoice's company."
+                            )
+                            % {"n": n}
+                        }
+                    )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Landed cost per stock line: its amount plus its share of the charges.
+        from buying.services import charges as charges_service
+
+        rows = list(instance.charges.all()) if instance.pk else []
+        shares = (
+            charges_service.allocation(instance, rows=rows)
+            if rows and not instance.is_return
+            else {}
+        )
+        by_pk = {ln.pk: ln for ln in instance.items.all()} if shares else {}
+        for item in data.get("items", []):
+            line = by_pk.get(item.get("id"))
+            share = shares.get(item.get("id"))
+            if line is None or share is None:
+                item["landed_cost_amount"] = None
+                item["landed_rate"] = None
+                continue
+            landed = line.amount + share
+            item["landed_cost_amount"] = str(landed)
+            item["landed_rate"] = (
+                str((landed / abs(line.qty)).quantize(Decimal("0.000001")))
+                if line.qty
+                else None
+            )
+        return data

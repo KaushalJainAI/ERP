@@ -1,4 +1,6 @@
 from decimal import ROUND_HALF_UP, Decimal
+import re
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
@@ -1259,3 +1261,292 @@ class TaxableLine(models.Model):
         the sum of line amounts equals the stock value the SLE books per line.
         """
         return (self.qty * self.rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+# --------------------------------------------------------- Bank reconciliation
+# ERPNext keeps ``clearance_date`` on the submitted Payment / Journal Entry. Those
+# documents are immutable here, so clearance is its own append-only fact
+# (``BankClearance``, latest record per voucher wins) and a statement line is an
+# immutable ``BankTransaction``. Everything "reconciled" is derived from them.
+
+
+class BankAccount(TimeStampedModel):
+    """A company bank account: the bank-facing details of a Bank GL account."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="bank_accounts"
+    )
+    # The GL account whose ledger is reconciled against the bank statement.
+    account = models.OneToOneField(
+        Account, on_delete=models.PROTECT, related_name="bank_account"
+    )
+    bank_name = models.CharField(max_length=140)
+    account_number = models.CharField(max_length=40, blank=True, default="")
+    ifsc_code = models.CharField(max_length=11, blank=True, default="")
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    # Vouchers dated on or before this day are taken as already reconciled (e.g. the
+    # history carried over from Tally) and never listed as "uncleared".
+    reconciled_up_to = models.DateField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company"],
+                condition=models.Q(is_default=True),
+                name="unique_default_bank_account_per_company",
+            ),
+        ]
+
+    @property
+    def account_number_last4(self):
+        return self.account_number[-4:] if self.account_number else ""
+
+    def clean(self):
+        errors = {}
+        account = self.account if self.account_id else None
+        if account is not None:
+            if account.account_type != AccountType.BANK:
+                errors["account"] = _("The GL account must be of type Bank.")
+            elif account.is_group:
+                errors["account"] = _("The GL account must not be a group.")
+            elif account.company_id != self.company_id:
+                errors["account"] = _("The GL account must belong to the company.")
+        if self.ifsc_code and not re.fullmatch(r"[A-Z]{4}0[A-Z0-9]{6}", self.ifsc_code):
+            errors["ifsc_code"] = _("Enter a valid IFSC code (e.g. HDFC0001234).")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.ifsc_code:
+            self.ifsc_code = self.ifsc_code.strip().upper()
+        self.full_clean(exclude=["created_by", "modified_by"], validate_unique=False)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.bank_name} ({self.account.name})"
+
+
+class BankStatementImport(models.Model):
+    """One uploaded statement file. Immutable: a record of what was imported."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="bank_statement_imports"
+    )
+    bank_account = models.ForeignKey(
+        BankAccount, on_delete=models.PROTECT, related_name="statement_imports"
+    )
+    file_name = models.CharField(max_length=255)
+    file_sha256 = models.CharField(max_length=64)
+    column_mapping = models.JSONField(default=dict)
+    row_count = models.PositiveIntegerField(default=0)
+    imported_count = models.PositiveIntegerField(default=0)
+    duplicate_count = models.PositiveIntegerField(default=0)
+    skipped_count = models.PositiveIntegerField(default=0)
+    from_date = models.DateField(null=True, blank=True)
+    to_date = models.DateField(null=True, blank=True)
+    imported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    imported_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank statement imports are immutable.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank statement imports cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.file_name} ({self.imported_count} rows)"
+
+
+class BankTransaction(models.Model):
+    """A bank statement line. Immutable once imported (a fact from the bank)."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="bank_transactions"
+    )
+    bank_account = models.ForeignKey(
+        BankAccount, on_delete=models.PROTECT, related_name="transactions"
+    )
+    statement_import = models.ForeignKey(
+        BankStatementImport, on_delete=models.PROTECT, related_name="transactions"
+    )
+    row_no = models.PositiveIntegerField(default=0)
+    transaction_date = models.DateField(db_index=True)
+    description = models.TextField(blank=True, default="")
+    reference_no = models.CharField(max_length=140, blank=True, default="")
+    withdrawal = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    deposit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    balance = models.DecimalField(
+        max_digits=18, decimal_places=2, null=True, blank=True
+    )
+    # sha256(date|withdrawal|deposit|reference|description) + ":<n>", n being the
+    # occurrence of that identical line in its file, so re-importing the same or an
+    # overlapping statement is a no-op while two genuinely identical lines survive.
+    dedupe_key = models.CharField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bank_account", "dedupe_key"],
+                name="unique_bank_transaction_per_account",
+            ),
+            models.CheckConstraint(
+                check=models.Q(withdrawal__gte=0)
+                & models.Q(deposit__gte=0)
+                & ~models.Q(withdrawal__gt=0, deposit__gt=0)
+                & (models.Q(withdrawal__gt=0) | models.Q(deposit__gt=0)),
+                name="check_bank_transaction_one_side",
+            ),
+        ]
+        indexes = [models.Index(fields=["bank_account", "transaction_date"])]
+
+    @property
+    def amount(self):
+        """Signed amount: deposits positive, withdrawals negative."""
+        return self.deposit - self.withdrawal
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank transactions are immutable.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank transactions cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.transaction_date} {self.amount} {self.reference_no}"
+
+
+class BankClearance(models.Model):
+    """Append-only fact: voucher X cleared the bank on date D (or, with a null date,
+    was un-cleared). The latest record per (bank account, voucher) wins."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="bank_clearances"
+    )
+    bank_account = models.ForeignKey(
+        BankAccount, on_delete=models.PROTECT, related_name="clearances"
+    )
+    voucher_type = models.CharField(max_length=60)
+    voucher_no = models.CharField(max_length=60)
+    clearance_date = models.DateField(null=True, blank=True)
+    # The statement line this clearance was matched to (null for a manual clearing).
+    bank_transaction = models.ForeignKey(
+        BankTransaction,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="clearances",
+    )
+    remarks = models.CharField(max_length=255, blank=True, default="")
+    set_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    set_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            # An un-clear record links to no statement line.
+            models.CheckConstraint(
+                check=models.Q(bank_transaction__isnull=True)
+                | models.Q(clearance_date__isnull=False),
+                name="check_bank_clearance_txn_needs_date",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["bank_account", "voucher_type", "voucher_no", "id"])
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Bank clearances are immutable; add a new record.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Bank clearances cannot be deleted.")
+
+    def __str__(self):
+        return f"{self.voucher_type}:{self.voucher_no} -> {self.clearance_date}"
+
+
+# --------------------------------------------------------- Period closing
+
+
+class PeriodClosingVoucher(SubmittableDocument):
+    """Year-end close (ERPNext Period Closing Voucher): zeroes every Income and
+    Expense balance of the fiscal year into the closing account head."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="period_closing_vouchers"
+    )
+    fiscal_year = models.ForeignKey(
+        "core.FiscalYear", on_delete=models.PROTECT, related_name="closing_vouchers"
+    )
+    # Closes from the fiscal year start up to (and including) this day; also the
+    # GL posting date.
+    period_end_date = models.DateField()
+    closing_account_head = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="closing_vouchers"
+    )
+    remarks = models.TextField(null=True, blank=True)
+    # Derived at submit: net profit (+) / loss (-) moved to the closing account.
+    net_profit = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        constraints = [
+            # One live closing per company and fiscal year (docstatus 1 = Submitted).
+            models.UniqueConstraint(
+                fields=["company", "fiscal_year"],
+                condition=models.Q(docstatus=1),
+                name="unique_submitted_pcv_per_company_year",
+            ),
+        ]
+
+    def validate_before_submit(self):
+        from accounts.services import closing
+
+        closing.validate(self)
+        self.net_profit = closing.compute(self)["net_profit"]
+        self.save(update_fields=["net_profit"])
+
+    def on_submit(self):
+        from accounts.services import closing
+        from accounts.services import gl as gl_service
+
+        plan = closing.compute(self)
+        gl_service.post(
+            self,
+            plan["entries"],
+            posting_date=self.period_end_date,
+            remarks=self.remarks
+            or _("Period closing %(fy)s") % {"fy": self.fiscal_year.name},
+        )
+
+    def on_cancel(self):
+        from accounts.services import closing
+        from accounts.services import gl as gl_service
+
+        closing.validate_cancel(self)
+        gl_service.reverse(self)
+
+    def __str__(self):
+        return f"{self.name} ({self.fiscal_year.name})"

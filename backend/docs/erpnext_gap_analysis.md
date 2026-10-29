@@ -1,57 +1,58 @@
 # Gaps against standard ERPNext
 
-What standard ERPNext (v15 + India Compliance) has that this ERP doesn't, as of
-2026-10-28. Ranked for **Nidhi Grah Udyog**: a spice manufacturer moving off
-Tally, selling to distributors. The scope rule from `plan.md` applies: what this
-business needs, not full parity.
+What standard ERPNext (v15 + India Compliance) has that this ERP doesn't.
+Updated 2026-10-29. Ranked for **Nidhi Grah Udyog** under the current direction:
+operators enter everything in the ERP, the ERP exports to Tally, and the
+accountant finishes the official books and GST filing in Tally. The scope rule
+applies: what this business needs, not full parity. `checklist.md` is the task
+tracker; this file explains the ranking.
 
-**What exists today:** chart of accounts, Journal / Payment Entry with invoice
-allocation, Trial Balance, P&L, Balance Sheet, General Ledger, ageing; GST
-setup with tax and item tax templates, GSTR-1, GSTR-3B and tax ledger; items,
-warehouses, price lists, batches with expiry, Stock Entry (receipt / issue /
-transfer / manufacture / repack), stock balance; Sales / Purchase Order and
-Invoice, credit limits; BOM and Work Order with yield and BOM cost; addresses;
-RBAC, audit log, 13 languages; Tally history (`legacy`).
+## Done since the first gap review (2026-10-28)
 
-## P1 — needed to stop using Tally for daily work
+Sales / purchase returns · Stock Reconciliation · Sales / Purchase Register, Day
+Book, Cash / Bank Book, party statement · attachments on documents and masters
+· Tally export (vouchers + masters XML) · Tally history (`legacy`) and party
+addresses. In progress: print formats (`printing`), bank reconciliation,
+period closing, GST go-live accounts (`gst/services/go_live.py`).
+
+## Skipped by decision (2026-10-28)
+
+- **e-Way Bill / e-Invoice (IRN):** Tally handles statutory output.
+- **UOM conversion per item:** operators do the carton maths.
+- **Analytics:** live in the separate Tally dashboard (`Desktop\Tally\dashboard`).
+
+## P1 — still open, needed before operators stop entering in Tally
 
 | # | ERPNext feature | Why it matters here | Size |
 |---|---|---|---|
-| 1 | **Print formats** (GST Tax Invoice, Delivery Challan, PO, receipt) as PDF | Nothing in the ERP can be printed or sent to a customer. Tally prints every invoice | M |
-| 2 | **Sales / Purchase Returns** (`is_return` Credit / Debit Note against an invoice, stock back in) | Damaged or expired returns from distributors. Tally had 22 notes | M |
-| 3 | **e-Way Bill** (and **e-Invoice / IRN** if aggregate turnover > ₹5 crore) | e-way bill is mandatory for goods moved above ₹50,000. Check the turnover for e-invoice | L |
-| 4 | **Stock Reconciliation** (physical count, opening stock) | Go-live opening stock, and the 7 negative-stock items | S |
-| 5 | **UOM conversion per item** (stock in Kg, sell in Bag / Box / Carton) | Packs go out in cartons, raw spice comes in in bags | S |
-| 6 | **Registers**: Sales Register, Purchase Register, Day Book, Cash / Bank Book, party statement | The accountant's daily views in Tally | M |
-| 7 | **Bank Account + Bank Reconciliation** (statement import, clearance dates) | Monthly bank reconciliation | M |
-| 8 | **Period Closing Voucher** (year-end P&L to retained earnings) | Only the fiscal-year lock exists. The Tally years were closed with importer JEs | S |
-| 9 | **Separate Input / Output GST accounts + go-live GST setup** for the company | Tally's combined ledgers can't drive the GST reports (see `tally_data_gaps.md` G3) | S |
+| 1 | **Print formats** (GST Tax Invoice, Delivery Challan, PO, receipt) | Nothing can go to a customer without them. In progress | M |
+| 2 | **Bank Reconciliation** (clearance dates, statement import) | Monthly bank check before the Tally export. In progress | M |
+| 3 | **Period Closing Voucher** | Year-end P&L to retained earnings. In progress | S |
+| 4 | **Input / Output GST accounts + company GSTIN** | Tally's combined GST ledgers can't drive the GST reports (`tally_data_gaps.md` G3). In progress | S |
+| 5 | **Freight / loading charges into stock cost** (ERPNext Landed Cost Voucher) | True cost of raw spice lots. Planned on the purchase bill itself (`checklist.md` 6.9) | S |
 
 ## P2 — soon after go-live
 
 | # | ERPNext feature | Why | Size |
 |---|---|---|---|
-| 10 | **Delivery Note** and **Purchase Receipt** (dispatch / GRN separate from the bill) | Goods often arrive before the bill. ERPNext's standard flow | M |
-| 11 | **Landed Cost Voucher** (freight and loading into raw-material cost) | True cost of turmeric / chilli lots, and margins | S |
-| 12 | **Gross Profit** and **item-wise sales** reports on ERP invoices | Margin per product / distributor (`TallyItemLine` covers history) | S |
-| 13 | **TDS** (Tax Withholding Category: 194Q purchases, 194C freight, 194J) | Applies once turnover / supplier thresholds are crossed. Accountant to confirm | M |
-| 14 | **Payment Reconciliation tool** (match unallocated receipts to invoices) | Receipts often come in before they're allocated | S |
-| 15 | **Contact** (people, phones, WhatsApp) | Only the address is stored today | S |
-| 16 | **Data import / export tool** (CSV / Excel for masters and opening entries) | Bulk price updates and new parties | M |
-| 17 | **Quality Inspection** (moisture, colour, foreign matter per lot) | Food business and FSSAI traceability, with the batches that already exist | M |
+| 6 | **Payment Reconciliation tool** (match unallocated receipts to invoices) | Distributors pay on account. Old Tally balances are unallocated by nature | S |
+| 7 | **Delivery Note / Purchase Receipt** (dispatch and GRN separate from the bill) | Goods often arrive before the bill. ERPNext's standard flow | M |
+| 8 | **Contact** (people, phones, WhatsApp) | Only addresses are stored; field staff need phone numbers | S |
+| 9 | **Gross Profit** and item-wise sales on ERP invoices | Margin per product / distributor (`TallyItemLine` covers the Tally years) | S |
+| 10 | **TDS** (Tax Withholding: 194Q, 194C, 194J) | Only if the accountant wants it in the ERP rather than in Tally | M |
+| 11 | **Quality Inspection** per lot (moisture, colour, foreign matter) | FSSAI traceability on top of the existing batches | M |
+| 12 | **Data import tool** (CSV / Excel for masters and prices) | Bulk price-list updates and new parties | M |
 
 ## P3 — later / optional
 
-- Item Variants (pack sizes as attributes), Pricing Rules / promotional schemes,
-  Sales Person and commission, Territory.
-- Fixed Assets and depreciation (machinery). Tally booked depreciation by journal.
-- Cost Centers / accounting dimensions (ERPNext makes them mandatory; Tally never used them).
-- Quotation, Material Request, RFQ / Supplier Quotation, Production Plan, Job Card.
-- Budgets, dunning / interest, recurring journals, workflows and approvals.
-- Email / WhatsApp sending of invoices (the `Outbox` exists, but no sender is wired).
-- HR and payroll: already planned in `checklist.md` (open).
+Item Variants (pack sizes), Pricing Rules (no schemes are recorded today), Sales
+Person / Territory (field staff are planned), fixed assets and depreciation,
+cost centers / accounting dimensions (Tally never used them), Quotation /
+Material Request / RFQ / Production Plan / Job Card, budgets, dunning /
+interest, recurring journals, workflows, and email / WhatsApp sending of
+invoices (the `Outbox` exists, but no sender is wired).
 
-## Deliberately out of scope
+## Out of scope
 
-Multi-currency, serial numbers, CRM / leads, projects, support, website / portal
-(the B2B portal is on hold), POS (B2C goes through the NGU app).
+Multi-currency, serial numbers, CRM / leads, projects, support, website / POS
+(B2C runs through the NGU app), B2B portal (on hold).

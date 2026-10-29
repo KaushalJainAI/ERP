@@ -137,32 +137,102 @@ def fetch_rate(
         supplier=supplier,
         explicit=price_list,
     )
-    if resolved is None:
-        return {
-            "item": item.pk,
-            "price_list": None,
-            "price_list_name": None,
-            "price_list_source": None,
-            "item_price": None,
-            "price_list_rate": None,
-            "rate": None,
-            "currency": company.default_currency,
-            "valid_from": None,
-            "valid_upto": None,
-        }
-    row = item_price_for(item, resolved, transaction_date, uom or item.stock_uom)
-    return {
+    row = (
+        item_price_for(item, resolved, transaction_date, uom or item.stock_uom)
+        if resolved is not None
+        else None
+    )
+    result = {
         "item": item.pk,
-        "price_list": resolved.pk,
-        "price_list_name": resolved.name,
-        "price_list_source": source,
+        "price_list": resolved.pk if resolved else None,
+        "price_list_name": resolved.name if resolved else None,
+        "price_list_source": source if resolved else None,
         "item_price": row.pk if row else None,
         "price_list_rate": str(row.rate) if row else None,
         "rate": str(q2(row.rate)) if row else None,
-        "currency": resolved.currency,
+        "rate_source": "price_list" if row else None,
+        "last_rate_date": None,
+        "currency": resolved.currency if resolved else company.default_currency,
         "valid_from": str(row.valid_from) if row and row.valid_from else None,
         "valid_upto": str(row.valid_upto) if row and row.valid_upto else None,
     }
+    if row is None:
+        last = last_party_rate(
+            item, selling=selling, customer=customer, supplier=supplier
+        )
+        if last is not None:
+            result["rate"] = str(last[0])
+            result["rate_source"] = "last_bill"
+            result["last_rate_date"] = str(last[1])
+        elif item.standard_rate and item.standard_rate > 0:
+            result["rate"] = str(q2(item.standard_rate))
+            result["rate_source"] = "standard_rate"
+    return result
+
+
+def last_party_rate(item, *, selling, customer=None, supplier=None):
+    """Rate of the party's most recent bill for this item, or None.
+
+    Looks at submitted ERP invoices and the Tally item history and takes the
+    newer one. The Tally rate is the effective one (line amount / billed qty),
+    so a line discount is already in it. Returns (rate, posting_date).
+    """
+    from legacy.models import TallyItemLine
+
+    party = customer if selling else supplier
+    if party is None:
+        return None
+    if selling:
+        from selling.models import SalesInvoiceItem
+
+        erp = (
+            SalesInvoiceItem.objects.filter(
+                item=item,
+                sales_invoice__customer=party,
+                sales_invoice__docstatus=1,
+                sales_invoice__is_return=False,
+                rate__gt=0,
+            )
+            .order_by("-sales_invoice__posting_date", "-id")
+            .values_list("rate", "sales_invoice__posting_date")
+            .first()
+        )
+        tally = TallyItemLine.objects.filter(
+            item=item, customer=party, voucher_type="Sales", is_inward=False
+        )
+    else:
+        from buying.models import PurchaseInvoiceItem
+
+        erp = (
+            PurchaseInvoiceItem.objects.filter(
+                item=item,
+                purchase_invoice__supplier=party,
+                purchase_invoice__docstatus=1,
+                purchase_invoice__is_return=False,
+                rate__gt=0,
+            )
+            .order_by("-purchase_invoice__posting_date", "-id")
+            .values_list("rate", "purchase_invoice__posting_date")
+            .first()
+        )
+        tally = TallyItemLine.objects.filter(
+            item=item, supplier=party, voucher_type="Purchase", is_inward=True
+        )
+    line = (
+        tally.filter(amount__gt=0)
+        .exclude(billed_qty__isnull=True, qty__isnull=True)
+        .order_by("-posting_date", "-id")
+        .values("amount", "billed_qty", "qty", "posting_date")
+        .first()
+    )
+    old = None
+    if line:
+        qty = line["billed_qty"] or line["qty"]
+        if qty and qty > 0:
+            old = (q2(line["amount"] / qty), line["posting_date"])
+    if erp and (old is None or erp[1] >= old[1]):
+        return (q2(erp[0]), erp[1])
+    return old
 
 
 def _value(attrs, instance, name):
@@ -181,7 +251,8 @@ def apply_line_rates(
     Called from a document serializer's ``validate`` so the same code serves a
     create and a draft update.  A supplied ``rate`` is kept; ``price_list_rate``
     is always snapshotted when a row exists.  When no row exists and no rate was
-    supplied, the item's standard rate is the fallback; a zero standard rate is
+    supplied, the party's last billed rate (``last_party_rate``) and then the
+    item's standard rate are the fallbacks; no rate at all is
     a 400 ("No price for Item X in Price List Y"), as in the design.
     """
     rows = attrs.get("items")
@@ -218,8 +289,20 @@ def apply_line_rates(
         )
         supplied = row.get("rate")
         if supplied in (None, ""):
+            last = (
+                None
+                if price_row is not None
+                else last_party_rate(
+                    item,
+                    selling=selling,
+                    customer=party if selling else None,
+                    supplier=None if selling else party,
+                )
+            )
             if price_row is not None:
                 row["rate"] = q2(price_row.rate)
+            elif last is not None:
+                row["rate"] = last[0]
             elif item.standard_rate and item.standard_rate > 0:
                 row["rate"] = q2(item.standard_rate)
             else:

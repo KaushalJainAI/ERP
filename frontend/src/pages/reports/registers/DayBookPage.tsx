@@ -10,6 +10,7 @@ import {
   PAGE_SIZE,
   Pager,
   PeriodFilters,
+  VoucherNo,
   downloadCsv,
   fetchAllPages,
   td,
@@ -19,7 +20,10 @@ import {
   theadCls,
   thR,
   useRegisterFilters,
+  voucherNoText,
+  voucherTypeText,
   type PageInfo,
+  type TallyRef,
 } from "./shared";
 
 interface Line {
@@ -34,6 +38,7 @@ interface Voucher {
   posting_date: string;
   voucher_type: string;
   voucher_no: string;
+  tally: TallyRef | null;
   party: string | null;
   remarks: string | null;
   total_debit: string;
@@ -77,7 +82,7 @@ export const DayBookPage: React.FC = () => {
       t("acc.fields.credit"),
     ];
     const rows = (items as Voucher[]).flatMap((v) =>
-      v.lines.map((l) => [v.posting_date, v.voucher_type, v.voucher_no, l.party ?? v.party ?? "", l.account, l.debit, l.credit]),
+      v.lines.map((l) => [v.posting_date, voucherTypeText(v), voucherNoText(v), l.party ?? v.party ?? "", l.account, l.debit, l.credit]),
     );
     downloadCsv(`day-book_${f.from}_${f.to}`, [head, ...rows]);
   };
@@ -121,8 +126,8 @@ export const DayBookPage: React.FC = () => {
                         {v.lines.map((l, j) => (
                           <tr key={j} className={`hover:bg-slate-800/40 ${j === 0 ? "border-t border-slate-700/70" : ""}`}>
                             <td className={`${td} whitespace-nowrap`}>{j === 0 ? formatDate(v.posting_date) : ""}</td>
-                            <td className={td}>{j === 0 ? v.voucher_type : ""}</td>
-                            <td className={td}>{j === 0 ? v.voucher_no : ""}</td>
+                            <td className={td}>{j === 0 ? voucherTypeText(v) : ""}</td>
+                            <td className={td}>{j === 0 ? <VoucherNo row={v} /> : ""}</td>
                             <td className={`${td} ${isZeroDec(l.debit) ? "ps-8" : ""}`}>{l.account}</td>
                             <td className={td}>{l.party ?? ""}</td>
                             <td className={tdR}>{isZeroDec(l.debit) ? "" : fmtMoney(l.debit)}</td>

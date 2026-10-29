@@ -37,6 +37,9 @@ code disagree, the code wins.
   document-building recipe, Definition of Done).
 - **[checklist.md](checklist.md)** — ordered task list. Work top-to-bottom, one
   item at a time, verify, tick, commit.
+- **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** — point-in-time code
+  audit of what is implemented, partial, or missing. A snapshot, not authority;
+  re-verify with the commands in the document.
 
 ## Architecture in one paragraph
 

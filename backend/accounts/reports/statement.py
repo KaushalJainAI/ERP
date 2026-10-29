@@ -28,6 +28,7 @@ from accounts.reports import (
     period_block,
     q,
 )
+from accounts.reports.tally import tally_lookup
 from accounts.services import outstanding as outstanding_service
 
 PARTY_TYPES = ("Customer", "Supplier")
@@ -95,8 +96,10 @@ def build(company, party_type, party, from_date, to_date, page, size):
 
     start = (page - 1) * size
     running = opening + net_before(period, start) * sign
+    page_rows = list(period[start : start + size])
+    tally = tally_lookup(company, [e.voucher_no for e in page_rows])
     rows = []
-    for e in period[start : start + size]:
+    for e in page_rows:
         running += (e.debit - e.credit) * sign
         rows.append(
             {
@@ -104,6 +107,7 @@ def build(company, party_type, party, from_date, to_date, page, size):
                 "posting_date": e.posting_date.isoformat(),
                 "voucher_type": e.voucher_type,
                 "voucher_no": e.voucher_no,
+                "tally": tally.get(e.voucher_no),
                 "against_voucher_type": e.against_voucher_type,
                 "against_voucher_no": e.against_voucher_no,
                 "remarks": e.remarks,

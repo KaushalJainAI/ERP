@@ -24,6 +24,7 @@ from accounts.reports import (
     period_block,
     q,
 )
+from accounts.reports.tally import tally_lookup
 
 CASH_BANK = (AccountType.CASH, AccountType.BANK)
 
@@ -75,6 +76,7 @@ def build(company, account, from_date, to_date, page, size):
         ):
             others.setdefault((o.voucher_type, o.voucher_no), []).append(o)
 
+    tally = tally_lookup(company, [e.voucher_no for e in entries])
     rows = []
     for e in entries:
         against = others.get((e.voucher_type, e.voucher_no), [])
@@ -89,6 +91,7 @@ def build(company, account, from_date, to_date, page, size):
                 "posting_date": e.posting_date.isoformat(),
                 "voucher_type": e.voucher_type,
                 "voucher_no": e.voucher_no,
+                "tally": tally.get(e.voucher_no),
                 "against": ", ".join(names),
                 "party": e.party or next((o.party for o in against if o.party), None),
                 "remarks": e.remarks,

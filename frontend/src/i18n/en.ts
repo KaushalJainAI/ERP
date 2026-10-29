@@ -54,6 +54,11 @@ export const enExtra = {
     collapse_node: "Collapse",
   },
   doc: {
+    more_details: "More details ({{n}})",
+    fewer_details: "Fewer details",
+    help: {
+      default_account: "Leave empty to use the company's usual account.",
+    },
     confirm_submit_title: "Submit this {{item}}?",
     confirm_submit_message:
       "Submitting posts the document. It can no longer be edited afterwards - only cancelled and amended.",

@@ -15,9 +15,13 @@ import {
   Pager,
   PeriodFilters,
   PrintButton,
+  VoucherNo,
   downloadCsv,
   useRegisterFilters,
+  voucherNoText,
+  voucherTypeText,
   type PageInfo,
+  type TallyRef,
 } from "./shared";
 
 interface Row {
@@ -25,6 +29,7 @@ interface Row {
   posting_date: string;
   voucher_type: string;
   voucher_no: string;
+  tally: TallyRef | null;
   against_voucher_no: string | null;
   remarks: string | null;
   debit: string;
@@ -65,7 +70,7 @@ const BUCKETS = ["0-30", "31-60", "61-90", "90+"];
 const sideLabel = (side: string, t: (k: string) => string) => (side === "Dr" ? t("registers.dr") : side === "Cr" ? t("registers.cr") : "");
 
 /** The statement as a printable paper document (light, fixed colours, see .stmt in index.css). */
-const StatementDocument: React.FC<{ s: Statement }> = ({ s }) => {
+const StatementDocument: React.FC<{ s: Statement; plain?: boolean }> = ({ s, plain }) => {
   const { t } = useTranslation();
   const bal = (v: string, side: string) => (
     <>
@@ -121,9 +126,9 @@ const StatementDocument: React.FC<{ s: Statement }> = ({ s }) => {
           {s.rows.map((r) => (
             <tr key={r.id}>
               <td>{formatDate(r.posting_date)}</td>
-              <td>{r.voucher_type}</td>
+              <td>{voucherTypeText(r)}</td>
               <td>
-                {r.voucher_no}
+                <VoucherNo row={r} plain={plain} />
                 {r.remarks ? <small> {r.remarks}</small> : null}
               </td>
               <td className="num">{isZeroDec(r.debit) ? "" : fmtMoney(r.debit)}</td>
@@ -224,7 +229,7 @@ export const PartyStatementPage: React.FC = () => {
     downloadCsv(`statement_${data.party.name}_${f.from}_${f.to}`, [
       [t("fields.posting_date"), t("acc.fields.voucher_type"), t("acc.fields.voucher_no"), t("acc.fields.debit"), t("acc.fields.credit"), t("acc.fields.balance")],
       ["", t("registers.opening_balance"), "", "", "", `${data.opening_balance} ${data.opening_dr_cr}`.trim()],
-      ...data.rows.map((r) => [r.posting_date, r.voucher_type, r.voucher_no, r.debit, r.credit, `${r.balance} ${r.dr_cr}`.trim()]),
+      ...data.rows.map((r) => [r.posting_date, voucherTypeText(r), voucherNoText(r), r.debit, r.credit, `${r.balance} ${r.dr_cr}`.trim()]),
       ["", t("registers.closing_balance"), "", data.total_debit, data.total_credit, `${data.closing_balance} ${data.closing_dr_cr}`.trim()],
     ]);
   };
@@ -310,7 +315,7 @@ export const PartyStatementPage: React.FC = () => {
           {/* The print copy: #root is hidden in print, this portal is shown instead (index.css). */}
           {createPortal(
             <div className="print-only">
-              <StatementDocument s={data} />
+              <StatementDocument s={data} plain />
             </div>,
             document.body,
           )}

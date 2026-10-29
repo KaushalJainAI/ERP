@@ -361,6 +361,30 @@ class Company(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    # Default party / income accounts (ERPNext: Company.default_receivable_account,
+    # default_payable_account, default_income_account). An invoice saved without
+    # them gets these; blank falls back to accounts.mapping's name heuristic.
+    default_receivable_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    default_payable_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    default_income_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     # Price-list defaults (design section 5.3): used when the party and its group
     # do not name a list.
     default_selling_price_list = models.ForeignKey(
@@ -449,6 +473,24 @@ class Company(TimeStampedModel):
                 errors["round_off_account"] = _(
                     "Round-off account must not be a group account."
                 )
+        for field, account_types, root_type in (
+            ("default_receivable_account", ("Receivable",), None),
+            ("default_payable_account", ("Payable",), None),
+            ("default_income_account", None, "Income"),
+        ):
+            acc = getattr(self, field) if getattr(self, f"{field}_id") else None
+            if acc is None:
+                continue
+            if self.pk is None or acc.company_id != self.pk or acc.is_group:
+                errors[field] = _(
+                    "Pick a non-group account of this company."
+                )
+            elif account_types and acc.account_type not in account_types:
+                errors[field] = _("Pick an account of type %(type)s.") % {
+                    "type": account_types[0]
+                }
+            elif root_type and acc.root_type != root_type:
+                errors[field] = _("Pick an Income account.")
         if errors:
             raise ValidationError(errors)
 

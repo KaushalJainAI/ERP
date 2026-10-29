@@ -70,7 +70,7 @@ export function returnHeaderFields(
     }),
   };
   return [
-    { key: "is_return", labelKey: "ret.is_return", type: "boolean", readOnlyAfterCreate: true, defaultValue: false },
+    { key: "is_return", labelKey: "ret.is_return", type: "boolean", readOnlyAfterCreate: true, defaultValue: false, advanced: true },
     {
       key: "return_against",
       labelKey: "ret.return_against",

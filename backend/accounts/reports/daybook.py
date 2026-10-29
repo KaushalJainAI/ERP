@@ -11,6 +11,7 @@ from django.db.models import Min, Q, Sum
 
 from accounts.models import GLEntry
 from accounts.reports import ZERO, company_block, money, page_block, period_block
+from accounts.reports.tally import tally_lookup
 
 
 def build(company, from_date, to_date, voucher_type, page, size):
@@ -55,6 +56,7 @@ def build(company, from_date, to_date, voucher_type, page, size):
                 e
             )
 
+    tally = tally_lookup(company, [g["voucher_no"] for g in chosen])
     vouchers = []
     for g in chosen:
         entries = lines.get((g["posting_date"], g["voucher_type"], g["voucher_no"]), [])
@@ -65,6 +67,7 @@ def build(company, from_date, to_date, voucher_type, page, size):
                 "posting_date": g["posting_date"].isoformat(),
                 "voucher_type": g["voucher_type"],
                 "voucher_no": g["voucher_no"],
+                "tally": tally.get(g["voucher_no"]),
                 "party": party,
                 "remarks": remarks,
                 "total_debit": money(g["dr"]),

@@ -1,12 +1,19 @@
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from buying.models import SupplierGroup, Supplier, PurchaseOrder, PurchaseInvoice
+from buying.models import (
+    SupplierGroup,
+    Supplier,
+    PurchaseOrder,
+    PurchaseInvoice,
+    PurchaseChargeTemplate,
+)
 from buying.serializers import (
     SupplierGroupSerializer,
     SupplierSerializer,
     PurchaseOrderSerializer,
     PurchaseInvoiceSerializer,
+    PurchaseChargeTemplateSerializer,
 )
 from accounts.serializers import PaymentEntrySerializer
 from buying import mapping
@@ -42,6 +49,19 @@ class SupplierViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
         "state",
     ]
     search_fields = ["name", "gstin", "email", "phone"]
+    ordering_fields = ["name", "created_at"]
+
+
+class PurchaseChargeTemplateViewSet(
+    CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet
+):
+    """Presets for the extra-charge rows of a purchase bill (Freight, Hamali...)."""
+
+    queryset = PurchaseChargeTemplate.objects.all().select_related("account")
+    serializer_class = PurchaseChargeTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["company", "is_active"]
+    search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
 
 
@@ -107,7 +127,7 @@ class PurchaseInvoiceViewSet(
     queryset = (
         PurchaseInvoice.objects.all()
         .select_related("supplier", "company", "place_of_supply", "taxes_and_charges")
-        .prefetch_related("items", "taxes")
+        .prefetch_related("items", "taxes", "charges")
     )
     serializer_class = PurchaseInvoiceSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
@@ -119,8 +139,8 @@ class PurchaseInvoiceViewSet(
         "is_return",
         "return_against",
     ]
-    search_fields = ["name", "supplier__name"]
-    ordering_fields = ["posting_date", "created_at"]
+    search_fields = ["name", "supplier__name", "bill_no"]
+    ordering_fields = ["posting_date", "created_at", "bill_date"]
 
     def _update_rates(self, request):
         doc = self.get_object()

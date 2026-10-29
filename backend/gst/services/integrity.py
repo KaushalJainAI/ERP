@@ -425,4 +425,12 @@ def check():
         warnings.append(
             f"{legacy} legacy (pre-GST) document(s) are excluded from GST reports"
         )
+    # The company's own GST identity (GSTIN / state) and tagged Input / Output
+    # accounts: the GST reports and the intra / inter-state decision need them.
+    from core.models import Company
+    from gst.services import go_live
+
+    for company in Company.objects.filter(is_active=True).order_by("pk"):
+        warnings += [f"[GST setup] {w}" for w in go_live.company_gst_findings(company)]
+        warnings += [f"[GST setup] {w}" for w in go_live.company_account_findings(company)]
     return errors, warnings

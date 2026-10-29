@@ -174,6 +174,7 @@ export const taxHeaderFields = (direction: Direction): FieldDef[] => [
     helpKey: "gst.help.place_of_supply",
     // A different place of supply usually flips intra/inter-state: fall back to the default template.
     clears: ["taxes_and_charges"],
+    advanced: true,
   },
   {
     key: "taxes_and_charges",
@@ -181,6 +182,7 @@ export const taxHeaderFields = (direction: Direction): FieldDef[] => [
     type: "link",
     link: taxTemplateLink(direction),
     helpKey: "gst.help.template",
+    advanced: true,
   },
   direction === "Sales"
     ? {
@@ -199,6 +201,7 @@ export const taxHeaderFields = (direction: Direction): FieldDef[] => [
         defaultValue: false,
         // Reverse-charge purchases use a different template set.
         clears: ["taxes_and_charges"],
+        advanced: true,
       },
   {
     key: "gst_category",

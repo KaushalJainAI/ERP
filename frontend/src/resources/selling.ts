@@ -154,6 +154,9 @@ export const docNoField: FieldDef = {
   type: "text",
   readOnlyAfterCreate: true,
   helpKey: "fields.docno_help",
+  // The server numbers the document on save (the page title shows it), so the
+  // operator never types one.
+  hidden: () => true,
 };
 
 export const companyField: FieldDef = {
@@ -282,7 +285,7 @@ const salesOrders: ResourceConfig = {
     { ...companyField, clears: ["customer", "taxes_and_charges", "place_of_supply"] },
     // A new party forgets the place of supply so the server re-defaults it from the party state.
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list", advanced: true },
     { key: "transaction_date", labelKey: "fields.transaction_date", type: "date", required: true, defaultValue: todayISO },
     { key: "delivery_date", labelKey: "fields.delivery_date", type: "date" },
     ...taxHeaderFields("Sales"),
@@ -340,11 +343,12 @@ const salesInvoices: ResourceConfig = {
     docNoField,
     { ...companyField, clears: ["customer", "debit_to", "income_account", "sales_order", "taxes_and_charges", "place_of_supply"] },
     { key: "customer", labelKey: "fields.customer", type: "link", required: true, link: customerLink, clears: ["place_of_supply", "taxes_and_charges"] },
-    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list" },
+    { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: sellingPriceListLink, helpKey: "pl.help.document_list", advanced: true },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
-    { key: "due_date", labelKey: "fields.due_date", type: "date" },
+    { key: "due_date", labelKey: "fields.due_date", type: "date", advanced: true },
     {
       key: "sales_order",
+      advanced: true,
       labelKey: "fields.sales_order",
       type: "link",
       link: {
@@ -354,9 +358,9 @@ const salesInvoices: ResourceConfig = {
         filters: (_row, form) => ({ company: form.company, customer: form.customer, docstatus: DocStatus.SUBMITTED }),
       },
     },
-    { key: "debit_to", labelKey: "fields.debit_to", type: "link", required: true, link: accountLink("Asset") },
-    { key: "income_account", labelKey: "fields.income_account", type: "link", required: true, link: accountLink("Income") },
-    { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true },
+    { key: "debit_to", labelKey: "fields.debit_to", type: "link", link: accountLink("Asset"), helpKey: "doc.help.default_account", advanced: true },
+    { key: "income_account", labelKey: "fields.income_account", type: "link", link: accountLink("Income"), helpKey: "doc.help.default_account", advanced: true },
+    { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true, advanced: true },
     ...returnHeaderFields("credit", "/selling/sales-invoices", "/selling/sales-invoices/", "customer", "customer_name"),
     ...taxHeaderFields("Sales"),
     ...taxTotalFields(),

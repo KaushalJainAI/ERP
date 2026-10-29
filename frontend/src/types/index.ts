@@ -111,6 +111,11 @@ export interface FieldDef {
   span?: 1 | 2 | 3;
   /** Hide the field when this returns true. */
   hidden?: (values: Record<string, any>, isNew: boolean) => boolean;
+  /**
+   * Rarely needed (the server fills a default): shown under the collapsed
+   * "More details" toggle instead of in the main form.
+   */
+  advanced?: boolean;
   /** Render as money (Indian grouping) when read-only. */
   money?: boolean;
   /**

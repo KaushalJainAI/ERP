@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { LinkField } from "@/components/doc/LinkField";
 import { sumDec } from "@/lib/decimal";
 import { formatDate, formatIndianCurrency } from "@/lib/format";
+import { VoucherNo, voucherTypeText, type TallyRef } from "./registers/shared";
 import { CompanySelect, DateInput, ReportShell, useCompany, useReport } from "./parts";
 import type { LinkDef } from "@/types";
 
@@ -13,6 +14,7 @@ interface GlRow {
   account_name: string;
   voucher_type: string;
   voucher_no: string;
+  tally: TallyRef | null;
   party: string | null;
   debit: string;
   credit: string;
@@ -117,8 +119,10 @@ export const GeneralLedgerPage: React.FC = () => {
                 <tr key={e.id} className="hover:bg-slate-800/40">
                   <td className="px-5 py-3 whitespace-nowrap">{formatDate(e.posting_date)}</td>
                   <td className="px-5 py-3">{e.account_name}</td>
-                  <td className="px-5 py-3">{e.voucher_type}</td>
-                  <td className="px-5 py-3">{e.voucher_no}</td>
+                  <td className="px-5 py-3">{voucherTypeText(e)}</td>
+                  <td className="px-5 py-3">
+                    <VoucherNo row={e} />
+                  </td>
                   <td className="px-5 py-3">{e.party ?? ""}</td>
                   <td className="px-5 py-3 text-right">{money(e.debit)}</td>
                   <td className="px-5 py-3 text-right">{money(e.credit)}</td>
