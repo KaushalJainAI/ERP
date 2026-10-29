@@ -5,6 +5,38 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const gu: Record<string, unknown> = {
+  pb: {
+    nav: "જૂના બિલ અને વાઉચર",
+    title: "જૂના બિલ અને વાઉચર",
+    subtitle: "ટેલીમાંથી બધું, ફક્ત જોવા માટે.",
+    subtitle_years: "ટેલીમાંથી બધું, નાણાકીય વર્ષ {{from}} થી {{to}}. ફક્ત જોવા માટે: હિસાબમાં પહેલેથી સામેલ.",
+    all_years: "બધા વર્ષ",
+    search: "બિલ નં., પાર્ટી, વિગત શોધો...",
+    bill_no: "બિલ / વાઉચર નં.",
+    narration: "વિગત",
+    reference: "સંદર્ભ",
+    bill: "બિલ",
+    items: "આઇટમ",
+    items_total: "આઇટમ કુલ (કર પહેલાં)",
+    accounting: "હિસાબ (કર, રાઉન્ડ-ઓફ, પાર્ટી)",
+    account: "ખાતું",
+    read_only_note: "ટેલીમાંથી આયાત, જેમ હતું તેમ રાખ્યું. તેની હિસાબી નોંધ:",
+    view: "જુઓ",
+    tab: {
+      sales: "વેચાણ બિલ",
+      purchase: "ખરીદી બિલ",
+      receipt: "આવક",
+      payment: "ચુકવણી",
+      contra: "બેંક / રોકડ ટ્રાન્સફર",
+      journal: "જર્નલ",
+    },
+    banner: {
+      sales: "ટેલીના {{n}} જૂના વેચાણ બિલ (ના.વ. {{from}} થી {{to}}) જૂના બિલમાં છે.",
+      purchase: "ટેલીના {{n}} જૂના ખરીદી બિલ (ના.વ. {{from}} થી {{to}}) જૂના બિલમાં છે.",
+      receipt: "ટેલીની {{n}} જૂની આવક (ના.વ. {{from}} થી {{to}}), ચુકવણી અને બેંક ટ્રાન્સફર સાથે, જૂના બિલમાં છે.",
+      journal: "ટેલીના {{n}} જૂના જર્નલ (ના.વ. {{from}} થી {{to}}) જૂના બિલમાં છે.",
+    },
+  },
   appName: "નિધિ ERP",
   dashboard: "ડેશબોર્ડ",
   selling: "વેચાણ",
@@ -129,6 +161,7 @@ const gu: Record<string, unknown> = {
       no_lines: "ઓછામાં ઓછી એક લાઇન ઉમેરો.",
     },
     help: {
+      default_side: "ખાલી રાખો: મુખ્ય બેંક ખાતું અને પાર્ટીનું ખાતું આપમેળે ભરાશે.",
       parent: "ફક્ત એ જ કંપનીના ગ્રુપ ખાતાં મૂળ ખાતું બની શકે છે.",
       party: "ગ્રાહક અથવા સપ્લાયર; પક્ષનો પ્રકાર ભરે છે.",
       reference_name: "જે ઇન્વૉઇસનું સમાધાન થઈ રહ્યું છે તેનો દસ્તાવેજ નંબર.",
@@ -450,6 +483,11 @@ const gu: Record<string, unknown> = {
     collapse_node: "સંકેલો",
   },
   doc: {
+    more_details: "વધુ વિગતો ({{n}})",
+    fewer_details: "ઓછી વિગતો",
+    help: {
+      default_account: "ખાલી રાખો: કંપનીનું સામાન્ય ખાતું વપરાશે.",
+    },
     confirm_submit_title: "આ {{item}} સબમિટ કરવો છે?",
     confirm_submit_message: "સબમિટ કરવાથી દસ્તાવેજ પોસ્ટ થાય છે. ત્યારબાદ તેમાં ફેરફાર થઈ શકતો નથી - ફક્ત રદ કરીને સુધારી શકાય છે.",
     confirm_submit_dirty: "તમારા ફેરફારો સાચવેલા નથી. પહેલાં તે સાચવાશે, પછી દસ્તાવેજ સબમિટ થશે.",

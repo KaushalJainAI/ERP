@@ -47,7 +47,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[2px] animate-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onClose();
       }}
@@ -56,7 +56,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-6 space-y-4"
+        className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-6 space-y-4 animate-pop-in"
       >
         <h3 id="confirm-title" className="text-lg font-semibold text-slate-100">
           {title}

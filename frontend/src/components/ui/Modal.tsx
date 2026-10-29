@@ -39,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px] animate-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -48,7 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="app-modal-title"
-        className={`w-full ${className} rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl`}
+        className={`w-full ${className} rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl animate-pop-in`}
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
