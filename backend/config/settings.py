@@ -5,6 +5,7 @@ Django settings for ERP project.
 from datetime import timedelta
 from pathlib import Path
 import environ
+from corsheaders.defaults import default_headers as default_cors_headers
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -160,6 +161,8 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # allow-list from the environment.
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
+# The SPA sends the active company on every request (core.company_context).
+CORS_ALLOW_HEADERS = (*default_cors_headers, "x-company-id")
 
 # Django REST Framework configuration
 REST_FRAMEWORK = {
