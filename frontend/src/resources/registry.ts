@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { ModuleDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { sellingResources } from "./selling";
+import { sellingLinks, sellingResources } from "./selling";
 import { accountsLinks, accountsResources } from "./accounts";
 import { bankLinks, bankResources } from "./bank";
 import { buyingResources } from "./buying";
@@ -71,7 +71,7 @@ export const MODULES: ModuleDef[] = [
     titleKey: "stock",
     icon: Boxes,
   },
-  { key: "selling", titleKey: "selling", icon: ShoppingCart },
+  { key: "selling", titleKey: "selling", icon: ShoppingCart, extraLinks: sellingLinks },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
   { key: "manufacturing", titleKey: "manufacturing", icon: Factory },
   { key: "contacts", titleKey: "contacts", icon: Contact },
