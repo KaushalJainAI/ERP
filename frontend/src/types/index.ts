@@ -83,6 +83,16 @@ export interface LinkDef {
    * form (header) or row (child table) - e.g. auto-fill rate from standard_rate.
    */
   fill?: (record: LinkRecord, values: Record<string, any>) => Record<string, any>;
+  /**
+   * Child tables only: async follow-up to `fill` (e.g. the party's last rate).
+   * Its values are merged into the row only if the row still holds the same
+   * pick and the user has not typed those fields meanwhile.
+   */
+  fillAsync?: (
+    record: LinkRecord,
+    row: Record<string, any>,
+    parentValues: Record<string, any>
+  ) => Promise<Record<string, any>>;
 }
 
 export interface SelectOption {
@@ -115,7 +125,7 @@ export interface FieldDef {
    * Rarely needed (the server fills a default): shown under the collapsed
    * "More details" toggle instead of in the main form.
    */
-  advanced?: boolean;
+  advanced?: boolean | ((values: Record<string, any>) => boolean);
   /** Render as money (Indian grouping) when read-only. */
   money?: boolean;
   /**

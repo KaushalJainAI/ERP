@@ -603,3 +603,9 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **Out of scope for now:** NGU invoices, payments, refunds, stock and invoice numbering.
 - Combos are stored with their `components` and cannot be linked to an Item. A combo's
   `price` is NGU's `discount_price` (the combo table has no base price).
+
+## Quick entry defaults (2026-10-29)
+
+- **Line rate falls back to the party's last bill.** ERPNext fills a selling rate from the Item Price only (and buying from "last purchase rate" per item, not per supplier). Here, when no price-list row applies, `stock.services.pricing` uses the rate this customer / supplier was last billed for the item (newest of a submitted ERP invoice and the Tally item history, effective rate = amount / billed qty), then the item's standard rate. The item picker pre-fills it via `GET /api/stock/item-prices/rate/` (`rate_source: "last_bill"`). Nidhi has no price lists; its rates live in ten years of bills.
+- **Invoice and payment accounts are optional on input.** As ERPNext `set_missing_values`: blank `debit_to` / `income_account` (Sales Invoice), `credit_to` / `expense_account` (Purchase Invoice) and the party / bank sides of a Payment Entry are filled from `Company.default_receivable_account` / `default_payable_account` / `default_income_account` and the default bank/cash account. The forms keep these under "More details".
+- **The document number is never typed.** The server numbers every document on save; the form hides the field.

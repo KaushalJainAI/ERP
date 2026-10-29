@@ -1,3 +1,4 @@
+import { apiClient } from "@/api/client";
 import { createElement } from "react";
 import { FilePlus2, Receipt, RefreshCw, ShoppingCart, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
@@ -50,6 +51,22 @@ export const itemLink: LinkDef = {
     // Never sent to the server (buildPayload writes only declared columns).
     _has_batch_no: !!r.has_batch_no,
   }),
+  // Pre-fill the rate the party last paid (price list first, then their last
+  // bill incl. Tally history, then the standard rate). The server applies the
+  // same chain on save when the rate is still blank.
+  fillAsync: async (r, _row, form) => {
+    const party = form.customer ? { type: "selling", customer: form.customer } : form.supplier ? { type: "buying", supplier: form.supplier } : null;
+    if (!party) return {};
+    const res = await apiClient.get("/stock/item-prices/rate/", {
+      params: {
+        item: r.id,
+        ...party,
+        price_list: form.price_list || undefined,
+        transaction_date: form.posting_date || form.transaction_date || undefined,
+      },
+    });
+    return res.data?.rate ? { rate: res.data.rate } : {};
+  },
 };
 
 /** Price-list picker shared by selling/buying headers and the stock masters. */

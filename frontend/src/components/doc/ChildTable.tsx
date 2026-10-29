@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2 } from "lucide-react";
 import { FieldInput, formatReadOnly } from "./FieldInput";
@@ -89,6 +89,31 @@ export const ChildTable: React.FC<ChildTableProps> = ({
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   };
 
+  // Latest rows for async fills that resolve after further edits.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const runFillAsync = (col: ChildColumnDef, rowKey: unknown, picked: unknown, rec: LinkRecord, row: Row) => {
+    col.link
+      ?.fillAsync?.(rec, row, parentValues)
+      .then((patch) => {
+        const current = rowsRef.current;
+        const target = current.find((r) => r._key === rowKey);
+        if (!target || target[col.key] !== picked) return;
+        // Never overwrite what the user has entered in the meantime.
+        const fresh = Object.fromEntries(
+          Object.entries(patch).filter(([k]) => target[k] === undefined || target[k] === null || target[k] === "")
+        );
+        if (Object.keys(fresh).length === 0) return;
+        onChangeRef.current(current.map((r) => (r === target ? { ...r, ...fresh } : r)));
+      })
+      .catch(() => {
+        /* a missing rate is not an error: the server fills it on save */
+      });
+  };
+
   const addRow = () => {
     const prev = rows[rows.length - 1];
     const inherited: Row = {};
@@ -167,12 +192,14 @@ export const ChildTable: React.FC<ChildTableProps> = ({
                           parentValues={parentValues}
                           invalid={!!colErrors}
                           onChange={(v) => setCell(idx, { [col.key]: v })}
-                          onLinkSelect={(v, rec: LinkRecord | null) =>
-                            setCell(idx, {
+                          onLinkSelect={(v, rec: LinkRecord | null) => {
+                            const patch = {
                               [col.key]: v,
                               ...(rec && col.link?.fill ? col.link.fill(rec, row) : {}),
-                            })
-                          }
+                            };
+                            setCell(idx, patch);
+                            if (rec && col.link?.fillAsync) runFillAsync(col, row._key, v, rec, { ...row, ...patch });
+                          }}
                         />
                       )}
                       {colErrors && <p className="text-[11px] text-rose-400 mt-1">{colErrors.join(" ")}</p>}

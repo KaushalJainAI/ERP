@@ -476,8 +476,9 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const computedFields = config.fields.filter((f) => f.preview && visible(f));
   const formFields = config.fields.filter((f) => !f.preview && visible(f));
 
-  const mainFields = formFields.filter((f) => !f.advanced);
-  const advancedFields = formFields.filter((f) => f.advanced);
+  const isAdvanced = (f: FieldDef) => (typeof f.advanced === "function" ? f.advanced(formValues) : !!f.advanced);
+  const mainFields = formFields.filter((f) => !isAdvanced(f));
+  const advancedFields = formFields.filter(isAdvanced);
   // "More details" opens by itself when one of its fields has an error.
   const moreOpen = showMore || advancedFields.some((f) => !!fieldErr(f.key));
 

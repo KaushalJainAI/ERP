@@ -127,6 +127,7 @@ export const enAccounts = {
     help: {
       parent: "Only group accounts of the same company can be a parent.",
       party: "Customer or supplier; fills the party type.",
+      default_side: "Leave empty: the main bank account and the party's ledger are filled in for you.",
       reference_name: "Document number of the invoice being settled.",
     },
     report: {

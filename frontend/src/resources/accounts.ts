@@ -276,12 +276,29 @@ const paymentEntries: ResourceConfig = {
       defaultValue: "Receive",
     },
     dateField("posting_date"),
-    { key: "party_type", labelKey: "acc.fields.party_type", type: "select", options: PARTY_TYPES },
+    { key: "party_type", labelKey: "acc.fields.party_type", type: "select", options: PARTY_TYPES, advanced: true },
     { key: "party_name", labelKey: "acc.fields.party", type: "link", link: partyLink, helpKey: "acc.help.party" },
-    { key: "paid_from", labelKey: "acc.fields.paid_from", type: "link", required: true, link: leafAccountLink },
-    { key: "paid_to", labelKey: "acc.fields.paid_to", type: "link", required: true, link: leafAccountLink },
+    // The server fills a blank side: the bank / cash account and the party's ledger
+    // (ERPNext set_missing_values). The operator sees the bank side; the party
+    // ledger sits under "More details". An internal transfer needs both.
+    {
+      key: "paid_from",
+      labelKey: "acc.fields.paid_from",
+      type: "link",
+      link: leafAccountLink,
+      helpKey: "acc.help.default_side",
+      advanced: (v) => v.payment_type === "Receive",
+    },
+    {
+      key: "paid_to",
+      labelKey: "acc.fields.paid_to",
+      type: "link",
+      link: leafAccountLink,
+      helpKey: "acc.help.default_side",
+      advanced: (v) => v.payment_type === "Pay",
+    },
     { key: "paid_amount", labelKey: "acc.fields.paid_amount", type: "decimal", required: true },
-    { key: "received_amount", labelKey: "acc.fields.received_amount", type: "decimal" },
+    { key: "received_amount", labelKey: "acc.fields.received_amount", type: "decimal", advanced: true },
     { key: "reference_no", labelKey: "acc.fields.reference_no", type: "text" },
     {
       key: "total_allocated",
