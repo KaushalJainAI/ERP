@@ -163,6 +163,7 @@ const journalLines = (v: Record<string, any>): Record<string, any>[] => (v.lines
 
 const journalEntries: ResourceConfig = {
   key: "journal-entries",
+  history: "journal",
   module: "accounts",
   endpoint: "/accounts/journal-entries/",
   titleKey: "acc.res.journal_entries",
@@ -246,6 +247,7 @@ const allocatedTotal = (v: Record<string, any>) => sumDec(referencesOf(v).map((r
 
 const paymentEntries: ResourceConfig = {
   key: "payment-entries",
+  history: "receipt",
   module: "accounts",
   endpoint: "/accounts/payment-entries/",
   titleKey: "acc.res.payment_entries",

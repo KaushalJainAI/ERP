@@ -23,6 +23,7 @@ import { flattenTree, matchWithAncestors, parentIds } from "@/lib/tree";
 import { formatDate, formatIndianCurrency, formatIndianNumber } from "@/lib/format";
 import type { ApiRecord, ListColumnDef, ResourceConfig } from "@/types";
 import { Select } from "@/components/ui/Select";
+import { HistoryBanner } from "@/pages/history/HistoryBanner";
 
 const DOCSTATUS_FILTERS = [
   { value: "", labelKey: "common.all_statuses" },
@@ -149,7 +150,8 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
 
   return (
     <Layout>
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
+      {config.history && <HistoryBanner tab={config.history} />}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden animate-fade-up">
         <div className="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
             {t(config.titleKey)}
@@ -239,7 +241,11 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody
+                className={`divide-y divide-slate-800/60 transition-opacity duration-200 ${
+                  flatQuery.isPlaceholderData ? "opacity-60" : "opacity-100"
+                }`}
+              >
                 {isLoading ? (
                   <tr>
                     <td colSpan={config.columns.length} className="px-6 py-10 text-center text-slate-400">

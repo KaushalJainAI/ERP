@@ -23,6 +23,7 @@ import { DayBookPage } from "@/pages/reports/registers/DayBookPage";
 import { CashBookPage } from "@/pages/reports/registers/CashBookPage";
 import { PartyStatementPage } from "@/pages/reports/registers/PartyStatementPage";
 import { ListPage } from "@/components/doc/ListPage";
+import { PastBillsPage } from "@/pages/history/PastBillsPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
 import { ReportPage } from "@/components/doc/ReportPage";
 import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
@@ -142,6 +143,16 @@ export const AppRoutes: React.FC = () => {
           }
         />
       ))}
+
+      {/* Read-only Tally history as bills (all 10 years). */}
+      <Route
+        path="/history/bills"
+        element={
+          <ProtectedRoute>
+            <PastBillsPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Accounts: GL Entries list and the four financial reports (hand-written pages). */}
       <Route

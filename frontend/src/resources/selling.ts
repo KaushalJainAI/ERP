@@ -317,6 +317,7 @@ const salesInvoiceItemsTable = withReturnColumns(itemsTable, "sales_invoice_item
 
 const salesInvoices: ResourceConfig = {
   key: "sales-invoices",
+  history: "sales",
   module: "selling",
   endpoint: "/selling/sales-invoices/",
   titleKey: "res.sales_invoices",

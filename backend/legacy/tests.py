@@ -139,3 +139,78 @@ def test_sales_manager_reads_item_lines_not_the_archive(company, voucher):
     assert res.status_code == 200, res.content
     assert res.data["results"][0]["item_name"] == "Haldi"
     assert client.get("/api/legacy/tally-records/").status_code == 403
+
+
+def _tly_journal(company, name, posting_date):
+    from accounts.models import Account, JournalEntry, JournalEntryLine
+
+    debtors = Account.objects.create(
+        company=company, name="Ram Kirana", root_type="Asset", account_type="Receivable"
+    )
+    sales = Account.objects.create(
+        company=company,
+        name="Sales GST",
+        root_type="Income",
+        account_type="Income Account",
+    )
+    je = JournalEntry.objects.create(
+        company=company,
+        name=name,
+        posting_date=posting_date,
+        voucher_type="Journal Entry",
+    )
+    JournalEntryLine.objects.create(
+        journal_entry=je,
+        account=debtors,
+        debit=Decimal("1050.00"),
+        party_type="Customer",
+        party="Ram Kirana",
+    )
+    JournalEntryLine.objects.create(
+        journal_entry=je, account=sales, credit=Decimal("1050.00")
+    )
+    return je
+
+
+def test_detail_shows_bill_items_and_accounting(voucher, company):
+    _line(company, voucher).save()
+    _tly_journal(company, "TLY-2425-000001", voucher.posting_date)
+    client = _user_with_role("Accounts Manager", company)
+    res = client.get(f"/api/legacy/tally-records/{voucher.pk}/")
+    assert res.status_code == 200, res.content
+    assert [line["item_name"] for line in res.data["item_lines"]] == ["Haldi"]
+    accounts = {line["account"]: line for line in res.data["ledger_lines"]}
+    assert accounts["Ram Kirana"]["debit"] == "1050.00"
+    assert accounts["Sales GST"]["credit"] == "1050.00"
+
+
+def test_summary_counts_vouchers_per_type_and_lists_years(voucher, company):
+    TallyRecord.objects.create(
+        company=company,
+        kind="voucher",
+        company_year="200000",
+        fiscal_year="2025-26",
+        guid="g-2",
+        base_voucher_type="Receipt",
+        voucher_no="R/1",
+        posting_date=datetime.date(2025, 6, 1),
+        raw="",
+    )
+    TallyRecord.objects.create(
+        company=company,
+        kind="ledger",
+        company_year="010010",
+        fiscal_year="2024-25",
+        guid="l-1",
+        name="Cash",
+        raw="",
+    )
+    client = _user_with_role("Accounts Manager", company)
+    res = client.get("/api/legacy/tally-records/summary/")
+    assert res.status_code == 200, res.content
+    assert res.data["by_type"] == {"Sales": 1, "Receipt": 1}
+    assert res.data["fiscal_years"] == ["2025-26", "2024-25"]
+    res = client.get(
+        "/api/legacy/tally-records/", {"base_voucher_type__in": "Receipt,Payment"}
+    )
+    assert [r["voucher_no"] for r in res.data["results"]] == ["R/1"]

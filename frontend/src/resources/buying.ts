@@ -195,6 +195,7 @@ const purchaseOrders: ResourceConfig = {
 
 const purchaseInvoices: ResourceConfig = {
   key: "purchase-invoices",
+  history: "purchase",
   module: "buying",
   endpoint: "/buying/purchase-invoices/",
   titleKey: "bs.res.purchase_invoices",

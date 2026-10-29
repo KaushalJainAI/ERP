@@ -1,6 +1,7 @@
 import {
   BookOpen,
   Boxes,
+  FileClock,
   Building2,
   Contact,
   Factory,
@@ -85,7 +86,19 @@ export const MODULES: ModuleDef[] = [
       { path: "/organisation/drive", labelKey: "organisation.drive", icon: HardDrive },
     ],
   },
-  { key: "history", titleKey: "tally_history", icon: History },
+  {
+    key: "history",
+    titleKey: "tally_history",
+    icon: History,
+    extraLinks: [
+      {
+        path: "/history/bills",
+        labelKey: "pb.nav",
+        icon: FileClock,
+        visible: (user) => hasReadAccess(user.readable_models, ["legacy.TallyRecord"]),
+      },
+    ],
+  },
   { key: "gst", titleKey: "gst.title", icon: Percent, extraLinks: gstReportLinks },
   { key: "hr", titleKey: "hrm.title", icon: UserRound, extraLinks: hrLinks },
   { key: "users", titleKey: "users", icon: Users, extraLinks: usersLinks },

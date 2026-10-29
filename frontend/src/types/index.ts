@@ -343,6 +343,8 @@ export interface ResourceConfig {
   hideInSidebar?: boolean;
   /** List-only (ledger / projection): no "New" button, rows are not clickable, no detail/new routes. */
   listOnly?: boolean;
+  /** Past-bills tab (pages/history) of the older Tally vouchers of this kind, linked above the list. */
+  history?: string;
   /**
    * Optional extra block rendered under the child tables / totals (e.g. the
    * Journal Entry "balanced / not balanced" warning). `values` is the form with

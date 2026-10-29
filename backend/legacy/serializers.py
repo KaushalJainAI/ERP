@@ -35,10 +35,44 @@ class TallyRecordSerializer(serializers.ModelSerializer):
 
 
 class TallyRecordDetailSerializer(serializers.ModelSerializer):
+    """Detail view: the voucher as a bill, its item lines and the accounting it became."""
+
+    item_lines = serializers.SerializerMethodField()
+    ledger_lines = serializers.SerializerMethodField()
+
     class Meta:
         model = TallyRecord
-        fields = _RECORD_FIELDS + ("raw",)
+        fields = _RECORD_FIELDS + ("raw", "item_lines", "ledger_lines")
         read_only_fields = fields
+
+    def get_item_lines(self, obj):
+        lines = obj.item_lines.select_related("item").order_by("id")
+        return TallyItemLineSerializer(lines, many=True).data
+
+    def get_ledger_lines(self, obj):
+        # The TLY-* Journal Entry holds the voucher's accounting (party, sales, tax, round-off).
+        from accounts.models import JournalEntryLine
+
+        if not obj.erp_name:
+            return []
+        lines = (
+            JournalEntryLine.objects.filter(
+                journal_entry__company_id=obj.company_id,
+                journal_entry__name=obj.erp_name,
+            )
+            .select_related("account")
+            .order_by("id")
+        )
+        return [
+            {
+                "account": line.account.name,
+                "account_type": line.account.account_type,
+                "debit": str(line.debit),
+                "credit": str(line.credit),
+                "party": line.party,
+            }
+            for line in lines
+        ]
 
 
 class TallyItemLineSerializer(serializers.ModelSerializer):

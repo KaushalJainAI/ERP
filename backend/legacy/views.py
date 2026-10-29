@@ -1,6 +1,9 @@
 """Read-only API over the Tally history (rows are written only by import_tally)."""
 
+from django.db.models import Count
 from rest_framework import permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from legacy.models import TallyItemLine, TallyRecord
 from legacy.serializers import (
@@ -19,8 +22,9 @@ class TallyRecordViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
         "company": ["exact"],
         "kind": ["exact"],
         "fiscal_year": ["exact"],
-        "base_voucher_type": ["exact"],
+        "base_voucher_type": ["exact", "in"],
         "voucher_type": ["exact"],
+        "party": ["exact"],
         "is_cancelled": ["exact"],
         "erp_name": ["exact"],
         "voucher_no": ["exact"],
@@ -45,6 +49,21 @@ class TallyRecordViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return TallyRecordDetailSerializer
         return TallyRecordSerializer
+
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Voucher counts per Tally base type (tabs of the past-bills screen)."""
+        qs = self.filter_queryset(self.get_queryset()).filter(kind="voucher")
+        rows = qs.values("base_voucher_type").annotate(count=Count("id"))
+        years = sorted(
+            qs.order_by().values_list("fiscal_year", flat=True).distinct(), reverse=True
+        )
+        return Response(
+            {
+                "by_type": {r["base_voucher_type"]: r["count"] for r in rows},
+                "fiscal_years": years,
+            }
+        )
 
 
 class TallyItemLineViewSet(CompanyScopedMixin, viewsets.ReadOnlyModelViewSet):
