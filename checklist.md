@@ -368,9 +368,9 @@ route to `backend/docs/API.md`.
 - [ ] New `assistant` app: `AssistantConversation`, `AssistantMessage`,
       `AssistantProposal` with CHECK constraints (role, input_mode, status,
       saved fields set iff status = saved); owner-only conversation endpoints
-- [ ] LLM provider adapter (env-configured) + per-user burst/daily throttles;
+- [x] LLM provider adapter (env-configured) + per-user burst/daily throttles;
       LLM unavailable → friendly reply, never a 500
-- [ ] Gunicorn to threaded workers so a streaming turn can't block other users;
+- [x] Gunicorn to threaded workers so a streaming turn can't block other users;
       test two concurrent requests
 
 ### 8.2 Read tools (RBAC-scoped)
@@ -378,36 +378,36 @@ route to `backend/docs/API.md`.
       names), `get_stock` (Bin), `get_party_outstanding`, `get_rate`
       (read-only `pricing.fetch_rate`), `recent_documents`, `get_document`;
       `<<DATA>>` wrapping
-- [ ] Tests: no-write guarantee (CaptureQueriesContext over every tool), RBAC
+- [x] Tests: no-write guarantee (CaptureQueriesContext over every tool), RBAC
       denial, prompt-injection-as-data
 
 ### 8.3 Agent loop + step streaming
-- [ ] Bounded loop (≤ 6 tool rounds, 20 s/LLM call, 1 retry), token-budgeted
+- [x] Bounded loop (≤ 6 tool rounds, 20 s/LLM call, 1 retry), token-budgeted
       history, `ask_user` and `navigate` (route allow-list)
-- [ ] `POST assistant/chat/stream/` SSE: `step` before/after every tool,
+- [x] `POST assistant/chat/stream/` SSE: `step` before/after every tool,
       `question`, `proposal`, `reply`, `done`, `error`; tests
 
 ### 8.4 Proposal builders (first targets)
-- [ ] Common builder: `can_create` check, ID re-validation, Decimal parsing,
+- [x] Common builder: `can_create` check, ID re-validation, Decimal parsing,
       serializer **dry-run** (`is_valid()` only) → warnings, preview total,
       localized summary; multi-line all-or-nothing
-- [ ] `propose_sales_invoice`, `propose_purchase_invoice` (bill-total
+- [x] `propose_sales_invoice`, `propose_purchase_invoice` (bill-total
       mismatch warning), `propose_payment_entry` (receive); ambiguity → ask;
       tests
-- [ ] Save tagging: `X-Assistant-Proposal` header read by a core viewset mixin
+- [x] Save tagging: `X-Assistant-Proposal` header read by a core viewset mixin
       after a successful create → proposal `saved` + `AuditLog` source; bad or
       reused id ignored; tests
 
 ### 8.5 Frontend
-- [ ] Mic/text launcher in `Layout`, `AssistantPanel` (tappable options,
+- [x] Mic/text launcher in `Layout`, `AssistantPanel` (tappable options,
       RTL-safe), `en.assistant.ts` + 12 locales
-- [ ] `AgentWorkingOverlay` driven by SSE `step` events, with Stop
-- [ ] Handoff: `hydrateSeed` through `LinkDef.fill`, `AssistantReviewBanner`
+- [x] `AgentWorkingOverlay` driven by SSE `step` events, with Stop
+- [x] Handoff: `hydrateSeed` through `LinkDef.fill`, `AssistantReviewBanner`
       (summary, warnings, attach-bill reminder, "tell me what to change"),
       AI-filled field highlight; Save unchanged + proposal header
 
 ### 8.6 Voice
-- [ ] Port NGU `stt.py` (Voxtral → whisper.cpp fallback) as
+- [x] Port NGU `stt.py` (Voxtral → whisper.cpp fallback) as
       `assistant/transcribe/`; language hint from `User.language`; vocabulary
       biasing with item/party names; port `useVoiceInput` + `audio.ts`; tests
 

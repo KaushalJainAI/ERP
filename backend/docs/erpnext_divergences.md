@@ -668,3 +668,12 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **The document keeps its blank batch.** The allocation is *not* written back onto the line (ERPNext's bundle child table is not built): what FIFO took is a ledger fact. `GET batches/for-voucher/?voucher_type=&voucher_no=` and `batches/{id}/trace/` / the batch-wise balance report read it from the SLEs; `batches/fifo/` previews it. Consequences handled: a Sales Return of a line sold without a batch may name any batch the invoice's SLEs took stock from (`returns._validate_lines`), and the return itself must name its batch (stock coming in has no FIFO).
 - **Not auto-picked**: Purchase Returns (the debit note must name the purchase's lot) and Stock Reconciliation (counts name the batch). A stock-in of a batch-tracked item still needs a batch or new-batch details.
 - **Batch valuation is unchanged**: each leg is costed at its batch's own average. The Item `valuation_method` FIFO flag still means Moving Average (divergence G1); FIFO *picking of batches* is a separate matter from FIFO *valuation layers*.
+
+## Voice and chat ERP assistant (2026-10-29, app `assistant`)
+
+- **ERPNext divergence**: ERPNext has no built-in voice or chat agent that pre-fills real forms.
+- **Agent fills, human saves**: The assistant has strictly zero write tools. It only executes read tools (scoped strictly by `user_has_model_permission` and tenant scoping) and proposal builders. Proposals dry-run the target serializer (`is_valid()` only, never `save()`) and compute preview totals.
+- **Human confirmation**: The agent navigates to the real frontend form pre-filled with the proposal data. The human user is the only one who saves (creating a Draft) and submits (posting to GL/SLE).
+- **Save tagging**: On create, the frontend passes `X-Assistant-Proposal: <uuid>`. `AuditLogMixin` links the proposal to the saved document, transitions proposal status to `saved`, and tags `{"source": "assistant", "proposal": "<uuid>"}` in `AuditLog.changes`.
+- **Multilingual voice & Indic vocabulary**: Built for Hindi, Hinglish, and Indian regional languages with speech-to-text biased by catalogue and party masters.
+

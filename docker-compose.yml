@@ -26,7 +26,7 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py seed_defaults &&
-             gunicorn --bind 0.0.0.0:8000 config.wsgi:application"
+             gunicorn --bind 0.0.0.0:8000 --worker-class gthread --threads 8 config.wsgi:application"
     volumes:
       - ./backend:/app
     ports:

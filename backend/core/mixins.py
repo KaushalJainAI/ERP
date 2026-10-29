@@ -388,7 +388,33 @@ class AuditLogMixin:
     def perform_create(self, serializer):
         instance = serializer.save()
         user = getattr(self.request, "user", None)
-        record_audit_log(user, "create", instance, changes=serializer.data)
+        changes = dict(serializer.data) if isinstance(serializer.data, dict) else {}
+        proposal_hdr = None
+        if hasattr(self, "request") and self.request:
+            proposal_hdr = self.request.headers.get("X-Assistant-Proposal")
+        if proposal_hdr and user and getattr(user, "is_authenticated", False):
+            try:
+                import uuid
+                from assistant.models import AssistantProposal
+
+                prop_id = uuid.UUID(str(proposal_hdr).strip())
+                proposal = (
+                    AssistantProposal.objects.filter(
+                        id=prop_id,
+                        status__in=["proposed", "opened"],
+                    )
+                    .select_related("message__conversation")
+                    .first()
+                )
+                if proposal and proposal.message and proposal.message.conversation.user_id == user.id:
+                    proposal.status = "saved"
+                    proposal.saved_model_label = f"{instance._meta.app_label}.{instance._meta.object_name}"
+                    proposal.saved_object_id = str(getattr(instance, "name", getattr(instance, "pk", "")))
+                    proposal.save(update_fields=["status", "saved_model_label", "saved_object_id", "updated_at"])
+                    changes = {**changes, "source": "assistant", "proposal": str(proposal.id)}
+            except Exception:
+                logger.exception("Failed to tag assistant proposal %s on create", proposal_hdr)
+        record_audit_log(user, "create", instance, changes=changes)
 
     def perform_update(self, serializer):
         instance = serializer.save()

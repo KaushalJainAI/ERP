@@ -469,3 +469,18 @@ Models: `BankAccount`, `BankStatementImport`, `BankTransaction` (immutable state
 | `fiscal-years/` `…/{pk}/` | GET only | Fiscal years (global), newest first, for the PCV picker | `can_read` `core.FiscalYear` | O(n) | ✅ | `FiscalYearSerializer` | FiscalYear | N/A | |
 
 `verify_integrity` runs `bank_reconciliation_integrity` (every clearance references a live voucher on its bank account; each matched line equals its vouchers' bank legs and dates) and `period_closing_integrity` (PCV GL present and equal to `net_profit`; postings after the close are warnings). `gl.reverse` refuses to cancel a voucher that is cleared at the bank.
+
+## AI Assistant (Voice + Chat) — app: `assistant` — [assistant/views.py](../assistant/views.py)
+
+Models: `AssistantConversation`, `AssistantMessage`, `AssistantProposal`. Endpoints are scoped strictly to the authenticated user (`owner only`). The assistant has **zero write tools** — all ERP documents are created only by the user saving from the frontend form. Save tagging is tracked via `X-Assistant-Proposal: <uuid>` on document create.
+
+| URL (`/api/assistant/…`) | Methods | What | Access | Complexity | Tested | Serializer | DB tables | Atomic | Notes |
+|-----|--------|------|--------|-----------|--------|-----------|-----------|--------|-------|
+| `chat/stream/` | POST | One assistant turn, streamed as Server-Sent Events (`step`, `question`, `proposal`, `reply`, `done`). Body: `{message, conversation_id?, input_mode?, language?}` | Authenticated; each tool enforces its own RBAC | O(tool rounds) | ✅ | `ChatStreamRequestSerializer` | AssistantConversation, AssistantMessage, AssistantProposal | Yes (per turn) | Bounded to ≤6 tool rounds, 20s LLM timeout; graceful fallback on unreachable LLM |
+| `conversations/` | GET, POST | List or create chat threads owned by the current user | IsAuthenticated (owner only) | O(n) | ✅ | `AssistantConversationSerializer` | AssistantConversation | No | Filters by `user=request.user` |
+| `conversations/{pk}/` | GET, DELETE | Retrieve or delete a chat thread owned by the current user | IsAuthenticated (owner only) | O(1) | ✅ | `AssistantConversationSerializer` | AssistantConversation | No | 404 if not thread owner |
+| `conversations/{pk}/messages/` | GET | List message history with trace and proposals for a thread | IsAuthenticated (owner only) | O(n) | ✅ | `AssistantMessageSerializer` | AssistantMessage, AssistantProposal | No | Pre-fetches proposals |
+| `proposals/{id}/opened/` | POST | Mark that the form was opened by the user | IsAuthenticated (owner only) | O(1) | ✅ | (plain dict) | AssistantProposal | No | Status transitions to `opened` |
+| `proposals/{id}/abandoned/` | POST | Mark that the user navigated away without saving | IsAuthenticated (owner only) | O(1) | ✅ | (plain dict) | AssistantProposal | No | Status transitions to `abandoned` |
+| `transcribe/` | POST multipart `file` | Audio to text transcription with ERP domain vocabulary biasing | IsAuthenticated | O(audio) | ✅ | (plain dict) | — | N/A | Throttled via `AssistantTranscribeThrottle` |
+
