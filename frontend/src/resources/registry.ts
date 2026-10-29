@@ -29,7 +29,7 @@ import { contactsResources } from "./contacts";
 import { legacyResources } from "./legacy";
 import { tallyExportLinks, tallyExportResources } from "./tallyExport";
 import { paymentReconciliationLinks } from "./paymentReconciliation";
-import { hrLinks, hrResources } from "./hr";
+import { hrLinks, hrReports, hrResources } from "./hr";
 import { hasReadAccess } from "./workspaces";
 
 /**
@@ -108,7 +108,7 @@ export const MODULES: ModuleDef[] = [
 ];
 
 /** Read-only report pages (routes /<module>/reports/<key>, shown in the sidebar). Append other modules' reports here. */
-export const REPORTS: ReportConfig[] = [...stockReports, ...manufacturingReports, ...ageingReports];
+export const REPORTS: ReportConfig[] = [...stockReports, ...manufacturingReports, ...ageingReports, ...hrReports];
 
 export const reportsOf = (moduleKey: string) => REPORTS.filter((r) => r.module === moduleKey && !r.hideInSidebar);
 

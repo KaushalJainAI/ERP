@@ -19,6 +19,9 @@ from accounts.models import Account, AccountRootType, AccountType, GLEntry
 from core.models import AuditLog, Company, DocStatus
 from hr.models import (
     Attendance,
+    LeaveType,
+    LeaveAllocation,
+    LeaveApplication,
     AttendanceStatus,
     Employee,
     EmployeeAdvance,
@@ -1612,11 +1615,218 @@ class IntegrityTests(HRBase):
                 "end_date": "2026-04-01",
             },
             format="json",
+            HTTP_X_COMPANY_ID=str(other.pk),
         )
         self.assertEqual(r.status_code, 400, r.content)
         self.assertIn("System salary components", str(r.json()))
         r = self.api.post(
-            API + "settings/ensure-setup/", {"company": other.pk}, format="json"
+            API + "settings/ensure-setup/",
+            {"company": other.pk},
+            format="json",
+            HTTP_X_COMPANY_ID=str(other.pk),
         )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertTrue(HRSettings.objects.filter(company=other).exists())
+
+
+class LeaveAndReportTests(HRBase):
+    def setUp(self):
+        super().setUp()
+        self.lt = LeaveType.objects.create(
+            company=self.company,
+            name="Casual Leave",
+            max_days_allowed=D("12.00"),
+        )
+
+    def test_leave_type_crud_and_uniqueness(self):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            LeaveType.objects.create(
+                company=self.company,
+                name="Casual Leave",
+            )
+        other = Company.objects.create(name="Other Co", abbr="OC")
+        lt_other = LeaveType.objects.create(
+            company=other,
+            name="Casual Leave",
+        )
+        self.assertEqual(lt_other.name, "Casual Leave")
+
+    def test_leave_allocation_and_balance_check(self):
+        w = self.employee("Sita")
+        alloc = LeaveAllocation.objects.create(
+            name="HR-LAL-2026-00001",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 1, 1),
+            to_date=d(2026, 12, 31),
+            total_leaves_allocated=D("5.00"),
+        )
+        alloc.submit()
+
+        # Application requesting more than allocated should fail on submit
+        app = LeaveApplication.objects.create(
+            name="HR-LAP-2026-00001",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 4, 1),
+            to_date=d(2026, 4, 10),
+            total_leave_days=D("10.00"),
+        )
+        with self.assertRaises(ValidationError):
+            app.submit()
+
+        # Application within balance succeeds
+        app.to_date = d(2026, 4, 3)
+        app.total_leave_days = D("3.00")
+        app.save()
+        app.submit()
+        self.assertEqual(app.docstatus, DocStatus.SUBMITTED)
+
+        # Further application exceeding remaining balance fails
+        app2 = LeaveApplication.objects.create(
+            name="HR-LAP-2026-00002",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 4, 5),
+            to_date=d(2026, 4, 8),
+            total_leave_days=D("3.00"),  # only 2 left
+        )
+        with self.assertRaises(ValidationError):
+            app2.submit()
+
+    def test_leave_application_marks_attendance_and_reverts_on_cancel(self):
+        w = self.employee("Geeta")
+        alloc = LeaveAllocation.objects.create(
+            name="HR-LAL-2026-00002",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 1, 1),
+            to_date=d(2026, 12, 31),
+            total_leaves_allocated=D("10.00"),
+        )
+        alloc.submit()
+
+        app = LeaveApplication.objects.create(
+            name="HR-LAP-2026-00003",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 5, 1),
+            to_date=d(2026, 5, 2),
+            total_leave_days=D("2.00"),
+        )
+        app.submit()
+
+        # Attendance for both days should be marked as Paid Leave
+        att1 = Attendance.objects.get(employee=w, date=d(2026, 5, 1))
+        att2 = Attendance.objects.get(employee=w, date=d(2026, 5, 2))
+        self.assertEqual(att1.status, AttendanceStatus.PAID_LEAVE)
+        self.assertEqual(att2.status, AttendanceStatus.PAID_LEAVE)
+        self.assertIn("HR-LAP-2026-00003", att1.remarks)
+
+        # Cancel should revert attendance
+        app.cancel()
+        self.assertFalse(Attendance.objects.filter(employee=w, date=d(2026, 5, 1)).exists())
+        self.assertFalse(Attendance.objects.filter(employee=w, date=d(2026, 5, 2)).exists())
+
+    def test_leave_locked_by_salary_slip_cannot_be_submitted(self):
+        w = self.employee("Mohan")
+        self.rate(w)
+        self.present(w, d(2026, 4, 1), d(2026, 4, 5))
+        slip = self.make_slip(w, d(2026, 4, 1), d(2026, 4, 5))
+        self.submit_slip(slip["id"])
+
+        alloc = LeaveAllocation.objects.create(
+            name="HR-LAL-2026-00003",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 1, 1),
+            to_date=d(2026, 12, 31),
+            total_leaves_allocated=D("10.00"),
+        )
+        alloc.submit()
+
+        # Cannot submit leave covering locked date 2026-04-03
+        app = LeaveApplication.objects.create(
+            name="HR-LAP-2026-00004",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 4, 3),
+            to_date=d(2026, 4, 4),
+            total_leave_days=D("2.00"),
+        )
+        with self.assertRaises(ValidationError):
+            app.submit()
+
+    def test_leave_balance_report(self):
+        w = self.employee("Anita")
+        alloc = LeaveAllocation.objects.create(
+            name="HR-LAL-2026-00004",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 1, 1),
+            to_date=d(2026, 12, 31),
+            total_leaves_allocated=D("8.00"),
+        )
+        alloc.submit()
+
+        app = LeaveApplication.objects.create(
+            name="HR-LAP-2026-00005",
+            company=self.company,
+            employee=w,
+            leave_type=self.lt,
+            from_date=d(2026, 6, 1),
+            to_date=d(2026, 6, 2),
+            total_leave_days=D("2.00"),
+        )
+        app.submit()
+
+        r = self.api.get(
+            API + "reports/leave-balance/",
+            {"from_date": "2026-01-01", "to_date": "2026-12-31"},
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        data = r.json()
+        self.assertTrue(any(row["employee_name"] == "Anita" and row["balance"] == "6.00" for row in data["rows"]))
+
+    def test_salary_and_wage_register_reports(self):
+        w_daily = self.employee("DailyWorker", pay_type=PayType.DAILY)
+        self.rate(w_daily, daily="400", ot="50")
+        self.present(w_daily, d(2026, 4, 1), d(2026, 4, 5))
+        slip_daily = self.make_slip(w_daily, d(2026, 4, 1), d(2026, 4, 5))
+        self.submit_slip(slip_daily["id"])
+
+        w_monthly = self.employee("MonthlyStaff", pay_type=PayType.MONTHLY)
+        self.rate(w_monthly, daily=None, monthly="30000", ot="100")
+        self.present(w_monthly, d(2026, 4, 1), d(2026, 4, 5))
+        slip_monthly = self.make_slip(w_monthly, d(2026, 4, 1), d(2026, 4, 5))
+        self.submit_slip(slip_monthly["id"])
+
+        # Salary register has both slips
+        r_sal = self.api.get(
+            API + "reports/salary-register/",
+            {"from_date": "2026-04-01", "to_date": "2026-04-30"},
+        )
+        self.assertEqual(r_sal.status_code, 200, r_sal.content)
+        sal_data = r_sal.json()
+        self.assertEqual(len(sal_data["rows"]), 2)
+        self.assertIn("total_net_pay", sal_data)
+
+        # Wage register has only daily wager
+        r_wage = self.api.get(
+            API + "reports/wage-register/",
+            {"from_date": "2026-04-01", "to_date": "2026-04-30"},
+        )
+        self.assertEqual(r_wage.status_code, 200, r_wage.content)
+        wage_data = r_wage.json()
+        self.assertEqual(len(wage_data["rows"]), 1)
+        self.assertEqual(wage_data["rows"][0]["employee_name"], "DailyWorker")
+        self.assertEqual(wage_data["rows"][0]["daily_rate"], "400.00")
+        self.assertIn("total_basic_wages", wage_data)

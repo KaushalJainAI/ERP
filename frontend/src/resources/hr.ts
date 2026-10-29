@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import type { LinkDef, NavLink, ResourceConfig, SelectOption } from "@/types";
 import { todayISO } from "@/lib/format";
-import { companyField } from "./selling";
+import type { ReportConfig } from "@/types/report";
+import { companyField, companyLink } from "./selling";
 import { optCell, optKey } from "./hrOptions";
 import { EmployeePanels } from "@/components/hr/EmployeePanels";
 import { HrSettingsPanel, PayrollEntryPanel, SalarySlipPanel } from "@/components/hr/PayrollPanels";
@@ -65,6 +66,11 @@ const designationLink = simpleLink("/hr/designations/", "designation_name");
 const branchLink = simpleLink("/hr/branches/", "branch_name");
 
 const holidayListLink: LinkDef = { endpoint: "/hr/holiday-lists/", labelField: "name" };
+export const leaveTypeLink: LinkDef = {
+  endpoint: "/hr/leave-types/",
+  labelField: "name",
+  filters: (_row, form) => ({ company: form.company, is_active: true }),
+};
 
 /** Ledger account of the form's company, optionally of one root type. */
 const hrAccountLink = (rootType?: string, displayKey?: string): LinkDef => ({
@@ -489,15 +495,106 @@ const payments: ResourceConfig = {
   ],
 };
 
+/* ---- leave management ---- */
+
+const leaveTypes: ResourceConfig = {
+  key: "leave-types",
+  module: "hr",
+  endpoint: "/hr/leave-types/",
+  titleKey: "hrm.res.leave_types",
+  singularKey: "hrm.res.leave_type",
+  icon: CalendarCheck,
+  ordering: "name",
+  columns: [
+    { key: "name", labelKey: "hrm.fields.name" },
+    { key: "max_days_allowed", labelKey: "hrm.fields.max_days", type: "number" },
+    { key: "is_carry_forward", labelKey: "hrm.fields.carry_forward", type: "boolean" },
+    { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
+  ],
+  fields: [
+    { ...companyField },
+    { key: "name", labelKey: "hrm.fields.name", type: "text", required: true },
+    { key: "max_days_allowed", labelKey: "hrm.fields.max_days", type: "decimal", required: true, defaultValue: "0" },
+    { key: "is_carry_forward", labelKey: "hrm.fields.carry_forward", type: "boolean", defaultValue: false },
+    { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
+  ],
+};
+
+const leaveAllocations: ResourceConfig = {
+  key: "leave-allocations",
+  module: "hr",
+  endpoint: "/hr/leave-allocations/",
+  titleKey: "hrm.res.leave_allocations",
+  singularKey: "hrm.res.leave_allocation",
+  icon: CalendarDays,
+  submittable: true,
+  titleField: "name",
+  ordering: "-from_date",
+  columns: [
+    { key: "name", labelKey: "fields.docno" },
+    { key: "employee_name", labelKey: "hrm.fields.employee" },
+    { key: "leave_type_name", labelKey: "hrm.res.leave_type" },
+    { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
+    { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
+    { key: "total_leaves_allocated", labelKey: "hrm.fields.allocated_leaves", type: "number" },
+    { key: "docstatus", labelKey: "status", type: "status" },
+  ],
+  fields: [
+    { key: "name", labelKey: "fields.docno", type: "text", readOnlyAfterCreate: true, helpKey: "fields.docno_help" },
+    { ...companyField, clears: ["employee", "leave_type"] },
+    { key: "employee", labelKey: "hrm.fields.employee", type: "link", required: true, link: employeeLink },
+    { key: "leave_type", labelKey: "hrm.res.leave_type", type: "link", required: true, link: leaveTypeLink },
+    { key: "from_date", labelKey: "hrm.fields.from_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "to_date", labelKey: "hrm.fields.to_date", type: "date", required: true },
+    { key: "total_leaves_allocated", labelKey: "hrm.fields.allocated_leaves", type: "decimal", required: true, defaultValue: "0" },
+    { key: "notes", labelKey: "hrm.fields.notes", type: "textarea" },
+  ],
+};
+
+const leaveApplications: ResourceConfig = {
+  key: "leave-applications",
+  module: "hr",
+  endpoint: "/hr/leave-applications/",
+  titleKey: "hrm.res.leave_applications",
+  singularKey: "hrm.res.leave_application",
+  icon: FileText,
+  submittable: true,
+  titleField: "name",
+  ordering: "-posting_date",
+  columns: [
+    { key: "name", labelKey: "fields.docno" },
+    { key: "employee_name", labelKey: "hrm.fields.employee" },
+    { key: "leave_type_name", labelKey: "hrm.res.leave_type" },
+    { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
+    { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
+    { key: "total_leave_days", labelKey: "hrm.fields.total_leave_days", type: "number" },
+    { key: "docstatus", labelKey: "status", type: "status" },
+  ],
+  fields: [
+    { key: "name", labelKey: "fields.docno", type: "text", readOnlyAfterCreate: true, helpKey: "fields.docno_help" },
+    { ...companyField, clears: ["employee", "leave_type"] },
+    { key: "employee", labelKey: "hrm.fields.employee", type: "link", required: true, link: employeeLink },
+    { key: "leave_type", labelKey: "hrm.res.leave_type", type: "link", required: true, link: leaveTypeLink },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "from_date", labelKey: "hrm.fields.from_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "to_date", labelKey: "hrm.fields.to_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "total_leave_days", labelKey: "hrm.fields.total_leave_days", type: "decimal", required: true, defaultValue: "1" },
+    { key: "reason", labelKey: "hrm.fields.reason", type: "textarea" },
+  ],
+};
+
 /** Attendance first (most used), then masters, then payroll documents. */
 export const hrResources: ResourceConfig[] = [
   employees,
   attendance,
+  leaveApplications,
+  leaveAllocations,
   salarySlips,
   payrollEntries,
   advances,
   payments,
   wageRates,
+  leaveTypes,
   departments,
   designations,
   branches,
@@ -509,5 +606,93 @@ export const hrResources: ResourceConfig[] = [
 /** Hand-written pages of the HR sidebar section (shown above the resources). */
 export const hrLinks: NavLink[] = [
   { path: "/hr/muster-roll", labelKey: "hrm.res.muster_roll", icon: ClipboardCheck },
+];
+
+export const hrReports: ReportConfig[] = [
+  {
+    key: "leave-balance",
+    module: "hr",
+    endpoint: "/hr/reports/leave-balance/",
+    titleKey: "hrm.reports.leave_balance",
+    icon: CalendarCheck,
+    filters: [
+      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+      { key: "employee", labelKey: "hrm.fields.employee", type: "link", link: employeeLink },
+      { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
+      { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
+    ],
+    columns: [
+      { key: "employee", labelKey: "hrm.fields.employee_id" },
+      { key: "employee_name", labelKey: "hrm.fields.employee_name" },
+      { key: "department", labelKey: "hrm.fields.department" },
+      { key: "designation", labelKey: "hrm.fields.designation" },
+      { key: "leave_type", labelKey: "hrm.res.leave_type" },
+      { key: "allocated", labelKey: "hrm.fields.allocated", type: "number" },
+      { key: "taken", labelKey: "hrm.fields.taken", type: "number" },
+      { key: "balance", labelKey: "hrm.fields.balance", type: "number" },
+    ],
+  },
+  {
+    key: "salary-register",
+    module: "hr",
+    endpoint: "/hr/reports/salary-register/",
+    titleKey: "hrm.reports.salary_register",
+    icon: FileText,
+    filters: [
+      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+      { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
+      { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
+      { key: "department", labelKey: "hrm.fields.department", type: "link", link: departmentLink },
+      { key: "branch", labelKey: "hrm.fields.branch", type: "link", link: branchLink },
+    ],
+    columns: [
+      { key: "slip_no", labelKey: "hrm.cols.slip_no" },
+      { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+      { key: "employee", labelKey: "hrm.fields.employee_id" },
+      { key: "employee_name", labelKey: "hrm.fields.employee_name" },
+      { key: "department", labelKey: "hrm.fields.department" },
+      { key: "designation", labelKey: "hrm.fields.designation" },
+      { key: "payment_days", labelKey: "hrm.fields.payment_days", type: "number" },
+      { key: "ot_hours", labelKey: "hrm.fields.ot_hours", type: "number" },
+      { key: "gross_pay", labelKey: "hrm.fields.gross_pay", type: "money" },
+      { key: "total_deduction", labelKey: "hrm.fields.total_deduction", type: "money" },
+      { key: "net_pay", labelKey: "hrm.fields.net_pay", type: "money" },
+    ],
+  },
+  {
+    key: "wage-register",
+    module: "hr",
+    endpoint: "/hr/reports/wage-register/",
+    titleKey: "hrm.reports.wage_register",
+    icon: IndianRupee,
+    filters: [
+      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+      { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
+      { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
+      { key: "department", labelKey: "hrm.fields.department", type: "link", link: departmentLink },
+      { key: "branch", labelKey: "hrm.fields.branch", type: "link", link: branchLink },
+    ],
+    columns: [
+      { key: "slip_no", labelKey: "hrm.cols.slip_no" },
+      { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+      { key: "employee", labelKey: "hrm.fields.employee_id" },
+      { key: "employee_name", labelKey: "hrm.fields.employee_name" },
+      { key: "daily_rate", labelKey: "hrm.fields.daily_rate", type: "money" },
+      { key: "days_worked", labelKey: "hrm.fields.days_worked", type: "number" },
+      { key: "ot_hours", labelKey: "hrm.fields.ot_hours", type: "number" },
+      { key: "basic_wages", labelKey: "hrm.fields.basic_wages", type: "money" },
+      { key: "ot_wages", labelKey: "hrm.fields.ot_wages", type: "money" },
+      { key: "gross_wages", labelKey: "hrm.fields.gross_wages", type: "money" },
+      { key: "advance_deduction", labelKey: "hrm.fields.advance_deduction", type: "money" },
+      { key: "other_deductions", labelKey: "hrm.fields.other_deductions", type: "money" },
+      { key: "total_deductions", labelKey: "hrm.fields.total_deduction", type: "money" },
+      { key: "net_wages", labelKey: "hrm.fields.net_pay", type: "money" },
+      { key: "bank_name", labelKey: "hrm.fields.bank_name" },
+      { key: "bank_account_no", labelKey: "hrm.fields.bank_account_no" },
+      { key: "ifsc_code", labelKey: "hrm.fields.ifsc_code" },
+    ],
+  },
+
+
 ];
 
