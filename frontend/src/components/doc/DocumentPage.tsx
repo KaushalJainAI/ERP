@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -24,6 +24,8 @@ import {
   type NormalisedError,
 } from "@/api/endpoints";
 import { apiClient } from "@/api/client";
+import { AssistantReviewBanner, type AssistantHandoffState } from "@/components/assistant/AssistantReviewBanner";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import {
   DocStatus,
   type ApiRecord,
@@ -145,7 +147,8 @@ export const DocumentPage: React.FC<{ config: ResourceConfig }> = ({ config }) =
     enabled: !isNew,
   });
 
-  const seed = (location.state as { initialValues?: Values } | null)?.initialValues;
+  const seed = (location.state as { initialValues?: Values; assistant?: AssistantHandoffState } | null)?.initialValues;
+  const assistantState = (location.state as { assistant?: AssistantHandoffState } | null)?.assistant;
   const err = error ? normaliseError(error) : null;
   const backTo = `/${config.module}/${config.key}`;
 
@@ -171,6 +174,7 @@ export const DocumentPage: React.FC<{ config: ResourceConfig }> = ({ config }) =
           config={config}
           doc={doc}
           seed={seed}
+          assistantState={assistantState}
         />
       )}
     </Layout>
@@ -183,7 +187,12 @@ export const DocumentPage: React.FC<{ config: ResourceConfig }> = ({ config }) =
 
 type Confirm = null | "submit" | "cancel" | "delete" | "amend";
 
-const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: Values }> = ({ config, doc, seed }) => {
+const DocumentForm: React.FC<{
+  config: ResourceConfig;
+  doc?: ApiRecord;
+  seed?: Values;
+  assistantState?: AssistantHandoffState;
+}> = ({ config, doc, seed, assistantState }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -205,6 +214,24 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const [clientErr, setClientErr] = useState<Record<string, string>>({});
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [checks, setChecks] = useState<Record<string, FieldCheckResult | undefined>>({});
+  const [reopenAssistant, setReopenAssistant] = useState(false);
+  const savedRef = useRef(false);
+
+  useEffect(() => {
+    if (assistantState?.proposalId && isNew) {
+      void apiClient
+        .post(`/api/assistant/proposals/${assistantState.proposalId}/opened/`)
+        .catch(() => undefined);
+
+      return () => {
+        if (!savedRef.current) {
+          void apiClient
+            .post(`/api/assistant/proposals/${assistantState.proposalId}/abandoned/`)
+            .catch(() => undefined);
+        }
+      };
+    }
+  }, [assistantState?.proposalId, isNew]);
 
   const dirty = snapshot(values, tables) !== initialSnap;
 
@@ -359,12 +386,17 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const persist = async (): Promise<ApiRecord> => {
     const omit = new Set(derivedKeys.filter((k) => !manual.has(k)));
     const payload = buildPayload(config, values, tables, isNew, omit);
-    return isNew ? createRecord(config.endpoint, payload) : updateRecord(config.endpoint, doc!.id!, payload);
+    const headers =
+      assistantState?.proposalId && isNew
+        ? { "X-Assistant-Proposal": assistantState.proposalId }
+        : undefined;
+    return isNew ? createRecord(config.endpoint, payload, headers) : updateRecord(config.endpoint, doc!.id!, payload);
   };
 
   const saveMut = useMutation({
     mutationFn: persist,
     onSuccess: (saved) => {
+      savedRef.current = true;
       setServerErr(null);
       toast.success(t("common.saved"));
       qc.setQueryData(["doc", config.endpoint, String(saved.id)], saved);
@@ -381,6 +413,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
       return docAction(config.endpoint, id, "submit");
     },
     onSuccess: (saved) => {
+      savedRef.current = true;
       setServerErr(null);
       setConfirm(null);
       toast.success(t("common.submitted_ok"));
@@ -399,6 +432,7 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const cancelMut = useMutation({
     mutationFn: () => docAction(config.endpoint, doc!.id!, "cancel"),
     onSuccess: (saved) => {
+      savedRef.current = true;
       setServerErr(null);
       setConfirm(null);
       toast.success(t("common.cancelled_ok"));
@@ -486,8 +520,11 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
   const renderField = (f: FieldDef) => {
     const err = fieldErr(f.key);
     const ro = !editableField(f);
+    const isAiFilled =
+      !!assistantState?.aiFilledKeys?.includes(f.key) &&
+      values[f.key] === initial.values[f.key];
     return (
-      <div key={f.key} className={spanClass(f)}>
+      <div key={f.key} className={`${spanClass(f)} ${isAiFilled ? "rounded-lg ring-1 ring-indigo-500/50 bg-indigo-950/20 p-1 transition-all" : ""}`}>
         {f.type === "boolean" ? (
           <label className="flex items-center gap-2 text-sm text-slate-300 mt-6">
             <FieldInput
@@ -635,6 +672,20 @@ const DocumentForm: React.FC<{ config: ResourceConfig; doc?: ApiRecord; seed?: V
             ))}
           </ul>
         </div>
+      )}
+
+      {assistantState && (
+        <AssistantReviewBanner
+          assistantState={assistantState}
+          onTellMeWhatToChange={() => setReopenAssistant(true)}
+        />
+      )}
+      {reopenAssistant && (
+        <AssistantPanel
+          isOpen={reopenAssistant}
+          onClose={() => setReopenAssistant(false)}
+          initialQuery={`Regarding this ${t(config.singularKey)}: `}
+        />
       )}
 
       {/* header fields */}

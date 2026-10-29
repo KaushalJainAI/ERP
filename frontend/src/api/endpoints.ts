@@ -59,8 +59,8 @@ export async function getRecord(endpoint: string, id: number | string): Promise<
   return res.data;
 }
 
-export async function createRecord(endpoint: string, body: ApiRecord): Promise<ApiRecord> {
-  const res = await apiClient.post(endpoint, body);
+export async function createRecord(endpoint: string, body: ApiRecord, headers?: Record<string, string>): Promise<ApiRecord> {
+  const res = await apiClient.post(endpoint, body, { headers });
   return res.data;
 }
 

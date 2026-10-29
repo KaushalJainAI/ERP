@@ -3,6 +3,7 @@ import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { useSyncUserLanguage } from "@/hooks/useSyncUserLanguage";
 import { useActiveModule, useModuleNav } from "@/resources/nav";
+import { AssistantLauncher } from "./assistant/AssistantLauncher";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {active && <Sidebar active={active} />}
         <main className="flex-1 min-w-0 w-full mx-auto max-w-[1440px] px-4 sm:px-6 py-6">{children}</main>
       </div>
+      <AssistantLauncher />
     </div>
   );
 };

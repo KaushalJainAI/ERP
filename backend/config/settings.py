@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "ngu.apps.NguConfig",
     "tally_export.apps.TallyExportConfig",
     "payment_reconciliation.apps.PaymentReconciliationConfig",
+    "assistant.apps.AssistantConfig",
 ]
 
 MIDDLEWARE = [
@@ -163,7 +164,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 # The SPA sends the active company on every request (core.company_context).
-CORS_ALLOW_HEADERS = (*default_cors_headers, "x-company-id")
+CORS_ALLOW_HEADERS = (*default_cors_headers, "x-company-id", "x-assistant-proposal")
 
 # Django REST Framework configuration
 REST_FRAMEWORK = {
@@ -189,6 +190,9 @@ REST_FRAMEWORK = {
         "auth": env("THROTTLE_AUTH", default="10/min"),
         # Employee portal login / change-PIN (hr.portal_views), per IP.
         "portal_login": env("THROTTLE_PORTAL_LOGIN", default="10/min"),
+        "assistant": env("THROTTLE_ASSISTANT", default="60/min"),
+        "assistant_day": env("THROTTLE_ASSISTANT_DAY", default="1000/day"),
+        "assistant_stt": env("THROTTLE_ASSISTANT_STT", default="30/min"),
     },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",
