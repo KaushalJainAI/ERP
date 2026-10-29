@@ -24,6 +24,9 @@ from hr.models import (
     SalaryComponent,
     SalarySlip,
     SalarySlipDetail,
+    LeaveType,
+    LeaveAllocation,
+    LeaveApplication,
 )
 
 _RO = TimeStampedAdminMixin.readonly_timestamp_fields
@@ -214,3 +217,46 @@ class EmployeeIssueAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     search_fields = ("employee__name", "employee__employee_name", "message")
     raw_id_fields = ("employee",)
     readonly_fields = _RO
+
+
+@admin.register(LeaveType)
+class LeaveTypeAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    list_display = ("name", "company", "max_days_allowed", "is_carry_forward", "is_active")
+    list_filter = ("company", "is_active", "is_carry_forward")
+    search_fields = ("name",)
+    readonly_fields = _RO
+
+
+@admin.register(LeaveAllocation)
+class LeaveAllocationAdmin(SubmittableDocumentAdmin):
+    list_display = (
+        "name",
+        "employee",
+        "leave_type",
+        "from_date",
+        "to_date",
+        "total_leaves_allocated",
+        "docstatus",
+    )
+    list_filter = ("company", "docstatus", "leave_type")
+    search_fields = ("name", "employee__name", "employee__employee_name")
+    raw_id_fields = ("employee",)
+    readonly_fields = _RO + ("docstatus", "amended_from")
+
+
+@admin.register(LeaveApplication)
+class LeaveApplicationAdmin(SubmittableDocumentAdmin):
+    list_display = (
+        "name",
+        "employee",
+        "leave_type",
+        "posting_date",
+        "from_date",
+        "to_date",
+        "total_leave_days",
+        "docstatus",
+    )
+    list_filter = ("company", "docstatus", "leave_type")
+    search_fields = ("name", "employee__name", "employee__employee_name")
+    raw_id_fields = ("employee",)
+    readonly_fields = _RO + ("docstatus", "amended_from")

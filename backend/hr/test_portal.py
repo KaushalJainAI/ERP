@@ -228,7 +228,7 @@ class PortalLoginTests(PortalBase):
         self.assertTrue(AccessToken(body["access"])["portal"])
         self.w.refresh_from_db()
         self.assertEqual(
-            AccessToken(body["access"])["user_id"], self.w.user.pk
+            int(AccessToken(body["access"])["user_id"]), self.w.user.pk
         )
         self.assertIsNotNone(
             EmployeePortalAccess.objects.get(employee=self.w).last_login_at

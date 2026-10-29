@@ -284,16 +284,16 @@ the primary pay path; monthly salary is the secondary case.
       OT hours); UNIQUE(employee, date). *Design note:* Paid Leave stands in for
       On Leave until 7.3
 - [x] Daily muster-roll bulk entry endpoint (`attendance/muster-roll/`, atomic
-      upsert). *Screen pending*
+      upsert) and frontend screen (`/hr/muster-roll`)
 - [x] Attendance locked once a **submitted salary slip** covers it (there are no
       payroll periods in this design)
 - [x] Muster roll report (`attendance/muster-roll-report/`); tests
 
 ### 7.3 Leave (basic — mainly for monthly staff; a daily wager's absence is simply unpaid)
 *Deferred:* the `Paid Leave` attendance status covers it for now.
-- [ ] `LeaveType`, `LeaveAllocation`, `LeaveApplication` (submittable);
+- [x] `LeaveType`, `LeaveAllocation`, `LeaveApplication` (submittable);
       approved leave marks attendance
-- [ ] Leave balance report; tests
+- [x] Leave balance report; tests
 
 ### 7.4 Salary structures
 - [x] `SalaryComponent` (earning / deduction, GL account; fixed amounts only,
@@ -318,7 +318,7 @@ the primary pay path; monthly salary is the secondary case.
       Dr wages payable / Cr cash or bank, capped at the wages payable;
       `PayrollEntry.make-payments` pays a whole run. *Bank transfer file export
       pending*
-- [ ] Salary register and wage register reports (pending)
+- [x] Salary register and wage register reports (backend endpoints + frontend report views)
 - [x] `verify_integrity` covers payroll GL (slips, advances, payments, overlaps);
       tests
 

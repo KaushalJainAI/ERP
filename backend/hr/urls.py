@@ -15,6 +15,12 @@ from hr.views import (
     PayrollEntryViewSet,
     SalaryComponentViewSet,
     SalarySlipViewSet,
+    LeaveTypeViewSet,
+    LeaveAllocationViewSet,
+    LeaveApplicationViewSet,
+    leave_balance_report_view,
+    salary_register_view,
+    wage_register_view,
 )
 
 from hr.portal_admin_views import (
@@ -55,6 +61,9 @@ router.register("employee-advances", EmployeeAdvanceViewSet, basename="employeea
 router.register("employee-payments", EmployeePaymentViewSet, basename="employeepayment")
 router.register("advance-requests", AdvanceRequestViewSet, basename="advancerequest")
 router.register("employee-issues", EmployeeIssueViewSet, basename="employeeissue")
+router.register("leave-types", LeaveTypeViewSet, basename="leavetype")
+router.register("leave-allocations", LeaveAllocationViewSet, basename="leaveallocation")
+router.register("leave-applications", LeaveApplicationViewSet, basename="leaveapplication")
 
 # Employee self-service portal (own data only; see hr/portal_views.py).
 portal_patterns = [
@@ -91,5 +100,8 @@ portal_patterns = [
 urlpatterns = [
     path("portal/", include(portal_patterns)),
     path("portal-overview/", PortalOverviewView.as_view(), name="portal-overview"),
+    path("reports/leave-balance/", leave_balance_report_view, name="report-leave-balance"),
+    path("reports/salary-register/", salary_register_view, name="report-salary-register"),
+    path("reports/wage-register/", wage_register_view, name="report-wage-register"),
     path("", include(router.urls)),
 ]

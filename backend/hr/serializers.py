@@ -46,8 +46,12 @@ from hr.models import (
     SalarySlip,
     SalarySlipDetail,
     SystemComponent,
+    LeaveType,
+    LeaveAllocation,
+    LeaveApplication,
 )
 from hr.services import advances as advance_service
+from hr.services import leave as leave_service
 from hr.services import payroll
 from hr.services.wages import MAX_SLIP_DAYS
 from users.permissions import user_has_model_permission
@@ -986,4 +990,159 @@ class EmployeePaymentSerializer(AutoNameMixin, serializers.ModelSerializer):
             advance_service.validate_paid_from(get("paid_from"), company)
         except DjangoValidationError as exc:
             raise as_drf_error(exc)
+        return attrs
+
+
+# --------------------------------------------------------------------- leave
+class LeaveTypeSerializer(
+    TranslatedSerializerMixin, ModelErrorMixin, serializers.ModelSerializer
+):
+    class Meta:
+        model = LeaveType
+        fields = (
+            "id",
+            "company",
+            "name",
+            "max_days_allowed",
+            "is_carry_forward",
+            "is_active",
+        )
+        translatable_fields = ["name"]
+
+
+class LeaveAllocationSerializer(
+    AutoNameMixin, ModelErrorMixin, serializers.ModelSerializer
+):
+    name_prefix = leave_service.LEAVE_ALLOCATION_PREFIX
+
+    employee_name = serializers.CharField(
+        source="employee.employee_name", read_only=True
+    )
+    leave_type_name = serializers.CharField(
+        source="leave_type.name", read_only=True
+    )
+
+    class Meta:
+        model = LeaveAllocation
+        fields = (
+            "id",
+            "name",
+            "docstatus",
+            "company",
+            "employee",
+            "employee_name",
+            "leave_type",
+            "leave_type_name",
+            "from_date",
+            "to_date",
+            "total_leaves_allocated",
+            "notes",
+            "modified_at",
+        )
+        read_only_fields = ("id", "docstatus", "modified_at")
+
+    def validate(self, attrs):
+        inst = self.instance
+
+        def get(name):
+            return attrs.get(name, getattr(inst, name, None) if inst else None)
+
+        employee = get("employee")
+        company = get("company")
+        leave_type = get("leave_type")
+
+        if employee and company and employee.company_id != company.pk:
+            raise DRFValidationError(
+                {"employee": _("The employee belongs to a different company.")}
+            )
+        if leave_type and company and leave_type.company_id != company.pk:
+            raise DRFValidationError(
+                {"leave_type": _("The leave type belongs to a different company.")}
+            )
+        from_date = get("from_date")
+        to_date = get("to_date")
+        if from_date and to_date and to_date < from_date:
+            raise DRFValidationError(
+                {"to_date": _("End date cannot be before start date.")}
+            )
+        alloc = get("total_leaves_allocated")
+        if alloc is not None and alloc < 0:
+            raise DRFValidationError(
+                {"total_leaves_allocated": _("Allocated leaves cannot be negative.")}
+            )
+        return attrs
+
+
+class LeaveApplicationSerializer(
+    AutoNameMixin, ModelErrorMixin, serializers.ModelSerializer
+):
+    name_prefix = leave_service.LEAVE_APPLICATION_PREFIX
+
+    employee_name = serializers.CharField(
+        source="employee.employee_name", read_only=True
+    )
+    leave_type_name = serializers.CharField(
+        source="leave_type.name", read_only=True
+    )
+
+    class Meta:
+        model = LeaveApplication
+        fields = (
+            "id",
+            "name",
+            "docstatus",
+            "company",
+            "employee",
+            "employee_name",
+            "leave_type",
+            "leave_type_name",
+            "posting_date",
+            "from_date",
+            "to_date",
+            "total_leave_days",
+            "reason",
+            "modified_at",
+        )
+        read_only_fields = ("id", "docstatus", "modified_at")
+
+    def validate(self, attrs):
+        inst = self.instance
+
+        def get(name):
+            return attrs.get(name, getattr(inst, name, None) if inst else None)
+
+        employee = get("employee")
+        company = get("company")
+        leave_type = get("leave_type")
+
+        if employee and company and employee.company_id != company.pk:
+            raise DRFValidationError(
+                {"employee": _("The employee belongs to a different company.")}
+            )
+        if leave_type and company and leave_type.company_id != company.pk:
+            raise DRFValidationError(
+                {"leave_type": _("The leave type belongs to a different company.")}
+            )
+        from_date = get("from_date")
+        to_date = get("to_date")
+        if from_date and to_date and to_date < from_date:
+            raise DRFValidationError(
+                {"to_date": _("End date cannot be before start date.")}
+            )
+        total_days = get("total_leave_days")
+        if total_days is not None and total_days <= 0:
+            raise DRFValidationError(
+                {"total_leave_days": _("Total leave days must be greater than zero.")}
+            )
+        if from_date and to_date and total_days is not None:
+            days_span = (to_date - from_date).days + 1
+            if total_days > Decimal(days_span):
+                raise DRFValidationError(
+                    {
+                        "total_leave_days": _(
+                            "Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
+                        )
+                        % {"days": total_days, "span": days_span}
+                    }
+                )
         return attrs

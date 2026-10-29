@@ -1,3 +1,5 @@
+from hr.services import leave as leave_service
+from hr.services import reports as reports_service
 """HR API: masters, employees, attendance / muster roll, payroll documents."""
 
 import datetime
@@ -8,13 +10,13 @@ from django.db.models import Q, Sum
 from django.db.models.deletion import ProtectedError, RestrictedError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions, status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from accounts.models import Account
-from core.company_context import CompanyScopedMixin, resolve_active_company
+from core.company_context import CompanyScopedMixin, resolve_active_company, active_company_id
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin, record_audit_log
 from core.models import AuditLog, DocStatus
 from hr.models import (
@@ -32,6 +34,9 @@ from hr.models import (
     PayrollEntry,
     SalaryComponent,
     SalarySlip,
+    LeaveType,
+    LeaveAllocation,
+    LeaveApplication,
 )
 from hr.serializers import (
     AttendanceSerializer,
@@ -48,6 +53,9 @@ from hr.serializers import (
     PayrollEntrySerializer,
     SalaryComponentSerializer,
     SalarySlipSerializer,
+    LeaveTypeSerializer,
+    LeaveAllocationSerializer,
+    LeaveApplicationSerializer,
 )
 from hr.portal_serializers import SetPortalPinSerializer
 from hr.services import attendance as attendance_service
@@ -55,7 +63,7 @@ from hr.services import payroll
 from hr.services import portal as portal_service
 from hr.services.setup import ensure_hr_setup
 from hr.services.summary import employee_summary
-from users.permissions import HasRolePermission, user_has_model_permission
+from users.permissions import HasRolePermission, require_model_permission, user_has_model_permission
 
 PERMS = [permissions.IsAuthenticated, HasRolePermission]
 
@@ -515,3 +523,160 @@ class EmployeePaymentViewSet(
         "reference_no",
     ]
     ordering_fields = ["posting_date", "name", "amount"]
+
+
+# --------------------------------------------------------------------- leave
+class LeaveTypeViewSet(CompanyScopedMixin, HRMasterViewSet):
+    queryset = LeaveType.objects.all()
+    serializer_class = LeaveTypeSerializer
+    filterset_fields = ["company", "is_active"]
+    search_fields = ["name"]
+
+
+class LeaveAllocationViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = LeaveAllocation.objects.all().select_related(
+        "employee", "leave_type", "company"
+    )
+    serializer_class = LeaveAllocationSerializer
+    permission_classes = PERMS
+    filterset_fields = {
+        "employee": ["exact"],
+        "leave_type": ["exact"],
+        "docstatus": ["exact"],
+        "company": ["exact"],
+    }
+    search_fields = ["name", "employee__name", "employee__employee_name"]
+    ordering_fields = ["from_date", "name"]
+
+
+class LeaveApplicationViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = LeaveApplication.objects.all().select_related(
+        "employee", "leave_type", "company"
+    )
+    serializer_class = LeaveApplicationSerializer
+    permission_classes = PERMS
+    filterset_fields = {
+        "employee": ["exact"],
+        "leave_type": ["exact"],
+        "docstatus": ["exact"],
+        "company": ["exact"],
+        "posting_date": ["exact", "gte", "lte"],
+    }
+    search_fields = ["name", "employee__name", "employee__employee_name"]
+    ordering_fields = ["posting_date", "from_date", "name"]
+
+
+# --------------------------------------------------------------------- reports
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("hr.LeaveApplication")]
+)
+def leave_balance_report_view(request):
+    """Leave balance report endpoint: allocations, leaves taken, and balance."""
+    company_id = active_company_id(request)
+    from_date = request.query_params.get("from_date")
+    to_date = request.query_params.get("to_date")
+    employee_id = request.query_params.get("employee")
+    department_id = request.query_params.get("department")
+
+    try:
+        report = leave_service.leave_balance_report(
+            company_id=company_id,
+            from_date=from_date or None,
+            to_date=to_date or None,
+            employee_id=employee_id or None,
+            department_id=department_id or None,
+        )
+    except DjangoValidationError as exc:
+        return _error_response(exc)
+    return Response(report)
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("hr.SalarySlip")]
+)
+def salary_register_view(request):
+    """Salary register report endpoint."""
+    company_id = active_company_id(request)
+    from_date = request.query_params.get("from_date")
+    to_date = request.query_params.get("to_date")
+    department_id = request.query_params.get("department")
+    branch_id = request.query_params.get("branch")
+    employee_id = request.query_params.get("employee")
+    pay_type = request.query_params.get("pay_type")
+
+    if not from_date or not to_date:
+        return Response(
+            {"detail": _("Both from_date and to_date are required.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from_d = datetime.date.fromisoformat(from_date)
+        to_d = datetime.date.fromisoformat(to_date)
+    except ValueError:
+        return Response(
+            {"detail": _("Invalid date format. Use YYYY-MM-DD.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        report = reports_service.salary_register_report(
+            company_id=company_id,
+            from_date=from_d,
+            to_date=to_d,
+            department_id=department_id or None,
+            branch_id=branch_id or None,
+            employee_id=employee_id or None,
+            pay_type=pay_type or None,
+        )
+    except DjangoValidationError as exc:
+        return _error_response(exc)
+    return Response(report)
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("hr.SalarySlip")]
+)
+def wage_register_view(request):
+    """Wage register report endpoint: muster-roll wage register for daily wagers."""
+    company_id = active_company_id(request)
+    from_date = request.query_params.get("from_date")
+    to_date = request.query_params.get("to_date")
+    department_id = request.query_params.get("department")
+    branch_id = request.query_params.get("branch")
+    employee_id = request.query_params.get("employee")
+
+    if not from_date or not to_date:
+        return Response(
+            {"detail": _("Both from_date and to_date are required.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        from_d = datetime.date.fromisoformat(from_date)
+        to_d = datetime.date.fromisoformat(to_date)
+    except ValueError:
+        return Response(
+            {"detail": _("Invalid date format. Use YYYY-MM-DD.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        report = reports_service.wage_register_report(
+            company_id=company_id,
+            from_date=from_d,
+            to_date=to_d,
+            department_id=department_id or None,
+            branch_id=branch_id or None,
+            employee_id=employee_id or None,
+        )
+    except DjangoValidationError as exc:
+        return _error_response(exc)
+    return Response(report)

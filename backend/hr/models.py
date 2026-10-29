@@ -1,3 +1,4 @@
+import datetime
 """HR masters, attendance and daily-wage payroll.
 
 Design (see ``docs/erpnext_divergences.md``, "HR and payroll"):
@@ -1059,3 +1060,143 @@ class EmployeeIssue(TimeStampedModel):
 
     def __str__(self):
         return f"Issue {self.pk} ({self.employee_id}, {self.status})"
+
+
+# ------------------------------------------------------------------ leave
+class LeaveType(TimeStampedModel):
+    """A category of leave (Casual Leave, Sick Leave, Privilege Leave, etc.)."""
+
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="leave_types"
+    )
+    name = models.CharField(_("leave type name"), max_length=100)
+    max_days_allowed = models.DecimalField(
+        _("max days allowed per year"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    is_carry_forward = models.BooleanField(_("is carry forward"), default=False)
+    is_active = models.BooleanField(_("is active"), default=True)
+
+    class Meta:
+        ordering = ["company_id", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_leave_type_per_company"
+            ),
+            models.CheckConstraint(
+                check=Q(max_days_allowed__gte=0),
+                name="check_leave_type_max_days_gte_0",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.company.name})"
+
+
+class LeaveAllocation(SubmittableDocument):
+    """Grants an employee a quota of days of a leave type for a date range."""
+
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="leave_allocations"
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name="leave_allocations"
+    )
+    leave_type = models.ForeignKey(
+        LeaveType, on_delete=models.PROTECT, related_name="allocations"
+    )
+    from_date = models.DateField(_("from date"))
+    to_date = models.DateField(_("to date"))
+    total_leaves_allocated = models.DecimalField(
+        _("total leaves allocated"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    notes = models.CharField(_("notes"), max_length=240, blank=True, default="")
+
+    class Meta:
+        ordering = ["-from_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(to_date__gte=F("from_date")),
+                name="check_leave_allocation_dates",
+            ),
+            models.CheckConstraint(
+                check=Q(total_leaves_allocated__gte=0),
+                name="check_leave_allocation_total_gte_0",
+            ),
+        ]
+
+    def validate_before_submit(self):
+        from hr.services import leave
+
+        leave.validate_allocation(self)
+
+    def on_submit(self):
+        pass
+
+    def on_cancel(self):
+        from hr.services import leave
+
+        leave.cancel_allocation(self)
+
+    def __str__(self):
+        return f"{self.name} - {self.employee_id} ({self.leave_type_id})"
+
+
+class LeaveApplication(SubmittableDocument):
+    """An employee's request for leave; on submit it marks Paid Leave attendance."""
+
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="leave_applications"
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name="leave_applications"
+    )
+    leave_type = models.ForeignKey(
+        LeaveType, on_delete=models.PROTECT, related_name="applications"
+    )
+    posting_date = models.DateField(_("posting date"), default=datetime.date.today)
+    from_date = models.DateField(_("from date"))
+    to_date = models.DateField(_("to date"))
+    total_leave_days = models.DecimalField(
+        _("total leave days"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("1.00"),
+    )
+    reason = models.CharField(_("reason"), max_length=240, blank=True, default="")
+
+    class Meta:
+        ordering = ["-posting_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(to_date__gte=F("from_date")),
+                name="check_leave_application_dates",
+            ),
+            models.CheckConstraint(
+                check=Q(total_leave_days__gt=0),
+                name="check_leave_application_days_gt_0",
+            ),
+        ]
+
+    def validate_before_submit(self):
+        from hr.services import leave
+
+        leave.validate_application(self)
+
+    def on_submit(self):
+        from hr.services import leave
+
+        leave.submit_application(self)
+
+    def on_cancel(self):
+        from hr.services import leave
+
+        leave.cancel_application(self)
+
+    def __str__(self):
+        return f"{self.name} - {self.employee_id} ({self.from_date}..{self.to_date})"
