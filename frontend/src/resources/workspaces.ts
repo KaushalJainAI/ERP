@@ -60,6 +60,7 @@ export const WORKSPACES: WorkspaceDef[] = [
       { path: "/selling/sales-orders", labelKey: "res.sales_orders", access: ["selling.SalesOrder"], icon: FileText },
       { path: "/selling/sales-invoices", labelKey: "res.sales_invoices", access: ["selling.SalesInvoice"], icon: Receipt },
       { path: "/selling/customers", labelKey: "res.customers", access: ["selling.Customer"], icon: Users },
+      { path: "/selling/analytics", labelKey: "selling_kpi.nav_title", access: ["selling.SalesOrder", "selling.SalesInvoice", "accounts.GLEntry"], icon: BarChart3 },
     ],
   },
   {

@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import ValidationError as DRFValidationError
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from selling.models import CustomerGroup, Customer, SalesOrder, SalesInvoice
 from selling.serializers import (
@@ -13,7 +13,7 @@ from selling.serializers import (
     SalesInvoiceSerializer,
 )
 from accounts.serializers import PaymentEntrySerializer
-from core.company_context import CompanyScopedMixin
+from core.company_context import CompanyScopedMixin, resolve_active_company
 from core.mixins import (
     AuditLogMixin,
     MappedDocumentActionMixin,
@@ -21,9 +21,10 @@ from core.mixins import (
 )
 from core.models import DocStatus
 from selling import mapping
+from selling.reports import kpis
 from selling.services import credit as credit_service
 from stock.services import pricing as pricing_service
-from users.permissions import HasRolePermission
+from users.permissions import HasRolePermission, user_has_model_permission
 
 
 class CustomerGroupViewSet(AuditLogMixin, viewsets.ModelViewSet):
@@ -145,7 +146,6 @@ class SalesOrderViewSet(
         data = self.get_serializer(doc).data
         return Response({"changed": changed, "document": data})
 
-
     @action(detail=True, methods=["post"], url_path="update-rates")
     def update_rates(self, request, pk=None):
         return self._update_rates(request)
@@ -222,3 +222,73 @@ class SalesInvoiceViewSet(
             "accounts.PaymentEntry",
             PaymentEntrySerializer,
         )
+
+
+class CanReadSalesAnalytics(permissions.BasePermission):
+    """Allow read access if user has can_read on selling.SalesOrder, selling.SalesInvoice, or accounts.GLEntry."""
+
+    def has_permission(self, request, view):
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        return (
+            user_has_model_permission(user, "selling.SalesOrder", "can_read")
+            or user_has_model_permission(user, "selling.SalesInvoice", "can_read")
+            or user_has_model_permission(user, "accounts.GLEntry", "can_read")
+        )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_analytics_overview(request):
+    """Marketing and Sales KPI Analytics overview: comprehensive metrics, conversion, growth, and trends."""
+    company = resolve_active_company(request)
+    return Response(kpis.build_analytics_summary(company, request.query_params))
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_conversion_analytics(request):
+    """Sales conversion & velocity: Sales Order -> Sales Invoice conversion rate, days to convert, and pipeline funnel."""
+    company = resolve_active_company(request)
+    from_date, to_date, _ = kpis.resolve_period(request.query_params)
+    return Response(kpis.compute_sales_conversion_and_velocity(company, from_date, to_date))
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_revenue_analytics(request):
+    """Revenue & volume metrics: net/gross revenue, tax, total volume, AOV, MoM trends and growth vs prior period."""
+    company = resolve_active_company(request)
+    from_date, to_date, period_name = kpis.resolve_period(request.query_params)
+    return Response(kpis.compute_revenue_and_volume(company, from_date, to_date, period_name))
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_products_analytics(request):
+    """Top selling products & spice blends by quantity and revenue with category / blend flags."""
+    company = resolve_active_company(request)
+    from_date, to_date, _ = kpis.resolve_period(request.query_params)
+    limit = int(request.query_params.get("limit", 20))
+    return Response(kpis.compute_top_products_and_spices(company, from_date, to_date, limit))
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_customers_analytics(request):
+    """Customer analytics: acquisition, churn, retention rate, Pareto 80/20 and HHI concentration analysis."""
+    company = resolve_active_company(request)
+    from_date, to_date, _ = kpis.resolve_period(request.query_params)
+    return Response(kpis.compute_customer_analytics(company, from_date, to_date))
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanReadSalesAnalytics])
+def sales_receivables_analytics(request):
+    """Outstanding receivable ageing summary & Days Sales Outstanding (DSO)."""
+    company = resolve_active_company(request)
+    from_date, to_date, _ = kpis.resolve_period(request.query_params)
+    return Response(kpis.compute_receivables_and_dso(company, from_date, to_date))

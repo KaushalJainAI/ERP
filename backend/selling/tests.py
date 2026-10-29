@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
-from core.models import Company, DocStatus
+from core.models import Company, DocStatus, FiscalYear
 from accounts.models import Account, AccountRootType, AccountType, GLEntry
 from stock.models import UOM, ItemGroup, Item, Warehouse, Bin
 from selling.models import (
@@ -21,6 +21,11 @@ class SellingAppTests(TestCase):
     def setUp(self):
         self.company = Company.objects.create(
             name="Bharat Tech", abbr="BT", default_currency="INR"
+        )
+        self.fiscal_year = FiscalYear.objects.create(
+            name="FY 2026-27",
+            start_date=datetime.date(2026, 4, 1),
+            end_date=datetime.date(2027, 3, 31),
         )
         self.cust_group = CustomerGroup.objects.create(
             name="Commercial Clients", is_group=True

@@ -9,7 +9,7 @@ from django.test import TestCase
 
 from accounts.models import Account, AccountRootType, AccountType
 from buying.models import PurchaseInvoice, PurchaseInvoiceItem, Supplier, SupplierGroup
-from core.models import Company
+from core.models import Company, FiscalYear
 from selling.mapping import make_sales_invoice
 from selling.models import (
     Customer,
@@ -40,6 +40,11 @@ def _acc(company, name, root, parent=None, account_type=None, is_group=False):
 class DocumentBatchBase(TestCase):
     def setUp(self):
         c = self.company = Company.objects.create(name="Nidhi Spice", abbr="NS")
+        FiscalYear.objects.create(
+            name="FY 2026-27",
+            start_date=datetime.date(2026, 4, 1),
+            end_date=datetime.date(2027, 3, 31),
+        )
         assets = _acc(c, "Assets", AccountRootType.ASSET, is_group=True)
         expenses = _acc(c, "Expenses", AccountRootType.EXPENSE, is_group=True)
         income = _acc(c, "Income", AccountRootType.INCOME, is_group=True)

@@ -1,6 +1,6 @@
 import { apiClient } from "@/api/client";
 import { createElement } from "react";
-import { FilePlus2, Receipt, RefreshCw, ShoppingCart, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
+import { BarChart3, FilePlus2, Receipt, RefreshCw, ShoppingCart, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
 import { getActiveCompanyId } from "@/lib/company";
 import { CreditBanner } from "@/components/stock/CreditBanner";
@@ -16,7 +16,8 @@ import {
   taxTotalFields,
   taxesTable,
 } from "./gst";
-import { DocStatus, type ChildColumnDef, type FieldDef, type LinkDef, type ResourceConfig } from "@/types";
+import { DocStatus, type ChildColumnDef, type FieldDef, type LinkDef, type NavLink, type ResourceConfig } from "@/types";
+import { hasReadAccess } from "./workspaces";
 import { invoiceStatusColumns, invoiceStatusFields } from "./invoiceStatus";
 import { returnColumns, returnHeaderFields, withReturnColumns } from "./returns";
 
@@ -421,3 +422,12 @@ const salesInvoices: ResourceConfig = {
 };
 
 export const sellingResources: ResourceConfig[] = [customers, customerGroups, salesOrders, salesInvoices];
+
+export const sellingLinks: NavLink[] = [
+  {
+    path: "/selling/analytics",
+    labelKey: "selling_kpi.nav_title",
+    icon: BarChart3,
+    visible: (u) => hasReadAccess(u.readable_models, ["selling.SalesOrder", "selling.SalesInvoice", "accounts.GLEntry"]),
+  },
+];
