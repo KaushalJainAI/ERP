@@ -17,6 +17,18 @@ URL = "/api/accounts/payment-entries/"
 
 
 class PaymentEntryDefaultsTests(BaseAPITest):
+    def setUp(self):
+        super().setUp()
+        import datetime
+        from core.models import FiscalYear
+        FiscalYear.objects.get_or_create(
+            name="FY2026-27",
+            defaults={
+                "start_date": datetime.date(2026, 4, 1),
+                "end_date": datetime.date(2027, 3, 31),
+                "is_closed": False,
+            },
+        )
     def _post(self, **extra):
         payload = {
             "posting_date": "2026-04-05",
@@ -138,3 +150,23 @@ class PaymentEntryDefaultsTests(BaseAPITest):
         patch = self.client.patch(f"{URL}{pe.id}/", {"paid_to": None}, format="json")
         self.assertEqual(patch.status_code, status.HTTP_200_OK, patch.content)
         self.assertEqual(patch.data["paid_to"], self.bank.id)
+
+    def test_designated_default_bank_account_is_used(self):
+        from accounts.models import BankAccount
+
+        sbi = Account.objects.create(
+            name="State Bank of India",
+            company=self.company,
+            parent=self.assets,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+        )
+        BankAccount.objects.create(
+            company=self.company,
+            account=sbi,
+            bank_name="State Bank of India",
+            is_default=True,
+        )
+        res = self._post(payment_type="Receive", party_name=self.customer.name)
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
+        self.assertEqual(res.data["paid_to"], sbi.id)

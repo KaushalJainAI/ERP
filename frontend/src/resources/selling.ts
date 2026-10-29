@@ -63,6 +63,7 @@ export const itemLink: LinkDef = {
       params: {
         item: r.id,
         ...party,
+        company: form.company || undefined,
         price_list: form.price_list || undefined,
         transaction_date: form.posting_date || form.transaction_date || undefined,
       },

@@ -11,6 +11,7 @@ import {
   Save,
   ShieldCheck,
   Globe2,
+  Wallet,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Select } from "@/components/ui/Select";
@@ -79,6 +80,13 @@ const FORM_KEYS = [
   "gst_category",
   "hsn_min_digits",
   "enable_rounded_total",
+  "default_receivable_account",
+  "default_payable_account",
+  "default_income_account",
+  "default_expense_account",
+  "round_off_account",
+  "default_selling_price_list",
+  "default_buying_price_list",
 ] as const;
 
 type FormValues = Record<string, any>;
@@ -91,6 +99,13 @@ function formFrom(profile: CompanyProfile): FormValues {
   out.gstin = profile.gstin ?? "";
   out.hsn_min_digits = profile.hsn_min_digits ?? 6;
   out.enable_rounded_total = !!profile.enable_rounded_total;
+  out.default_receivable_account = profile.default_receivable_account ? String(profile.default_receivable_account) : "";
+  out.default_payable_account = profile.default_payable_account ? String(profile.default_payable_account) : "";
+  out.default_income_account = profile.default_income_account ? String(profile.default_income_account) : "";
+  out.default_expense_account = profile.default_expense_account ? String(profile.default_expense_account) : "";
+  out.round_off_account = profile.round_off_account ? String(profile.round_off_account) : "";
+  out.default_selling_price_list = profile.default_selling_price_list ? String(profile.default_selling_price_list) : "";
+  out.default_buying_price_list = profile.default_buying_price_list ? String(profile.default_buying_price_list) : "";
   return out;
 }
 
@@ -117,6 +132,25 @@ export const CompanyPage: React.FC = () => {
     queryFn: async () => (await listAllRecords("/core/states/", { is_active: true })) as unknown as StateRow[],
     enabled: !!activeCompany,
     staleTime: 10 * 60_000,
+  });
+
+  const { data: accountsData } = useQuery<{ results: Array<{ id: number; name: string; root_type: string; account_type: string }> }>({
+    queryKey: ["company-accounts", activeCompany?.id ?? null],
+    queryFn: async () =>
+      (
+        await apiClient.get("/accounts/accounts/", {
+          params: { company: activeCompany?.id, is_group: false, is_active: true, page_size: 250 },
+        })
+      ).data,
+    enabled: !!activeCompany,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: priceListsData } = useQuery<{ results: Array<{ id: number; name: string; selling: boolean; buying: boolean }> }>({
+    queryKey: ["price-lists"],
+    queryFn: async () => (await apiClient.get("/stock/price-lists/", { params: { enabled: true, page_size: 100 } })).data,
+    enabled: !!activeCompany,
+    staleTime: 5 * 60_000,
   });
 
   useEffect(() => {
@@ -149,6 +183,69 @@ export const CompanyPage: React.FC = () => {
     [t]
   );
 
+  const accounts = accountsData?.results ?? [];
+  const receivableAccountOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...accounts
+        .filter((a) => a.account_type === "Receivable" || a.root_type === "Asset")
+        .map((a) => ({ value: String(a.id), label: `${a.name} (${a.account_type || a.root_type})` })),
+    ],
+    [accounts, t]
+  );
+  const payableAccountOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...accounts
+        .filter((a) => a.account_type === "Payable" || a.root_type === "Liability")
+        .map((a) => ({ value: String(a.id), label: `${a.name} (${a.account_type || a.root_type})` })),
+    ],
+    [accounts, t]
+  );
+  const incomeAccountOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...accounts
+        .filter((a) => a.root_type === "Income")
+        .map((a) => ({ value: String(a.id), label: `${a.name} (${a.root_type})` })),
+    ],
+    [accounts, t]
+  );
+  const expenseAccountOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...accounts
+        .filter((a) => a.root_type === "Expense" || a.account_type === "Stock")
+        .map((a) => ({ value: String(a.id), label: `${a.name} (${a.account_type || a.root_type})` })),
+    ],
+    [accounts, t]
+  );
+  const roundOffAccountOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...accounts.map((a) => ({ value: String(a.id), label: `${a.name} (${a.root_type})` })),
+    ],
+    [accounts, t]
+  );
+  const sellingPriceListOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...(priceListsData?.results ?? [])
+        .filter((p) => p.selling)
+        .map((p) => ({ value: String(p.id), label: p.name })),
+    ],
+    [priceListsData, t]
+  );
+  const buyingPriceListOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...(priceListsData?.results ?? [])
+        .filter((p) => p.buying)
+        .map((p) => ({ value: String(p.id), label: p.name })),
+    ],
+    [priceListsData, t]
+  );
+
   const set = (key: string, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => {
@@ -171,6 +268,13 @@ export const CompanyPage: React.FC = () => {
     payload.state = form.state || null;
     payload.hsn_min_digits = Number(form.hsn_min_digits || 6);
     payload.enable_rounded_total = !!form.enable_rounded_total;
+    payload.default_receivable_account = form.default_receivable_account ? Number(form.default_receivable_account) : null;
+    payload.default_payable_account = form.default_payable_account ? Number(form.default_payable_account) : null;
+    payload.default_income_account = form.default_income_account ? Number(form.default_income_account) : null;
+    payload.default_expense_account = form.default_expense_account ? Number(form.default_expense_account) : null;
+    payload.round_off_account = form.round_off_account ? Number(form.round_off_account) : null;
+    payload.default_selling_price_list = form.default_selling_price_list ? Number(form.default_selling_price_list) : null;
+    payload.default_buying_price_list = form.default_buying_price_list ? Number(form.default_buying_price_list) : null;
 
     try {
       const res = await apiClient.patch<CompanyProfile>(`/core/companies/${data.id}/`, payload);
@@ -456,6 +560,88 @@ export const CompanyPage: React.FC = () => {
                 />
                 {t("org.company.enable_rounded_total")}
               </label>
+            </Section>
+
+            <Section title={t("org.company.default_accounts")} icon={Wallet}>
+              <Field
+                label={t("org.company.default_receivable_account")}
+                error={fieldErrors.default_receivable_account?.[0]}
+                help={t("org.company.receivable_help")}
+              >
+                <Select
+                  value={String(form.default_receivable_account ?? "")}
+                  onChange={(value) => set("default_receivable_account", value)}
+                  options={receivableAccountOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field
+                label={t("org.company.default_payable_account")}
+                error={fieldErrors.default_payable_account?.[0]}
+                help={t("org.company.payable_help")}
+              >
+                <Select
+                  value={String(form.default_payable_account ?? "")}
+                  onChange={(value) => set("default_payable_account", value)}
+                  options={payableAccountOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field
+                label={t("org.company.default_income_account")}
+                error={fieldErrors.default_income_account?.[0]}
+                help={t("org.company.income_help")}
+              >
+                <Select
+                  value={String(form.default_income_account ?? "")}
+                  onChange={(value) => set("default_income_account", value)}
+                  options={incomeAccountOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field
+                label={t("org.company.default_expense_account")}
+                error={fieldErrors.default_expense_account?.[0]}
+                help={t("org.company.expense_help")}
+              >
+                <Select
+                  value={String(form.default_expense_account ?? "")}
+                  onChange={(value) => set("default_expense_account", value)}
+                  options={expenseAccountOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field label={t("org.company.round_off_account")} error={fieldErrors.round_off_account?.[0]} className="sm:col-span-2">
+                <Select
+                  value={String(form.round_off_account ?? "")}
+                  onChange={(value) => set("round_off_account", value)}
+                  options={roundOffAccountOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field label={t("org.company.default_selling_price_list")} error={fieldErrors.default_selling_price_list?.[0]}>
+                <Select
+                  value={String(form.default_selling_price_list ?? "")}
+                  onChange={(value) => set("default_selling_price_list", value)}
+                  options={sellingPriceListOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field label={t("org.company.default_buying_price_list")} error={fieldErrors.default_buying_price_list?.[0]}>
+                <Select
+                  value={String(form.default_buying_price_list ?? "")}
+                  onChange={(value) => set("default_buying_price_list", value)}
+                  options={buyingPriceListOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
             </Section>
           </div>
 

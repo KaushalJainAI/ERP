@@ -85,21 +85,21 @@ def default_receivable_account(company):
     if account := _company_default(company, "default_receivable_account"):
         return account
     qs = _postable_accounts(company).filter(account_type=AccountType.RECEIVABLE)
-    return _require(_pick(qs, ("debtor", "receivable")), "Receivable", company)
+    return _require(_pick(qs, ("sundry debtor", "debtor", "receivable")), "Receivable", company)
 
 
 def default_payable_account(company):
     if account := _company_default(company, "default_payable_account"):
         return account
     qs = _postable_accounts(company).filter(account_type=AccountType.PAYABLE)
-    return _require(_pick(qs, ("creditor", "payable")), "Payable", company)
+    return _require(_pick(qs, ("sundry creditor", "creditor", "payable")), "Payable", company)
 
 
 def default_income_account(company):
     if account := _company_default(company, "default_income_account"):
         return account
     qs = _postable_accounts(company).filter(root_type=AccountRootType.INCOME)
-    return _require(_pick(qs, ("sales", "income")), "Income", company)
+    return _require(_pick(qs, ("sales gst @ 5%", "sales gst", "sales account", "sales", "income")), "Income", company)
 
 
 def default_expense_account(company, update_stock):
@@ -119,6 +119,15 @@ def default_expense_account(company, update_stock):
 
 def default_bank_or_cash_account(company):
     """Bank account if the company has one, else a cash account (ERPNext order)."""
+    from accounts.models import BankAccount
+
+    default_ba = (
+        BankAccount.objects.filter(company=company, is_default=True, is_active=True)
+        .select_related("account")
+        .first()
+    )
+    if default_ba and default_ba.account and default_ba.account.is_active and not default_ba.account.is_group:
+        return default_ba.account
     for account_type, words in (
         (AccountType.BANK, ("bank",)),
         (AccountType.CASH, ("cash",)),

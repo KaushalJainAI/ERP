@@ -10,6 +10,16 @@ from legacy.models import TallyItemLine, TallyRecord
 class LastPartyRateTests(BaseAPITest):
     def setUp(self):
         super().setUp()
+        from core.models import FiscalYear
+
+        FiscalYear.objects.get_or_create(
+            name="FY2026-27",
+            defaults={
+                "start_date": datetime.date(2026, 4, 1),
+                "end_date": datetime.date(2027, 3, 31),
+                "is_closed": False,
+            },
+        )
         record = TallyRecord.objects.create(
             company=self.company,
             kind="voucher",
@@ -79,3 +89,92 @@ class LastPartyRateTests(BaseAPITest):
     def test_other_customer_falls_back_to_standard_rate(self):
         res = self.client.get("/api/stock/item-prices/rate/", {"item": self.item.id})
         self.assertNotEqual(res.data["rate_source"], "last_bill")
+
+    def _purchase_invoice(self, date, rate=None):
+        line = {"item": self.item.id, "warehouse": self.warehouse.id, "qty": "5.000"}
+        if rate is not None:
+            line["rate"] = rate
+        return self.client.post(
+            "/api/buying/purchase-invoices/",
+            {
+                "supplier": self.supplier.id,
+                "bill_no": f"BILL-{date}",
+                "posting_date": date,
+                "update_stock": False,
+                "items": [line],
+            },
+            format="json",
+        )
+
+    def test_supplier_rate_lookup_returns_last_tally_rate(self):
+        record = TallyRecord.objects.create(
+            company=self.company,
+            kind="voucher",
+            company_year="200000",
+            fiscal_year="2025-26",
+            guid="v-supp-1",
+            base_voucher_type="Purchase",
+            voucher_no="PUR/2526/1",
+            posting_date=datetime.date(2025, 7, 1),
+            raw="",
+        )
+        TallyItemLine.objects.create(
+            company=self.company,
+            record=record,
+            fiscal_year="2025-26",
+            posting_date=datetime.date(2025, 7, 1),
+            voucher_type="Purchase",
+            supplier=self.supplier,
+            item_name="Widget",
+            item=self.item,
+            is_inward=True,
+            qty=Decimal("20.000"),
+            billed_qty=Decimal("20.000"),
+            rate=Decimal("30.000000"),
+            amount=Decimal("600.00"),
+        )
+        res = self.client.get(
+            "/api/stock/item-prices/rate/",
+            {"item": self.item.id, "supplier": self.supplier.id, "type": "buying"},
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(res.data["rate"], "30.00")
+        self.assertEqual(res.data["rate_source"], "last_bill")
+        self.assertEqual(res.data["last_rate_date"], "2025-07-01")
+
+    def test_purchase_invoice_line_gets_last_rate_and_newer_erp_bill_wins(self):
+        record = TallyRecord.objects.create(
+            company=self.company,
+            kind="voucher",
+            company_year="200000",
+            fiscal_year="2025-26",
+            guid="v-supp-2",
+            base_voucher_type="Purchase",
+            voucher_no="PUR/2526/2",
+            posting_date=datetime.date(2025, 8, 1),
+            raw="",
+        )
+        TallyItemLine.objects.create(
+            company=self.company,
+            record=record,
+            fiscal_year="2025-26",
+            posting_date=datetime.date(2025, 8, 1),
+            voucher_type="Purchase",
+            supplier=self.supplier,
+            item_name="Widget",
+            item=self.item,
+            is_inward=True,
+            qty=Decimal("10.000"),
+            billed_qty=Decimal("10.000"),
+            rate=Decimal("32.000000"),
+            amount=Decimal("320.00"),
+        )
+        first = self._purchase_invoice("2026-04-01")
+        self.assertEqual(first.status_code, 201, first.content)
+        self.assertEqual(Decimal(first.data["items"][0]["rate"]), Decimal("32.00"))
+        newer = self._purchase_invoice("2026-04-02", rate="35.00")
+        self.assertEqual(newer.status_code, 201, newer.content)
+        sub = self.client.post(f"/api/buying/purchase-invoices/{newer.data['id']}/submit/")
+        self.assertEqual(sub.status_code, 200, sub.content)
+        third = self._purchase_invoice("2026-04-03")
+        self.assertEqual(Decimal(third.data["items"][0]["rate"]), Decimal("35.00"))

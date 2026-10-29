@@ -1,4 +1,8 @@
-from rest_framework import viewsets, permissions
+from django.db import transaction
+from django.db.models import Q
+from django.utils.translation import gettext as _
+from rest_framework import permissions, viewsets
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from selling.models import CustomerGroup, Customer, SalesOrder, SalesInvoice
@@ -44,6 +48,52 @@ class CustomerViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     ]
     search_fields = ["name", "gstin", "email", "phone"]
     ordering_fields = ["name", "created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        missing_phone = self.request.query_params.get("missing_phone")
+        if missing_phone in ("true", "1", "True"):
+            qs = qs.filter(Q(phone__isnull=True) | Q(phone=""))
+        return qs
+
+    @action(detail=False, methods=["post"], url_path="bulk-update-contacts")
+    def bulk_update_contacts(self, request):
+        """Bulk update phone / email for customers (filling contact gaps from Tally data)."""
+        entries = request.data
+        if not isinstance(entries, list):
+            raise DRFValidationError({"error": _("Expected a list of customer updates.")})
+        from core.company_context import resolve_active_company
+        from contacts.models import Address
+
+        company = resolve_active_company(request)
+        updated = 0
+        with transaction.atomic():
+            for item in entries:
+                if not isinstance(item, dict):
+                    continue
+                cid = item.get("id")
+                if not cid:
+                    continue
+                cust = Customer.objects.filter(pk=cid, company=company).first()
+                if not cust:
+                    continue
+                update_fields = []
+                if "phone" in item:
+                    cust.phone = (item["phone"] or "").strip() or None
+                    update_fields.append("phone")
+                if "email" in item:
+                    cust.email = (item["email"] or "").strip() or None
+                    update_fields.append("email")
+                if update_fields:
+                    cust.save(update_fields=update_fields)
+                    if cust.phone:
+                        Address.objects.filter(customer=cust, phone__isnull=True).update(phone=cust.phone)
+                        Address.objects.filter(customer=cust, phone="").update(phone=cust.phone)
+                    if cust.email:
+                        Address.objects.filter(customer=cust, email__isnull=True).update(email=cust.email)
+                        Address.objects.filter(customer=cust, email="").update(email=cust.email)
+                    updated += 1
+        return Response({"updated": updated})
 
     @action(detail=True, methods=["get"], url_path="credit-status")
     def credit_status(self, request, pk=None):

@@ -198,7 +198,7 @@ def last_party_rate(item, *, selling, customer=None, supplier=None):
             .first()
         )
         tally = TallyItemLine.objects.filter(
-            item=item, customer=party, voucher_type="Sales", is_inward=False
+            item=item, customer=party, voucher_type__istartswith="Sales", is_inward=False
         )
     else:
         from buying.models import PurchaseInvoiceItem
@@ -216,7 +216,7 @@ def last_party_rate(item, *, selling, customer=None, supplier=None):
             .first()
         )
         tally = TallyItemLine.objects.filter(
-            item=item, supplier=party, voucher_type="Purchase", is_inward=True
+            item=item, supplier=party, voucher_type__istartswith="Purchase", is_inward=True
         )
     line = (
         tally.filter(amount__gt=0)

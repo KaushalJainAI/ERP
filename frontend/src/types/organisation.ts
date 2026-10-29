@@ -29,6 +29,9 @@ export interface CompanyProfile {
   default_inventory_account: number | null;
   stock_adjustment_account: number | null;
   default_expense_account: number | null;
+  default_receivable_account?: number | null;
+  default_payable_account?: number | null;
+  default_income_account?: number | null;
   default_selling_price_list: number | null;
   default_buying_price_list: number | null;
   enable_rounded_total: boolean;
