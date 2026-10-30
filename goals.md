@@ -111,7 +111,7 @@ analysis layer, not the operating system of the business.
 - Every submission is atomic: no half-posted documents.
 - Submitted documents are immutable; only drafts can be deleted.
 - RBAC is least-privilege: read and draft by default; submit, cancel, delete and
-  master-data edits are deliberate grants.
+  master-data edits are deliberate grants (currently one access level by owner decision, 2026-10-31; constraints, audit log and immutability still apply).
 - Audit log answers "who changed what, when".
 - A wrong derived value is fixed by replay, never by manual SQL.
 

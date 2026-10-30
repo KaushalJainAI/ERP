@@ -58,7 +58,7 @@ can be rebuilt from the ledgers. Frontend is a **metadata-driven** React SPA:
 1. **Self-healing.** Store immutable facts (ledgers, audit log); derive
    everything else; if a derived value is wrong, rebuild it via `repost_*`.
    Everything atomic; external effects go through the `Outbox`.
-2. **User-error-proofing.** Least-privilege RBAC; correctness enforced by DB
+2. **User-error-proofing.** Least-privilege RBAC (currently one access level by owner decision, 2026-10-31; constraints, audit log and immutability still apply); correctness enforced by DB
    constraints (`CHECK`/`UNIQUE`/`ON DELETE PROTECT`), not user discipline;
    submitted documents are immutable; users get the least power necessary.
 3. **Multilingual.** 13 languages (English + 12 Indian, `ur` is RTL). UI strings

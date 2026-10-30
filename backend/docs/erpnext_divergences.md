@@ -677,3 +677,10 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **Save tagging**: On create, the frontend passes `X-Assistant-Proposal: <uuid>`. `AuditLogMixin` links the proposal to the saved document, transitions proposal status to `saved`, and tags `{"source": "assistant", "proposal": "<uuid>"}` in `AuditLog.changes`.
 - **Multilingual voice & Indic vocabulary**: Built for Hindi, Hinglish, and Indian regional languages with speech-to-text biased by catalogue and party masters.
 
+## Single access level for all staff (2026-10-31, app `users`)
+
+- **Deliberate exception to least-privilege RBAC:** By owner decision (2026-10-31), all daily staff share a single all-access role (`Staff`) carrying full permissions over all business documents, ledgers, and masters. The role management plane (`users.Role`, `users.RolePermission`, `users.UserRole`) remains restricted to `System Manager` and superusers.
+- **Trade-off accepted by owner:** Every staff member can view financial data, bank details, wages, and reports.
+- **Safeguards preserved:** Database constraints (`CHECK`, `UNIQUE`, `ON DELETE PROTECT`), full audit logging (`AuditLog`), immutable submitted documents (`DocStatus.SUBMITTED`), and ledger posting services remain strictly enforced. Portal workers (`hr.EmployeePortalAccess`) remain role-less and restricted to their own records. The underlying RBAC infrastructure (`users/permissions.py`) remains intact so granular permissions can be re-applied without architectural rework.
+
+
