@@ -221,3 +221,19 @@ SPECTACULAR_SETTINGS = {
 
 # Access & role defaults
 CREDIT_CONTROLLER_ROLE = env("CREDIT_CONTROLLER_ROLE", default="Staff")
+
+# Email and notification settings
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env(
+    "DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER or "webmaster@localhost"
+)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+ADMIN_ALERT_EMAIL = env("ADMIN_ALERT_EMAIL", default=EMAIL_HOST_USER)
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")

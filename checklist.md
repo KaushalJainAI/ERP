@@ -525,7 +525,7 @@ question's recorded answer.
 - [ ] T-8 Rule check (OWNER)
 
 ### 7. Alerts and reminders
-- [ ] N-1 Email settings
+- [x] N-1 Email settings
 - [ ] N-2 Notifications app
 - [ ] N-3 Outbox sender
 - [ ] N-4 Rules engine
