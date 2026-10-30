@@ -24,6 +24,12 @@ from rest_framework.test import APITestCase
 from core.models import Company
 from users.models import Role, RolePermission, User, UserRole
 from users.permissions import HasRolePermission, resolve_model_label
+from accounts.models import Account, AccountRootType, AccountType
+from hr.models import Employee
+from hr.services.portal import ensure_portal_user, set_portal_pin
+from selling.models import Customer, CustomerGroup
+from stock.models import Item, ItemGroup, UOM, Warehouse
+
 
 REPORT_URLS = [
     "/api/accounts/reports/trial-balance/",
@@ -359,3 +365,130 @@ class SeedPermissionMatrixTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
         res = self.client.get("/api/buying/purchase-invoices/")
         self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+
+class StaffRoleTests(APITestCase):
+    """Card A-1: Staff is the single all-access daily work role."""
+
+    def setUp(self):
+        cache.clear()
+        call_command("seed_defaults", verbosity=0)
+        self.staff_role = Role.objects.get(name="Staff")
+        self.staff_user = User.objects.create_user(
+            username="staff_member",
+            email="staff_member@test.com",
+            password="Pass123!",
+        )
+        UserRole.objects.create(user=self.staff_user, role=self.staff_role)
+        self.client.force_authenticate(self.staff_user)
+
+    def test_staff_user_can_submit_sales_invoice_and_read_hr(self):
+        # 1. Read HR
+        res = self.client.get("/api/hr/employees/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        # 2. Submit Sales Invoice
+        company = Company.objects.get(abbr="ACME")
+        debtors = Account.objects.filter(
+            company=company, account_type=AccountType.RECEIVABLE
+        ).first()
+        income = Account.objects.filter(
+            company=company, root_type=AccountRootType.INCOME, is_group=False
+        ).first()
+        cust_group = CustomerGroup.objects.first()
+        customer = Customer.objects.create(
+            name="Test Customer", company=company, customer_group=cust_group
+        )
+        uom = UOM.objects.first()
+        grp = ItemGroup.objects.filter(is_group=False).first()
+        item = Item.objects.create(
+            code="TEST-ITM", name="Test Item", item_group=grp, stock_uom=uom
+        )
+        wh, _ = Warehouse.objects.get_or_create(
+            name="Main WH",
+            company=company,
+            defaults={"is_group": False},
+        )
+
+        invoice_payload = {
+            "name": "SINV-STAFF-1",
+            "customer": customer.id,
+            "company": company.id,
+            "posting_date": "2026-04-03",
+            "update_stock": False,
+            "debit_to": debtors.id,
+            "income_account": income.id,
+            "items": [
+                {
+                    "item": item.id,
+                    "warehouse": wh.id,
+                    "qty": "1.000",
+                    "rate": "100.00",
+                }
+            ],
+        }
+        res_create = self.client.post(
+            "/api/selling/sales-invoices/", invoice_payload, format="json"
+        )
+        self.assertEqual(
+            res_create.status_code, status.HTTP_201_CREATED, res_create.content
+        )
+        inv_id = res_create.data["id"]
+
+        res_submit = self.client.post(f"/api/selling/sales-invoices/{inv_id}/submit/")
+        self.assertEqual(res_submit.status_code, status.HTTP_200_OK, res_submit.content)
+        self.assertEqual(res_submit.data["docstatus"], 1)
+
+    def test_staff_user_cannot_edit_roles(self):
+        # Cannot read or create roles
+        self.assertEqual(
+            self.client.get("/api/auth/roles/").status_code, status.HTTP_403_FORBIDDEN
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/roles/", {"name": "NewRole"}, format="json"
+            ).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        # Cannot edit role permissions
+        self.assertEqual(
+            self.client.get("/api/auth/permissions/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.post(
+                "/api/auth/permissions/",
+                {
+                    "role": self.staff_role.id,
+                    "model_label": "users.Role",
+                    "can_read": True,
+                },
+                format="json",
+            ).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        # Cannot assign roles to users (users.UserRole can_write is required)
+        other_user = User.objects.create_user(
+            username="other", email="other@test.com", password="Pass123!"
+        )
+        res = self.client.patch(
+            f"/api/auth/users/{other_user.id}/",
+            {"role_ids": [self.staff_role.id]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_portal_user_has_no_roles(self):
+        company = Company.objects.get(abbr="ACME")
+        emp = Employee.objects.create(
+            first_name="Ramu",
+            last_name="K",
+            company=company,
+            mobile_no="9876543210",
+            date_of_joining="2026-01-01",
+        )
+        portal_user = ensure_portal_user(emp)
+        self.assertEqual(portal_user.user_roles.count(), 0)
+        set_portal_pin(emp, "9283", self.staff_user)
+        emp.refresh_from_db()
+        self.assertEqual(emp.user.user_roles.count(), 0)

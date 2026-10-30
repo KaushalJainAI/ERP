@@ -44,9 +44,13 @@ ROLES_SEED = [
     ("Accounts Manager", "Full permission over GL, invoices, and payments"),
     ("Sales Manager", "Full permission over selling chain"),
     ("Purchase Manager", "Full permission over buying chain"),
-    ("Manufacturing Manager", "Full permission over BOMs, Work Orders and production entries"),
+    (
+        "Manufacturing Manager",
+        "Full permission over BOMs, Work Orders and production entries",
+    ),
     ("Credit Controller", "May override a customer credit-limit block"),
     ("System Manager", "System administration role"),
+    ("Staff", "All daily work"),
 ]
 
 # --- RBAC seed matrix ---------------------------------------------------------
@@ -319,6 +323,22 @@ ROLE_PERMISSION_MATRIX = {
             READ,
         ),
         **_scope(_MASTER_LABELS, READ),
+    },
+    # All daily work: full access to every API-exposed model except the role control plane.
+    "Staff": {
+        **_scope(
+            [
+                label
+                for label in EXPOSED_MODEL_LABELS
+                if label
+                not in (
+                    "users.Role",
+                    "users.RolePermission",
+                    "users.UserRole",
+                )
+            ],
+            FULL,
+        ),
     },
 }
 # HR roles (hr/seed.py) -- appended so the matrix above stays untouched.

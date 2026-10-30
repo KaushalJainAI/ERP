@@ -92,7 +92,9 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # Default to SQLite for ease of setup/testing, or use DATABASE_URL if PostgreSQL is configured
 DATABASES = {
-    "default": env.db_url("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+    "default": env.db_url(
+        "DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
+    )
 }
 
 # Custom User Model
@@ -171,9 +173,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated",
-    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     # Rate limiting. Anonymous traffic is capped hard; authenticated ERP users
     # get a generous ceiling (bulk data entry is legitimate). The `auth` scope is
     # a brute-force guard applied only to the JWT token endpoint (see
@@ -218,3 +218,6 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# Access & role defaults
+CREDIT_CONTROLLER_ROLE = env("CREDIT_CONTROLLER_ROLE", default="Staff")

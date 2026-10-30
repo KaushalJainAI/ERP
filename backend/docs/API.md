@@ -97,7 +97,7 @@ actions, `No` for ordinary CRUD.
 
 ## 1. Users / auth / RBAC — app: `users` — [users/views.py](../users/views.py)
 
-Models: `Role`, `UserRole`, `RolePermission` (+ custom `User`). User management seeds `users.User` / `users.UserRole` onto the *System Manager* role (`seed_defaults`).
+Models: `Role`, `UserRole`, `RolePermission` (+ custom `User`). User management seeds `users.User` / `users.UserRole` onto the *System Manager* role (`seed_defaults`). An all-access `Staff` role gives full operational authority on daily models excluding role administration.
 
 | URL (`/api/auth/…`) | Methods | What | Access | Complexity | Tested | Serializer | DB tables | Atomic | Notes |
 |-----|--------|------|--------|-----------|--------|-----------|-----------|--------|-------|

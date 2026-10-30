@@ -467,7 +467,7 @@ the waves in the README. **OWNER** means a human does it; **BLOCKED** waits for 
 question's recorded answer.
 
 ### 1. Access and workspaces
-- [ ] A-1 One all-access role
+- [x] A-1 One all-access role
 - [ ] A-2 Record the exception
 - [ ] A-3 Landing workspace
 - [ ] A-4 Workspace home pages
