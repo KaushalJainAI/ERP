@@ -598,6 +598,8 @@ const hi: Record<string, unknown> = {
     delivery_date: "डिलीवरी की तिथि",
     posting_date: "पोस्टिंग तिथि",
     due_date: "देय तिथि",
+    credit_days: "उधार के दिन",
+    credit_days_help: "भुगतान के लिए दिन। कंपनी डिफ़ॉल्ट के लिए खाली छोड़ें।",
     sales_order: "बिक्री आदेश",
     update_stock: "स्टॉक अपडेट करें",
     debit_to: "नामे में (प्राप्य)",

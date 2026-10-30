@@ -494,7 +494,7 @@ question's recorded answer.
 - [ ] P-7 Item and recipe clean-up (OWNER, BLOCKED Q3)
 
 ### 4. Collections and supplier payments
-- [ ] M-1 Credit days
+- [x] M-1 Credit days
 - [ ] M-2 Due dates on bills
 - [ ] M-3 Paid or Due label
 - [ ] M-4 Money to Collect

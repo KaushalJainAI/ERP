@@ -40,6 +40,8 @@ export interface CompanyProfile {
   enable_rounded_total: boolean;
   round_off_account: number | null;
   round_off_gst_values: boolean;
+  default_customer_credit_days?: number;
+  default_supplier_credit_days?: number | null;
 }
 
 export interface DrivePathItem {

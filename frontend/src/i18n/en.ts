@@ -92,6 +92,8 @@ export const enExtra = {
     delivery_date: "Delivery Date",
     posting_date: "Posting Date",
     due_date: "Due Date",
+    credit_days: "Credit Days",
+    credit_days_help: "Payment terms in days. Leave blank to use the company default.",
     sales_order: "Sales Order",
     update_stock: "Update Stock",
     debit_to: "Debit To (Receivable)",

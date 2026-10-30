@@ -85,6 +85,7 @@ class Customer(TimeStampedModel):
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
     bypass_credit_limit_check = models.BooleanField(default=False)
+    credit_days = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -142,9 +143,7 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
         for line in items:
             if line.batch_id and line.batch.item_id != line.item_id:
                 raise ValidationError(
-                    _(
-                        "Item '%(code)s': batch '%(batch)s' belongs to a different item."
-                    )
+                    _("Item '%(code)s': batch '%(batch)s' belongs to a different item.")
                     % {"code": line.item.code, "batch": line.batch.batch_no}
                 )
         self.calculate_taxes_and_totals(for_submit=True)
@@ -323,9 +322,7 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 continue
             if line.batch.item_id != item.pk:
                 raise ValidationError(
-                    _(
-                        "Item '%(code)s': batch '%(batch)s' belongs to a different item."
-                    )
+                    _("Item '%(code)s': batch '%(batch)s' belongs to a different item.")
                     % {"code": item.code, "batch": line.batch.batch_no}
                 )
 

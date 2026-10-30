@@ -84,6 +84,7 @@ class SupplierSerializer(
             "is_active",
             "default_price_list",
             "default_price_list_name",
+            "credit_days",
             "created_at",
             "modified_at",
         )

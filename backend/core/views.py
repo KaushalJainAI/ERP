@@ -267,6 +267,8 @@ class CompanySerializer(serializers.ModelSerializer):
             "enable_rounded_total",
             "round_off_account",
             "round_off_gst_values",
+            "default_customer_credit_days",
+            "default_supplier_credit_days",
         )
         read_only_fields = (
             "id",
@@ -492,7 +494,10 @@ class AttachmentViewSet(
     def _check_parent_company(self, parent):
         """An attachment may only be reached through the active company's parent."""
         company_id = object_company_id(parent)
-        if company_id is not None and company_id != resolve_active_company(self.request).pk:
+        if (
+            company_id is not None
+            and company_id != resolve_active_company(self.request).pk
+        ):
             raise self._not_found()
 
     # -- endpoints --------------------------------------------------------- #

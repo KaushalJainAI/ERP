@@ -200,6 +200,7 @@ const suppliers: ResourceConfig = {
     { key: "phone", labelKey: "fields.phone" },
     { key: "email", labelKey: "fields.email" },
     { key: "default_price_list_name", labelKey: "pl.fields.price_list" },
+    { key: "credit_days", labelKey: "fields.credit_days", type: "number" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
   ],
   fields: [
@@ -217,6 +218,7 @@ const suppliers: ResourceConfig = {
     { key: "email", labelKey: "fields.email", type: "email" },
     { key: "phone", labelKey: "fields.phone", type: "text" },
     { key: "default_price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.supplier_list" },
+    { key: "credit_days", labelKey: "fields.credit_days", type: "number", helpKey: "fields.credit_days_help" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],
 };

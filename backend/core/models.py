@@ -449,6 +449,11 @@ class Company(TimeStampedModel):
     )
     round_off_gst_values = models.BooleanField(default=False)
 
+    # Payment terms (collections & payables): default credit days for customer bills
+    # (standard 90 days) and supplier bills (blank until confirmed).
+    default_customer_credit_days = models.PositiveIntegerField(default=90)
+    default_supplier_credit_days = models.PositiveIntegerField(null=True, blank=True)
+
     class Meta:
         verbose_name_plural = "Companies"
 
@@ -503,9 +508,7 @@ class Company(TimeStampedModel):
             if acc is None:
                 continue
             if self.pk is None or acc.company_id != self.pk or acc.is_group:
-                errors[field] = _(
-                    "Pick a non-group account of this company."
-                )
+                errors[field] = _("Pick a non-group account of this company.")
             elif account_types and acc.account_type not in account_types:
                 errors[field] = _("Pick an account of type %(type)s.") % {
                     "type": account_types[0]

@@ -68,6 +68,7 @@ class Supplier(TimeStampedModel):
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=30, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    credit_days = models.PositiveIntegerField(null=True, blank=True)
     default_price_list = models.ForeignKey(
         "stock.PriceList",
         null=True,
@@ -603,7 +604,7 @@ class PurchaseInvoiceItem(TaxableLine):
                 | models.Q(manufacturing_date__isnull=True)
                 | models.Q(expiry_date__gte=models.F("manufacturing_date")),
                 name="check_purchaseinvoiceitem_expiry_after_manufacturing",
-            )
+            ),
         ]
 
     def save(self, *args, **kwargs):

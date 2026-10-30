@@ -87,6 +87,7 @@ class CustomerSerializer(
             "default_price_list_name",
             "credit_limit",
             "bypass_credit_limit_check",
+            "credit_days",
             "created_at",
             "modified_at",
         )
@@ -101,7 +102,9 @@ class SalesOrderItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
-    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
     rate = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
@@ -204,7 +207,9 @@ class SalesInvoiceItemSerializer(
     warehouse_name = serializers.CharField(
         source="warehouse.name", read_only=True, allow_null=True
     )
-    batch_no = serializers.CharField(source="batch.batch_no", read_only=True, default=None)
+    batch_no = serializers.CharField(
+        source="batch.batch_no", read_only=True, default=None
+    )
     rate = serializers.DecimalField(
         max_digits=18,
         decimal_places=2,
