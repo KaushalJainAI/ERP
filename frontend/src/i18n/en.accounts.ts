@@ -34,6 +34,7 @@ export const enAccounts = {
       general_ledger: "General Ledger",
       profit_loss: "Profit & Loss",
       balance_sheet: "Balance Sheet",
+      advanced: "Advanced",
     },
     res: {
       accounts: "Chart of Accounts",

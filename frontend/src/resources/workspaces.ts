@@ -4,6 +4,7 @@ import {
   BookOpen,
   Boxes,
   Building2,
+  CalendarCheck,
   ClipboardList,
   Factory,
   FileText,
@@ -110,6 +111,7 @@ export const WORKSPACES: WorkspaceDef[] = [
       { path: "/accounts/payment-entries", labelKey: "acc.res.payment_entries", access: ["accounts.PaymentEntry"], icon: Wallet },
       { path: "/accounts/reports/trial-balance", labelKey: "acc.nav.trial_balance", access: ["accounts.GLEntry"], icon: BarChart3 },
       { path: "/accounts/accounts", labelKey: "acc.res.accounts", access: ["accounts.Account"], icon: BookOpen },
+      { path: "/accounts/period-closing-vouchers", labelKey: "acc.nav.advanced", access: ["accounts.PeriodClosingVoucher"], icon: CalendarCheck },
     ],
   },
   {

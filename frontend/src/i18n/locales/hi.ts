@@ -145,6 +145,7 @@ const hi: Record<string, unknown> = {
       general_ledger: "खाता बही",
       profit_loss: "लाभ और हानि",
       balance_sheet: "तुलन पत्र (बैलेंस शीट)",
+      advanced: "उन्नत",
     },
     res: {
       accounts: "खातों का चार्ट",

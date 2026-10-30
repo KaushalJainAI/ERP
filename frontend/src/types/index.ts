@@ -391,6 +391,8 @@ export interface NavLink {
   /** i18n key */
   labelKey: string;
   icon?: ComponentType<{ className?: string }>;
+  /** Hide from the sidebar (still routable). */
+  hideInSidebar?: boolean;
   /** Hide the link for users this returns false for (default: always shown). */
   visible?: (user: UserProfile) => boolean;
   /** Id of a live count badge shown next to the link (see resources/navBadges.ts). */

@@ -60,6 +60,7 @@ export function useModuleNav(): ModuleNav[] {
         const add = (link: NavLink, group: NavGroupKey) => buckets[group].push(link);
 
         (m.extraLinks ?? []).forEach((l) => {
+          if (l.hideInSidebar) return;
           if (l.visible && (user === null || !l.visible(user))) return;
           add(l, l.group ?? (isReport(l) ? "reports" : "tools"));
         });

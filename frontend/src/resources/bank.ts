@@ -64,6 +64,7 @@ const periodClosingVouchers: ResourceConfig = {
   singularKey: "bank.res.period_closing",
   icon: CalendarCheck,
   submittable: true,
+  hideInSidebar: true,
   ordering: "-period_end_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },

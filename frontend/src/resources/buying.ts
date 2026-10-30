@@ -229,6 +229,7 @@ const purchaseOrders: ResourceConfig = {
   singularKey: "bs.res.purchase_order",
   icon: ShoppingBag,
   submittable: true,
+  hideInSidebar: true,
   ordering: "-transaction_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },

@@ -230,6 +230,7 @@ const itemAttributes: ResourceConfig = {
   titleKey: "vr.res.item_attributes",
   singularKey: "vr.res.item_attribute",
   icon: ListChecks,
+  hideInSidebar: true,
   titleField: "name",
   ordering: "name",
   columns: [
@@ -296,6 +297,7 @@ const stockEntries: ResourceConfig = {
   singularKey: "bs.res.stock_entry",
   icon: ArrowLeftRight,
   submittable: true,
+  hideInSidebar: true,
   ordering: "-posting_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },
@@ -605,6 +607,7 @@ const batches: ResourceConfig = {
   titleKey: "bs.res.batches",
   singularKey: "bs.res.batch",
   icon: Tags,
+  hideInSidebar: true,
   titleField: "batch_no",
   ordering: "-created_at",
   columns: [
@@ -726,6 +729,7 @@ const batchWiseBalance: ReportConfig = {
   endpoint: "/stock/reports/batch-wise-balance/",
   titleKey: "bs.res.batch_wise_balance",
   icon: Tags,
+  hideInSidebar: true,
   filters: [
     { key: "item", labelKey: "fields.item", type: "link", link: { ...itemLink, fill: undefined } },
     { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },
@@ -769,6 +773,7 @@ const expiryReport: ReportConfig = {
   endpoint: "/stock/reports/expiry/",
   titleKey: "bs.res.expiry_report",
   icon: CalendarClock,
+  hideInSidebar: true,
   filters: [
     { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
     { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },

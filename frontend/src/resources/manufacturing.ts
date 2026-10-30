@@ -90,6 +90,7 @@ const workOrders: ResourceConfig = {
   singularKey: "mf.res.work_order",
   icon: Factory,
   submittable: true,
+  hideInSidebar: true,
   titleField: "name",
   ordering: "-created_at",
   columns: [

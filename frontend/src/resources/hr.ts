@@ -230,6 +230,7 @@ const wageRates: ResourceConfig = {
   titleKey: "hrm.res.wage_rates",
   singularKey: "hrm.res.wage_rate",
   icon: IndianRupee,
+  hideInSidebar: true,
   titleField: "employee_name",
   ordering: "-from_date",
   columns: [
@@ -284,6 +285,7 @@ const salaryComponents: ResourceConfig = {
   titleKey: "hrm.res.salary_components",
   singularKey: "hrm.res.salary_component",
   icon: Layers,
+  hideInSidebar: true,
   ordering: "name",
   columns: [
     { key: "name", labelKey: "hrm.fields.name" },
@@ -504,6 +506,7 @@ const leaveTypes: ResourceConfig = {
   titleKey: "hrm.res.leave_types",
   singularKey: "hrm.res.leave_type",
   icon: CalendarCheck,
+  hideInSidebar: true,
   ordering: "name",
   columns: [
     { key: "name", labelKey: "hrm.fields.name" },
@@ -528,6 +531,7 @@ const leaveAllocations: ResourceConfig = {
   singularKey: "hrm.res.leave_allocation",
   icon: CalendarDays,
   submittable: true,
+  hideInSidebar: true,
   titleField: "name",
   ordering: "-from_date",
   columns: [
@@ -559,6 +563,7 @@ const leaveApplications: ResourceConfig = {
   singularKey: "hrm.res.leave_application",
   icon: FileText,
   submittable: true,
+  hideInSidebar: true,
   titleField: "name",
   ordering: "-posting_date",
   columns: [
@@ -615,6 +620,7 @@ export const hrReports: ReportConfig[] = [
     endpoint: "/hr/reports/leave-balance/",
     titleKey: "hrm.reports.leave_balance",
     icon: CalendarCheck,
+    hideInSidebar: true,
     filters: [
       { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
       { key: "employee", labelKey: "hrm.fields.employee", type: "link", link: employeeLink },
