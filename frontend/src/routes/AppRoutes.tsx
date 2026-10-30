@@ -35,6 +35,7 @@ import { ReportPage } from "@/components/doc/ReportPage";
 import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
 import { SalesAnalyticsPage } from "@/pages/selling/SalesAnalyticsPage";
+import { PendingOrdersPage } from "@/pages/selling/PendingOrdersPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
@@ -356,6 +357,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <MusterRollPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/selling/pending-orders"
+        element={
+          <ProtectedRoute>
+            <PendingOrdersPage />
           </ProtectedRoute>
         }
       />

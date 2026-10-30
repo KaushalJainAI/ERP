@@ -1,6 +1,6 @@
 import { apiClient } from "@/api/client";
 import { createElement } from "react";
-import { BarChart3, FilePlus2, Receipt, RefreshCw, ShoppingCart, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
+import { BarChart3, FilePlus2, Receipt, RefreshCw, ShoppingCart, Truck, Undo2, UserSquare2, Users, Wallet } from "lucide-react";
 import { fetchCompanies } from "@/api/lookups";
 import { getActiveCompanyId } from "@/lib/company";
 import { CreditBanner } from "@/components/stock/CreditBanner";
@@ -432,6 +432,13 @@ const salesInvoices: ResourceConfig = {
 export const sellingResources: ResourceConfig[] = [customers, customerGroups, salesOrders, salesInvoices];
 
 export const sellingLinks: NavLink[] = [
+  {
+    path: "/selling/pending-orders",
+    labelKey: "pending_orders.nav_title",
+    icon: Truck,
+    group: "transactions",
+    visible: (u) => hasReadAccess(u.readable_models, ["selling.SalesOrder"]),
+  },
   {
     path: "/selling/analytics",
     labelKey: "selling_kpi.nav_title",
