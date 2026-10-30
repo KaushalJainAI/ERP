@@ -173,6 +173,7 @@ class SalesOrderSerializer(
             "place_of_supply_name",
             "taxes_and_charges_name",
             "docstatus",
+            "dispatch_status",
             "amended_from",
             "items",
             "taxes",
@@ -182,6 +183,7 @@ class SalesOrderSerializer(
         read_only_fields = (
             "id",
             "docstatus",
+            "dispatch_status",
             "grand_total",
             *TAX_HEADER_READ_ONLY,
             "created_at",

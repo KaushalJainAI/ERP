@@ -146,7 +146,9 @@ class Command(BaseCommand):
             details={
                 "errors": batch_errors,
                 "warnings": batch_warnings,
-                "message": "" if batch_errors else "Batch balances and ledger rows agree.",
+                "message": (
+                    "" if batch_errors else "Batch balances and ledger rows agree."
+                ),
             },
         )
         errors.extend(batch_errors)
@@ -165,7 +167,11 @@ class Command(BaseCommand):
             details={
                 "errors": manu_errors,
                 "warnings": manu_warnings,
-                "message": "" if manu_errors else "Manufacturing vouchers and Work Order progress agree.",
+                "message": (
+                    ""
+                    if manu_errors
+                    else "Manufacturing vouchers and Work Order progress agree."
+                ),
             },
         )
         errors.extend(manu_errors)
@@ -183,7 +189,11 @@ class Command(BaseCommand):
             details={
                 "errors": hr_errors,
                 "warnings": hr_warnings,
-                "message": "" if hr_errors else "HR slips, advances and payments agree with the ledger.",
+                "message": (
+                    ""
+                    if hr_errors
+                    else "HR slips, advances and payments agree with the ledger."
+                ),
             },
         )
         errors.extend(hr_errors)
@@ -200,7 +210,11 @@ class Command(BaseCommand):
             status="alert" if attachment_errors else "ok",
             details={
                 "errors": attachment_errors,
-                "message": "" if attachment_errors else "All attachment files match their records.",
+                "message": (
+                    ""
+                    if attachment_errors
+                    else "All attachment files match their records."
+                ),
             },
         )
         errors.extend(attachment_errors)
@@ -215,7 +229,11 @@ class Command(BaseCommand):
             status="alert" if reco_errors else "ok",
             details={
                 "errors": reco_errors,
-                "message": "" if reco_errors else "Stock Reconciliations agree with the stock ledger.",
+                "message": (
+                    ""
+                    if reco_errors
+                    else "Stock Reconciliations agree with the stock ledger."
+                ),
             },
         )
         errors.extend(reco_errors)
@@ -229,7 +247,9 @@ class Command(BaseCommand):
             status="alert" if tally_errors else "ok",
             details={
                 "errors": tally_errors,
-                "message": "" if tally_errors else "Tally export files match the export log.",
+                "message": (
+                    "" if tally_errors else "Tally export files match the export log."
+                ),
             },
         )
         errors.extend(tally_errors)
@@ -244,7 +264,11 @@ class Command(BaseCommand):
             status="alert" if bank_errors else "ok",
             details={
                 "errors": bank_errors,
-                "message": "" if bank_errors else "Bank clearances and matches agree with the ledger.",
+                "message": (
+                    ""
+                    if bank_errors
+                    else "Bank clearances and matches agree with the ledger."
+                ),
             },
         )
         errors.extend(bank_errors)
@@ -260,7 +284,11 @@ class Command(BaseCommand):
             details={
                 "errors": pcv_errors,
                 "warnings": pcv_warnings,
-                "message": "" if pcv_errors else "Period Closing Vouchers agree with the ledger.",
+                "message": (
+                    ""
+                    if pcv_errors
+                    else "Period Closing Vouchers agree with the ledger."
+                ),
             },
         )
         errors.extend(pcv_errors)
@@ -277,10 +305,32 @@ class Command(BaseCommand):
             status="alert" if payrecon_errors else "ok",
             details={
                 "errors": payrecon_errors,
-                "message": "" if payrecon_errors else "Payment reconciliations agree with the ledger.",
+                "message": (
+                    ""
+                    if payrecon_errors
+                    else "Payment reconciliations agree with the ledger."
+                ),
             },
         )
         errors.extend(payrecon_errors)
+
+        # 16. Sales Order dispatch status: stored dispatch_status matches submitted invoices.
+        from selling.services import dispatch as dispatch_service
+
+        order_errors = dispatch_service.integrity_errors()
+        SystemHealthCheck.objects.create(
+            check_name="sales_order_dispatch_integrity",
+            status="alert" if order_errors else "ok",
+            details={
+                "errors": order_errors,
+                "message": (
+                    ""
+                    if order_errors
+                    else "All Sales Order dispatch statuses match invoices."
+                ),
+            },
+        )
+        errors.extend(order_errors)
 
         # Record Health Status
         status_str = "alert" if errors else "ok"
@@ -332,12 +382,9 @@ class Command(BaseCommand):
             )
             for warehouse in warehouses:
                 account = warehouse.account or default
-                value = (
-                    Bin.objects.filter(warehouse=warehouse).aggregate(
-                        v=Sum("stock_value")
-                    )["v"]
-                    or Decimal("0.00")
-                )
+                value = Bin.objects.filter(warehouse=warehouse).aggregate(
+                    v=Sum("stock_value")
+                )["v"] or Decimal("0.00")
                 expected[account.pk] = expected.get(account.pk, Decimal("0.00")) + value
 
             for account_pk, stock_value in expected.items():
@@ -381,4 +428,6 @@ class Command(BaseCommand):
     def _account_label(account_pk):
         from accounts.models import Account
 
-        return Account.objects.filter(pk=account_pk).values_list("name", flat=True).first()
+        return (
+            Account.objects.filter(pk=account_pk).values_list("name", flat=True).first()
+        )

@@ -476,7 +476,7 @@ question's recorded answer.
 - [ ] A-7 Remove demo company (OWNER)
 
 ### 2. Orders, dispatch and billing
-- [ ] O-1 Dispatch status
+- [x] O-1 Dispatch status
 - [ ] O-2 Pending orders service
 - [ ] O-3 Dispatch action
 - [ ] O-4 Bill numbering

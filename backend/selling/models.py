@@ -21,6 +21,12 @@ from accounts.models import (
 from stock.models import Batch, Item, Warehouse
 
 
+class DispatchStatus(models.TextChoices):
+    PENDING = "Pending", "Pending"
+    PART_DISPATCHED = "Part Dispatched", "Part Dispatched"
+    DISPATCHED = "Dispatched", "Dispatched"
+
+
 class CustomerGroup(TimeStampedModel):
     """Customer Group tree node."""
 
@@ -109,7 +115,13 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
     party_field = "customer"
 
     class Meta(TaxableDocument.Meta):
-        pass
+        constraints = [
+            *TaxableDocument.Meta.constraints,
+            models.CheckConstraint(
+                check=models.Q(dispatch_status__in=DispatchStatus.values),
+                name="check_sales_order_dispatch_status_valid",
+            ),
+        ]
 
     customer = models.ForeignKey(
         Customer, on_delete=models.PROTECT, related_name="sales_orders"
@@ -128,6 +140,11 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
         blank=True,
         on_delete=models.PROTECT,
         related_name="+",
+    )
+    dispatch_status = models.CharField(
+        max_length=20,
+        choices=DispatchStatus.choices,
+        default=DispatchStatus.PENDING,
     )
 
     def submit(self, user=None):
@@ -438,6 +455,10 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         outstanding_service.refresh(self)
         if self.return_against_id:
             outstanding_service.refresh(self.return_against)
+        if self.sales_order_id:
+            from selling.services import dispatch as dispatch_service
+
+            dispatch_service.refresh_status(self.sales_order)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
@@ -452,6 +473,10 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         outstanding_service.refresh(self)
         if self.return_against_id:
             outstanding_service.refresh(self.return_against)
+        if self.sales_order_id:
+            from selling.services import dispatch as dispatch_service
+
+            dispatch_service.refresh_status(self.sales_order)
 
     def __str__(self):
         return f"{self.name} - {self.customer.name} ({self.grand_total})"
