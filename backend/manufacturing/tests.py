@@ -188,7 +188,9 @@ class ManuBase(TestCase):
         self.receipt(self.salt, self.raw, "20", "20")
         bom = self.bom(**kw)
         wo = self.submit_wo(self.work_order(bom))
-        transfer = wo_service.make_stock_entry(wo, StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE)
+        transfer = wo_service.make_stock_entry(
+            wo, StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE
+        )
         transfer.submit()
         wo.refresh_from_db()
         manufacture = wo_service.make_stock_entry(wo, StockEntryType.MANUFACTURE)
@@ -236,10 +238,10 @@ class BOMTests(ManuBase):
         bom.item = self.powder
         from manufacturing.services import boms as boms_service
 
-        with self.assertRaisesMessage(ValidationError, "cannot also be a BOM component"):
-            boms_service.validate_bom_rows(
-                bom, [{"item": self.powder}], []
-            )
+        with self.assertRaisesMessage(
+            ValidationError, "cannot also be a BOM component"
+        ):
+            boms_service.validate_bom_rows(bom, [{"item": self.powder}], [])
 
     def test_sub_bom_must_make_the_component_item(self):
         from manufacturing.services import boms as boms_service
@@ -344,8 +346,14 @@ class TransferTests(ManuBase):
             {r.item.code: r.transferred_qty for r in wo.required_items.all()},
             {"TURMERIC": D("80.000"), "SALT": D("20.000")},
         )
-        self.assertEqual(Bin.objects.get(item=self.turmeric, warehouse=self.wip).actual_qty, D("80.000"))
-        self.assertEqual(Bin.objects.get(item=self.turmeric, warehouse=self.raw).actual_qty, D("0.000"))
+        self.assertEqual(
+            Bin.objects.get(item=self.turmeric, warehouse=self.wip).actual_qty,
+            D("80.000"),
+        )
+        self.assertEqual(
+            Bin.objects.get(item=self.turmeric, warehouse=self.raw).actual_qty,
+            D("0.000"),
+        )
         rows, debit, credit = self.gl(transfer)
         self.assertEqual(debit, credit)
         self.assertEqual(
@@ -376,8 +384,13 @@ class ManufactureTests(ManuBase):
         self.assertEqual(wo.status, WorkOrderStatus.COMPLETED)
         self.assertEqual(wo.produced_qty, D("98.750"))
         self.assertEqual(wo.process_loss_qty, D("1.250"))
-        self.assertEqual(Bin.objects.get(item=self.powder, warehouse=self.fg).actual_qty, D("98.750"))
-        self.assertEqual(Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value, D("8395.00"))
+        self.assertEqual(
+            Bin.objects.get(item=self.powder, warehouse=self.fg).actual_qty, D("98.750")
+        )
+        self.assertEqual(
+            Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value,
+            D("8395.00"),
+        )
         finished = entry.items.get(is_finished_item=True)
         self.assertEqual(finished.qty, D("98.750"))
         self.assertEqual(finished.valuation_rate, D("85.012658"))
@@ -473,7 +486,8 @@ class ManufactureTests(ManuBase):
             Bin.objects.get(item=self.dust, warehouse=self.scrap).stock_value, D("5.00")
         )
         self.assertEqual(
-            Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value, D("8395.00")
+            Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value,
+            D("8395.00"),
         )
 
     def test_cancel_reverses_ledger_gl_and_progress(self):
@@ -483,7 +497,9 @@ class ManufactureTests(ManuBase):
         wo = WorkOrder.objects.get(pk=entry.work_order_id)
         self.assertEqual(wo.produced_qty, D("0.000"))
         self.assertEqual(wo.status, WorkOrderStatus.IN_PROCESS)
-        self.assertEqual(Bin.objects.get(item=self.powder, warehouse=self.fg).actual_qty, D("0.000"))
+        self.assertEqual(
+            Bin.objects.get(item=self.powder, warehouse=self.fg).actual_qty, D("0.000")
+        )
         rows = GLEntry.objects.filter(voucher_no=entry.name)
         self.assertTrue(rows.exists())
         self.assertEqual(
@@ -548,7 +564,8 @@ class RepackTests(ManuBase):
         self.assertEqual(entry.fg_completed_qty, D("10.000"))
         self.assertEqual(entry.process_loss_qty, D("0.000"))
         self.assertEqual(
-            Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value, D("600.00")
+            Bin.objects.get(item=self.powder, warehouse=self.fg).stock_value,
+            D("600.00"),
         )
         self.assertEqual(
             Bin.objects.get(item=self.salt, warehouse=self.fg).stock_value, D("400.00")
@@ -623,9 +640,7 @@ class BatchManufacturingTests(ManuBase):
         from manufacturing.models import BOMItem
 
         BOMItem.objects.create(bom=bom, idx=1, item=self.batch_raw, qty=D("10"))
-        wo = self.submit_wo(
-            self.work_order(bom, qty="10", name="WO-BATCH")
-        )
+        wo = self.submit_wo(self.work_order(bom, qty="10", name="WO-BATCH"))
         wo_service.make_stock_entry(
             wo, StockEntryType.MATERIAL_TRANSFER_FOR_MANUFACTURE
         ).submit()
@@ -695,7 +710,9 @@ class ManufacturingApiTests(ManuBase):
                     {"item": self.turmeric.pk, "qty": "80.000"},
                     {"item": self.salt.pk, "qty": "20.000"},
                 ],
-                "scrap_items": [{"item": self.dust.pk, "qty": "1.000", "rate": "5.000000"}],
+                "scrap_items": [
+                    {"item": self.dust.pk, "qty": "1.000", "rate": "5.000000"}
+                ],
             },
             format="json",
         )
@@ -772,7 +789,9 @@ class ManufacturingApiTests(ManuBase):
     def test_production_yield_report(self):
         _, _, entry = self.run_wo()
         entry.submit()
-        r = self.c.get(f"/api/manufacturing/reports/production-yield/?company={self.company.pk}")
+        r = self.c.get(
+            f"/api/manufacturing/reports/production-yield/?company={self.company.pk}"
+        )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(len(r.data["rows"]), 1)
         self.assertEqual(r.data["rows"][0]["produced_qty"], "98.750")
@@ -780,7 +799,68 @@ class ManufacturingApiTests(ManuBase):
 
     def test_bom_cost_report(self):
         self.bom(rate_basis="Standard Rate")
-        r = self.c.get(f"/api/manufacturing/reports/bom-cost/?company={self.company.pk}")
+        r = self.c.get(
+            f"/api/manufacturing/reports/bom-cost/?company={self.company.pk}"
+        )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(len(r.data["rows"]), 1)
         self.assertEqual(r.data["rows"][0]["unit_cost"], "85.012658")
+
+    def test_work_order_batch_stage_constraint(self):
+        """P-2: stage='Ready' requires produced_qty > 0 enforced by CheckConstraint."""
+        from django.db import IntegrityError, transaction
+        from manufacturing.models import BatchStage
+
+        bom = self.bom()
+        wo = self.work_order(bom)
+        self.assertEqual(wo.stage, BatchStage.GRINDING)
+
+        # Updating stage to Ready with produced_qty=0 raises IntegrityError
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                WorkOrder.objects.filter(pk=wo.pk).update(
+                    stage=BatchStage.READY, produced_qty=D("0")
+                )
+
+        # Updating stage to Ready with produced_qty > 0 passes
+        WorkOrder.objects.filter(pk=wo.pk).update(
+            stage=BatchStage.READY, produced_qty=D("10.000")
+        )
+        wo.refresh_from_db()
+        self.assertEqual(wo.stage, BatchStage.READY)
+        self.assertEqual(wo.produced_qty, D("10.000"))
+
+    def test_work_order_serializer_stage_is_read_only(self):
+        """P-2: stage is read-only over the API / serializer; direct writes are ignored."""
+        from manufacturing.models import BatchStage
+
+        bom = self.bom()
+        # Direct write to stage on create is ignored, defaults to Grinding
+        r = self.c.post(
+            "/api/manufacturing/work-orders/",
+            {
+                "company": self.company.pk,
+                "production_item": self.powder.pk,
+                "bom": bom.pk,
+                "qty": "100.000",
+                "source_warehouse": self.raw.pk,
+                "wip_warehouse": self.wip.pk,
+                "fg_warehouse": self.fg.pk,
+                "stage": BatchStage.PACKING,
+            },
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.data["stage"], BatchStage.GRINDING)
+        wo_id = r.data["id"]
+
+        # Direct write to stage on update is ignored
+        r = self.c.patch(
+            f"/api/manufacturing/work-orders/{wo_id}/",
+            {"stage": BatchStage.READY},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.data["stage"], BatchStage.GRINDING)
+        wo = WorkOrder.objects.get(pk=wo_id)
+        self.assertEqual(wo.stage, BatchStage.GRINDING)

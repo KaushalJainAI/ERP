@@ -486,7 +486,7 @@ question's recorded answer.
 
 ### 3. Production and stock
 - [x] P-1 Warehouses and stock constraints
-- [ ] P-2 Batch stage
+- [x] P-2 Batch stage
 - [ ] P-3 Batch service (BLOCKED Q2)
 - [ ] P-4 Today's Batches page
 - [ ] P-5 Stock view

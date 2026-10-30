@@ -19,7 +19,9 @@ class BOMItemSerializer(serializers.ModelSerializer):
     item_code = serializers.CharField(source="item.code", read_only=True)
     item_name = serializers.CharField(source="item.name", read_only=True)
     stock_uom = serializers.CharField(source="item.stock_uom.name", read_only=True)
-    bom_no_name = serializers.CharField(source="bom_no.name", read_only=True, default=None)
+    bom_no_name = serializers.CharField(
+        source="bom_no.name", read_only=True, default=None
+    )
 
     class Meta:
         model = BOMItem
@@ -191,9 +193,7 @@ class BOMSerializer(NestedMasterWriteMixin, serializers.ModelSerializer):
         try:
             boms_service.validate_bom_rows(probe, rows, scrap_rows)
         except Exception as exc:
-            raise serializers.ValidationError(
-                getattr(exc, "messages", [str(exc)])
-            )
+            raise serializers.ValidationError(getattr(exc, "messages", [str(exc)]))
         return attrs
 
     def _write_scrap(self, bom, rows):
@@ -305,6 +305,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "produced_qty",
             "process_loss_qty",
             "status",
+            "stage",
             "docstatus",
             "amended_from",
             "required_items",
@@ -318,6 +319,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "produced_qty",
             "process_loss_qty",
             "status",
+            "stage",
             "docstatus",
             "amended_from",
             "required_items",

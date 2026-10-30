@@ -139,6 +139,12 @@ class BOMScrapItem(models.Model):
         return f"{self.bom.name} scrap - {self.item.code} ({self.qty})"
 
 
+class BatchStage(models.TextChoices):
+    GRINDING = "Grinding", "Grinding"
+    PACKING = "Packing", "Packing"
+    READY = "Ready", "Ready"
+
+
 class WorkOrderStatus(models.TextChoices):
     DRAFT = "Draft", "Draft"
     NOT_STARTED = "Not Started", "Not Started"
@@ -202,6 +208,11 @@ class WorkOrder(SubmittableDocument):
         choices=WorkOrderStatus.choices,
         default=WorkOrderStatus.DRAFT,
     )
+    stage = models.CharField(
+        max_length=20,
+        choices=BatchStage.choices,
+        default=BatchStage.GRINDING,
+    )
 
     class Meta:
         verbose_name = "Work Order"
@@ -214,6 +225,10 @@ class WorkOrder(SubmittableDocument):
                 & models.Q(process_loss_qty__gte=0)
                 & models.Q(produced_qty__lte=models.F("qty")),
                 name="check_workorder_progress_bounds",
+            ),
+            models.CheckConstraint(
+                check=~models.Q(stage=BatchStage.READY) | models.Q(produced_qty__gt=0),
+                name="check_workorder_ready_requires_produced_qty",
             ),
         ]
 
