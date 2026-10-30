@@ -526,7 +526,7 @@ question's recorded answer.
 
 ### 7. Alerts and reminders
 - [x] N-1 Email settings
-- [ ] N-2 Notifications app
+- [x] N-2 Notifications app
 - [ ] N-3 Outbox sender
 - [ ] N-4 Rules engine
 - [ ] N-5 Raw material shortage

@@ -337,6 +337,7 @@ const hi: Record<string, unknown> = {
       valuation_method: "मूल्यांकन विधि",
       valuation_rate: "मूल्यांकन दर",
       standard_rate: "मानक दर",
+      critical_stock: "न्यूनतम स्टॉक",
       is_stock_item: "स्टॉक रखें",
       description: "विवरण",
       parent_warehouse: "मूल गोदाम",

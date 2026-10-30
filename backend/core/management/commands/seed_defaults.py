@@ -18,6 +18,7 @@ from hr.services.setup import ensure_hr_setup
 from buying.services.charges import ensure_charge_setup
 from tally_export.seed import TALLY_EXPORT_LABELS
 from payment_reconciliation.seed import PAYMENT_RECONCILIATION_LABELS
+from notifications.seed import seed_alert_rules
 
 
 LANGUAGES_SEED = [
@@ -589,6 +590,9 @@ class Command(BaseCommand):
         # 10. Purchase-bill charges: Freight / Hamali accounts, Expenses Included
         # In Valuation and the charge templates.
         ensure_charge_setup(company)
+
+        # 11. Notifications: default alert rules
+        seed_alert_rules()
 
         self.stdout.write(
             self.style.SUCCESS("Successfully seeded default data idempotently.")

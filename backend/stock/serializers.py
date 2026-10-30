@@ -86,6 +86,7 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
             "is_stock_item",
             "valuation_method",
             "standard_rate",
+            "critical_stock",
             "is_active",
             "gst_hsn_code",
             "is_nil_exempt",
@@ -217,7 +218,6 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
                     }
                 )
         return attrs
-
 
     def _apply_template_attributes(self, item, ids):
         try:

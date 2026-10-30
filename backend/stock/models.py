@@ -63,6 +63,9 @@ class Item(TimeStampedModel):
         max_digits=18, decimal_places=6, default=Decimal("0.000000")
     )
     is_active = models.BooleanField(default=True)
+    critical_stock = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal("0.000")
+    )
 
     # GST: HSN/SAC (digits only, 4/6/8 long when set), nil/exempt/non-GST flags and
     # the item's rate set. All optional so documents created without them still work.
@@ -137,6 +140,10 @@ class Item(TimeStampedModel):
                 | (models.Q(has_expiry_date=True) & models.Q(shelf_life_in_days__gt=0)),
                 name="check_item_shelf_life_valid",
             ),
+            models.CheckConstraint(
+                check=models.Q(critical_stock__gte=0),
+                name="check_item_critical_stock_non_negative",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -144,9 +151,11 @@ class Item(TimeStampedModel):
         touches_flags = update_fields is None or bool(
             {"has_batch_no", "has_expiry_date"} & set(update_fields)
         )
-        if self.has_variants and self.pk and StockLedgerEntry.objects.filter(
-            item_id=self.pk
-        ).exists():
+        if (
+            self.has_variants
+            and self.pk
+            and StockLedgerEntry.objects.filter(item_id=self.pk).exists()
+        ):
             raise ValidationError(
                 _(
                     "Item '%(code)s' already has stock ledger entries and cannot "
@@ -303,9 +312,7 @@ class Warehouse(TimeStampedModel):
             account = self.account
             if account.company_id != self.company_id:
                 raise ValidationError(
-                    _(
-                        "Warehouse account '%(account)s' belongs to a different company."
-                    )
+                    _("Warehouse account '%(account)s' belongs to a different company.")
                     % {"account": account.name}
                 )
             if account.is_group:
@@ -680,8 +687,9 @@ class StockEntry(SubmittableDocument):
                     % {"code": item.code}
                 )
             return
-        if self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT or self._is_inward_line(
-            line
+        if (
+            self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT
+            or self._is_inward_line(line)
         ):
             # A new batch will be created at submit: refuse now if it cannot be
             # given an expiry date.
@@ -831,9 +839,7 @@ class StockEntry(SubmittableDocument):
         if net:
             adjustment = perpetual["stock_adjustment_account"]
             if net > 0:
-                gl_entries.append(
-                    {"account": adjustment, "debit": zero, "credit": net}
-                )
+                gl_entries.append({"account": adjustment, "debit": zero, "credit": net})
             else:
                 gl_entries.append(
                     {"account": adjustment, "debit": -net, "credit": zero}

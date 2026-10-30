@@ -157,6 +157,7 @@ const items: ResourceConfig = {
     { key: "item_tax_template_name", labelKey: "gst.fields.item_tax_template" },
     { key: "valuation_method", labelKey: "bs.fields.valuation_method" },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "number", render: rateCell },
+    { key: "critical_stock", labelKey: "bs.fields.critical_stock", type: "number", render: qtyCell },
     { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean" },
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean" },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
@@ -175,6 +176,7 @@ const items: ResourceConfig = {
       defaultValue: "FIFO",
     },
     { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "decimal", decimals: 6, defaultValue: "0" },
+    { key: "critical_stock", labelKey: "bs.fields.critical_stock", type: "decimal", decimals: 3, defaultValue: "0" },
     // A template groups variants and is never stocked: the server forces this off.
     { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true, hidden: (v) => !!v.has_variants },
     // Variants (ERPNext Item Variants): a template varies by attributes; a variant is made with "Create Variant".

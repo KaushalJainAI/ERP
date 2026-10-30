@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "tally_export.apps.TallyExportConfig",
     "payment_reconciliation.apps.PaymentReconciliationConfig",
     "assistant.apps.AssistantConfig",
+    "notifications",
 ]
 
 MIDDLEWARE = [

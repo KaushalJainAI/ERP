@@ -59,6 +59,7 @@ export const enBuyingStock = {
       valuation_method: "Valuation Method",
       valuation_rate: "Valuation Rate",
       standard_rate: "Standard Rate",
+      critical_stock: "Critical Stock",
       is_stock_item: "Maintain Stock",
       description: "Description",
       parent_warehouse: "Parent Warehouse",
