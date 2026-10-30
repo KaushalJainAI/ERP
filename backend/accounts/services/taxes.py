@@ -23,6 +23,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Dict, List, Optional
 
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 
 ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
@@ -151,9 +152,9 @@ def calculate(
         rounding_adjustment = ZERO
 
     # 4. Per-line GST columns.
-    line_results = [LineResult() for _ in lines]
-    head_amounts = [{h: ZERO for h in GST_HEADS} for _ in lines]
-    head_rates = [{h: Decimal("0") for h in GST_HEADS} for _ in lines]
+    line_results = [LineResult() for _line in lines]
+    head_amounts = [{h: ZERO for h in GST_HEADS} for _line in lines]
+    head_rates = [{h: Decimal("0") for h in GST_HEADS} for _line in lines]
     for ri, row in enumerate(rows):
         comp = row.component
         if comp not in GST_HEADS:
@@ -163,8 +164,11 @@ def calculate(
         residual = row_results[ri].tax_amount - sum(per_line, ZERO)
         if abs(residual) > Decimal("0.5") + CENT * len(lines):
             raise ValidationError(
-                "Tax rounding drift: row total and line amounts disagree "
-                f"by {residual}."
+                _(
+                    "Tax rounding drift: row total and line amounts disagree "
+                    "by %(residual)s."
+                )
+                % {"residual": residual}
             )
         if residual and taxed:
             # Positive residual goes on the last taxed line; a negative one spills
@@ -193,7 +197,9 @@ def calculate(
             else (head_rates[li]["CGST"] + head_rates[li]["SGST"])
         )
         if gst_rate > HUNDRED:
-            raise ValidationError("The combined GST rate of a line cannot exceed 100%.")
+            raise ValidationError(
+                _("The combined GST rate of a line cannot exceed 100%.")
+            )
         res.gst_rate = gst_rate.quantize(RATE_QUANT, rounding=ROUND_HALF_UP)
 
     return Result(

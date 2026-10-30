@@ -544,7 +544,7 @@ question's recorded answer.
 - [ ] H-5 Read tools
 - [ ] H-6 More proposals
 - [ ] H-7 Evaluation (OWNER for sentences)
-- [ ] L-1 Mark everything
+- [x] L-1 Mark everything
 - [ ] L-2 Guard test
 - [ ] L-3 Build setup
 - [ ] L-4 Hindi

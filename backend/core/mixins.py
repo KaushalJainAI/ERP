@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 
 from django.db import models as dj_models, transaction
+from django.utils.translation import gettext as _
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -23,7 +24,7 @@ class PositiveQtyLineItemMixin:
 
     def validate_qty(self, value):
         if value is None or value <= 0:
-            raise DRFValidationError("Quantity must be greater than zero.")
+            raise DRFValidationError(_("Quantity must be greater than zero."))
         return value
 
 
@@ -32,7 +33,7 @@ class NonNegativeRateLineItemMixin:
 
     def validate_rate(self, value):
         if value is not None and value < 0:
-            raise DRFValidationError("Rate cannot be negative.")
+            raise DRFValidationError(_("Rate cannot be negative."))
         return value
 
 
@@ -95,7 +96,6 @@ class DraftNestedWriteMixin:
             for row in attrs.get(field) or []:
                 line_item = row.get("item") if hasattr(row, "get") else None
                 if getattr(line_item, "has_variants", False):
-                    from django.utils.translation import gettext as _
 
                     raise DRFValidationError(
                         {
@@ -126,7 +126,7 @@ class DraftNestedWriteMixin:
                             {
                                 field: {
                                     index: {
-                                        name: ["This field is required."]
+                                        name: [_("This field is required.")]
                                         for name in missing
                                     }
                                 }
@@ -268,7 +268,7 @@ class DraftNestedWriteMixin:
             locked = model.objects.select_for_update().get(pk=instance.pk)
             if locked.docstatus != DocStatus.DRAFT:
                 raise DjangoValidationError(
-                    "Submitted or cancelled documents cannot be modified."
+                    _("Submitted or cancelled documents cannot be modified.")
                 )
             instance = super().update(instance, validated_data)
             for field in self._all_child_fields():
@@ -406,14 +406,35 @@ class AuditLogMixin:
                     .select_related("message__conversation")
                     .first()
                 )
-                if proposal and proposal.message and proposal.message.conversation.user_id == user.id:
+                if (
+                    proposal
+                    and proposal.message
+                    and proposal.message.conversation.user_id == user.id
+                ):
                     proposal.status = "saved"
-                    proposal.saved_model_label = f"{instance._meta.app_label}.{instance._meta.object_name}"
-                    proposal.saved_object_id = str(getattr(instance, "name", getattr(instance, "pk", "")))
-                    proposal.save(update_fields=["status", "saved_model_label", "saved_object_id", "updated_at"])
-                    changes = {**changes, "source": "assistant", "proposal": str(proposal.id)}
+                    proposal.saved_model_label = (
+                        f"{instance._meta.app_label}.{instance._meta.object_name}"
+                    )
+                    proposal.saved_object_id = str(
+                        getattr(instance, "name", getattr(instance, "pk", ""))
+                    )
+                    proposal.save(
+                        update_fields=[
+                            "status",
+                            "saved_model_label",
+                            "saved_object_id",
+                            "updated_at",
+                        ]
+                    )
+                    changes = {
+                        **changes,
+                        "source": "assistant",
+                        "proposal": str(proposal.id),
+                    }
             except Exception:
-                logger.exception("Failed to tag assistant proposal %s on create", proposal_hdr)
+                logger.exception(
+                    "Failed to tag assistant proposal %s on create", proposal_hdr
+                )
         record_audit_log(user, "create", instance, changes=changes)
 
     def perform_update(self, serializer):
@@ -453,7 +474,9 @@ class SubmittableViewSetMixin(AuditLogMixin):
         if getattr(instance, "docstatus", None) != DocStatus.DRAFT:
             return Response(
                 {
-                    "error": "Only draft documents can be deleted; cancel and amend instead."
+                    "error": _(
+                        "Only draft documents can be deleted; cancel and amend instead."
+                    )
                 },
                 status=status.HTTP_409_CONFLICT,
             )
@@ -533,7 +556,8 @@ class MappedDocumentActionMixin:
 
         if not user_has_model_permission(request.user, target_label, "can_create"):
             raise PermissionDenied(
-                f"You do not have permission to create {target_label}."
+                _("You do not have permission to create %(target)s.")
+                % {"target": target_label}
             )
         source = self.get_object()
         try:

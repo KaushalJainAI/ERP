@@ -47,11 +47,16 @@ def _spelling_score(query: str, name: str) -> float:
     query_words = re.findall(r"\w+", query.lower())
     if not name_words or not query_words:
         return 0.0
-    best = [max(SequenceMatcher(None, q, n).ratio() for n in name_words) for q in query_words]
+    best = [
+        max(SequenceMatcher(None, q, n).ratio() for n in name_words)
+        for q in query_words
+    ]
     return sum(best) / len(best)
 
 
-def find_matches(queryset, query: str, fields: List[str], model_label: str) -> Dict[str, Any]:
+def find_matches(
+    queryset, query: str, fields: List[str], model_label: str
+) -> Dict[str, Any]:
     """Rank `queryset` against what the user said, strictest rule first.
 
     Returns {"records": [...], "certain": bool}. Exact matches beat partial ones,
@@ -102,10 +107,17 @@ def find_matches(queryset, query: str, fields: List[str], model_label: str) -> D
 
 def find_item(query: Any) -> Dict[str, Any]:
     Item = apps.get_model("stock.Item")
-    return find_matches(Item.objects.filter(is_active=True), str(query or ""), ["code", "name"], "stock.Item")
+    return find_matches(
+        Item.objects.filter(is_active=True),
+        str(query or ""),
+        ["code", "name"],
+        "stock.Item",
+    )
 
 
-def find_party(model_label: str, query: Any, company: Optional[Any] = None) -> Dict[str, Any]:
+def find_party(
+    model_label: str, query: Any, company: Optional[Any] = None
+) -> Dict[str, Any]:
     Party = apps.get_model(model_label)
     queryset = Party.objects.filter(is_active=True)
     if company:
@@ -148,42 +160,61 @@ def _one_party(model_label: str, query: Any, company: Optional[Any]) -> Dict[str
 # Read Tools
 # -----------------------------------------------------------------------------
 
+
 def search_customers(user, query: str, company: Optional[str] = None) -> Dict[str, Any]:
     """Search customers by name, tolerating spelling mistakes and translated names."""
     if not user_has_model_permission(user, "selling.Customer", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read customers."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read customers.",
+        }
 
     found = find_party("selling.Customer", query, company)
     customers = []
     for c in found["records"]:
-        customers.append({
-            "id": c.pk,
-            "name": wrap_data(c.name),
-            "gstin": wrap_data(c.gstin or ""),
-            "phone": mask_phone(c.phone),
-            "state": wrap_data(getattr(c.state, "name", "") if c.state else ""),
-        })
+        customers.append(
+            {
+                "id": c.pk,
+                "name": wrap_data(c.name),
+                "gstin": wrap_data(c.gstin or ""),
+                "phone": mask_phone(c.phone),
+                "state": wrap_data(getattr(c.state, "name", "") if c.state else ""),
+            }
+        )
 
-    return {"results": customers, "count": len(customers), "close_spelling": not found["certain"]}
+    return {
+        "results": customers,
+        "count": len(customers),
+        "close_spelling": not found["certain"],
+    }
 
 
 def search_suppliers(user, query: str, company: Optional[str] = None) -> Dict[str, Any]:
     """Search suppliers by name, tolerating spelling mistakes and translated names."""
     if not user_has_model_permission(user, "buying.Supplier", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read suppliers."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read suppliers.",
+        }
 
     found = find_party("buying.Supplier", query, company)
     suppliers = []
     for s in found["records"]:
-        suppliers.append({
-            "id": s.pk,
-            "name": wrap_data(s.name),
-            "gstin": wrap_data(s.gstin or ""),
-            "phone": mask_phone(s.phone),
-            "state": wrap_data(getattr(s.state, "name", "") if s.state else ""),
-        })
+        suppliers.append(
+            {
+                "id": s.pk,
+                "name": wrap_data(s.name),
+                "gstin": wrap_data(s.gstin or ""),
+                "phone": mask_phone(s.phone),
+                "state": wrap_data(getattr(s.state, "name", "") if s.state else ""),
+            }
+        )
 
-    return {"results": suppliers, "count": len(suppliers), "close_spelling": not found["certain"]}
+    return {
+        "results": suppliers,
+        "count": len(suppliers),
+        "close_spelling": not found["certain"],
+    }
 
 
 def search_items(user, query: str) -> Dict[str, Any]:
@@ -194,22 +225,31 @@ def search_items(user, query: str) -> Dict[str, Any]:
     found = find_item(query)
     items = []
     for it in found["records"]:
-        items.append({
-            "id": it.pk,
-            "code": wrap_data(it.code),
-            "name": wrap_data(it.name),
-            "stock_uom": wrap_data(it.stock_uom or ""),
-            "standard_rate": str(it.standard_rate) if it.standard_rate else "0.00",
-            "is_stock_item": it.is_stock_item,
-        })
+        items.append(
+            {
+                "id": it.pk,
+                "code": wrap_data(it.code),
+                "name": wrap_data(it.name),
+                "stock_uom": wrap_data(it.stock_uom or ""),
+                "standard_rate": str(it.standard_rate) if it.standard_rate else "0.00",
+                "is_stock_item": it.is_stock_item,
+            }
+        )
 
-    return {"results": items, "count": len(items), "close_spelling": not found["certain"]}
+    return {
+        "results": items,
+        "count": len(items),
+        "close_spelling": not found["certain"],
+    }
 
 
 def search_employees(user, query: str, company: Optional[str] = None) -> Dict[str, Any]:
     """Search employees by name, mobile number, or employee ID."""
     if not user_has_model_permission(user, "hr.Employee", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read employees."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read employees.",
+        }
 
     query = (query or "").strip()
     if not query:
@@ -230,13 +270,17 @@ def search_employees(user, query: str, company: Optional[str] = None) -> Dict[st
     employees = []
     for e in qs[:5]:
         full_name = f"{e.first_name} {e.last_name}".strip() or e.name
-        employees.append({
-            "id": e.pk,
-            "name": wrap_data(full_name),
-            "employee_id": wrap_data(e.name),
-            "department": wrap_data(getattr(e.department, "name", "") if e.department else ""),
-            "mobile_no": mask_phone(e.mobile_no),
-        })
+        employees.append(
+            {
+                "id": e.pk,
+                "name": wrap_data(full_name),
+                "employee_id": wrap_data(e.name),
+                "department": wrap_data(
+                    getattr(e.department, "name", "") if e.department else ""
+                ),
+                "mobile_no": mask_phone(e.mobile_no),
+            }
+        )
 
     return {"results": employees, "count": len(employees)}
 
@@ -249,7 +293,10 @@ def get_stock(
 ) -> Dict[str, Any]:
     """Get current stock balance from Bin table."""
     if not user_has_model_permission(user, "stock.Bin", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read stock balances."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read stock balances.",
+        }
 
     Bin = apps.get_model("stock.Bin")
 
@@ -268,10 +315,12 @@ def get_stock(
     total_qty = Decimal("0.000")
     for b in qs:
         total_qty += b.actual_qty
-        balances.append({
-            "warehouse": wrap_data(b.warehouse.name),
-            "actual_qty": str(b.actual_qty),
-        })
+        balances.append(
+            {
+                "warehouse": wrap_data(b.warehouse.name),
+                "actual_qty": str(b.actual_qty),
+            }
+        )
 
     return {
         "item_code": wrap_data(item.code),
@@ -282,7 +331,9 @@ def get_stock(
     }
 
 
-def get_party_outstanding(user, party_type: str, party_id: Any, company: Optional[str] = None) -> Dict[str, Any]:
+def get_party_outstanding(
+    user, party_type: str, party_id: Any, company: Optional[str] = None
+) -> Dict[str, Any]:
     """Get party total outstanding and open invoices."""
     pt = str(party_type).strip().capitalize()
     model_label = "selling.Customer" if pt == "Customer" else "buying.Supplier"
@@ -313,24 +364,28 @@ def get_party_outstanding(user, party_type: str, party_id: Any, company: Optiona
             customer=party, company_id=company_id, docstatus=1, outstanding_amount__gt=0
         ).order_by("posting_date")[:10]
         for inv in inv_qs:
-            open_invoices.append({
-                "invoice_no": wrap_data(inv.name),
-                "posting_date": str(inv.posting_date),
-                "grand_total": str(inv.grand_total),
-                "outstanding_amount": str(inv.outstanding_amount),
-            })
+            open_invoices.append(
+                {
+                    "invoice_no": wrap_data(inv.name),
+                    "posting_date": str(inv.posting_date),
+                    "grand_total": str(inv.grand_total),
+                    "outstanding_amount": str(inv.outstanding_amount),
+                }
+            )
     else:
         PI = apps.get_model("buying.PurchaseInvoice")
         inv_qs = PI.objects.filter(
             supplier=party, company_id=company_id, docstatus=1, outstanding_amount__gt=0
         ).order_by("posting_date")[:10]
         for inv in inv_qs:
-            open_invoices.append({
-                "invoice_no": wrap_data(inv.name),
-                "posting_date": str(inv.posting_date),
-                "grand_total": str(inv.grand_total),
-                "outstanding_amount": str(inv.outstanding_amount),
-            })
+            open_invoices.append(
+                {
+                    "invoice_no": wrap_data(inv.name),
+                    "posting_date": str(inv.posting_date),
+                    "grand_total": str(inv.grand_total),
+                    "outstanding_amount": str(inv.outstanding_amount),
+                }
+            )
 
     return {
         "party_type": pt,
@@ -428,7 +483,13 @@ def recent_documents(
     since = timezone.now() - timedelta(days=days)
 
     date_field = "posting_date" if hasattr(DocModel, "posting_date") else "created_at"
-    qs = DocModel.objects.filter(**{f"{date_field}__gte": since.date() if date_field == "posting_date" else since})
+    qs = DocModel.objects.filter(
+        **{
+            f"{date_field}__gte": (
+                since.date() if date_field == "posting_date" else since
+            )
+        }
+    )
 
     if company:
         qs = qs.filter(company_id=company)
@@ -437,18 +498,24 @@ def recent_documents(
 
     results = []
     for d in qs.order_by(f"-{date_field}")[:10]:
-        results.append({
-            "id": d.pk,
-            "name": wrap_data(d.name),
-            "docstatus": d.docstatus,
-            "date": str(getattr(d, date_field, "")),
-            "total": str(getattr(d, "grand_total", getattr(d, "paid_amount", "0.00"))),
-        })
+        results.append(
+            {
+                "id": d.pk,
+                "name": wrap_data(d.name),
+                "docstatus": d.docstatus,
+                "date": str(getattr(d, date_field, "")),
+                "total": str(
+                    getattr(d, "grand_total", getattr(d, "paid_amount", "0.00"))
+                ),
+            }
+        )
 
     return {"doctype": dt, "count": len(results), "documents": results}
 
 
-def get_document(user, doctype: str, id: Any, company: Optional[str] = None) -> Dict[str, Any]:
+def get_document(
+    user, doctype: str, id: Any, company: Optional[str] = None
+) -> Dict[str, Any]:
     """Get single document details."""
     dt = str(doctype).strip()
     mapping = {
@@ -464,7 +531,11 @@ def get_document(user, doctype: str, id: Any, company: Optional[str] = None) -> 
         return {"error": "permission_denied", "message": f"No permission to read {dt}."}
 
     DocModel = apps.get_model(model_label)
-    qs = DocModel.objects.filter(company_id=company) if company else DocModel.objects.all()
+    qs = (
+        DocModel.objects.filter(company_id=company)
+        if company
+        else DocModel.objects.all()
+    )
     lookup = Q(name=str(id))
     if str(id).strip().isdigit():
         lookup |= Q(pk=int(id))
@@ -483,12 +554,14 @@ def get_document(user, doctype: str, id: Any, company: Optional[str] = None) -> 
     if hasattr(doc, "items"):
         items = []
         for line in doc.items.all()[:20]:
-            items.append({
-                "item": wrap_data(getattr(line.item, "code", "")),
-                "qty": str(line.qty),
-                "rate": str(line.rate),
-                "amount": str(line.amount),
-            })
+            items.append(
+                {
+                    "item": wrap_data(getattr(line.item, "code", "")),
+                    "qty": str(line.qty),
+                    "rate": str(line.rate),
+                    "amount": str(line.amount),
+                }
+            )
         summary["items"] = items
 
     return summary
@@ -507,10 +580,15 @@ def _submitted_sales(company: Optional[str], period: str):
     return qs, start
 
 
-def sales_summary(user, period: str = "30d", company: Optional[str] = None) -> Dict[str, Any]:
+def sales_summary(
+    user, period: str = "30d", company: Optional[str] = None
+) -> Dict[str, Any]:
     """Invoiced sales and what is still unpaid, over a named period."""
     if not user_has_model_permission(user, "selling.SalesInvoice", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read sales invoices."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read sales invoices.",
+        }
 
     qs, start = _submitted_sales(company, period)
     totals = qs.aggregate(
@@ -522,8 +600,8 @@ def sales_summary(user, period: str = "30d", company: Optional[str] = None) -> D
         "from_date": str(start),
         "to_date": str(timezone.localdate()),
         "invoices": totals["invoices"],
-        "grand_total": str(totals["grand_total"] or Decimal("0.00")),
-        "outstanding": str(totals["outstanding"] or Decimal("0.00")),
+        "grand_total": f"{Decimal(str(totals['grand_total'] or '0.00')):.2f}",
+        "outstanding": f"{Decimal(str(totals['outstanding'] or '0.00')):.2f}",
     }
 
 
@@ -535,7 +613,10 @@ def top_items(
 ) -> Dict[str, Any]:
     """Best-selling items by billed amount over a named period."""
     if not user_has_model_permission(user, "selling.SalesInvoice", "can_read"):
-        return {"error": "permission_denied", "message": "No permission to read sales invoices."}
+        return {
+            "error": "permission_denied",
+            "message": "No permission to read sales invoices.",
+        }
 
     SIItem = apps.get_model("selling.SalesInvoiceItem")
     qs, start = _submitted_sales(company, period)
@@ -549,7 +630,11 @@ def top_items(
     return {
         "from_date": str(start),
         "items": [
-            {"name": wrap_data(r["item__name"]), "qty": str(r["qty"]), "amount": str(r["amount"])}
+            {
+                "name": wrap_data(r["item__name"]),
+                "qty": str(r["qty"]),
+                "amount": str(r["amount"]),
+            }
             for r in rows
         ],
     }
@@ -558,6 +643,7 @@ def top_items(
 # -----------------------------------------------------------------------------
 # Control Tools
 # -----------------------------------------------------------------------------
+
 
 def ask_user(question: str, options: List[str]) -> Dict[str, Any]:
     """Produce tappable choices for ambiguity."""
@@ -587,7 +673,10 @@ def navigate(route: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, 
     """Navigate to a known route with optional filters."""
     clean_route = (route or "").split("?")[0].strip()
     if clean_route not in SAFE_ROUTES:
-        return {"error": "invalid_route", "message": f"Route '{route}' is not in the allowed list."}
+        return {
+            "error": "invalid_route",
+            "message": f"Route '{route}' is not in the allowed list.",
+        }
 
     return {
         "type": "navigate",

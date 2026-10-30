@@ -88,9 +88,9 @@ class SubmittableDocument(TimeStampedModel):
                 .first()
             )
             if locked_status is None:
-                raise ValidationError("Document no longer exists.")
+                raise ValidationError(_("Document no longer exists."))
             if locked_status != DocStatus.DRAFT:
-                raise ValidationError("Only draft documents can be submitted.")
+                raise ValidationError(_("Only draft documents can be submitted."))
             self.docstatus = locked_status
             self.validate_before_submit()
             self.docstatus = DocStatus.SUBMITTED
@@ -111,9 +111,9 @@ class SubmittableDocument(TimeStampedModel):
                 .first()
             )
             if locked_status is None:
-                raise ValidationError("Document no longer exists.")
+                raise ValidationError(_("Document no longer exists."))
             if locked_status != DocStatus.SUBMITTED:
-                raise ValidationError("Only submitted documents can be cancelled.")
+                raise ValidationError(_("Only submitted documents can be cancelled."))
             self.docstatus = DocStatus.CANCELLED
             if user and hasattr(user, "id"):
                 self.modified_by = user
@@ -129,7 +129,7 @@ class SubmittableDocument(TimeStampedModel):
         totals are recomputed from the copied rows.
         """
         if self.docstatus != DocStatus.CANCELLED:
-            raise ValidationError("Only cancelled documents can be amended.")
+            raise ValidationError(_("Only cancelled documents can be amended."))
         with transaction.atomic():
             amendment = self.__class__()
             # Copy fields from self
@@ -227,17 +227,17 @@ class SubmittableDocument(TimeStampedModel):
                 allowed = {"docstatus", "modified_at", "modified_by"}
                 if update_fields and not set(update_fields).issubset(allowed):
                     raise ValidationError(
-                        "Submitted or cancelled documents cannot be modified."
+                        _("Submitted or cancelled documents cannot be modified.")
                     )
                 elif not update_fields:
                     raise ValidationError(
-                        "Submitted or cancelled documents cannot be modified."
+                        _("Submitted or cancelled documents cannot be modified.")
                     )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.docstatus != DocStatus.DRAFT:
-            raise ValidationError("Only draft documents can be deleted.")
+            raise ValidationError(_("Only draft documents can be deleted."))
         super().delete(*args, **kwargs)
 
 
@@ -546,16 +546,23 @@ class Company(TimeStampedModel):
             acc = getattr(self, field)
             if acc is None:
                 raise ValidationError(
-                    f"Perpetual inventory is enabled for company '{self.name}' but "
-                    f"Company.{field} is not set."
+                    _(
+                        "Perpetual inventory is enabled for company '%(company)s' but "
+                        "Company.%(field)s is not set."
+                    )
+                    % {"company": self.name, "field": field}
                 )
             if acc.is_group:
                 raise ValidationError(
-                    f"Company.{field} ('{acc.name}') must not be a group account."
+                    _("Company.%(field)s ('%(account)s') must not be a group account.")
+                    % {"field": field, "account": acc.name}
                 )
             if acc.company_id != self.pk:
                 raise ValidationError(
-                    f"Company.{field} ('{acc.name}') must belong to company '{self.name}'."
+                    _(
+                        "Company.%(field)s ('%(account)s') must belong to company '%(company)s'."
+                    )
+                    % {"field": field, "account": acc.name, "company": self.name}
                 )
             accounts[field] = acc
         return accounts
@@ -629,16 +636,19 @@ class FiscalYear(TimeStampedModel):
             .first()
         )
         if fy is None:
-            raise ValidationError(f"No fiscal year found for posting date {date}.")
+            raise ValidationError(
+                _("No fiscal year found for posting date %(date)s.") % {"date": date}
+            )
         if fy.is_closed:
             raise ValidationError(
-                f"Fiscal year {fy.name} is closed; posting on {date} is not allowed."
+                _("Fiscal year %(name)s is closed; posting on %(date)s is not allowed.")
+                % {"name": fy.name, "date": date}
             )
         return fy
 
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
-            raise ValidationError({"end_date": "End date must be after start date."})
+            raise ValidationError({"end_date": _("End date must be after start date.")})
 
     def __str__(self):
         return self.name
@@ -685,11 +695,13 @@ class AuditLog(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("AuditLog rows are immutable and cannot be updated.")
+            raise ValidationError(
+                _("AuditLog rows are immutable and cannot be updated.")
+            )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("AuditLog rows are immutable and cannot be deleted.")
+        raise ValidationError(_("AuditLog rows are immutable and cannot be deleted."))
 
     def __str__(self):
         return f"{self.timestamp} - {self.user} - {self.action} {self.model_label}:{self.object_id}"

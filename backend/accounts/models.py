@@ -144,11 +144,13 @@ class GLEntry(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk and not getattr(self, "_allow_internal_cancellation", False):
-            raise ValidationError("GLEntry rows are immutable and cannot be updated.")
+            raise ValidationError(
+                _("GLEntry rows are immutable and cannot be updated.")
+            )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("GLEntry rows are immutable and cannot be deleted.")
+        raise ValidationError(_("GLEntry rows are immutable and cannot be deleted."))
 
     def __str__(self):
         return f"{self.posting_date} - {self.voucher_type}:{self.voucher_no} - {self.account.name} (Dr:{self.debit}/Cr:{self.credit})"
@@ -201,19 +203,23 @@ class JournalEntry(SubmittableDocument):
     def validate_before_submit(self):
         lines = self.lines.all()
         if not lines.exists():
-            raise ValidationError("Journal Entry must have at least one line.")
+            raise ValidationError(_("Journal Entry must have at least one line."))
         for line in lines:
             # Keep every line inside the entry's company; gl.post already blocks
             # group accounts, but nothing else stops a cross-company posting.
             if line.account.company_id != self.company_id:
                 raise ValidationError(
-                    f"Account '{line.account.name}' does not belong to the entry's company."
+                    _("Account '%(account)s' does not belong to the entry's company.")
+                    % {"account": line.account.name}
                 )
         dr_sum = sum(line.debit for line in lines)
         cr_sum = sum(line.credit for line in lines)
         if dr_sum != cr_sum:
             raise ValidationError(
-                f"Journal Entry is unbalanced: Total Debit ({dr_sum}) != Total Credit ({cr_sum})."
+                _(
+                    "Journal Entry is unbalanced: Total Debit (%(debit)s) != Total Credit (%(credit)s)."
+                )
+                % {"debit": dr_sum, "credit": cr_sum}
             )
         # Persist the derived header totals while the row is still a draft.
         self.recompute_totals()
@@ -303,7 +309,10 @@ class PaymentEntry(SubmittableDocument):
     }
 
     #: Settling a return (credit / debit note) is the opposite flow of an invoice.
-    REFUND_FLOW = {PaymentType.RECEIVE: PaymentType.PAY, PaymentType.PAY: PaymentType.RECEIVE}
+    REFUND_FLOW = {
+        PaymentType.RECEIVE: PaymentType.PAY,
+        PaymentType.PAY: PaymentType.RECEIVE,
+    }
 
     @property
     def party_account(self):
@@ -512,7 +521,9 @@ class PaymentEntry(SubmittableDocument):
             "credit": zero if receive else self.paid_amount,
             **party,
         }
-        party_lines = [party_line(ref.allocated_amount, ref) for ref, _inv in allocations]
+        party_lines = [
+            party_line(ref.allocated_amount, ref) for ref, _inv in allocations
+        ]
         remainder = self.paid_amount - sum(
             (ref.allocated_amount for ref, _inv in allocations), zero
         )
@@ -533,7 +544,9 @@ class PaymentEntry(SubmittableDocument):
         from accounts.services import outstanding as outstanding_service
 
         gl_service.reverse(self)
-        for ref in self.references.all().order_by("reference_doctype", "reference_name"):
+        for ref in self.references.all().order_by(
+            "reference_doctype", "reference_name"
+        ):
             if ref.reference_doctype not in self.ALLOCATION_TARGETS:
                 continue
             invoice = (
@@ -967,8 +980,7 @@ class PayableDocument(models.Model):
         invoice can never carry negative totals, a return never positive ones."""
         return [
             models.CheckConstraint(
-                check=models.Q(return_against__isnull=True)
-                | models.Q(is_return=True),
+                check=models.Q(return_against__isnull=True) | models.Q(is_return=True),
                 name="%(app_label)s_%(class)s_return_against_needs_is_return",
             ),
             models.CheckConstraint(
@@ -999,7 +1011,11 @@ class PayableDocument(models.Model):
         """``(voucher_type, voucher_no)`` the party GL line is tagged with: the
         invoice itself, except a return that updates the original's outstanding
         (``update_outstanding_for_self`` off) -- ERPNext's ``against_voucher``."""
-        if self.is_return and self.return_against_id and not self.update_outstanding_for_self:
+        if (
+            self.is_return
+            and self.return_against_id
+            and not self.update_outstanding_for_self
+        ):
             return self.voucher_label(), self.return_against.name
         return self.voucher_label(), self.name
 
@@ -1356,11 +1372,11 @@ class BankStatementImport(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Bank statement imports are immutable.")
+            raise ValidationError(_("Bank statement imports are immutable."))
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Bank statement imports cannot be deleted.")
+        raise ValidationError(_("Bank statement imports cannot be deleted."))
 
     def __str__(self):
         return f"{self.file_name} ({self.imported_count} rows)"
@@ -1420,11 +1436,11 @@ class BankTransaction(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Bank transactions are immutable.")
+            raise ValidationError(_("Bank transactions are immutable."))
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Bank transactions cannot be deleted.")
+        raise ValidationError(_("Bank transactions cannot be deleted."))
 
     def __str__(self):
         return f"{self.transaction_date} {self.amount} {self.reference_no}"
@@ -1476,11 +1492,11 @@ class BankClearance(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk:
-            raise ValidationError("Bank clearances are immutable; add a new record.")
+            raise ValidationError(_("Bank clearances are immutable; add a new record."))
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValidationError("Bank clearances cannot be deleted.")
+        raise ValidationError(_("Bank clearances cannot be deleted."))
 
     def __str__(self):
         return f"{self.voucher_type}:{self.voucher_no} -> {self.clearance_date}"

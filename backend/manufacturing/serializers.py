@@ -6,6 +6,7 @@ The Work Order's ``required_items`` are server-generated read-only rows.
 """
 
 from django.db import transaction
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from core.mixins import NestedMasterWriteMixin
@@ -160,11 +161,11 @@ class BOMSerializer(NestedMasterWriteMixin, serializers.ModelSerializer):
         item = attrs.get("item", getattr(instance, "item", None))
         if company is None or item is None:
             raise serializers.ValidationError(
-                {"item": "A BOM needs a company and a product item."}
+                {"item": _("A BOM needs a company and a product item.")}
             )
         if not item.is_stock_item:
             raise serializers.ValidationError(
-                {"item": "The BOM product must be a stock item."}
+                {"item": _("The BOM product must be a stock item.")}
             )
 
         # Cross-row rules run against a transient BOM carrying the merged header
@@ -335,11 +336,11 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         company = attrs.get("company", getattr(instance, "company", None))
         if bom is not None and company is not None and bom.company_id != company.pk:
             raise serializers.ValidationError(
-                {"bom": "The BOM belongs to a different company."}
+                {"bom": _("The BOM belongs to a different company.")}
             )
         if bom is not None and item is not None and bom.item_id != item.pk:
             raise serializers.ValidationError(
-                {"bom": "The BOM makes a different item than the production item."}
+                {"bom": _("The BOM makes a different item than the production item.")}
             )
         return attrs
 

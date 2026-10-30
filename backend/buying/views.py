@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -111,7 +112,7 @@ class PurchaseOrderViewSet(
         doc = self.get_object()
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
-                {"error": "Rates can only be refreshed on a draft."}, status=409
+                {"error": _("Rates can only be refreshed on a draft.")}, status=409
             )
         changed = pricing_service.reapply_rates(doc)
         doc.calculate_taxes_and_totals()
@@ -157,11 +158,11 @@ class PurchaseInvoiceViewSet(
         doc = self.get_object()
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
-                {"error": "Rates can only be refreshed on a draft."}, status=409
+                {"error": _("Rates can only be refreshed on a draft.")}, status=409
             )
         if doc.is_return:
             return Response(
-                {"error": "A return keeps the rates of the original invoice."},
+                {"error": _("A return keeps the rates of the original invoice.")},
                 status=409,
             )
         changed = pricing_service.reapply_rates(doc)

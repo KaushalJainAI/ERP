@@ -3,6 +3,7 @@
 import datetime
 
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import transaction
 
 from accounts.models import PaymentType
@@ -15,7 +16,7 @@ def make_purchase_invoice(purchase_order):
     """Draft Purchase Invoice for the quantity of ``purchase_order`` not yet invoiced."""
     if purchase_order.docstatus != DocStatus.SUBMITTED:
         raise ValidationError(
-            "Purchase Invoice can only be made from a submitted Purchase Order."
+            _("Purchase Invoice can only be made from a submitted Purchase Order.")
         )
 
     invoiced = PurchaseInvoiceItem.objects.filter(
@@ -27,7 +28,8 @@ def make_purchase_invoice(purchase_order):
     )
     if not lines:
         raise ValidationError(
-            f"Purchase Order '{purchase_order.name}' is already fully invoiced."
+            _("Purchase Order '%(name)s' is already fully invoiced.")
+            % {"name": purchase_order.name}
         )
 
     company = purchase_order.company

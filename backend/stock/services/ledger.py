@@ -3,6 +3,7 @@ from collections import deque
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import transaction
 from core.models import FiscalYear
 from stock.models import Batch, Item, Warehouse, StockLedgerEntry, Bin
@@ -58,7 +59,7 @@ def post(
     taken for that item + warehouse, so concurrent postings cannot double-allocate.
     """
     if not sle_entries:
-        raise ValidationError("Cannot post empty stock ledger entries.")
+        raise ValidationError(_("Cannot post empty stock ledger entries."))
 
     date_to_use = (
         posting_date or getattr(voucher, "posting_date", None) or datetime.date.today()
@@ -97,7 +98,8 @@ def post(
 
             if warehouse.is_group:
                 raise ValidationError(
-                    f"Stock transaction not allowed on group warehouse '{warehouse.name}'."
+                    _("Stock transaction not allowed on group warehouse '%(name)s'.")
+                    % {"name": warehouse.name}
                 )
             variant_service.assert_not_template(item)
 
@@ -112,7 +114,7 @@ def post(
                 batch = Batch.objects.get(pk=batch)
 
             # Fetch or initialize Bin
-            bin_obj, _ = Bin.objects.select_for_update().get_or_create(
+            bin_obj, _created = Bin.objects.select_for_update().get_or_create(
                 item=item,
                 warehouse=warehouse,
                 defaults={
@@ -148,8 +150,10 @@ def post(
                 if item_data.get("mirror_outgoing") and last_out_group:
                     if sum((g["qty"] for g in last_out_group), Decimal("0")) != qty:
                         raise ValidationError(
-                            f"Transfer of '{item.code}': incoming quantity does not "
-                            "match the quantity taken out."
+                            _(
+                                "Transfer of '%(code)s': incoming quantity does not match the quantity taken out."
+                            )
+                            % {"code": item.code}
                         )
                     legs = [
                         {
@@ -204,8 +208,16 @@ def post(
                 # Stock Out
                 if bin_obj.actual_qty < abs(qty):
                     raise ValidationError(
-                        f"Insufficient stock for Item '{item.code}' in Warehouse '{warehouse.name}'. "
-                        f"Available: {bin_obj.actual_qty}, Required: {abs(qty)}"
+                        _(
+                            "Insufficient stock for Item '%(code)s' in Warehouse '%(warehouse)s'. "
+                            "Available: %(available)s, Required: %(required)s"
+                        )
+                        % {
+                            "code": item.code,
+                            "warehouse": warehouse.name,
+                            "available": bin_obj.actual_qty,
+                            "required": abs(qty),
+                        }
                     )
                 # A batch-tracked item is costed at its batch's own average (ERPNext's
                 # batch-wise valuation); otherwise (and when the batch carries no
@@ -293,15 +305,15 @@ def resolve_reconciliation_target(
     if qty is None:
         if cur_qty < 0:
             raise ValidationError(
-                "Current stock is negative; enter the counted quantity."
+                _("Current stock is negative; enter the counted quantity.")
             )
         t_qty = cur_qty
     else:
         t_qty = quantize_qty(qty)
         if t_qty < 0:
-            raise ValidationError("Negative Quantity is not allowed.")
+            raise ValidationError(_("Negative Quantity is not allowed."))
     if rate is not None and quantize_rate(rate) < 0:
-        raise ValidationError("Negative Valuation Rate is not allowed.")
+        raise ValidationError(_("Negative Valuation Rate is not allowed."))
     t_rate = cur_rate if rate is None else quantize_rate(rate)
 
     if t_qty == 0:
@@ -309,8 +321,10 @@ def resolve_reconciliation_target(
     else:
         if t_rate <= 0:
             raise ValidationError(
-                "A valuation rate is required to count stock into a position "
-                "that has no current rate."
+                _(
+                    "A valuation rate is required to count stock into a position "
+                    "that has no current rate."
+                )
             )
         if cur_qty > 0 and t_qty == cur_qty and t_rate == cur_rate:
             t_value = cur_value  # unchanged: do not invent a rounding difference
@@ -384,25 +398,31 @@ def post_reconciliation(
                 warehouse = Warehouse.objects.get(pk=warehouse)
             if warehouse.is_group:
                 raise ValidationError(
-                    f"Stock transaction not allowed on group warehouse '{warehouse.name}'."
+                    _("Stock transaction not allowed on group warehouse '%(name)s'.")
+                    % {"name": warehouse.name}
                 )
             batch = row.get("batch")
             if isinstance(batch, (int, str)):
                 batch = Batch.objects.get(pk=batch)
             if item.has_batch_no and batch is None:
                 raise ValidationError(
-                    f"Item '{item.code}' is batch-tracked: enter the batch counted."
+                    _("Item '%(code)s' is batch-tracked: enter the batch counted.")
+                    % {"code": item.code}
                 )
             if not item.has_batch_no and batch is not None:
                 raise ValidationError(
-                    f"Item '{item.code}' is not batch-tracked but a batch was given."
+                    _("Item '%(code)s' is not batch-tracked but a batch was given.")
+                    % {"code": item.code}
                 )
             if batch is not None and batch.item_id != item.pk:
                 raise ValidationError(
-                    f"Batch '{batch.batch_no}' belongs to a different item than '{item.code}'."
+                    _(
+                        "Batch '%(batch_no)s' belongs to a different item than '%(code)s'."
+                    )
+                    % {"batch_no": batch.batch_no, "code": item.code}
                 )
 
-            bin_obj, _ = Bin.objects.select_for_update().get_or_create(
+            bin_obj, _created = Bin.objects.select_for_update().get_or_create(
                 item=item,
                 warehouse=warehouse,
                 defaults={
@@ -424,11 +444,21 @@ def post_reconciliation(
                 time_to_use,
             ):
                 raise ValidationError(
-                    f"Cannot reconcile '{item.code}' in '{warehouse.name}' as of "
-                    f"{date_to_use} {time_to_use.strftime('%H:%M:%S')}: stock moved "
-                    f"later ({latest.posting_date} "
-                    f"{latest.posting_time.strftime('%H:%M:%S')}). "
-                    f"Reconcile at or after the latest movement."
+                    _(
+                        "Cannot reconcile '%(code)s' in '%(warehouse)s' as of "
+                        "%(date)s %(time)s: stock moved "
+                        "later (%(latest_date)s "
+                        "%(latest_time)s). "
+                        "Reconcile at or after the latest movement."
+                    )
+                    % {
+                        "code": item.code,
+                        "warehouse": warehouse.name,
+                        "date": date_to_use,
+                        "time": time_to_use.strftime("%H:%M:%S"),
+                        "latest_date": latest.posting_date,
+                        "latest_time": latest.posting_time.strftime("%H:%M:%S"),
+                    }
                 )
 
             cur_qty, cur_value = position(item, warehouse, batch)
@@ -501,7 +531,7 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
             rev_qty = quantize_qty(-orig.qty)
             rev_diff = quantize_value(-orig.stock_value_difference)
 
-            bin_obj, _ = Bin.objects.select_for_update().get_or_create(
+            bin_obj, _created = Bin.objects.select_for_update().get_or_create(
                 item=orig.item,
                 warehouse=orig.warehouse,
             )
@@ -513,10 +543,18 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
             # tell the user to reverse the dependent transactions first.
             if new_qty < 0:
                 raise ValidationError(
-                    f"Cannot cancel: reversing this entry would leave negative stock for "
-                    f"Item '{orig.item.code}' in Warehouse '{orig.warehouse.name}' "
-                    f"(available {bin_obj.actual_qty}, reversal {rev_qty}). "
-                    f"Cancel the later transactions that consumed this stock first."
+                    _(
+                        "Cannot cancel: reversing this entry would leave negative stock for "
+                        "Item '%(code)s' in Warehouse '%(warehouse)s' "
+                        "(available %(available)s, reversal %(reversal)s). "
+                        "Cancel the later transactions that consumed this stock first."
+                    )
+                    % {
+                        "code": orig.item.code,
+                        "warehouse": orig.warehouse.name,
+                        "available": bin_obj.actual_qty,
+                        "reversal": rev_qty,
+                    }
                 )
             # Same guard per batch: cancelling an inward leg must not leave its
             # batch negative (the original is already flagged cancelled, so the
@@ -527,10 +565,18 @@ def reverse(voucher: Any) -> List[StockLedgerEntry]:
                 )
                 if left < 0:
                     raise ValidationError(
-                        f"Cannot cancel: reversing this entry would leave negative stock "
-                        f"in batch '{orig.batch.batch_no}' of Item '{orig.item.code}' "
-                        f"in Warehouse '{orig.warehouse.name}' (short by {-left}). "
-                        f"Cancel the later transactions that consumed this batch first."
+                        _(
+                            "Cannot cancel: reversing this entry would leave negative stock "
+                            "in batch '%(batch_no)s' of Item '%(code)s' "
+                            "in Warehouse '%(warehouse)s' (short by %(short)s). "
+                            "Cancel the later transactions that consumed this batch first."
+                        )
+                        % {
+                            "batch_no": orig.batch.batch_no,
+                            "code": orig.item.code,
+                            "warehouse": orig.warehouse.name,
+                            "short": -left,
+                        }
                     )
             new_value = quantize_value(bin_obj.stock_value + rev_diff)
             new_rate = (
@@ -594,7 +640,7 @@ def repost(item_id=None, warehouse_id=None) -> bool:
             sle_qs = sle_qs.filter(warehouse_id=warehouse_id)
 
         for sle in sle_qs:
-            bin_obj, _ = Bin.objects.select_for_update().get_or_create(
+            bin_obj, _created = Bin.objects.select_for_update().get_or_create(
                 item=sle.item,
                 warehouse=sle.warehouse,
                 defaults={

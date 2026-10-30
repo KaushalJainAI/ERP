@@ -12,6 +12,7 @@ here: a request is always resolved against the database membership, never
 against what the client claims.
 """
 
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from core.models import Company
@@ -52,19 +53,21 @@ def resolve_active_company(request, required=True):
     raw = request.headers.get("X-Company-ID") if hasattr(request, "headers") else None
     if raw in (None, "") and getattr(request.user, "is_superuser", False):
         params = getattr(request, "query_params", None)
-        raw = params.get("company") if params is not None else request.GET.get("company")
+        raw = (
+            params.get("company") if params is not None else request.GET.get("company")
+        )
 
     company = None
     if raw not in (None, ""):
         try:
             company_id = int(raw)
         except (TypeError, ValueError):
-            raise ValidationError({"company": "Must be a company id."})
+            raise ValidationError({"company": _("Must be a company id.")})
         company = available.filter(pk=company_id).first()
         if company is None:
             if getattr(request.user, "is_superuser", False):
-                raise NotFound("Company not found.")
-            raise PermissionDenied("You do not have access to this company.")
+                raise NotFound(_("Company not found."))
+            raise PermissionDenied(_("You do not have access to this company."))
     elif getattr(request.user, "is_superuser", False):
         company = available.first()
     else:
@@ -77,7 +80,7 @@ def resolve_active_company(request, required=True):
             company = available.first()
 
     if company is None and required:
-        raise PermissionDenied("No company is assigned to your user.")
+        raise PermissionDenied(_("No company is assigned to your user."))
     request.active_company = company
     return company
 
@@ -123,9 +126,7 @@ class CompanyScopedMixin:
                 and requested not in (None, "")
                 and str(requested) != str(company.pk)
             ):
-                raise ValidationError(
-                    {"company": "The company cannot be changed."}
-                )
+                raise ValidationError({"company": _("The company cannot be changed.")})
             data = data.copy() if hasattr(data, "copy") else dict(data)
             data["company"] = company.pk
             kwargs["data"] = data

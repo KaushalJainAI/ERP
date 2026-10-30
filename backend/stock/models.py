@@ -504,13 +504,13 @@ class StockLedgerEntry(models.Model):
     def save(self, *args, **kwargs):
         if self.pk and not getattr(self, "_allow_internal_cancellation", False):
             raise ValidationError(
-                "StockLedgerEntry rows are immutable and cannot be updated."
+                _("StockLedgerEntry rows are immutable and cannot be updated.")
             )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         raise ValidationError(
-            "StockLedgerEntry rows are immutable and cannot be deleted."
+            _("StockLedgerEntry rows are immutable and cannot be deleted.")
         )
 
     def __str__(self):
@@ -621,7 +621,7 @@ class StockEntry(SubmittableDocument):
             )
         )
         if not items:
-            raise ValidationError("Stock Entry must have at least one item.")
+            raise ValidationError(_("Stock Entry must have at least one item."))
         self.company.get_perpetual_accounts(
             need_adjustment=self.stock_entry_type
             in (StockEntryType.MATERIAL_RECEIPT, StockEntryType.MATERIAL_ISSUE)
@@ -636,17 +636,19 @@ class StockEntry(SubmittableDocument):
                 self.stock_entry_type == StockEntryType.MATERIAL_RECEIPT
                 and not item.target_warehouse
             ):
-                raise ValidationError("Material Receipt requires a Target Warehouse.")
+                raise ValidationError(
+                    _("Material Receipt requires a Target Warehouse.")
+                )
             elif (
                 self.stock_entry_type == StockEntryType.MATERIAL_ISSUE
                 and not item.source_warehouse
             ):
-                raise ValidationError("Material Issue requires a Source Warehouse.")
+                raise ValidationError(_("Material Issue requires a Source Warehouse."))
             elif self.stock_entry_type == StockEntryType.MATERIAL_TRANSFER and (
                 not item.source_warehouse or not item.target_warehouse
             ):
                 raise ValidationError(
-                    "Material Transfer requires both Source and Target Warehouses."
+                    _("Material Transfer requires both Source and Target Warehouses.")
                 )
             self._validate_batch_line(item)
 

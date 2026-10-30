@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.utils.translation import gettext as _
 from rest_framework import permissions, viewsets
 from rest_framework.exceptions import ValidationError
 
@@ -26,8 +27,10 @@ class AddressViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         company = self.active_company
-        return super(CompanyScopedMixin, self).get_queryset().filter(
-            Q(customer__company=company) | Q(supplier__company=company)
+        return (
+            super(CompanyScopedMixin, self)
+            .get_queryset()
+            .filter(Q(customer__company=company) | Q(supplier__company=company))
         )
 
     def _check_party(self, serializer):
@@ -35,7 +38,7 @@ class AddressViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
         party = data.get("customer") or data.get("supplier")
         if party is None or party.company_id != self.active_company.pk:
             raise ValidationError(
-                {"customer": "The party must belong to the active company."}
+                {"customer": _("The party must belong to the active company.")}
             )
 
     def perform_create(self, serializer):

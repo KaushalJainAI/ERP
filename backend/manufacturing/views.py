@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Sum
 from rest_framework import permissions, status, viewsets
@@ -71,7 +72,7 @@ class WorkOrderViewSet(
     def _require_submitted(self, wo):
         if wo.docstatus != 1:
             return Response(
-                {"error": "Only a submitted Work Order can be changed."},
+                {"error": _("Only a submitted Work Order can be changed.")},
                 status=status.HTTP_409_CONFLICT,
             )
         return None
@@ -84,12 +85,12 @@ class WorkOrderViewSet(
             return blocked
         if wo.stopped:
             return Response(
-                {"error": "This Work Order is already stopped."},
+                {"error": _("This Work Order is already stopped.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         if wo.produced_qty >= wo.qty:
             return Response(
-                {"error": "This Work Order is already fully produced."},
+                {"error": _("This Work Order is already fully produced.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         WorkOrder.objects.filter(pk=wo.pk).update(stopped=True)
@@ -104,7 +105,7 @@ class WorkOrderViewSet(
             return blocked
         if wo.status == WorkOrderStatus.COMPLETED:
             return Response(
-                {"error": "A completed Work Order cannot be resumed."},
+                {"error": _("A completed Work Order cannot be resumed.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         WorkOrder.objects.filter(pk=wo.pk).update(stopped=False)
@@ -121,7 +122,7 @@ class WorkOrderViewSet(
         wo = self.get_object()
         if wo.docstatus != 1:
             return Response(
-                {"error": "Submit the Work Order before making stock entries."},
+                {"error": _("Submit the Work Order before making stock entries.")},
                 status=status.HTTP_409_CONFLICT,
             )
         kind = request.data.get("type", "material_transfer")
@@ -199,12 +200,9 @@ def production_yield(request):
         output_value = sum(
             (r.qty * r.valuation_rate for r in finished), Decimal("0.00")
         )
-        scrap_value = (
-            StockEntryItem.objects.filter(stock_entry=entry, is_scrap_item=True)
-            .aggregate(total=Sum("qty"))
-            .get("total")
-            or Decimal("0.000")
-        )
+        scrap_value = StockEntryItem.objects.filter(
+            stock_entry=entry, is_scrap_item=True
+        ).aggregate(total=Sum("qty")).get("total") or Decimal("0.000")
         loss = entry.process_loss_qty
         gross = output_qty + loss
         rows.append(
@@ -213,17 +211,21 @@ def production_yield(request):
                 "posting_date": entry.posting_date,
                 "work_order": entry.work_order.name if entry.work_order_id else None,
                 "bom": entry.bom.name if entry.bom_id else None,
-                "item": finished[0].item.code if finished else entry.bom.item.code
-                if entry.bom_id
-                else None,
+                "item": (
+                    finished[0].item.code
+                    if finished
+                    else entry.bom.item.code if entry.bom_id else None
+                ),
                 "entry_type": entry.stock_entry_type,
                 "produced_qty": output_qty,
                 "process_loss_qty": loss,
                 "loss_percent": (loss / gross * 100) if gross else Decimal("0"),
                 "output_value": output_value.quantize(Decimal("0.01")),
-                "unit_cost": (output_value / output_qty).quantize(Decimal("0.000001"))
-                if output_qty
-                else Decimal("0"),
+                "unit_cost": (
+                    (output_value / output_qty).quantize(Decimal("0.000001"))
+                    if output_qty
+                    else Decimal("0")
+                ),
                 "scrap_qty": scrap_value,
                 "planned_qty": entry.work_order.qty if entry.work_order_id else None,
             }
@@ -238,9 +240,9 @@ def production_yield(request):
                 "rows": rows,
                 "total_produced_qty": total_output,
                 "total_process_loss_qty": total_loss,
-                "total_loss_percent": (total_loss / gross_total * 100)
-                if gross_total
-                else Decimal("0"),
+                "total_loss_percent": (
+                    (total_loss / gross_total * 100) if gross_total else Decimal("0")
+                ),
             }
         )
     )
@@ -259,7 +261,11 @@ def bom_cost_report(request):
     q = request.query_params
     company = active_company_id(request)
     item = _parse_int(q.get("item"), "item")
-    boms = BOM.objects.filter(company_id=company).select_related("company", "item").order_by("name")
+    boms = (
+        BOM.objects.filter(company_id=company)
+        .select_related("company", "item")
+        .order_by("name")
+    )
     if item:
         boms = boms.filter(item_id=item)
     if q.get("is_active", "1") in ("1", "true", "True"):

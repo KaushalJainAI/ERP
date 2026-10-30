@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as _
 from core.models import (
     Company,
     GSTCategory,
@@ -139,7 +139,7 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
     def validate_before_submit(self):
         items = self.items.all()
         if not items.exists():
-            raise ValidationError("Sales Order must have at least one line item.")
+            raise ValidationError(_("Sales Order must have at least one line item."))
         for line in items:
             if line.batch_id and line.batch.item_id != line.item_id:
                 raise ValidationError(
@@ -253,9 +253,9 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     def validate_before_submit(self):
         items = self.items.all()
         if not items.exists():
-            raise ValidationError("Sales Invoice must have at least one line item.")
+            raise ValidationError(_("Sales Invoice must have at least one line item."))
         if self.debit_to.is_group or self.income_account.is_group:
-            raise ValidationError("Posting to group accounts is not allowed.")
+            raise ValidationError(_("Posting to group accounts is not allowed."))
         # Multi-tenant integrity: an invoice must only touch its own company's
         # ledger and customer. Nothing else stops the API from referencing another
         # company's account/customer, which would post into their books.
@@ -264,10 +264,10 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             or self.income_account.company_id != self.company_id
         ):
             raise ValidationError(
-                "Debit-to and income accounts must belong to the invoice's company."
+                _("Debit-to and income accounts must belong to the invoice's company.")
             )
         if self.customer.company_id != self.company_id:
-            raise ValidationError("Customer must belong to the invoice's company.")
+            raise ValidationError(_("Customer must belong to the invoice's company."))
         if self.update_stock:
             self.company.get_perpetual_accounts(
                 need_cogs=True
@@ -351,7 +351,10 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     continue
                 if not item.warehouse:
                     raise ValidationError(
-                        f"Warehouse required for item '{item.item.code}' when update_stock is enabled."
+                        _(
+                            "Warehouse required for item '%(code)s' when update_stock is enabled."
+                        )
+                        % {"code": item.item.code}
                     )
                 if self.is_return:
                     from accounts.services import returns as returns_service

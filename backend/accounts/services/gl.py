@@ -1,6 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Any
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import transaction
 from accounts.models import Account, GLEntry
 from core.models import FiscalYear
@@ -54,11 +55,11 @@ def post(
     the fiscal year is always resolved from the posting date.
     """
     if not entries:
-        raise ValidationError("Cannot post empty GL entries.")
+        raise ValidationError(_("Cannot post empty GL entries."))
 
     date_to_use = posting_date or getattr(voucher, "posting_date", None)
     if not date_to_use:
-        raise ValidationError("Posting date is required for GL entry.")
+        raise ValidationError(_("Posting date is required for GL entry."))
 
     fy = FiscalYear.for_date(date_to_use)
 
@@ -77,17 +78,20 @@ def post(
 
             if account.is_group:
                 raise ValidationError(
-                    f"Posting to group account '{account.name}' is not allowed."
+                    _("Posting to group account '%(account)s' is not allowed.")
+                    % {"account": account.name}
                 )
 
             debit = quantize_money(item.get("debit", 0))
             credit = quantize_money(item.get("credit", 0))
 
             if debit < 0 or credit < 0:
-                raise ValidationError("Debit and credit amounts must be non-negative.")
+                raise ValidationError(
+                    _("Debit and credit amounts must be non-negative.")
+                )
             if debit > 0 and credit > 0:
                 raise ValidationError(
-                    "A single GL entry line cannot have both debit and credit > 0."
+                    _("A single GL entry line cannot have both debit and credit > 0.")
                 )
             if debit == 0 and credit == 0:
                 continue
@@ -115,7 +119,10 @@ def post(
 
         if total_debit != total_credit:
             raise ValidationError(
-                f"Unbalanced GL entry: Total Debit ({total_debit}) != Total Credit ({total_credit})."
+                _(
+                    "Unbalanced GL entry: Total Debit (%(debit)s) != Total Credit (%(credit)s)."
+                )
+                % {"debit": total_debit, "credit": total_credit}
             )
 
         # A Period Closing Voucher closes the books up to its end date.
@@ -153,7 +160,11 @@ def reverse(voucher: Any) -> List[GLEntry]:
         for company_id in {e.company_id for e in original_entries}:
             closing.assert_period_open(
                 company_id,
-                [e.posting_date for e in original_entries if e.company_id == company_id],
+                [
+                    e.posting_date
+                    for e in original_entries
+                    if e.company_id == company_id
+                ],
                 voucher_type,
             )
         # A voucher that cleared the bank must be un-cleared before it is cancelled.
@@ -218,6 +229,9 @@ def repost(account_id=None, company_id=None):
         total_cr = sum(e.credit for e in v_entries)
         if total_dr != total_cr:
             raise ValidationError(
-                f"Imbalance detected during GL repost for {v['voucher_type']}:{v['voucher_no']}"
+                _(
+                    "Imbalance detected during GL repost for %(voucher_type)s:%(voucher_no)s"
+                )
+                % {"voucher_type": v["voucher_type"], "voucher_no": v["voucher_no"]}
             )
     return True

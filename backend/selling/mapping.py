@@ -3,6 +3,7 @@
 import datetime
 
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import transaction
 
 from accounts.models import PaymentType
@@ -15,7 +16,7 @@ def make_sales_invoice(sales_order):
     """Draft Sales Invoice for the quantity of ``sales_order`` not yet invoiced."""
     if sales_order.docstatus != DocStatus.SUBMITTED:
         raise ValidationError(
-            "Sales Invoice can only be made from a submitted Sales Order."
+            _("Sales Invoice can only be made from a submitted Sales Order.")
         )
 
     invoiced = SalesInvoiceItem.objects.filter(
@@ -27,7 +28,8 @@ def make_sales_invoice(sales_order):
     )
     if not lines:
         raise ValidationError(
-            f"Sales Order '{sales_order.name}' is already fully invoiced."
+            _("Sales Order '%(name)s' is already fully invoiced.")
+            % {"name": sales_order.name}
         )
 
     company = sales_order.company

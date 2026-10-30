@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models.functions import Lower
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as _
 from core.models import (
     Company,
     DocStatus,
@@ -119,7 +119,7 @@ class PurchaseOrder(TaxableDocument, SubmittableDocument):
     def validate_before_submit(self):
         items = self.items.all()
         if not items.exists():
-            raise ValidationError("Purchase Order must have at least one line item.")
+            raise ValidationError(_("Purchase Order must have at least one line item."))
         self.calculate_taxes_and_totals(for_submit=True)
 
     def on_submit(self):
@@ -304,7 +304,9 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     def validate_before_submit(self):
         items = self.items.all()
         if not items.exists():
-            raise ValidationError("Purchase Invoice must have at least one line item.")
+            raise ValidationError(
+                _("Purchase Invoice must have at least one line item.")
+            )
         if not self.is_return and not (self.bill_no or "").strip():
             raise ValidationError(
                 _("Enter the supplier's invoice number (Bill No) before submitting.")
@@ -312,17 +314,19 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         if self.bill_date and self.bill_date > self.posting_date:
             raise ValidationError(_("Bill Date cannot be after the posting date."))
         if self.credit_to.is_group or self.expense_account.is_group:
-            raise ValidationError("Posting to group accounts is not allowed.")
+            raise ValidationError(_("Posting to group accounts is not allowed."))
         # Multi-tenant integrity: keep the posting inside this invoice's company.
         if (
             self.credit_to.company_id != self.company_id
             or self.expense_account.company_id != self.company_id
         ):
             raise ValidationError(
-                "Credit-to and expense accounts must belong to the invoice's company."
+                _(
+                    "Credit-to and expense accounts must belong to the invoice's company."
+                )
             )
         if self.supplier.company_id != self.company_id:
-            raise ValidationError("Supplier must belong to the invoice's company.")
+            raise ValidationError(_("Supplier must belong to the invoice's company."))
         if self.update_stock:
             self.company.get_perpetual_accounts()  # raises if perpetual is on but misconfigured
         self._validate_batch_lines()
@@ -427,7 +431,10 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                     continue
                 if not item.warehouse:
                     raise ValidationError(
-                        f"Warehouse required for item '{item.item.code}' when update_stock is enabled."
+                        _(
+                            "Warehouse required for item '%(code)s' when update_stock is enabled."
+                        )
+                        % {"code": item.item.code}
                     )
                 batch = item.batch
                 if self.is_return:

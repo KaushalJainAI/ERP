@@ -15,6 +15,7 @@ import datetime
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import transaction
 from django.db.models import Sum
 
@@ -71,7 +72,8 @@ def _pick(qs, preferred=()):
 def _require(account, what, company):
     if account is None:
         raise ValidationError(
-            f"No {what} account is configured for company '{company.name}'."
+            _("No %(what)s account is configured for company '%(company)s'.")
+            % {"what": what, "company": company.name}
         )
     return account
 
@@ -85,21 +87,29 @@ def default_receivable_account(company):
     if account := _company_default(company, "default_receivable_account"):
         return account
     qs = _postable_accounts(company).filter(account_type=AccountType.RECEIVABLE)
-    return _require(_pick(qs, ("sundry debtor", "debtor", "receivable")), "Receivable", company)
+    return _require(
+        _pick(qs, ("sundry debtor", "debtor", "receivable")), "Receivable", company
+    )
 
 
 def default_payable_account(company):
     if account := _company_default(company, "default_payable_account"):
         return account
     qs = _postable_accounts(company).filter(account_type=AccountType.PAYABLE)
-    return _require(_pick(qs, ("sundry creditor", "creditor", "payable")), "Payable", company)
+    return _require(
+        _pick(qs, ("sundry creditor", "creditor", "payable")), "Payable", company
+    )
 
 
 def default_income_account(company):
     if account := _company_default(company, "default_income_account"):
         return account
     qs = _postable_accounts(company).filter(root_type=AccountRootType.INCOME)
-    return _require(_pick(qs, ("sales gst @ 5%", "sales gst", "sales account", "sales", "income")), "Income", company)
+    return _require(
+        _pick(qs, ("sales gst @ 5%", "sales gst", "sales account", "sales", "income")),
+        "Income",
+        company,
+    )
 
 
 def default_expense_account(company, update_stock):
@@ -126,7 +136,12 @@ def default_bank_or_cash_account(company):
         .select_related("account")
         .first()
     )
-    if default_ba and default_ba.account and default_ba.account.is_active and not default_ba.account.is_group:
+    if (
+        default_ba
+        and default_ba.account
+        and default_ba.account.is_active
+        and not default_ba.account.is_group
+    ):
         return default_ba.account
     for account_type, words in (
         (AccountType.BANK, ("bank",)),
@@ -138,7 +153,8 @@ def default_bank_or_cash_account(company):
         if account is not None:
             return account
     raise ValidationError(
-        f"No Bank or Cash account is configured for company '{company.name}'."
+        _("No Bank or Cash account is configured for company '%(company)s'.")
+        % {"company": company.name}
     )
 
 
@@ -255,15 +271,17 @@ def return_line_values(original):
             }
         )
     if not rows:
-        raise ValidationError(f"'{original.name}' has already been returned in full.")
+        raise ValidationError(
+            _("'%(name)s' has already been returned in full.") % {"name": original.name}
+        )
     return rows
 
 
 def require_returnable(original):
     if original.docstatus != DocStatus.SUBMITTED:
-        raise ValidationError("A return can only be made from a submitted invoice.")
+        raise ValidationError(_("A return can only be made from a submitted invoice."))
     if original.is_return:
-        raise ValidationError("A return cannot be made from another return.")
+        raise ValidationError(_("A return cannot be made from another return."))
 
 
 def lines_update_stock(lines):
@@ -309,7 +327,9 @@ def build_payment_entry(
 ):
     """Create a draft Payment Entry settling ``invoice``'s outstanding amount."""
     if invoice.docstatus != DocStatus.SUBMITTED:
-        raise ValidationError("Payment can only be requested for a submitted invoice.")
+        raise ValidationError(
+            _("Payment can only be requested for a submitted invoice.")
+        )
     outstanding = invoice_outstanding(invoice)
     if invoice.is_return:
         # A credit / debit note keeps a negative outstanding; settling it is a
@@ -321,7 +341,9 @@ def build_payment_entry(
             else PaymentType.RECEIVE
         )
     if outstanding <= 0:
-        raise ValidationError(f"Invoice '{invoice.name}' has no outstanding amount.")
+        raise ValidationError(
+            _("Invoice '%(name)s' has no outstanding amount.") % {"name": invoice.name}
+        )
     bank = default_bank_or_cash_account(invoice.company)
 
     # Receive: money comes from the party's receivable into the bank.

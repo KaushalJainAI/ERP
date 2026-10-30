@@ -599,7 +599,7 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
 
     def validate_valuation_rate(self, value):
         if value is not None and value < 0:
-            raise DRFValidationError("Valuation rate cannot be negative.")
+            raise DRFValidationError(_("Valuation rate cannot be negative."))
         return value
 
     def validate(self, attrs):

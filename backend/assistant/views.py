@@ -3,6 +3,7 @@
 import logging
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -41,18 +42,24 @@ class AssistantChatStreamView(APIView):
         msg_text = serializer.validated_data["message"]
         conv_id = serializer.validated_data.get("conversation_id")
         input_mode = serializer.validated_data.get("input_mode", "text")
-        language = serializer.validated_data.get("language", getattr(user, "language", "en") or "en")
+        language = serializer.validated_data.get(
+            "language", getattr(user, "language", "en") or "en"
+        )
 
         conversation = None
         if conv_id:
-            conversation = get_object_or_404(AssistantConversation, pk=conv_id, user=user)
+            conversation = get_object_or_404(
+                AssistantConversation, pk=conv_id, user=user
+            )
         else:
             conversation = AssistantConversation.objects.create(
                 user=user,
                 language=language,
             )
 
-        agent = Agent(user=user, company=resolve_active_company(request, required=False))
+        agent = Agent(
+            user=user, company=resolve_active_company(request, required=False)
+        )
 
         stream = agent.run_stream(
             user_text=msg_text,
@@ -100,7 +107,9 @@ class ConversationMessagesView(generics.ListAPIView):
 
     def get_queryset(self):
         conv_id = self.kwargs["pk"]
-        conversation = get_object_or_404(AssistantConversation, pk=conv_id, user=self.request.user)
+        conversation = get_object_or_404(
+            AssistantConversation, pk=conv_id, user=self.request.user
+        )
         return conversation.messages.all().prefetch_related("proposals")
 
 
@@ -150,17 +159,24 @@ class TranscribeAudioView(APIView):
         audio_file = request.FILES.get("file") or request.FILES.get("audio")
         if not audio_file:
             return Response(
-                {"error": "no_audio", "message": "No audio file uploaded."},
+                {"error": "no_audio", "message": _("No audio file uploaded.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        lang = request.data.get("language") or getattr(request.user, "language", "en") or "en"
+        lang = (
+            request.data.get("language")
+            or getattr(request.user, "language", "en")
+            or "en"
+        )
         try:
             text = transcribe_audio(audio_file, language=lang)
         except TranscriptionUnavailable as exc:
             logger.warning("Transcription unavailable: %s", exc)
             return Response(
-                {"error": "stt_unavailable", "message": "Voice input is not available right now."},
+                {
+                    "error": "stt_unavailable",
+                    "message": _("Voice input is not available right now."),
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response({"text": text})

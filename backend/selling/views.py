@@ -62,7 +62,9 @@ class CustomerViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
         """Bulk update phone / email for customers (filling contact gaps from Tally data)."""
         entries = request.data
         if not isinstance(entries, list):
-            raise DRFValidationError({"error": _("Expected a list of customer updates.")})
+            raise DRFValidationError(
+                {"error": _("Expected a list of customer updates.")}
+            )
         from core.company_context import resolve_active_company
         from contacts.models import Address
 
@@ -88,11 +90,19 @@ class CustomerViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
                 if update_fields:
                     cust.save(update_fields=update_fields)
                     if cust.phone:
-                        Address.objects.filter(customer=cust, phone__isnull=True).update(phone=cust.phone)
-                        Address.objects.filter(customer=cust, phone="").update(phone=cust.phone)
+                        Address.objects.filter(
+                            customer=cust, phone__isnull=True
+                        ).update(phone=cust.phone)
+                        Address.objects.filter(customer=cust, phone="").update(
+                            phone=cust.phone
+                        )
                     if cust.email:
-                        Address.objects.filter(customer=cust, email__isnull=True).update(email=cust.email)
-                        Address.objects.filter(customer=cust, email="").update(email=cust.email)
+                        Address.objects.filter(
+                            customer=cust, email__isnull=True
+                        ).update(email=cust.email)
+                        Address.objects.filter(customer=cust, email="").update(
+                            email=cust.email
+                        )
                     updated += 1
         return Response({"updated": updated})
 
@@ -137,7 +147,7 @@ class SalesOrderViewSet(
         doc = self.get_object()
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
-                {"error": "Rates can only be refreshed on a draft."},
+                {"error": _("Rates can only be refreshed on a draft.")},
                 status=409,
             )
         changed = pricing_service.reapply_rates(doc)
@@ -184,12 +194,12 @@ class SalesInvoiceViewSet(
         doc = self.get_object()
         if doc.docstatus != DocStatus.DRAFT:
             return Response(
-                {"error": "Rates can only be refreshed on a draft."},
+                {"error": _("Rates can only be refreshed on a draft.")},
                 status=409,
             )
         if doc.is_return:
             return Response(
-                {"error": "A return keeps the rates of the original invoice."},
+                {"error": _("A return keeps the rates of the original invoice.")},
                 status=409,
             )
         changed = pricing_service.reapply_rates(doc)
@@ -254,7 +264,9 @@ def sales_conversion_analytics(request):
     """Sales conversion & velocity: Sales Order -> Sales Invoice conversion rate, days to convert, and pipeline funnel."""
     company = resolve_active_company(request)
     from_date, to_date, _ = kpis.resolve_period(request.query_params)
-    return Response(kpis.compute_sales_conversion_and_velocity(company, from_date, to_date))
+    return Response(
+        kpis.compute_sales_conversion_and_velocity(company, from_date, to_date)
+    )
 
 
 @api_view(["GET"])
@@ -263,7 +275,9 @@ def sales_revenue_analytics(request):
     """Revenue & volume metrics: net/gross revenue, tax, total volume, AOV, MoM trends and growth vs prior period."""
     company = resolve_active_company(request)
     from_date, to_date, period_name = kpis.resolve_period(request.query_params)
-    return Response(kpis.compute_revenue_and_volume(company, from_date, to_date, period_name))
+    return Response(
+        kpis.compute_revenue_and_volume(company, from_date, to_date, period_name)
+    )
 
 
 @api_view(["GET"])
@@ -273,7 +287,9 @@ def sales_products_analytics(request):
     company = resolve_active_company(request)
     from_date, to_date, _ = kpis.resolve_period(request.query_params)
     limit = int(request.query_params.get("limit", 20))
-    return Response(kpis.compute_top_products_and_spices(company, from_date, to_date, limit))
+    return Response(
+        kpis.compute_top_products_and_spices(company, from_date, to_date, limit)
+    )
 
 
 @api_view(["GET"])
