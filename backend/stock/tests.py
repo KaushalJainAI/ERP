@@ -411,7 +411,11 @@ class StockAppTests(TestCase):
         bin_obj, _ = Bin.objects.get_or_create(
             item=self.item,
             warehouse=self.warehouse,
-            defaults={"actual_qty": Decimal("5.000"), "valuation_rate": Decimal("10.00"), "stock_value": Decimal("50.00")},
+            defaults={
+                "actual_qty": Decimal("5.000"),
+                "valuation_rate": Decimal("10.00"),
+                "stock_value": Decimal("50.00"),
+            },
         )
         bin_obj.actual_qty = Decimal("5.000")
         bin_obj.save()
@@ -419,12 +423,14 @@ class StockAppTests(TestCase):
         with self.assertRaises(ValidationError) as ctx:
             stock_service.post(
                 voucher=self.doc,
-                sle_entries=[{
-                    "item": self.item,
-                    "warehouse": self.warehouse,
-                    "qty": Decimal("-10.000"),
-                    "valuation_rate": Decimal("10.00"),
-                }],
+                sle_entries=[
+                    {
+                        "item": self.item,
+                        "warehouse": self.warehouse,
+                        "qty": Decimal("-10.000"),
+                        "valuation_rate": Decimal("10.00"),
+                    }
+                ],
                 posting_date=datetime.date(2026, 4, 1),
             )
         self.assertIn("Insufficient stock", str(ctx.exception))
@@ -441,7 +447,11 @@ class StockAppTests(TestCase):
             name="Other WH", company=other_company, is_group=False
         )
 
-        for field in ("unprocessed_warehouse", "in_process_warehouse", "ready_warehouse"):
+        for field in (
+            "unprocessed_warehouse",
+            "in_process_warehouse",
+            "ready_warehouse",
+        ):
             setattr(self.company, field, group_wh)
             with self.assertRaises(ValidationError) as ctx:
                 self.company.full_clean()

@@ -320,6 +320,7 @@ class CountTests(RecoBase):
         # By owner decision 2026-10-31 (Card P-1), stock can never go negative.
         # Direct negative updates are prevented by check_bin_actual_qty_non_negative.
         from django.db.utils import IntegrityError
+
         with self.assertRaises(IntegrityError):
             Bin.objects.filter(item=self.haldi).update(
                 actual_qty=D("-3"), stock_value=D("-300.00"), valuation_rate=D("0")

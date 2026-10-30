@@ -21,14 +21,10 @@ from core.models import Company, TimeStampedModel
 
 class _AppendOnlyQuerySet(models.QuerySet):
     def update(self, **kwargs):
-        raise ValidationError(
-            _("Export log rows are immutable and cannot be updated.")
-        )
+        raise ValidationError(_("Export log rows are immutable and cannot be updated."))
 
     def delete(self):
-        raise ValidationError(
-            _("Export log rows are immutable and cannot be deleted.")
-        )
+        raise ValidationError(_("Export log rows are immutable and cannot be deleted."))
 
 
 class _AppendOnly(models.Model):
@@ -42,18 +38,14 @@ class _AppendOnly(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             raise ValidationError(
-                _(
-                    "%(model)s rows are immutable and cannot be updated."
-                )
+                _("%(model)s rows are immutable and cannot be updated.")
                 % {"model": type(self).__name__}
             )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         raise ValidationError(
-            _(
-                "%(model)s rows are immutable and cannot be deleted."
-            )
+            _("%(model)s rows are immutable and cannot be deleted.")
             % {"model": type(self).__name__}
         )
 

@@ -79,6 +79,7 @@ class CompanyProfileTests(APITestCase):
 
     def test_company_default_warehouses_api(self):
         from stock.models import Warehouse
+
         role = Role.objects.create(name="company-admin-wh")
         UserRole.objects.create(user=self.user, role=role)
         RolePermission.objects.create(
