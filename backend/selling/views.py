@@ -1,7 +1,8 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils.translation import gettext as _
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
@@ -122,6 +123,8 @@ class SalesOrderViewSet(
         "make_sales_invoice": "can_read",
         "update_rates": "can_write",
         "pending": "can_read",
+        "dispatch_order": "can_submit",
+        "dispatch": "can_submit",
     }
     queryset = (
         SalesOrder.objects.all()
@@ -153,6 +156,61 @@ class SalesOrderViewSet(
             "selling.SalesInvoice",
             SalesInvoiceSerializer,
         )
+
+    @action(detail=True, methods=["post"], url_path="dispatch")
+    def dispatch_order(self, request, pk=None):
+        order = self.get_object()
+        lines_data = request.data.get("lines")
+        quantities = None
+        if lines_data is not None:
+            if not isinstance(lines_data, list):
+                return Response(
+                    {
+                        "error": _("'lines' must be a list."),
+                        "detail": _("'lines' must be a list."),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if lines_data:
+                quantities = {}
+                for line in lines_data:
+                    item_id = line.get("order_item_id")
+                    qty = line.get("qty")
+                    if item_id is None or qty is None:
+                        return Response(
+                            {
+                                "error": _(
+                                    "Each line must include 'order_item_id' and 'qty'."
+                                ),
+                                "detail": _(
+                                    "Each line must include 'order_item_id' and 'qty'."
+                                ),
+                            },
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    quantities[item_id] = qty
+
+        from selling.services import dispatch as dispatch_service
+
+        try:
+            invoice = dispatch_service.dispatch_order(
+                order, quantities=quantities, user=request.user
+            )
+        except (DjangoValidationError, DRFValidationError) as exc:
+            msg = (
+                exc.message_dict
+                if hasattr(exc, "message_dict")
+                else (exc.messages if hasattr(exc, "messages") else str(exc))
+            )
+            if isinstance(msg, list) and len(msg) == 1:
+                msg = msg[0]
+            return Response(
+                {"error": msg, "detail": msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = SalesInvoiceSerializer(invoice)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def _update_rates(self, request):
         doc = self.get_object()

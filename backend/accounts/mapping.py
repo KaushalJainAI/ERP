@@ -239,6 +239,7 @@ def remaining_order_lines(order_items, invoiced_items):
         if qty > 0:
             remaining.append(
                 {
+                    "order_item_id": line.pk,
                     "item": line.item,
                     "warehouse": line.warehouse,
                     "qty": qty,

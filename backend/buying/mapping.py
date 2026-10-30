@@ -58,7 +58,9 @@ def make_purchase_invoice(purchase_order):
             expense_account=mapping.default_expense_account(company, update_stock),
         )
         for line in lines:
-            PurchaseInvoiceItem.objects.create(purchase_invoice=invoice, **line)
+            line_data = dict(line)
+            line_data.pop("order_item_id", None)
+            PurchaseInvoiceItem.objects.create(purchase_invoice=invoice, **line_data)
         mapping.copy_order_taxes(
             purchase_order, invoice, PurchaseInvoiceTax, "purchase_invoice"
         )

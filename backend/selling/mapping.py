@@ -12,8 +12,12 @@ from core.models import DocStatus, NamingSeries
 from selling.models import SalesInvoice, SalesInvoiceItem, SalesInvoiceTax
 
 
-def make_sales_invoice(sales_order):
-    """Draft Sales Invoice for the quantity of ``sales_order`` not yet invoiced."""
+def make_sales_invoice(sales_order, quantities=None):
+    """Draft Sales Invoice for the quantity of ``sales_order`` not yet invoiced.
+
+    Optional ``quantities`` dict ``{order_item_id: qty}`` limits and scales the
+    lines created. Lines omitted from ``quantities`` are skipped.
+    """
     if sales_order.docstatus != DocStatus.SUBMITTED:
         raise ValidationError(
             _("Sales Invoice can only be made from a submitted Sales Order.")
@@ -31,6 +35,40 @@ def make_sales_invoice(sales_order):
             _("Sales Order '%(name)s' is already fully invoiced.")
             % {"name": sales_order.name}
         )
+
+    if quantities is not None:
+        from decimal import Decimal
+
+        qty_map = {int(k): Decimal(str(v)) for k, v in quantities.items()}
+        selected_lines = []
+        for line in lines:
+            order_item_id = line["order_item_id"]
+            if order_item_id in qty_map:
+                req_qty = qty_map[order_item_id]
+                if req_qty <= Decimal("0.000"):
+                    raise ValidationError(
+                        _(
+                            "Dispatch quantity must be greater than zero for item '%(code)s'."
+                        )
+                        % {"code": line["item"].code}
+                    )
+                if req_qty > line["qty"]:
+                    raise ValidationError(
+                        _(
+                            "Cannot dispatch %(qty)s for '%(code)s'; only %(remaining)s remaining."
+                        )
+                        % {
+                            "qty": req_qty,
+                            "code": line["item"].code,
+                            "remaining": line["qty"],
+                        }
+                    )
+                line_copy = dict(line)
+                line_copy["qty"] = req_qty
+                selected_lines.append(line_copy)
+        if not selected_lines:
+            raise ValidationError(_("No lines to invoice."))
+        lines = selected_lines
 
     company = sales_order.company
     posting_date = datetime.date.today()
@@ -57,7 +95,9 @@ def make_sales_invoice(sales_order):
             income_account=mapping.default_income_account(company),
         )
         for line in lines:
-            SalesInvoiceItem.objects.create(sales_invoice=invoice, **line)
+            line_data = dict(line)
+            line_data.pop("order_item_id", None)
+            SalesInvoiceItem.objects.create(sales_invoice=invoice, **line_data)
         mapping.copy_order_taxes(sales_order, invoice, SalesInvoiceTax, "sales_invoice")
     return invoice
 

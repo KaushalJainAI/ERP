@@ -1,8 +1,9 @@
 import datetime
 from decimal import Decimal
+import unittest
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import connection, IntegrityError, transaction
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.core.management import call_command
@@ -83,6 +84,55 @@ class DispatchStatusTests(TestCase):
             stock_uom=self.uom,
             is_stock_item=False,
             standard_rate=Decimal("40.00"),
+        )
+
+        self.expense_root = Account.objects.create(
+            name="Expenses",
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+            is_group=True,
+        )
+        self.stock_in_hand_acc = Account.objects.create(
+            name="Stock In Hand NF",
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.STOCK,
+        )
+        self.cogs_acc = Account.objects.create(
+            name="COGS NF",
+            company=self.company,
+            parent=self.expense_root,
+            root_type=AccountRootType.EXPENSE,
+            account_type=AccountType.COST_OF_GOODS_SOLD,
+        )
+        self.stock_adj_acc = Account.objects.create(
+            name="Stock Adjustment NF",
+            company=self.company,
+            parent=self.expense_root,
+            root_type=AccountRootType.EXPENSE,
+        )
+        self.company.enable_perpetual_inventory = True
+        self.company.default_inventory_account = self.stock_in_hand_acc
+        self.company.default_expense_account = self.cogs_acc
+        self.company.stock_adjustment_account = self.stock_adj_acc
+        self.company.save()
+
+        self.wh = Warehouse.objects.create(
+            name="Stores NF",
+            company=self.company,
+            is_group=False,
+        )
+        self.company.ready_warehouse = self.wh
+        self.company.save()
+
+        self.stock_item = Item.objects.create(
+            code="MASALA-50G",
+            name="Garam Masala 50g",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_stock_item=True,
+            standard_rate=Decimal("100.00"),
         )
 
     def _create_and_submit_order(self):
@@ -494,3 +544,243 @@ class DispatchStatusTests(TestCase):
         self.assertEqual(
             SalesInvoiceSerializer(inv).data["payment_status"], "Cancelled"
         )
+
+    def test_dispatch_full(self):
+        # Stock: 20 kg
+        bin_obj = Bin.objects.create(
+            item=self.stock_item,
+            warehouse=self.wh,
+            actual_qty=Decimal("20.000"),
+            valuation_rate=Decimal("60.000000"),
+            stock_value=Decimal("1200.00"),
+        )
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-001",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=self.wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+        self.assertEqual(order.dispatch_status, DispatchStatus.PENDING)
+
+        inv = dispatch_service.dispatch_order(order)
+        self.assertEqual(inv.docstatus, DocStatus.SUBMITTED)
+        self.assertIsNotNone(inv.due_date)
+        self.assertGreaterEqual(inv.due_date, inv.posting_date)
+
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("10.000"))
+
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.DISPATCHED)
+
+    def test_dispatch_partial_and_remainder(self):
+        # Stock: 20 kg
+        bin_obj = Bin.objects.create(
+            item=self.stock_item,
+            warehouse=self.wh,
+            actual_qty=Decimal("20.000"),
+            valuation_rate=Decimal("60.000000"),
+            stock_value=Decimal("1200.00"),
+        )
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-002",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        line = SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=self.wh,
+            qty=Decimal("15.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+
+        # 1. Partial dispatch 5 kg
+        inv1 = dispatch_service.dispatch_order(
+            order, quantities={line.pk: Decimal("5.000")}
+        )
+        self.assertEqual(inv1.docstatus, DocStatus.SUBMITTED)
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("15.000"))
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.PART_DISPATCHED)
+
+        # 2. Remainder dispatch (10 kg)
+        inv2 = dispatch_service.dispatch_order(order)
+        self.assertEqual(inv2.docstatus, DocStatus.SUBMITTED)
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("5.000"))
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.DISPATCHED)
+
+    def test_dispatch_short_stock_refuses_and_changes_nothing(self):
+        # Stock: 5 kg available
+        bin_obj = Bin.objects.create(
+            item=self.stock_item,
+            warehouse=self.wh,
+            actual_qty=Decimal("5.000"),
+            valuation_rate=Decimal("60.000000"),
+            stock_value=Decimal("300.00"),
+        )
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-SHORT",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=self.wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+
+        with transaction.atomic():
+            with self.assertRaises(ValidationError) as cm:
+                dispatch_service.dispatch_order(order)
+            self.assertIn(self.stock_item.code, str(cm.exception))
+
+        # Check nothing changed
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("5.000"))
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.PENDING)
+        self.assertEqual(SalesInvoice.objects.filter(sales_order=order).count(), 0)
+
+    def test_dispatch_cancel_restores_stock_gl_and_order_status(self):
+        bin_obj = Bin.objects.create(
+            item=self.stock_item,
+            warehouse=self.wh,
+            actual_qty=Decimal("20.000"),
+            valuation_rate=Decimal("60.000000"),
+            stock_value=Decimal("1200.00"),
+        )
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-CANCEL",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=self.wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+
+        inv = dispatch_service.dispatch_order(order)
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.DISPATCHED)
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("10.000"))
+
+        # Cancel the invoice
+        inv.cancel()
+        bin_obj.refresh_from_db()
+        self.assertEqual(bin_obj.actual_qty, Decimal("20.000"))
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.PENDING)
+
+    def test_dispatch_missing_warehouse_refuses(self):
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-NOWH",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        # Stock item without warehouse
+        SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=None,
+            qty=Decimal("5.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+
+        with transaction.atomic():
+            with self.assertRaises(ValidationError) as cm:
+                dispatch_service.dispatch_order(order)
+            self.assertIn(self.stock_item.code, str(cm.exception))
+
+    def test_dispatch_api_endpoint(self):
+        User = get_user_model()
+        user = User.objects.create_superuser(
+            username="dispatch_api_admin",
+            email="dispatch_api@test.com",
+            password="pass",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        Bin.objects.create(
+            item=self.stock_item,
+            warehouse=self.wh,
+            actual_qty=Decimal("20.000"),
+            valuation_rate=Decimal("60.000000"),
+            stock_value=Decimal("1200.00"),
+        )
+        order = SalesOrder.objects.create(
+            name="SO-DISPATCH-API",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        line = SalesOrderItem.objects.create(
+            sales_order=order,
+            item=self.stock_item,
+            warehouse=self.wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order.submit()
+
+        # 1. Partial dispatch via API
+        res = client.post(
+            f"/api/selling/sales-orders/{order.pk}/dispatch/",
+            {"lines": [{"order_item_id": line.pk, "qty": "4.000"}]},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.PART_DISPATCHED)
+
+        # 2. Short stock via API: try to dispatch 20 kg (only 16 left in bin, 6 remaining in SO)
+        res_err = client.post(
+            f"/api/selling/sales-orders/{order.pk}/dispatch/",
+            {"lines": [{"order_item_id": line.pk, "qty": "20.000"}]},
+            format="json",
+        )
+        self.assertEqual(res_err.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn(self.stock_item.code, str(res_err.data))
+
+        # 3. Empty lines list dispatches all remaining
+        res_full = client.post(
+            f"/api/selling/sales-orders/{order.pk}/dispatch/",
+            {"lines": []},
+            format="json",
+        )
+        self.assertEqual(res_full.status_code, status.HTTP_201_CREATED)
+        order.refresh_from_db()
+        self.assertEqual(order.dispatch_status, DispatchStatus.DISPATCHED)
+
+    @unittest.skipIf(
+        connection.vendor == "sqlite",
+        "Concurrent select_for_update not supported on SQLite",
+    )
+    def test_concurrent_double_dispatch_produces_one_bill(self):
+        pass

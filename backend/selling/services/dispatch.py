@@ -1,7 +1,10 @@
 """Dispatch tracking and operations for Sales Orders (Card O-1, O-2, O-3)."""
 
 from decimal import Decimal
+from django.core.exceptions import ValidationError
+from django.db import connection, transaction
 from django.db.models import Sum
+from django.utils.translation import gettext as _
 from core.models import Company, DocStatus
 from accounts import mapping
 from selling.models import (
@@ -220,3 +223,91 @@ def pending_orders(company):
         )
 
     return result
+
+
+def dispatch_order(order, quantities=None, user=None):
+    """Dispatch a submitted SalesOrder into a submitted SalesInvoice and update stock and status.
+
+    Parameters:
+    - order: SalesOrder instance or ID
+    - quantities: optional dict of {order_item_id: qty}. If None, dispatches all remaining.
+    - user: User submitting the invoice
+
+    Returns:
+    - The created and submitted SalesInvoice
+    """
+    from selling.mapping import make_sales_invoice
+
+    order_pk = order.pk if hasattr(order, "pk") else order
+
+    with transaction.atomic():
+        if connection.features.has_select_for_update:
+            locked_order = SalesOrder.objects.select_for_update().get(pk=order_pk)
+        else:
+            locked_order = SalesOrder.objects.get(pk=order_pk)
+
+        if locked_order.docstatus != DocStatus.SUBMITTED:
+            raise ValidationError(_("Only submitted Sales Orders can be dispatched."))
+
+        # Check remaining lines
+        invoiced = SalesInvoiceItem.objects.filter(
+            sales_invoice__sales_order=locked_order,
+            sales_invoice__docstatus=DocStatus.SUBMITTED,
+        ).select_related("item")
+        remaining = mapping.remaining_order_lines(
+            locked_order.items.select_related("item", "warehouse"), invoiced
+        )
+        if not remaining:
+            raise ValidationError(
+                _("Sales Order '%(name)s' is already fully invoiced.")
+                % {"name": locked_order.name}
+            )
+
+        qty_map = None
+        if quantities is not None:
+            qty_map = {int(k): Decimal(str(v)) for k, v in quantities.items()}
+            rem_map = {line["order_item_id"]: line for line in remaining}
+            invalid_ids = set(qty_map.keys()) - set(rem_map.keys())
+            if invalid_ids:
+                raise ValidationError(
+                    _("Order item %(id)s is not available for dispatch.")
+                    % {"id": next(iter(invalid_ids))}
+                )
+            for item_id, req_qty in qty_map.items():
+                line = rem_map[item_id]
+                if req_qty <= Decimal("0.000"):
+                    raise ValidationError(
+                        _(
+                            "Dispatch quantity must be greater than zero for item '%(code)s'."
+                        )
+                        % {"code": line["item"].code}
+                    )
+                if req_qty > line["qty"]:
+                    raise ValidationError(
+                        _(
+                            "Cannot dispatch %(qty)s for '%(code)s'; only %(remaining)s remaining."
+                        )
+                        % {
+                            "qty": req_qty,
+                            "code": line["item"].code,
+                            "remaining": line["qty"],
+                        }
+                    )
+
+        # Validate warehouse on each stock line that will be dispatched
+        for line in remaining:
+            line_id = line["order_item_id"]
+            if qty_map is not None and line_id not in qty_map:
+                continue
+            if line["item"].is_stock_item and not line["warehouse"]:
+                raise ValidationError(
+                    _("Warehouse is required for item '%(code)s'.")
+                    % {"code": line["item"].code}
+                )
+
+        invoice = make_sales_invoice(locked_order, quantities=quantities)
+        invoice.submit(user=user)
+        refresh_status(locked_order)
+        if hasattr(order, "refresh_from_db"):
+            order.refresh_from_db()
+        return invoice
