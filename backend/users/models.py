@@ -1,14 +1,35 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+
+class Workspace(models.TextChoices):
+    ORDERS = "orders", _("Orders")
+    FACTORY = "factory", _("Factory")
+    ACCOUNTS = "accounts", _("Accounts")
+    ADMIN = "admin", _("Admin")
 
 
 class User(AbstractUser):
     email = models.EmailField(unique=True)
     language = models.CharField(max_length=5, default="en")
+    default_workspace = models.CharField(
+        max_length=20,
+        choices=Workspace.choices,
+        default=Workspace.ADMIN,
+    )
     # Version token for the UI (the generic form re-seeds itself when a
     # document's ``modified_at`` changes). Bumped by every profile/role/active
     # change; null for rows not edited since this column was added.
     modified_at = models.DateTimeField(auto_now=True, null=True, editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(default_workspace__in=Workspace.values),
+                name="check_user_default_workspace_valid",
+            )
+        ]
 
     def save(self, *args, **kwargs):
         if self.email:

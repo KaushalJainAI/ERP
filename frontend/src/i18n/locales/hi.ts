@@ -632,6 +632,13 @@ const hi: Record<string, unknown> = {
     last_name: "अंतिम नाम",
     full_name: "नाम",
     language: "भाषा",
+    default_workspace: "डिफ़ॉल्ट कार्यस्थान",
+    workspace: {
+      orders: "ऑर्डर",
+      factory: "फैक्ट्री",
+      accounts: "खाते",
+      admin: "व्यवस्थापक",
+    },
     password: "प्रारंभिक पासवर्ड",
     password_help: "पासवर्ड नीति के अनुसार जांचा जाता है। उपयोगकर्ता इसे \"मेरी प्रोफ़ाइल\" से बदल सकता है।",
     is_active: "सक्रिय",

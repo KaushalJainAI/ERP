@@ -22,6 +22,8 @@ export const DocStatus = {
   CANCELLED: 2,
 } as const;
 
+export type WorkspaceType = "orders" | "factory" | "accounts" | "admin";
+
 export interface UserProfile {
   id: number;
   username: string;
@@ -29,6 +31,7 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   language: string;
+  default_workspace?: WorkspaceType;
   roles: string[];
   /** Model labels (`app.Model`) the user may read; `["*"]` for a superuser. */
   readable_models: string[];

@@ -17,6 +17,13 @@ export const enUsers = {
     last_name: "Last name",
     full_name: "Name",
     language: "Language",
+    default_workspace: "Default Workspace",
+    workspace: {
+      orders: "Orders",
+      factory: "Factory",
+      accounts: "Accounts",
+      admin: "Admin",
+    },
     password: "Initial password",
     password_help: "Checked against the password policy. The user can change it from My profile.",
     is_active: "Active",

@@ -469,7 +469,7 @@ question's recorded answer.
 ### 1. Access and workspaces
 - [x] A-1 One all-access role
 - [x] A-2 Record the exception
-- [ ] A-3 Landing workspace
+- [x] A-3 Landing workspace
 - [ ] A-4 Workspace home pages
 - [ ] A-5 Hide menus
 - [ ] A-6 Plain words

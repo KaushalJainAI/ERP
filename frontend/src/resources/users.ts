@@ -25,6 +25,13 @@ export const canManageUsers = (user: UserProfile): boolean =>
 const LANGUAGE_CODES = ["en", "hi", "ta", "pa", "gu", "or", "bn", "kn", "as", "te", "ml", "mr", "ur"];
 const LANGUAGES: SelectOption[] = LANGUAGE_CODES.map((c) => ({ value: c, labelKey: `usermgmt.lang.${c}` }));
 
+const WORKSPACES: SelectOption[] = [
+  { value: "orders", labelKey: "usermgmt.workspace.orders" },
+  { value: "factory", labelKey: "usermgmt.workspace.factory" },
+  { value: "accounts", labelKey: "usermgmt.workspace.accounts" },
+  { value: "admin", labelKey: "usermgmt.workspace.admin" },
+];
+
 export const usersResources: ResourceConfig[] = [
   {
     key: "users",
@@ -74,6 +81,14 @@ export const usersResources: ResourceConfig[] = [
         required: true,
         options: LANGUAGES,
         defaultValue: "en",
+      },
+      {
+        key: "default_workspace",
+        labelKey: "usermgmt.default_workspace",
+        type: "select",
+        required: true,
+        options: WORKSPACES,
+        defaultValue: "admin",
       },
       {
         key: "password",

@@ -104,6 +104,38 @@ class UsersAppTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["readable_models"], ["*"])
 
+    def test_default_workspace_returned_by_me(self):
+        """Card A-3: /api/auth/me/ returns default_workspace (default 'admin')."""
+        self.client.force_authenticate(self.user)
+        response = self.client.get("/api/auth/me/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["default_workspace"], "admin")
+
+    def test_default_workspace_update_and_invalid_rejected(self):
+        """Card A-3: An invalid workspace value is refused; valid value is saved."""
+        self.client.force_authenticate(self.user)
+        # Invalid value
+        bad_res = self.client.patch(
+            "/api/auth/me/",
+            {"default_workspace": "invalid_workspace"},
+            format="json",
+        )
+        self.assertEqual(bad_res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("default_workspace", bad_res.data)
+
+        # Valid value
+        good_res = self.client.patch(
+            "/api/auth/me/",
+            {"default_workspace": "orders"},
+            format="json",
+        )
+        self.assertEqual(good_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(good_res.data["default_workspace"], "orders")
+
+        # Verify persisted
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.default_workspace, "orders")
+
     # -------------------------------------------------------------------------
     # Bad / Error Unit Tests
     # -------------------------------------------------------------------------
