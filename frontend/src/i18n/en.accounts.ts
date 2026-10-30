@@ -17,7 +17,9 @@ export const enAccounts = {
       overdue: "Overdue",
       unpaid: "Unpaid",
       partly_paid: "Partly Paid",
+      part_paid: "Part Paid",
       paid: "Paid",
+      due: "Due",
     },
     bucket: {
       "0-30": "0-30 Days",

@@ -7,7 +7,7 @@ from rest_framework.test import APIClient
 from rest_framework import status
 from django.core.management import call_command
 from django.test import TestCase
-from core.models import Company, FiscalYear
+from core.models import Company, DocStatus, FiscalYear
 from accounts.models import Account, AccountRootType, AccountType
 from stock.models import Bin, Item, ItemGroup, UOM, Warehouse
 from selling.models import (
@@ -442,3 +442,55 @@ class DispatchStatusTests(TestCase):
         pinv.due_date = None
         with self.assertRaises(ValidationError):
             pinv.validate_before_submit()
+
+    def test_payment_status_computed_property_and_serializer(self):
+        from selling.serializers import SalesInvoiceSerializer
+
+        today = datetime.date.today()
+
+        # 1. Draft invoice -> "Draft"
+        inv = SalesInvoice.objects.create(
+            customer=self.customer,
+            company=self.company,
+            posting_date=today,
+            due_date=today + datetime.timedelta(days=10),
+            debit_to=self.debtors_acc,
+            income_account=self.sales_income_acc,
+            update_stock=False,
+            net_total=Decimal("100.00"),
+            grand_total=Decimal("100.00"),
+            rounded_total=Decimal("100.00"),
+            outstanding_amount=Decimal("100.00"),
+        )
+        self.assertEqual(inv.payment_status, "Draft")
+        self.assertEqual(SalesInvoiceSerializer(inv).data["payment_status"], "Draft")
+
+        # 2. Submitted, full amount open, not past due -> "Due"
+        inv.docstatus = DocStatus.SUBMITTED
+        self.assertEqual(inv.payment_status, "Due")
+        self.assertEqual(SalesInvoiceSerializer(inv).data["payment_status"], "Due")
+
+        # 3. Submitted, partial amount open, not past due -> "Part Paid"
+        inv.outstanding_amount = Decimal("40.00")
+        self.assertEqual(inv.payment_status, "Part Paid")
+        self.assertEqual(
+            SalesInvoiceSerializer(inv).data["payment_status"], "Part Paid"
+        )
+
+        # 4. Submitted, fully paid -> "Paid"
+        inv.outstanding_amount = Decimal("0.00")
+        self.assertEqual(inv.payment_status, "Paid")
+        self.assertEqual(SalesInvoiceSerializer(inv).data["payment_status"], "Paid")
+
+        # 5. Submitted, outstanding > 0 and due_date < today -> "Overdue"
+        inv.due_date = today - datetime.timedelta(days=1)
+        inv.outstanding_amount = Decimal("40.00")
+        self.assertEqual(inv.payment_status, "Overdue")
+        self.assertEqual(SalesInvoiceSerializer(inv).data["payment_status"], "Overdue")
+
+        # 6. Cancelled invoice -> "Cancelled"
+        inv.docstatus = DocStatus.CANCELLED
+        self.assertEqual(inv.payment_status, "Cancelled")
+        self.assertEqual(
+            SalesInvoiceSerializer(inv).data["payment_status"], "Cancelled"
+        )

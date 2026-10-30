@@ -279,6 +279,7 @@ class SalesInvoiceSerializer(
     price_list_name = serializers.CharField(
         source="price_list.name", read_only=True, allow_null=True
     )
+    payment_status = serializers.CharField(read_only=True)
 
     class Meta:
         model = SalesInvoice
@@ -307,6 +308,7 @@ class SalesInvoiceSerializer(
             "status",
             "is_overdue",
             "display_status",
+            "payment_status",
             "place_of_supply_name",
             "taxes_and_charges_name",
             "docstatus",
@@ -324,6 +326,7 @@ class SalesInvoiceSerializer(
             "status",
             "is_overdue",
             "display_status",
+            "payment_status",
             *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",

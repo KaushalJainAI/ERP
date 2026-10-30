@@ -23,7 +23,7 @@ export const invoiceStatusColumns: ListColumnDef[] = [
   {
     key: "display_status",
     labelKey: "ageing.payment_status",
-    render: (v, row) => (isSubmitted(row) ? createElement(PaymentStatusBadge, { status: v ?? row.status }) : ""),
+    render: (v, row) => (isSubmitted(row) ? createElement(PaymentStatusBadge, { status: row.payment_status ?? v ?? row.status }) : ""),
   },
 ];
 

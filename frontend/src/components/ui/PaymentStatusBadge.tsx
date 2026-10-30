@@ -4,9 +4,13 @@ import { useTranslation } from "react-i18next";
 /** Server `display_status` values that carry a payment meaning (Draft / Cancelled are covered by the docstatus badge). */
 const STYLES: Record<string, { key: string; cls: string }> = {
   Overdue: { key: "ageing.status.overdue", cls: "bg-rose-950/60 text-rose-300 border-rose-800/60" },
+  Due: { key: "ageing.status.due", cls: "bg-amber-950/40 text-amber-300 border-amber-800/50" },
   Unpaid: { key: "ageing.status.unpaid", cls: "bg-amber-950/40 text-amber-300 border-amber-800/50" },
   "Partly Paid": { key: "ageing.status.partly_paid", cls: "bg-sky-950/60 text-sky-300 border-sky-800/60" },
+  "Part Paid": { key: "ageing.status.part_paid", cls: "bg-sky-950/60 text-sky-300 border-sky-800/60" },
   Paid: { key: "ageing.status.paid", cls: "bg-emerald-950/60 text-emerald-300 border-emerald-800/60" },
+  Draft: { key: "status.draft", cls: "bg-slate-800/50 text-slate-300 border-slate-700/50" },
+  Cancelled: { key: "status.cancelled", cls: "bg-slate-800/50 text-slate-400 border-slate-700/50" },
   // Returns (credit / debit notes) and the invoices they settle.
   Return: { key: "ret.status.return", cls: "bg-fuchsia-950/50 text-fuchsia-300 border-fuchsia-800/50" },
   "Credit Note Issued": { key: "ret.status.credit_note_issued", cls: "bg-fuchsia-950/50 text-fuchsia-300 border-fuchsia-800/50" },

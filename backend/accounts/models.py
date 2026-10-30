@@ -1053,6 +1053,49 @@ class PayableDocument(models.Model):
         """The stored status, or ``"Overdue"`` while unpaid past the due date."""
         return "Overdue" if self.is_overdue else self.status
 
+    @property
+    def payment_status(self):
+        """Computed payment status label for bills (Card M-3)."""
+        if self.docstatus == DocStatus.DRAFT:
+            return "Draft"
+        if self.docstatus == DocStatus.CANCELLED:
+            return "Cancelled"
+
+        today = timezone.localdate()
+        outstanding = abs(self.outstanding_amount)
+        total = abs(self.grand_total)
+
+        if outstanding > 0 and self.due_date and self.due_date < today:
+            return "Overdue"
+        if outstanding == 0:
+            return "Paid"
+        if outstanding < total:
+            return "Part Paid"
+        return "Due"
+
+    @property
+    def payment_label(self):
+        """Paid, Due, Draft, Cancelled (Card M-3)."""
+        if self.docstatus == DocStatus.DRAFT:
+            return "Draft"
+        if self.docstatus == DocStatus.CANCELLED:
+            return "Cancelled"
+        if abs(self.outstanding_amount) == 0:
+            return "Paid"
+        return "Due"
+
+    @property
+    def days_late(self):
+        """0 if not late, else days past due_date."""
+        if (
+            self.docstatus != DocStatus.SUBMITTED
+            or self.outstanding_amount == 0
+            or not self.due_date
+        ):
+            return 0
+        diff = (timezone.localdate() - self.due_date).days
+        return max(0, diff)
+
     def ensure_no_linked_payments(self):
         """ERPNext's default: an invoice with a submitted payment cannot be cancelled."""
         linked = PaymentEntryReference.objects.filter(

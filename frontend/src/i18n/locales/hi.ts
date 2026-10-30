@@ -927,7 +927,9 @@ const hi: Record<string, unknown> = {
       overdue: "अतिदेय",
       unpaid: "अवैतनिक",
       partly_paid: "आंशिक भुगतान",
+      part_paid: "आंशिक भुगतान",
       paid: "भुगतान हुआ",
+      due: "देय",
     },
     bucket: {
       "0-30": "0-30 दिन",
