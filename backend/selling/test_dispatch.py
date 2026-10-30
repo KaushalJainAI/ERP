@@ -1,10 +1,13 @@
 import datetime
 from decimal import Decimal
+from django.contrib.auth import get_user_model
+from rest_framework.test import APIClient
+from rest_framework import status
 from django.core.management import call_command
 from django.test import TestCase
 from core.models import Company, FiscalYear
 from accounts.models import Account, AccountRootType, AccountType
-from stock.models import UOM, ItemGroup, Item
+from stock.models import Bin, Item, ItemGroup, UOM, Warehouse
 from selling.models import (
     CustomerGroup,
     Customer,
@@ -188,3 +191,117 @@ class DispatchStatusTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.dispatch_status, DispatchStatus.PENDING)
         self.assertEqual(dispatch_service.integrity_errors(), [])
+
+    def test_pending_orders_quantities_and_query_count(self):
+        ready_wh = Warehouse.objects.create(
+            name="Ready Goods Warehouse",
+            company=self.company,
+            is_group=False,
+        )
+        self.company.ready_warehouse = ready_wh
+        self.company.save()
+
+        stock_item = Item.objects.create(
+            code="STOCK-SPICE-01",
+            name="Special Garam Masala",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_stock_item=True,
+            standard_rate=Decimal("100.00"),
+        )
+        # 15 kg ready in warehouse
+        Bin.objects.create(
+            item=stock_item,
+            warehouse=ready_wh,
+            actual_qty=Decimal("15.000"),
+        )
+
+        order1 = SalesOrder.objects.create(
+            name="SO-PENDING-001",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date(2026, 4, 1),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order1,
+            item=stock_item,
+            warehouse=ready_wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order1.submit()
+
+        order2 = SalesOrder.objects.create(
+            name="SO-PENDING-002",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date(2026, 4, 2),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order2,
+            item=stock_item,
+            warehouse=ready_wh,
+            qty=Decimal("10.000"),
+            rate=Decimal("100.00"),
+        )
+        order2.submit()
+
+        # Check quantities across two orders
+        results = dispatch_service.pending_orders(self.company)
+        self.assertEqual(len(results), 2)
+        # Order 1 (older) gets full 10.000 ready
+        self.assertEqual(results[0]["id"], order1.pk)
+        self.assertEqual(results[0]["lines"][0]["remaining_qty"], Decimal("10.000"))
+        self.assertEqual(results[0]["lines"][0]["ready_qty"], Decimal("10.000"))
+        self.assertEqual(results[0]["lines"][0]["short_qty"], Decimal("0.000"))
+
+        # Order 2 (newer) gets remaining 5.000 ready and 5.000 short
+        self.assertEqual(results[1]["id"], order2.pk)
+        self.assertEqual(results[1]["lines"][0]["remaining_qty"], Decimal("10.000"))
+        self.assertEqual(results[1]["lines"][0]["ready_qty"], Decimal("5.000"))
+        self.assertEqual(results[1]["lines"][0]["short_qty"], Decimal("5.000"))
+
+        # Test query count constant (avoid N+1)
+        with self.assertNumQueries(4):
+            dispatch_service.pending_orders(self.company)
+
+        # Add third order and verify query count does not scale with order count
+        order3 = SalesOrder.objects.create(
+            name="SO-PENDING-003",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date(2026, 4, 3),
+        )
+        SalesOrderItem.objects.create(
+            sales_order=order3,
+            item=stock_item,
+            warehouse=ready_wh,
+            qty=Decimal("5.000"),
+            rate=Decimal("100.00"),
+        )
+        order3.submit()
+
+        with self.assertNumQueries(4):
+            results3 = dispatch_service.pending_orders(self.company)
+        self.assertEqual(len(results3), 3)
+        self.assertEqual(results3[2]["lines"][0]["ready_qty"], Decimal("0.000"))
+        self.assertEqual(results3[2]["lines"][0]["short_qty"], Decimal("5.000"))
+
+    def test_pending_orders_api_endpoint(self):
+        User = get_user_model()
+        user = User.objects.create_superuser(
+            username="dispatch_admin",
+            email="dispatch_admin@test.com",
+            password="pass",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        order = self._create_and_submit_order()
+        res = client.get(
+            f"/api/selling/sales-orders/pending/?company={self.company.id}"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]["id"], order.pk)
+        self.assertEqual(len(res.data[0]["lines"]), 2)

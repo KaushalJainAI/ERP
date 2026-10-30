@@ -477,7 +477,7 @@ question's recorded answer.
 
 ### 2. Orders, dispatch and billing
 - [x] O-1 Dispatch status
-- [ ] O-2 Pending orders service
+- [x] O-2 Pending orders service
 - [ ] O-3 Dispatch action
 - [ ] O-4 Bill numbering
 - [ ] O-5 Pending Orders page

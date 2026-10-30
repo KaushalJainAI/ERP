@@ -121,6 +121,7 @@ class SalesOrderViewSet(
     action_permission_flags = {
         "make_sales_invoice": "can_read",
         "update_rates": "can_write",
+        "pending": "can_read",
     }
     queryset = (
         SalesOrder.objects.all()
@@ -132,6 +133,16 @@ class SalesOrderViewSet(
     filterset_fields = ["company", "customer", "docstatus", "dispatch_status"]
     search_fields = ["name", "customer__name"]
     ordering_fields = ["transaction_date", "created_at"]
+
+    @action(detail=False, methods=["get"], url_path="pending")
+    def pending(self, request):
+        company = getattr(self, "active_company", None) or resolve_active_company(
+            request
+        )
+        from selling.services import dispatch as dispatch_service
+
+        data = dispatch_service.pending_orders(company)
+        return Response(data)
 
     @action(detail=True, methods=["post"], url_path="make-sales-invoice")
     def make_sales_invoice(self, request, pk=None):
