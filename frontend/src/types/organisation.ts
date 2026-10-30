@@ -34,6 +34,9 @@ export interface CompanyProfile {
   default_income_account?: number | null;
   default_selling_price_list: number | null;
   default_buying_price_list: number | null;
+  unprocessed_warehouse?: number | null;
+  in_process_warehouse?: number | null;
+  ready_warehouse?: number | null;
   enable_rounded_total: boolean;
   round_off_account: number | null;
   round_off_gst_values: boolean;

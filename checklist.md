@@ -485,7 +485,7 @@ question's recorded answer.
 - [ ] O-7 Real Tally test (OWNER)
 
 ### 3. Production and stock
-- [ ] P-1 Warehouses and stock constraints
+- [x] P-1 Warehouses and stock constraints
 - [ ] P-2 Batch stage
 - [ ] P-3 Batch service (BLOCKED Q2)
 - [ ] P-4 Today's Batches page

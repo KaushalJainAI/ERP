@@ -317,23 +317,13 @@ class CountTests(RecoBase):
         self.assertIn("Nothing to reconcile", str(ctx.exception))
 
     def test_negative_stock_is_counted_back(self):
-        # A Bin that went negative (legacy import) can be corrected by a count.
-        stock = StockLedgerEntry.objects.get(item=self.haldi)
-        Bin.objects.filter(item=self.haldi).update(
-            actual_qty=D("-3"), stock_value=D("-300.00"), valuation_rate=D("0")
-        )
-        StockLedgerEntry.objects.filter(pk=stock.pk).update(
-            qty=D("-3"), stock_value_difference=D("-300.00")
-        )
-        with self.assertRaises(ValidationError):  # qty-less row cannot guess
-            self.reco([(self.haldi, self.wh, None, "50")])
-        doc = self.reco([(self.haldi, self.wh, "5", "100")])
-        b = self.bin(self.haldi)
-        self.assertEqual(
-            (b.actual_qty, b.stock_value, b.valuation_rate),
-            (D("5"), D("500.00"), D("100")),
-        )
-        self.assertEqual(doc.items.get().current_qty, D("-3"))
+        # By owner decision 2026-10-31 (Card P-1), stock can never go negative.
+        # Direct negative updates are prevented by check_bin_actual_qty_non_negative.
+        from django.db.utils import IntegrityError
+        with self.assertRaises(IntegrityError):
+            Bin.objects.filter(item=self.haldi).update(
+                actual_qty=D("-3"), stock_value=D("-300.00"), valuation_rate=D("0")
+            )
 
     def test_rate_required_when_no_current_rate(self):
         with self.assertRaises(ValidationError) as ctx:

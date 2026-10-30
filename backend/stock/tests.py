@@ -393,3 +393,65 @@ class StockAppTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data["total_actual_qty"], "75.000")
         self.assertEqual(res.data["total_stock_value"], "6000.00")
+
+    def test_direct_bin_update_to_negative_raises_integrity_error(self):
+        """P-1: Direct Bin update to a negative actual_qty violates check_bin_actual_qty_non_negative."""
+        bin_obj, _ = Bin.objects.get_or_create(
+            item=self.item,
+            warehouse=self.warehouse,
+            defaults={"actual_qty": Decimal("10.000")},
+        )
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                bin_obj.actual_qty = Decimal("-1.000")
+                bin_obj.save()
+
+    def test_sale_above_stock_fails_with_normal_message(self):
+        """P-1: Attempting to issue more stock than available in Bin fails with Insufficient stock."""
+        bin_obj, _ = Bin.objects.get_or_create(
+            item=self.item,
+            warehouse=self.warehouse,
+            defaults={"actual_qty": Decimal("5.000"), "valuation_rate": Decimal("10.00"), "stock_value": Decimal("50.00")},
+        )
+        bin_obj.actual_qty = Decimal("5.000")
+        bin_obj.save()
+
+        with self.assertRaises(ValidationError) as ctx:
+            stock_service.post(
+                voucher=self.doc,
+                sle_entries=[{
+                    "item": self.item,
+                    "warehouse": self.warehouse,
+                    "qty": Decimal("-10.000"),
+                    "valuation_rate": Decimal("10.00"),
+                }],
+                posting_date=datetime.date(2026, 4, 1),
+            )
+        self.assertIn("Insufficient stock", str(ctx.exception))
+
+    def test_company_default_warehouses_validation(self):
+        """P-1: Company default warehouses must be non-group and belong to the company."""
+        group_wh = Warehouse.objects.create(
+            name="Group WH", company=self.company, is_group=True
+        )
+        other_company = Company.objects.create(
+            name="Other Co", abbr="OTH", default_currency="INR"
+        )
+        other_wh = Warehouse.objects.create(
+            name="Other WH", company=other_company, is_group=False
+        )
+
+        for field in ("unprocessed_warehouse", "in_process_warehouse", "ready_warehouse"):
+            setattr(self.company, field, group_wh)
+            with self.assertRaises(ValidationError) as ctx:
+                self.company.full_clean()
+            self.assertIn(field, ctx.exception.message_dict)
+
+            setattr(self.company, field, other_wh)
+            with self.assertRaises(ValidationError) as ctx:
+                self.company.full_clean()
+            self.assertIn(field, ctx.exception.message_dict)
+
+            setattr(self.company, field, self.warehouse)
+            self.company.full_clean()
+            setattr(self.company, field, None)

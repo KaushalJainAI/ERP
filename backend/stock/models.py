@@ -534,7 +534,11 @@ class Bin(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["item", "warehouse"], name="unique_bin_per_item_warehouse"
-            )
+            ),
+            models.CheckConstraint(
+                check=models.Q(actual_qty__gte=0),
+                name="check_bin_actual_qty_non_negative",
+            ),
         ]
 
     def __str__(self):

@@ -401,6 +401,27 @@ class Company(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    unprocessed_warehouse = models.ForeignKey(
+        "stock.Warehouse",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    in_process_warehouse = models.ForeignKey(
+        "stock.Warehouse",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    ready_warehouse = models.ForeignKey(
+        "stock.Warehouse",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
 
     # GST (see docs/gst_design.md). Percent/threshold style settings live on the
     # company (India Compliance keeps them in a "GST Settings" doctype).
@@ -491,6 +512,16 @@ class Company(TimeStampedModel):
                 }
             elif root_type and acc.root_type != root_type:
                 errors[field] = _("Pick an Income account.")
+        for field in (
+            "unprocessed_warehouse",
+            "in_process_warehouse",
+            "ready_warehouse",
+        ):
+            wh = getattr(self, field) if getattr(self, f"{field}_id") else None
+            if wh is None:
+                continue
+            if self.pk is None or wh.company_id != self.pk or wh.is_group:
+                errors[field] = _("Pick a non-group warehouse of this company.")
         if errors:
             raise ValidationError(errors)
 

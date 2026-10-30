@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Globe2,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Select } from "@/components/ui/Select";
@@ -87,6 +88,9 @@ const FORM_KEYS = [
   "round_off_account",
   "default_selling_price_list",
   "default_buying_price_list",
+  "unprocessed_warehouse",
+  "in_process_warehouse",
+  "ready_warehouse",
 ] as const;
 
 type FormValues = Record<string, any>;
@@ -106,6 +110,9 @@ function formFrom(profile: CompanyProfile): FormValues {
   out.round_off_account = profile.round_off_account ? String(profile.round_off_account) : "";
   out.default_selling_price_list = profile.default_selling_price_list ? String(profile.default_selling_price_list) : "";
   out.default_buying_price_list = profile.default_buying_price_list ? String(profile.default_buying_price_list) : "";
+  out.unprocessed_warehouse = profile.unprocessed_warehouse ? String(profile.unprocessed_warehouse) : "";
+  out.in_process_warehouse = profile.in_process_warehouse ? String(profile.in_process_warehouse) : "";
+  out.ready_warehouse = profile.ready_warehouse ? String(profile.ready_warehouse) : "";
   return out;
 }
 
@@ -149,6 +156,18 @@ export const CompanyPage: React.FC = () => {
   const { data: priceListsData } = useQuery<{ results: Array<{ id: number; name: string; selling: boolean; buying: boolean }> }>({
     queryKey: ["price-lists"],
     queryFn: async () => (await apiClient.get("/stock/price-lists/", { params: { enabled: true, page_size: 100 } })).data,
+    enabled: !!activeCompany,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: warehousesData } = useQuery<{ results: Array<{ id: number; name: string; is_group: boolean }> }>({
+    queryKey: ["company-warehouses", activeCompany?.id ?? null],
+    queryFn: async () =>
+      (
+        await apiClient.get("/stock/warehouses/", {
+          params: { company: activeCompany?.id, is_group: false, page_size: 250 },
+        })
+      ).data,
     enabled: !!activeCompany,
     staleTime: 5 * 60_000,
   });
@@ -246,6 +265,14 @@ export const CompanyPage: React.FC = () => {
     [priceListsData, t]
   );
 
+  const warehouseOptions = useMemo(
+    () => [
+      { value: "", label: t("common.select") },
+      ...(warehousesData?.results ?? []).map((w) => ({ value: String(w.id), label: w.name })),
+    ],
+    [warehousesData, t]
+  );
+
   const set = (key: string, value: any) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setFieldErrors((prev) => {
@@ -275,6 +302,9 @@ export const CompanyPage: React.FC = () => {
     payload.round_off_account = form.round_off_account ? Number(form.round_off_account) : null;
     payload.default_selling_price_list = form.default_selling_price_list ? Number(form.default_selling_price_list) : null;
     payload.default_buying_price_list = form.default_buying_price_list ? Number(form.default_buying_price_list) : null;
+    payload.unprocessed_warehouse = form.unprocessed_warehouse ? Number(form.unprocessed_warehouse) : null;
+    payload.in_process_warehouse = form.in_process_warehouse ? Number(form.in_process_warehouse) : null;
+    payload.ready_warehouse = form.ready_warehouse ? Number(form.ready_warehouse) : null;
 
     try {
       const res = await apiClient.patch<CompanyProfile>(`/core/companies/${data.id}/`, payload);
@@ -638,6 +668,49 @@ export const CompanyPage: React.FC = () => {
                   value={String(form.default_buying_price_list ?? "")}
                   onChange={(value) => set("default_buying_price_list", value)}
                   options={buyingPriceListOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+            </Section>
+
+            <Section title={t("org.company.default_warehouses")} icon={Warehouse}>
+              <Field
+                label={t("org.company.unprocessed_warehouse")}
+                error={fieldErrors.unprocessed_warehouse?.[0]}
+                help={t("org.company.unprocessed_warehouse_help")}
+              >
+                <Select
+                  value={String(form.unprocessed_warehouse ?? "")}
+                  onChange={(value) => set("unprocessed_warehouse", value)}
+                  options={warehouseOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field
+                label={t("org.company.in_process_warehouse")}
+                error={fieldErrors.in_process_warehouse?.[0]}
+                help={t("org.company.in_process_warehouse_help")}
+              >
+                <Select
+                  value={String(form.in_process_warehouse ?? "")}
+                  onChange={(value) => set("in_process_warehouse", value)}
+                  options={warehouseOptions}
+                  disabled={!canWrite}
+                  placeholder={t("common.select")}
+                />
+              </Field>
+              <Field
+                label={t("org.company.ready_warehouse")}
+                error={fieldErrors.ready_warehouse?.[0]}
+                help={t("org.company.ready_warehouse_help")}
+                className="sm:col-span-2"
+              >
+                <Select
+                  value={String(form.ready_warehouse ?? "")}
+                  onChange={(value) => set("ready_warehouse", value)}
+                  options={warehouseOptions}
                   disabled={!canWrite}
                   placeholder={t("common.select")}
                 />

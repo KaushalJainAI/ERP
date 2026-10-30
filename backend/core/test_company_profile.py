@@ -76,3 +76,50 @@ class CompanyProfileTests(APITestCase):
         self.assertEqual(res.status_code, 400, res.content)
         self.assertIn("pan", res.json())
         self.assertIn("pincode", res.json())
+
+    def test_company_default_warehouses_api(self):
+        from stock.models import Warehouse
+        role = Role.objects.create(name="company-admin-wh")
+        UserRole.objects.create(user=self.user, role=role)
+        RolePermission.objects.create(
+            role=role, model_label="core.Company", can_read=True, can_write=True
+        )
+        self.client.force_authenticate(self.user)
+
+        group_wh = Warehouse.objects.create(
+            name="Group Warehouse", company=self.company, is_group=True
+        )
+        leaf_wh1 = Warehouse.objects.create(
+            name="Raw Material WH", company=self.company, is_group=False
+        )
+        leaf_wh2 = Warehouse.objects.create(
+            name="WIP WH", company=self.company, is_group=False
+        )
+        leaf_wh3 = Warehouse.objects.create(
+            name="FG WH", company=self.company, is_group=False
+        )
+
+        # Refuse group warehouse
+        res = self.client.patch(
+            f"/api/core/companies/{self.company.pk}/",
+            {"unprocessed_warehouse": group_wh.pk},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400, res.content)
+        self.assertIn("unprocessed_warehouse", res.json())
+
+        # Accept valid warehouses
+        res = self.client.patch(
+            f"/api/core/companies/{self.company.pk}/",
+            {
+                "unprocessed_warehouse": leaf_wh1.pk,
+                "in_process_warehouse": leaf_wh2.pk,
+                "ready_warehouse": leaf_wh3.pk,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.unprocessed_warehouse_id, leaf_wh1.pk)
+        self.assertEqual(self.company.in_process_warehouse_id, leaf_wh2.pk)
+        self.assertEqual(self.company.ready_warehouse_id, leaf_wh3.pk)
