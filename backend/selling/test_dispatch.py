@@ -305,3 +305,34 @@ class DispatchStatusTests(TestCase):
         self.assertEqual(len(res.data), 1)
         self.assertEqual(res.data[0]["id"], order.pk)
         self.assertEqual(len(res.data[0]["lines"]), 2)
+
+    def test_bill_numbering_financial_year_boundary(self):
+        from accounts import mapping as account_mapping
+        from core.models import NamingSeries
+
+        # 31 March 2026 falls in FY 2025-26 -> '2526'
+        march_31 = datetime.date(2026, 3, 31)
+        sinv_march = account_mapping.financial_year_series("SINV", march_31)
+        pinv_march = account_mapping.financial_year_series("PINV", march_31)
+        self.assertEqual(sinv_march, "SINV-2526-")
+        self.assertEqual(pinv_march, "PINV-2526-")
+
+        # 1 April 2026 falls in FY 2026-27 -> '2627'
+        april_1 = datetime.date(2026, 4, 1)
+        sinv_april = account_mapping.financial_year_series("SINV", april_1)
+        pinv_april = account_mapping.financial_year_series("PINV", april_1)
+        self.assertEqual(sinv_april, "SINV-2627-")
+        self.assertEqual(pinv_april, "PINV-2627-")
+
+        # 31 March and 1 April fall in different series
+        self.assertNotEqual(sinv_march, sinv_april)
+        self.assertNotEqual(pinv_march, pinv_april)
+
+        # Full invoice number is <= 16 chars (GST requirement)
+        name = NamingSeries.next(sinv_april)
+        self.assertLessEqual(len(name), 16)
+        self.assertTrue(name.startswith("SINV-2627-"))
+
+        # Overly long prefix raises ValueError
+        with self.assertRaises(ValueError):
+            account_mapping.financial_year_series("VERYLONGPREFIXNAME", april_1)

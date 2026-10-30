@@ -33,12 +33,13 @@ def make_sales_invoice(sales_order):
         )
 
     company = sales_order.company
+    posting_date = datetime.date.today()
     with transaction.atomic():
         invoice = SalesInvoice.objects.create(
-            name=NamingSeries.next("SINV-2026-"),
+            name=NamingSeries.next(mapping.financial_year_series("SINV", posting_date)),
             customer=sales_order.customer,
             company=company,
-            posting_date=datetime.date.today(),
+            posting_date=posting_date,
             sales_order=sales_order,
             price_list=sales_order.price_list,
             taxes_and_charges=sales_order.taxes_and_charges,
@@ -60,12 +61,13 @@ def make_sales_return(invoice):
     Sales Invoice (ERPNext ``make_sales_return``). Quantities are negative."""
     mapping.require_returnable(invoice)
     lines = mapping.return_line_values(invoice)
+    posting_date = max(datetime.date.today(), invoice.posting_date)
     with transaction.atomic():
         ret = SalesInvoice.objects.create(
-            name=NamingSeries.next("SRET-2026-"),
+            name=NamingSeries.next(mapping.financial_year_series("SRET", posting_date)),
             customer=invoice.customer,
             company=invoice.company,
-            posting_date=max(datetime.date.today(), invoice.posting_date),
+            posting_date=posting_date,
             price_list=invoice.price_list,
             taxes_and_charges=invoice.taxes_and_charges,
             place_of_supply=invoice.place_of_supply,

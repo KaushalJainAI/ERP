@@ -34,12 +34,13 @@ def make_purchase_invoice(purchase_order):
 
     company = purchase_order.company
     update_stock = mapping.lines_update_stock(lines)
+    posting_date = datetime.date.today()
     with transaction.atomic():
         invoice = PurchaseInvoice.objects.create(
-            name=NamingSeries.next("PINV-2026-"),
+            name=NamingSeries.next(mapping.financial_year_series("PINV", posting_date)),
             supplier=purchase_order.supplier,
             company=company,
-            posting_date=datetime.date.today(),
+            posting_date=posting_date,
             purchase_order=purchase_order,
             price_list=purchase_order.price_list,
             taxes_and_charges=purchase_order.taxes_and_charges,
@@ -64,12 +65,13 @@ def make_purchase_return(invoice):
     negative; a batch-tracked line keeps the batch the purchase created."""
     mapping.require_returnable(invoice)
     lines = mapping.return_line_values(invoice)
+    posting_date = max(datetime.date.today(), invoice.posting_date)
     with transaction.atomic():
         ret = PurchaseInvoice.objects.create(
-            name=NamingSeries.next("PRET-2026-"),
+            name=NamingSeries.next(mapping.financial_year_series("PRET", posting_date)),
             supplier=invoice.supplier,
             company=invoice.company,
-            posting_date=max(datetime.date.today(), invoice.posting_date),
+            posting_date=posting_date,
             price_list=invoice.price_list,
             taxes_and_charges=invoice.taxes_and_charges,
             place_of_supply=invoice.place_of_supply,

@@ -31,6 +31,30 @@ from core.models import DocStatus, NamingSeries
 
 ZERO = Decimal("0.00")
 QTY_QUANTUM = Decimal("0.001")
+
+
+def financial_year_series(prefix, posting_date):
+    """Return prefix with 4-digit Indian financial year code (e.g. SINV-2627-).
+
+    April 2026 to March 2027 is '2627'.
+    Total length of prefix + year code + hyphen must be <= 12 characters
+    so that 4-digit sequential padding stays <= 16 characters for GST compliance.
+    """
+    if posting_date.month >= 4:
+        start_year = posting_date.year
+    else:
+        start_year = posting_date.year - 1
+    end_year = start_year + 1
+    code = f"{start_year % 100:02d}{end_year % 100:02d}"
+    series = f"{prefix}-{code}-"
+    if len(series) + 4 > 16:
+        raise ValueError(
+            _("Series '%(series)s' with 4-digit padding exceeds 16 characters.")
+            % {"series": series}
+        )
+    return series
+
+
 #: Input GST columns of a document line copied from order to invoice. The amounts
 #: (cgst / sgst / igst, gst_rate) are recomputed by the engine.
 GST_SNAPSHOT_FIELDS = (

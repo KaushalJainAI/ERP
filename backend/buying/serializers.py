@@ -1,3 +1,4 @@
+import datetime
 from rest_framework import serializers
 from decimal import Decimal
 from django.utils.translation import gettext as _
@@ -438,6 +439,21 @@ class PurchaseInvoiceSerializer(
         return account_mapping.optional_account_fields(
             super().get_fields(), self._DEFAULT_ACCOUNTS
         )
+
+    def create(self, validated_data):
+        if not validated_data.get("name"):
+            posting_date = validated_data.get("posting_date") or datetime.date.today()
+            from core.models import NamingSeries
+
+            if validated_data.get("is_return"):
+                validated_data["name"] = NamingSeries.next(
+                    account_mapping.financial_year_series("PRET", posting_date)
+                )
+            else:
+                validated_data["name"] = NamingSeries.next(
+                    account_mapping.financial_year_series("PINV", posting_date)
+                )
+        return super().create(validated_data)
 
     def validate(self, attrs):
         attrs = account_mapping.fill_default_accounts(
