@@ -50,7 +50,6 @@ INSTALLED_APPS = [
     "manufacturing.apps.ManufacturingConfig",
     "hr.apps.HrConfig",
     "drive.apps.DriveConfig",
-    "legacy.apps.LegacyConfig",
     "ngu.apps.NguConfig",
     "tally_export.apps.TallyExportConfig",
     "payment_reconciliation.apps.PaymentReconciliationConfig",

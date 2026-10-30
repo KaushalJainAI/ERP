@@ -28,7 +28,6 @@ import { DayBookPage } from "@/pages/reports/registers/DayBookPage";
 import { CashBookPage } from "@/pages/reports/registers/CashBookPage";
 import { PartyStatementPage } from "@/pages/reports/registers/PartyStatementPage";
 import { ListPage } from "@/components/doc/ListPage";
-import { PastBillsPage } from "@/pages/history/PastBillsPage";
 import { PrintPage } from "@/print/PrintPage";
 import { DocumentPage } from "@/components/doc/DocumentPage";
 import { CreateVariantPage } from "@/pages/stock/CreateVariantPage";
@@ -168,16 +167,6 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <CreateVariantPage />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Read-only Tally history as bills (all 10 years). */}
-      <Route
-        path="/history/bills"
-        element={
-          <ProtectedRoute>
-            <PastBillsPage />
           </ProtectedRoute>
         }
       />

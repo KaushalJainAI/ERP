@@ -7,31 +7,36 @@ Verifies:
 4. Save tagging via X-Assistant-Proposal header (AuditLog + Proposal updated).
 5. Model CHECK constraints (role, input_mode, status, saved fields).
 6. Chat stream endpoint SSE events and error handling.
+7. Matching: exact wins, close spellings are only ever offered, company is enforced.
+8. Agent loop: a question ends the turn, one proposal per turn, the turn budget.
+
+No test here reaches a real LLM: every Agent gets a stubbed completion_fn.
 """
 
 import datetime
 from decimal import Decimal
 import json
+from unittest import mock
 import uuid
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection, transaction
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
+import requests
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Account, AccountRootType, AccountType
-from core.models import AuditLog, Company, State
+from core.models import AuditLog, Company
 from selling.models import Customer, CustomerGroup, SalesInvoice
-from buying.models import Supplier, SupplierGroup, PurchaseInvoice
-from stock.models import Item, ItemGroup, UOM, Warehouse, Bin, ValuationMethod
+from buying.models import Supplier, SupplierGroup
+from stock.models import Item, ItemGroup, UOM, Warehouse, Bin
 from hr.models import Employee
-from users.models import Role, RolePermission, UserRole
 
 from .models import AssistantConversation, AssistantMessage, AssistantProposal
 from .tools import (
-    READ_TOOLS,
     search_customers,
     search_suppliers,
     search_items,
@@ -39,14 +44,18 @@ from .tools import (
     get_stock,
     get_party_outstanding,
     get_rate,
-    wrap_data,
+    mask_phone,
+    sales_summary,
+    top_items,
 )
 from .proposals import (
+    propose_payment_entry,
     propose_sales_invoice,
     propose_purchase_invoice,
-    propose_payment_entry,
 )
-from .agent import Agent
+from . import agent as agent_module
+from .agent import Agent, to_wire
+from .prompts import FAILURE_REPLIES, SYSTEM_PROMPT, failure_reply
 
 User = get_user_model()
 
@@ -218,7 +227,7 @@ class AssistantNoWriteGuaranteeTests(TestCase):
 
         for call in test_calls:
             with CaptureQueriesContext(connection) as ctx:
-                res = call()
+                call()
                 for q in ctx.captured_queries:
                     sql_upper = q["sql"].strip().upper()
                     self.assertFalse(sql_upper.startswith("INSERT"), f"Found forbidden INSERT query: {sql_upper}")
@@ -438,10 +447,388 @@ class AssistantChatStreamAPITests(APITestCase):
             "language": "hi",
         }
 
-        resp = self.client.post("/api/assistant/chat/stream/", request_data, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(resp["Content-Type"], "text/event-stream")
+        with mock.patch.object(
+            Agent, "_default_llm_completion", return_value={"content": "ok", "tool_calls": None}
+        ):
+            resp = self.client.post("/api/assistant/chat/stream/", request_data, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_200_OK)
+            self.assertEqual(resp["Content-Type"], "text/event-stream")
+            stream_content = b"".join(resp.streaming_content).decode("utf-8")
 
-        stream_content = b"".join(resp.streaming_content).decode("utf-8")
         self.assertIn("event: meta", stream_content)
         self.assertIn("event: done", stream_content)
+
+
+class AssistantMatchingTests(TestCase):
+    """Real catalogues hold "Haldi" next to "Haldi 1kg", and "Sonf" next to "Souf"."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="matcher", email="matcher@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.item.name = "Haldi"
+        self.item.save()
+        self.pack = Item.objects.create(
+            code="HALDI-1KG-" + str(uuid.uuid4())[:4],
+            name="Haldi 1kg",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_active=True,
+        )
+        Warehouse.objects.create(
+            name="All Warehouses " + str(uuid.uuid4())[:6],
+            company=self.company,
+            is_group=True,
+        )
+
+    def test_exact_name_wins_over_longer_names(self):
+        """Picking "Haldi" from a list must resolve, or the agent asks for ever."""
+        res = propose_sales_invoice(
+            self.user, customer_query="Sharma", items=[{"item": "haldi", "qty": 5}]
+        )
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["values"]["items"][0]["item"], self.item.pk)
+
+    def test_partial_name_still_asks(self):
+        res = search_items(self.user, "hald")
+        self.assertEqual(res["count"], 2)
+        self.assertFalse(res["close_spelling"])
+
+    def test_close_spelling_is_offered_never_picked(self):
+        res = propose_sales_invoice(
+            self.user, customer_query="Sharma", items=[{"item": "Haldee", "qty": 5}]
+        )
+        self.assertEqual(res.get("type"), "question")
+        self.assertIn("Haldi", res["options"])
+
+        found = search_items(self.user, "Haldee")
+        self.assertTrue(found["close_spelling"])
+
+    def test_nothing_close_is_not_found(self):
+        res = propose_sales_invoice(
+            self.user, customer_query="Sharma", items=[{"item": "Xylophone", "qty": 5}]
+        )
+        self.assertEqual(res.get("error"), "item_not_found")
+
+    def test_words_in_any_order_match(self):
+        res = search_customers(self.user, "Traders Sharma")
+        self.assertEqual(res["count"], 1)
+        self.assertFalse(res["close_spelling"])
+
+    def test_party_name_lookups_do_not_crash_on_text(self):
+        """A name where an id goes used to raise ValueError on the integer pk."""
+        res = get_party_outstanding(self.user, "Customer", "Sharma")
+        self.assertIn("Sharma Traders", res["party_name"])
+
+        rate = get_rate(self.user, self.item.code, "Customer", "Sharma")
+        self.assertNotIn("error", rate)
+
+    def test_ambiguous_stock_item_is_reported(self):
+        res = get_stock(self.user, "hald")
+        self.assertEqual(res.get("error"), "ambiguous_item")
+
+    def test_line_never_uses_a_group_warehouse(self):
+        res = propose_sales_invoice(
+            self.user, customer_query="Sharma", items=[{"item": "haldi", "qty": 5}]
+        )
+        self.assertEqual(res["values"]["items"][0]["warehouse"], self.wh.pk)
+
+    def test_missing_rate_is_flagged(self):
+        res = propose_sales_invoice(
+            self.user, customer_query="Sharma", items=[{"item": "haldi 1kg", "qty": 5}]
+        )
+        self.assertTrue(any("No rate found" in w for w in res["warnings"]))
+
+    def test_phones_are_masked_for_the_model(self):
+        self.assertEqual(mask_phone("+91 93000 05040"), "******5040")
+        self.customer.phone = "9300005040"
+        self.customer.save()
+        res = search_customers(self.user, "Sharma")
+        self.assertEqual(res["results"][0]["phone"], "******5040")
+
+
+class AssistantPaymentAccountTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="cashier", email="cashier@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.bank = Account.objects.create(
+            name="Bank-" + str(uuid.uuid4())[:6],
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+        )
+        self.cash = Account.objects.create(
+            name="Cash-" + str(uuid.uuid4())[:6],
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.CASH,
+        )
+
+    def test_cash_goes_to_the_cash_account(self):
+        res = propose_payment_entry(
+            self.user, "Customer", "Sharma", 15000, mode_of_payment="Cash"
+        )
+        self.assertEqual(res["values"]["paid_to"], self.cash.pk)
+        self.assertEqual(res["values"]["paid_from"], self.debtors_acc.pk)
+
+    def test_other_modes_go_to_the_bank(self):
+        res = propose_payment_entry(
+            self.user, "Customer", "Sharma", 15000, mode_of_payment="Cheque"
+        )
+        self.assertEqual(res["values"]["paid_to"], self.bank.pk)
+
+
+class AssistantCompanyScopeTests(TestCase):
+    """The active company comes from the request; the model cannot change it."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="scoped", email="scoped@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.other = Company.objects.create(
+            name="Other Co " + str(uuid.uuid4())[:6],
+            abbr="OC" + str(uuid.uuid4())[:4],
+            default_currency="INR",
+        )
+
+    def test_party_of_another_company_is_invisible(self):
+        res = search_customers(self.user, "Sharma", company=self.other.pk)
+        self.assertEqual(res["count"], 0)
+
+    def test_agent_injects_company_and_drops_model_supplied_one(self):
+        agent = Agent(user=self.user, company=self.other, completion_fn=lambda *a, **k: {})
+        res = agent._execute_tool(
+            "search_customers", {"query": "Sharma", "company": self.company.pk, "bogus": 1}
+        )
+        self.assertEqual(res["count"], 0)
+
+        agent = Agent(user=self.user, company=self.company, completion_fn=lambda *a, **k: {})
+        res = agent._execute_tool("search_customers", {"query": "Sharma"})
+        self.assertEqual(res["count"], 1)
+
+
+class AssistantReportToolTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="reporter", email="reporter@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.today = datetime.date.today()
+
+    def _invoice(self, docstatus):
+        return SalesInvoice.objects.create(
+            name=f"SI-TEST-{docstatus}",
+            customer=self.customer,
+            company=self.company,
+            posting_date=self.today,
+            due_date=self.today,
+            debit_to=self.debtors_acc,
+            income_account=self.sales_acc,
+            net_total=Decimal("100.00"),
+            grand_total=Decimal("100.00"),
+            rounded_total=Decimal("100.00"),
+            outstanding_amount=Decimal("40.00"),
+            docstatus=docstatus,
+        )
+
+    def test_sales_summary_counts_only_submitted_invoices(self):
+        self._invoice(1)
+        self._invoice(0)
+        res = sales_summary(self.user, "7d", company=self.company.pk)
+        self.assertEqual(res["invoices"], 1)
+        self.assertEqual(res["grand_total"], "100.00")
+        self.assertEqual(res["outstanding"], "40.00")
+
+    def test_reports_need_read_permission(self):
+        plain = User.objects.create_user(username="plain", email="p@erp.local", password="password")
+        self.assertEqual(sales_summary(plain).get("error"), "permission_denied")
+        self.assertEqual(top_items(plain).get("error"), "permission_denied")
+
+
+def scripted(*turns):
+    """A completion_fn replaying `turns`, recording allow_tools for each call."""
+    remaining = list(turns)
+    calls = []
+
+    def complete(messages, allow_tools=True):
+        calls.append(allow_tools)
+        return remaining.pop(0)
+
+    complete.calls = calls
+    return complete
+
+
+def tool_call(name, **args):
+    return {
+        "id": f"call_{name}",
+        "type": "function",
+        "function": {"name": name, "arguments": json.dumps(args)},
+    }
+
+
+class AssistantAgentLoopTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="looper", email="looper@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.conversation = AssistantConversation.objects.create(user=self.user)
+
+    def _run(self, completion, language="en"):
+        agent = Agent(user=self.user, company=self.company, completion_fn=completion)
+        return "".join(agent.run_stream("hello", self.conversation, language=language))
+
+    def _last_reply(self):
+        return self.conversation.messages.filter(role="assistant").order_by("-id").first().content
+
+    def test_question_ends_the_turn_and_is_remembered(self):
+        completion = scripted(
+            {"content": "", "tool_calls": [tool_call("ask_user", question="Kaun sa?", options=["A", "B"])]}
+        )
+        stream = self._run(completion)
+        self.assertIn("event: question", stream)
+        self.assertEqual(len(completion.calls), 1)
+        self.assertEqual(self._last_reply(), "Kaun sa?")
+
+    def test_builder_question_also_ends_the_turn(self):
+        Customer.objects.create(
+            name="Sharma Enterprises",
+            company=self.company,
+            customer_group=self.cust_grp,
+            is_active=True,
+        )
+        completion = scripted(
+            {
+                "content": "",
+                "tool_calls": [
+                    tool_call(
+                        "propose_sales_invoice",
+                        customer_query="Sharma",
+                        items=[{"item": "Haldi", "qty": 1}],
+                    )
+                ],
+            }
+        )
+        self.assertIn("event: question", self._run(completion))
+        self.assertFalse(AssistantProposal.objects.exists())
+
+    def test_after_a_proposal_the_model_only_confirms(self):
+        completion = scripted(
+            {
+                "content": "",
+                "tool_calls": [
+                    tool_call(
+                        "propose_sales_invoice",
+                        customer_query="Sharma",
+                        items=[{"item": "Haldi", "qty": 1}],
+                    )
+                ],
+            },
+            {"content": "Form taiyar hai.", "tool_calls": None},
+        )
+        stream = self._run(completion)
+        self.assertIn("event: proposal", stream)
+        self.assertEqual(completion.calls, [True, False])
+        self.assertEqual(AssistantProposal.objects.count(), 1)
+
+    def test_turn_out_of_time_replies_instead_of_starting_a_round(self):
+        completion = scripted(
+            {"content": "", "tool_calls": [tool_call("search_items", query="Haldi")]},
+        )
+        clock = iter([0.0, 500.0, 500.0, 500.0])
+        with mock.patch.object(agent_module, "_clock", lambda: next(clock)):
+            stream = self._run(completion, language="hi")
+        self.assertEqual(len(completion.calls), 1)
+        self.assertIn(json.dumps(FAILURE_REPLIES["slow"]["hi"]), stream)
+
+    def test_tool_crash_never_reaches_the_browser(self):
+        completion = scripted(
+            {"content": "", "tool_calls": [tool_call("search_items", query="x")]},
+            {"content": "done", "tool_calls": None},
+        )
+        with mock.patch.dict(
+            agent_module.READ_TOOLS,
+            {"search_items": mock.Mock(side_effect=RuntimeError("secret path /etc/x"))},
+        ), mock.patch.object(agent_module.inspect, "signature") as signature:
+            signature.return_value.parameters = {"query": None}
+            stream = self._run(completion)
+        self.assertNotIn("secret path", stream)
+
+    def test_empty_model_reply_is_not_left_blank(self):
+        completion = scripted({"content": "", "tool_calls": None})
+        self._run(completion)
+        self.assertEqual(self._last_reply(), FAILURE_REPLIES["fallback"]["en"])
+
+    def test_no_api_key_degrades_in_the_users_language(self):
+        agent = Agent(user=self.user, company=self.company)
+        with mock.patch.dict("os.environ", {"LLM_API_KEY": "", "OPENROUTER_API_KEY": "", "ANTHROPIC_API_KEY": ""}):
+            stream = "".join(agent.run_stream("hello", self.conversation, language="hi"))
+        self.assertIn(json.dumps(FAILURE_REPLIES["fallback"]["hi"]), stream)
+
+
+class AssistantWireFormatTests(TestCase):
+    def test_claude_gets_a_cache_point_after_the_static_prompt(self):
+        messages = [
+            {"role": "system", "content": f"{SYSTEM_PROMPT}\nTODAY: 2026-10-31"},
+            {"role": "user", "content": "hi"},
+        ]
+        wire = to_wire(messages, "anthropic/claude-haiku-5.5")
+        blocks = wire[0]["content"]
+        self.assertEqual(blocks[0]["text"], SYSTEM_PROMPT)
+        self.assertEqual(blocks[0]["cache_control"], {"type": "ephemeral"})
+        self.assertEqual(blocks[1]["text"], "TODAY: 2026-10-31")
+        self.assertNotIn("cache_control", blocks[1])
+
+    def test_other_models_get_the_plain_request(self):
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        self.assertIs(to_wire(messages, "deepseek/deepseek-v4-flash"), messages)
+
+    def test_untranslated_language_falls_back_to_english(self):
+        self.assertEqual(failure_reply("slow", "ta"), FAILURE_REPLIES["slow"]["en"])
+
+
+class AssistantTranscribeTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="speaker", email="speaker@erp.local", password="password"
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def _post(self, language="hi"):
+        audio = SimpleUploadedFile("audio.wav", b"RIFF0000WAVE", content_type="audio/wav")
+        return self.client.post(
+            "/api/assistant/transcribe/", {"file": audio, "language": language}, format="multipart"
+        )
+
+    def test_returns_text_and_sends_language(self):
+        reply = mock.Mock(status_code=200)
+        reply.json.return_value = {"text": " haldi "}
+        with mock.patch.dict("os.environ", {"LLM_API_KEY": "test"}), mock.patch(
+            "requests.post", return_value=reply
+        ) as post:
+            resp = self._post("hi")
+        self.assertEqual(resp.data, {"text": "haldi"})
+        self.assertEqual(post.call_args.kwargs["data"]["language"], "hi")
+        self.assertEqual(post.call_args.kwargs["data"]["model"].split("/")[0], "mistralai")
+
+    def test_unknown_language_is_left_to_autodetect(self):
+        reply = mock.Mock(status_code=200)
+        reply.json.return_value = {"text": "x"}
+        with mock.patch.dict("os.environ", {"LLM_API_KEY": "test"}), mock.patch(
+            "requests.post", return_value=reply
+        ) as post:
+            self._post("as")
+        self.assertNotIn("language", post.call_args.kwargs["data"])
+
+    def test_service_failure_is_a_503_not_silence(self):
+        with mock.patch.dict("os.environ", {"LLM_API_KEY": "test"}), mock.patch(
+            "requests.post", side_effect=requests.ConnectionError("down")
+        ):
+            resp = self._post()
+        self.assertEqual(resp.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)

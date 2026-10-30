@@ -292,10 +292,16 @@ class FinancialReportTests(ReportFixtureMixin, BaseAPITest):
             for k in ("debit", "credit", "balance"):
                 assert_2dp(e[k])
         # Empty ledger still yields "0.00", not "0".
+        other = Company.objects.create(name="Empty Co", abbr="EMP")
         empty = self.client.get(
-            "/api/accounts/reports/profit-and-loss/", {"company": 999999}
+            "/api/accounts/reports/profit-and-loss/", {"company": other.pk}
         ).data
         self.assertEqual(empty["net_profit"], "0.00")
+        # An unknown company id is a 404, not an empty report.
+        missing = self.client.get(
+            "/api/accounts/reports/profit-and-loss/", {"company": 999999}
+        )
+        self.assertEqual(missing.status_code, 404)
 
 
 class LabelFieldTests(BaseAPITest):
@@ -434,10 +440,15 @@ class CompanyPerpetualFieldsTests(BaseAPITest):
         self.assertIsNone(res.data["default_expense_account"])
         listing = self.client.get("/api/core/companies/")
         self.assertIn("enable_perpetual_inventory", listing.data["results"][0])
-        # read-only viewset: no writes
-        put = self.client.patch(
+        # Company details are editable by users with core.Company write access
+        # (here a superuser); the viewset still has no create / delete.
+        patch = self.client.patch(
             f"/api/core/companies/{self.company.id}/",
             {"enable_perpetual_inventory": True},
             format="json",
         )
-        self.assertEqual(put.status_code, 405)
+        self.assertEqual(patch.status_code, 200, patch.content)
+        self.assertEqual(
+            self.client.delete(f"/api/core/companies/{self.company.id}/").status_code,
+            405,
+        )

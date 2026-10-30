@@ -8,7 +8,7 @@ import { Globe } from "lucide-react";
 
 const OPTIONS = SUPPORTED_LANGUAGES.map((l) => ({ value: l.code, label: l.name }));
 
-export const LanguageSwitcher: React.FC = () => {
+export const LanguageSwitcher: React.FC<{ compact?: boolean }> = ({ compact }) => {
   const { t, i18n } = useTranslation();
   const changeLanguage = useChangeLanguage();
   const toast = useToast();
@@ -27,8 +27,8 @@ export const LanguageSwitcher: React.FC = () => {
       onChange={handleLanguageChange}
       aria-label={t("lang.label")}
       variant="ghost"
-      className="w-auto max-w-[11rem]"
-      leading={<Globe className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />}
+      className={compact ? "w-auto min-w-[5.5rem] max-w-[9rem] text-xs py-1" : "w-auto max-w-[11rem]"}
+      leading={<Globe className="w-3.5 h-3.5 shrink-0 text-slate-500" aria-hidden />}
     />
   );
 };

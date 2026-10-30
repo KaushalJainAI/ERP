@@ -163,17 +163,27 @@ document viewsets reads it **after** a successful create. The mixin then:
 No document serializer changes. A missing, foreign or already-used proposal ID
 is ignored and never blocks the save.
 
-## 6. Frontend
+## 6. Frontend (NGU Chatbot Parity & Mobile Design)
 
-### 6.1 Launcher + panel
+### 6.1 Launcher + Mobile Bottom-Sheet Panel
 
-- A large floating **mic button** on every page (`Layout.tsx`), with a text
-  box beside it. Tap once to talk; recording stops automatically on silence.
-- `AssistantPanel` is a chat thread. Your transcript appears as your bubble,
-  and options from `ask_user` render as large tap targets (party name + city +
-  GSTIN, so "which Sharma" is answerable at a glance).
+- **Launcher positioning:** Floating mic + spark button on every page (`Layout.tsx`), coordinated with the mobile bottom navigation bar (`bottom-20 md:bottom-6 right-4 sm:right-6`). Tapping opens the assistant.
+- **Mobile layout (NGU style):** On mobile devices (`< 768px`), the panel acts as a bottom-docked sheet (`max-h-[85vh]` with touch drag handle, safe-area inset `pb-[env(safe-area-inset-bottom)]`), so the phone keyboard does not push content out of view. On desktop, it is a sleek floating drawer on the right.
+- **Starter prompt chips (NGU `SUGGESTION_KEYS`):** When a new conversation begins, show tappable starter pills in the user's selected language (e.g., *"Aaj ke unbilled orders"*, *"Haldi ka stock kitna hai?"*, *"Sharma Traders ka balance"*, *"Naya Sales Invoice banao"*). Tapping immediately sends the query.
+- **Formatted chat bubbles:** Message content supports rich Markdown formatting (bullet points, bold highlights, INR currency amounts `₹`, tables) matching NGU's `ChatMarkdown`.
+- **Options from `ask_user`:** Render as large tap targets (party name + city + GSTIN, so "which Sharma" is answerable at a glance).
 
-### 6.2 Loading screen (`AgentWorkingOverlay`)
+### 6.2 In-Chat Interactive Proposal Cards (NGU `ProposalCard` pattern)
+
+When the assistant proposes a document or action:
+- Instead of an abrupt jump, the chat thread renders an interactive **Proposal Card** directly inside the bubble:
+  - Document target pill (e.g. `Sales Invoice`, `Payment Entry`);
+  - List of line items with quantities, units, and rates;
+  - Live total preview in ₹;
+  - Validation warnings badge (e.g., "Over credit limit", "Rate manually overridden");
+  - Single primary action button: *"Review & Save Document"* which opens the hydrated document form.
+
+### 6.3 Loading screen (`AgentWorkingOverlay`)
 
 A full-screen overlay listing live steps from the SSE `step` events, each with
 a spinner then a tick, in the user's language:
@@ -188,7 +198,7 @@ a spinner then a tick, in the user's language:
 A **Stop** button cancels the turn. Failures show the step that failed and
 what to say next, never a bare error.
 
-### 6.3 Handoff to the confirm page
+### 6.4 Handoff to the confirm page
 
 - `navigate(route, { state: { initialValues, assistant: { proposalId, summary, aiFilledKeys, warnings } } })`.
 - **Seed hydration.** Before `buildInitial`, a small `hydrateSeed(config,
@@ -207,7 +217,7 @@ what to say next, never a bare error.
 - **The Save button is the existing one, unchanged.** The create call sends
   `X-Assistant-Proposal`.
 
-### 6.4 Voice
+### 6.5 Voice (NGU `useVoiceInput` & STT)
 
 Port NGU `useVoiceInput.ts` + `audio.ts` as-is. The backend `transcribe/`
 ports NGU `stt.py` with its fallback, plus:
@@ -295,5 +305,31 @@ It is used to pick the model and to catch regressions when prompts change.
 | Which entries do staff make most often? | Sales invoice, purchase invoice, payment received (§4) |
 | Which languages do staff speak? | Hindi + Hinglish first, English second; the other locales get UI strings only |
 | Phone or desktop? | Both, designed **mobile-first** (big targets, full-screen overlay) |
-| STT: self-hosted Whisper or a paid service? | NGU's setup: Voxtral via OpenRouter, falling back to whisper.cpp |
-| Which LLM? | Decided by the eval set (§5.3) |
+| STT: self-hosted Whisper or a paid service? | Voxtral via OpenRouter, no whisper.cpp fallback yet |
+| Which LLM? | `anthropic/claude-haiku-5.5` via OpenRouter (NGU's assistant model) until the eval set (§8.2) exists |
+
+## 11. Switched on (2026-10-31)
+
+`backend/.env` holds the same OpenRouter `LLM_API_KEY` as the NGU backend, so ERP
+and NGU share one credit balance. `python manage.py assistant_ping` checks the key
+and model with one real turn.
+
+Taken from NGU, adapted to staff entering documents rather than customers shopping:
+
+- **Turn budget** (`ASSISTANT_TURN_BUDGET_SECONDS`): a round starts only if it can
+  finish in time, so a turn always ends with a reply.
+- **Prompt caching:** `to_wire` marks the static prompt for Claude models. Per-turn
+  lines (date, company, language) go after it.
+- **Failure replies in the user's language**: en, hi, gu, mr, pa. The other UI
+  languages fall back to English.
+- **PII:** phone numbers reach the third-party model masked to the last four digits.
+- **Reporting:** `sales_summary` and `top_items`, from NGU's admin tools but under
+  the normal RBAC rather than an admin-only persona.
+- **Domain language:** spice names, units and Hindi number words in the prompt.
+
+Deliberately not taken: FAQ answers without an LLM, cart and storefront tools,
+human hand-off, selling behaviour, thread summarising. History is the last 10
+messages.
+
+Item and party matching differs from §5.2: exact, then partial, then all words,
+then close spelling. A close spelling is only ever offered, never picked.

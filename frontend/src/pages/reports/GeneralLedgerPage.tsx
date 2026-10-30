@@ -87,7 +87,79 @@ export const GeneralLedgerPage: React.FC = () => {
         </>
       }
     >
-      <div className="overflow-x-auto">
+      {/* Phone: voucher cards with the amounts stacked, instead of a seven-column scroll. */}
+      <div className="space-y-2 p-3 md:hidden">
+        {!data ? (
+          <p className="px-2 py-8 text-center text-sm text-slate-400">{t("common.loading")}</p>
+        ) : data.entries.length === 0 ? (
+          <p className="px-2 py-8 text-center text-sm text-slate-500">{t("acc.report.no_data")}</p>
+        ) : (
+          data.entries.map((e) => (
+            <div key={e.id} className="rounded-xl border border-slate-800 bg-slate-900 p-3.5 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-100">{e.account_name}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    {formatDate(e.posting_date)} · {voucherTypeText(e)}
+                  </p>
+                </div>
+                <VoucherNo row={e} />
+              </div>
+              <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("acc.fields.debit")}</dt>
+                  <dd className="mt-0.5 text-slate-200">{money(e.debit)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("acc.fields.credit")}</dt>
+                  <dd className="mt-0.5 text-slate-200">{money(e.credit)}</dd>
+                </div>
+                {showBalance && (
+                  <div className="col-span-2">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("acc.fields.balance")}</dt>
+                    <dd className="mt-0.5 font-semibold text-slate-100">{money(e.balance)}</dd>
+                  </div>
+                )}
+                {e.party && (
+                  <div className="col-span-2">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("acc.fields.party")}</dt>
+                    <dd className="mt-0.5 truncate text-slate-300">{e.party}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          ))
+        )}
+      </div>
+
+      {data && data.entries.length > 0 && (
+        <div className="border-t border-slate-700 bg-slate-950/60 p-4 md:hidden">
+          <dl className="space-y-2 text-xs">
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-slate-400">
+                {t("acc.report.total")} ({t("acc.report.entries_count", { count: data.entries.length })})
+              </dt>
+              <dd />
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-slate-400">{t("acc.fields.debit")}</dt>
+              <dd className="font-semibold text-slate-100">{money(sumDec(data.entries.map((e) => e.debit), 2))}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-3">
+              <dt className="text-slate-400">{t("acc.fields.credit")}</dt>
+              <dd className="font-semibold text-slate-100">{money(sumDec(data.entries.map((e) => e.credit), 2))}</dd>
+            </div>
+            {showBalance && (
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="text-slate-400">{t("acc.report.closing_balance")}</dt>
+                <dd className="font-semibold text-slate-100">{money(data.closing_balance)}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
+
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-left text-sm text-slate-300">
           <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
             <tr>

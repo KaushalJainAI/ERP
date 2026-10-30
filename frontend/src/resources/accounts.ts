@@ -163,7 +163,6 @@ const journalLines = (v: Record<string, any>): Record<string, any>[] => (v.lines
 
 const journalEntries: ResourceConfig = {
   key: "journal-entries",
-  history: "journal",
   module: "accounts",
   endpoint: "/accounts/journal-entries/",
   titleKey: "acc.res.journal_entries",
@@ -247,7 +246,6 @@ const allocatedTotal = (v: Record<string, any>) => sumDec(referencesOf(v).map((r
 
 const paymentEntries: ResourceConfig = {
   key: "payment-entries",
-  history: "receipt",
   module: "accounts",
   endpoint: "/accounts/payment-entries/",
   titleKey: "acc.res.payment_entries",
@@ -354,7 +352,7 @@ export const accountsResources: ResourceConfig[] = [accountsMaster, journalEntri
 
 /** Sidebar links to the hand-written Accounts pages (GL Entries list + the four reports). */
 export const accountsLinks: NavLink[] = [
-  { path: "/accounts/gl-entries", labelKey: "acc.nav.gl_entries", icon: Library },
+  { path: "/accounts/gl-entries", labelKey: "acc.nav.gl_entries", icon: Library, group: "reports" },
   { path: "/accounts/reports/trial-balance", labelKey: "acc.nav.trial_balance", icon: Scale },
   { path: "/accounts/reports/general-ledger", labelKey: "acc.nav.general_ledger", icon: BarChart3 },
   { path: "/accounts/reports/profit-and-loss", labelKey: "acc.nav.profit_loss", icon: TrendingUp },

@@ -5,39 +5,6 @@
  */
 export const enLegacy = {
   contacts: "Contacts",
-  tally_history: "Tally History",
-  pb: {
-    nav: "Past Bills & Vouchers",
-    title: "Past bills & vouchers",
-    subtitle: "Everything from Tally, read-only.",
-    subtitle_years: "Everything from Tally, FY {{from}} to {{to}}. Read-only: the accounts already include it.",
-    all_years: "All years",
-    search: "Search bill no., party, narration...",
-    bill_no: "Bill / Voucher No.",
-    narration: "Narration",
-    reference: "Reference",
-    bill: "Bill",
-    items: "Items",
-    items_total: "Items total (before tax)",
-    accounting: "Accounting (tax, round-off, party)",
-    account: "Account",
-    read_only_note: "Imported from Tally and kept as it was. Its accounting entry:",
-    view: "View",
-    tab: {
-      sales: "Sales bills",
-      purchase: "Purchase bills",
-      receipt: "Receipts",
-      payment: "Payments",
-      contra: "Bank / cash transfers",
-      journal: "Journals",
-    },
-    banner: {
-      sales: "{{n}} older sales bills from Tally (FY {{from}} to {{to}}) are in Past Bills.",
-      purchase: "{{n}} older purchase bills from Tally (FY {{from}} to {{to}}) are in Past Bills.",
-      receipt: "{{n}} older receipts from Tally (FY {{from}} to {{to}}), with payments and bank transfers, are in Past Bills.",
-      journal: "{{n}} older journals from Tally (FY {{from}} to {{to}}) are in Past Bills.",
-    },
-  },
   lg: {
     res: {
       addresses: "Addresses",

@@ -6,6 +6,17 @@ Books: TallyPrime, NIDHI GRAH UDYOG, 10 FYs (2017-18 → 2026-27, the last up to
 which has the per-year reconciliation (every ledger matching to the paisa) and
 the archive-completeness table.
 
+> **Update 2026-10-30: the in-ERP Tally archive is gone.** The `legacy` app (tables
+> `legacy_tallyrecord`, `legacy_tallyitemline`), its `/api/legacy/` routes, the Past Bills
+> UI, and the `import_tally`, `verify_tally_archive` and `prefill_from_tally` commands were
+> removed. The ERP's own tables now hold everything it needs: accounts, parties (898
+> addresses), items, prices, the `TLY-*` journals/stock entries (Tally voucher type/number is
+> in their `user_remark`), per-party price lists (`Rates - <party>`), 6 estimated BOMs, and
+> the `tally_export` ledger/item maps. The full Tally data remains in the external `tally-pg`
+> database and the original company folders; a dump of the removed tables is at
+> `backend/backups/legacy_tally_archive_2026-10-30.sql.gz` (git-ignored). Sections 1 and 3
+> below describe the state before this removal; `TallyRecord` references are historical.
+
 ## 1. In the ERP
 
 | Data | Where |
@@ -16,6 +27,14 @@ the archive-completeness table.
 | Party mailing addresses (382 parties) | `contacts.Address` |
 | **Every Tally master and voucher, every year, as Tally exported it**, linked to the ERP document it became | `legacy.TallyRecord` (`/api/legacy/tally-records/`) |
 | **Item-wise sales / purchase / note lines, all 10 years** (item, qty, rate, party, ledger) | `legacy.TallyItemLine` (`/api/legacy/tally-item-lines/`) |
+
+`python manage.py prefill_from_tally` (idempotent, `--dry-run` supported) then fills
+the masters the import left empty: 10 `BankAccount` rows (number / IFSC from the Tally
+bank ledgers, Bank of India current account as default), `Standard Selling` /
+`Standard Buying` price lists with 90 + 66 `ItemPrice` rows (latest Tally rate per
+item), `Item.standard_rate` (132 of 144 items), the customer-group default price
+list, blank party states from the GSTIN prefix, and party addresses (town, pincode, state; +516 new, 353 completed) from the dashboard `dim_party.csv`, and 6 ESTIMATED blend BOMs (Achar, Garam, Jeeravan, Chat, Chana, Mix Masala; 100 kg basis, 1.25 % loss) plus 3 estimated raw materials (Black salt, Pudina, Anardana). The recipes are industry estimates, not owner-confirmed. Tally holds no phone / email /
+credit limits, so those stay blank.
 
 Because of `TallyRecord`, **nothing in the Tally Postgres extract is lost**:
 the ERP database alone holds it all. The import report's "Archive completeness"

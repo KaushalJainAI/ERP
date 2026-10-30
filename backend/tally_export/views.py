@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from core.company_context import CompanyScopedMixin, resolve_active_company
-from core.mixins import AuditLogMixin, record_audit_log
+from core.mixins import AuditLogMixin
 from core.models import Company
 from tally_export.models import (
     TallyExportBatch,
@@ -26,7 +26,7 @@ from tally_export.serializers import (
 )
 from tally_export.services import export as export_service
 from tally_export.services.collect import pending_counts
-from tally_export.services.maps import get_settings, seed_from_legacy
+from tally_export.services.maps import get_settings
 from users.permissions import HasRolePermission
 
 
@@ -67,12 +67,6 @@ class TallyLedgerMapViewSet(_Base):
     filterset_fields = ["company", "account", "party_type", "party", "source"]
     search_fields = ["tally_ledger", "party", "account__name"]
     ordering_fields = ["tally_ledger", "account__name", "modified_at"]
-
-    @action(detail=False, methods=["post"], url_path="seed-from-legacy")
-    def seed_from_legacy(self, request):
-        counts = seed_from_legacy(_company(request))
-        record_audit_log(request.user, "create", TallyLedgerMap(), changes=counts)
-        return Response(counts)
 
 
 class TallyStockItemMapViewSet(_Base):

@@ -227,6 +227,8 @@ class LedgerImmutabilityOverAPITests(APITestCase):
         self.admin = User.objects.create_superuser(
             username="imm_admin", email="imm@test.com", password="Pass123!"
         )
+        # Company-scoped views resolve a company before they route the method.
+        Company.objects.create(name="Imm Co", abbr="IMM")
         self.client.force_authenticate(self.admin)
 
     def test_gl_and_sle_endpoints_are_read_only(self):

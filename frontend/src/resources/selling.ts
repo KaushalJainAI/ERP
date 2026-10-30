@@ -341,7 +341,6 @@ const salesInvoiceItemsTable = withReturnColumns(itemsTable, "sales_invoice_item
 
 const salesInvoices: ResourceConfig = {
   key: "sales-invoices",
-  history: "sales",
   module: "selling",
   endpoint: "/selling/sales-invoices/",
   titleKey: "res.sales_invoices",
@@ -428,6 +427,7 @@ export const sellingLinks: NavLink[] = [
     path: "/selling/analytics",
     labelKey: "selling_kpi.nav_title",
     icon: BarChart3,
+    group: "reports",
     visible: (u) => hasReadAccess(u.readable_models, ["selling.SalesOrder", "selling.SalesInvoice", "accounts.GLEntry"]),
   },
 ];

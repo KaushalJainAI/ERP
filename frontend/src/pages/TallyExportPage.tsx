@@ -207,7 +207,7 @@ const MapRow: React.FC<{
   );
 };
 
-const SettingsPanel: React.FC<{ company: string; onSeeded: () => void }> = ({ company, onSeeded }) => {
+const SettingsPanel: React.FC<{ company: string }> = ({ company }) => {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const { data } = useQuery({
@@ -240,16 +240,6 @@ const SettingsPanel: React.FC<{ company: string; onSeeded: () => void }> = ({ co
       void qc.invalidateQueries({ queryKey: ["tx-preflight"] });
     },
   });
-  const seed = useMutation({
-    mutationFn: async () =>
-      (await apiClient.post<{ accounts?: number; parties?: number; items?: number }>(`${BASE}/ledger-maps/seed-from-legacy/`, { company })).data,
-    onSuccess: (r) => {
-      setNote(t("tx.seed_done", { accounts: r.accounts ?? 0, parties: r.parties ?? 0, items: r.items ?? 0 }));
-      void qc.invalidateQueries({ queryKey: ["tx-settings"] });
-      onSeeded();
-    },
-  });
-
   return (
     <div className="px-5 py-4 space-y-4">
       <div className="space-y-1 max-w-md">
@@ -281,10 +271,6 @@ const SettingsPanel: React.FC<{ company: string; onSeeded: () => void }> = ({ co
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className={btn} disabled={!data || save.isPending} onClick={() => save.mutate()}>
           {t("tx.save")}
-        </button>
-        <button type="button" className={btnGhost} disabled={seed.isPending} onClick={() => seed.mutate()}>
-          {seed.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-          {t("tx.seed_btn")}
         </button>
         {note && <span className="text-xs text-emerald-400">{note}</span>}
       </div>
@@ -626,7 +612,7 @@ export const TallyExportPage: React.FC = () => {
       </Section>
 
       <Section title={t("tx.settings_title")}>
-        <SettingsPanel company={company} onSeeded={refresh} />
+        <SettingsPanel company={company} />
       </Section>
     </ReportShell>
   );

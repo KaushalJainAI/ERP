@@ -401,7 +401,7 @@ class AuditLogMixin:
                 proposal = (
                     AssistantProposal.objects.filter(
                         id=prop_id,
-                        status__in=["proposed", "opened"],
+                        status__in=["proposed", "opened", "abandoned"],
                     )
                     .select_related("message__conversation")
                     .first()

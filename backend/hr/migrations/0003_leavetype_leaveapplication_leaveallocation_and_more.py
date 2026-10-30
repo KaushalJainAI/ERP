@@ -87,22 +87,22 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='leavetype',
-            constraint=models.CheckConstraint(condition=models.Q(('max_days_allowed__gte', 0)), name='check_leave_type_max_days_gte_0'),
+            constraint=models.CheckConstraint(check=models.Q(('max_days_allowed__gte', 0)), name='check_leave_type_max_days_gte_0'),
         ),
         migrations.AddConstraint(
             model_name='leaveapplication',
-            constraint=models.CheckConstraint(condition=models.Q(('to_date__gte', models.F('from_date'))), name='check_leave_application_dates'),
+            constraint=models.CheckConstraint(check=models.Q(('to_date__gte', models.F('from_date'))), name='check_leave_application_dates'),
         ),
         migrations.AddConstraint(
             model_name='leaveapplication',
-            constraint=models.CheckConstraint(condition=models.Q(('total_leave_days__gt', 0)), name='check_leave_application_days_gt_0'),
+            constraint=models.CheckConstraint(check=models.Q(('total_leave_days__gt', 0)), name='check_leave_application_days_gt_0'),
         ),
         migrations.AddConstraint(
             model_name='leaveallocation',
-            constraint=models.CheckConstraint(condition=models.Q(('to_date__gte', models.F('from_date'))), name='check_leave_allocation_dates'),
+            constraint=models.CheckConstraint(check=models.Q(('to_date__gte', models.F('from_date'))), name='check_leave_allocation_dates'),
         ),
         migrations.AddConstraint(
             model_name='leaveallocation',
-            constraint=models.CheckConstraint(condition=models.Q(('total_leaves_allocated__gte', 0)), name='check_leave_allocation_total_gte_0'),
+            constraint=models.CheckConstraint(check=models.Q(('total_leaves_allocated__gte', 0)), name='check_leave_allocation_total_gte_0'),
         ),
     ]

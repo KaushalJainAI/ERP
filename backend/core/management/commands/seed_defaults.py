@@ -184,13 +184,6 @@ _BANK_FULL_LABELS = (
 )
 _BANK_READ_LABELS = ("accounts.BankTransaction", "core.FiscalYear")
 
-#: Read-only Tally history (written only by import_tally; no write routes exist).
-#: The full archive is the old books, so it sits with the accounts.
-_LEGACY_LABELS = (
-    "legacy.TallyRecord",
-    "legacy.TallyItemLine",
-)
-
 #: NGU online-store catalogue crosswalk (rows written by import_ngu_catalog;
 #: people only link variants to items).
 _NGU_LABELS = ("ngu.NguCatalogEntry",)
@@ -215,7 +208,6 @@ EXPOSED_MODEL_LABELS = tuple(
         | set(_LEDGER_LABELS)
         | set(_BANK_FULL_LABELS)
         | set(_BANK_READ_LABELS)
-        | set(_LEGACY_LABELS)
         | set(_NGU_LABELS)
         | set(_ADMIN_LABELS)
         | set(HR_LABELS)
@@ -245,7 +237,7 @@ ROLE_PERMISSION_MATRIX = {
         **_scope(_STOCK_LABELS, FULL),
         **_scope(_NGU_LABELS, FULL),
         **_scope(
-            ("core.Company", "accounts.ItemTaxTemplate", "legacy.TallyItemLine"),
+            ("core.Company", "accounts.ItemTaxTemplate"),
             READ,
         ),
     },
@@ -258,7 +250,6 @@ ROLE_PERMISSION_MATRIX = {
             ("core.Company", "core.State", "selling.Customer", "buying.Supplier"),
             READ,
         ),
-        **_scope(_LEGACY_LABELS, READ),
         **_scope(TALLY_EXPORT_LABELS, FULL),
         **_scope(PAYMENT_RECONCILIATION_LABELS, FULL),
     },
@@ -275,7 +266,6 @@ ROLE_PERMISSION_MATRIX = {
                 "stock.Item",
                 "stock.Batch",
                 "stock.Warehouse",
-                "legacy.TallyItemLine",
             ),
             READ,
         ),
@@ -292,7 +282,6 @@ ROLE_PERMISSION_MATRIX = {
                 "stock.Item",
                 "stock.Batch",
                 "stock.Warehouse",
-                "legacy.TallyItemLine",
             ),
             READ,
         ),

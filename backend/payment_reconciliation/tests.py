@@ -795,6 +795,6 @@ class TallyExportTests(ReconBase):
 
 
 def signed(text):
-    from core.tally_import.masters import signed_debit
+    from tally_export.tests.test_export import signed_debit
 
     return signed_debit(text)

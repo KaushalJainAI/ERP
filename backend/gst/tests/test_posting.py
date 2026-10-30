@@ -699,6 +699,7 @@ class MappingTests(PostingBase):
         self.assertEqual(self.components(d), {"CGST": D("18.00"), "SGST": D("18.00")})
         self.assertEqual(D(d["grand_total"]), D("200.00"))
         self.assertEqual(D(d["total_taxes_and_charges"]), D("0.00"))
+        self.client.patch(f"{PI_URL}{d['id']}/", {"bill_no": next_bill_no()}, format="json")
         self.submit(PI_URL, d)
         self.integrity_ok()
 

@@ -77,19 +77,22 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
   };
 
   const hasTotals = config.totals && data && !Array.isArray(data);
+  const titleColumn = config.columns[0];
+  const detailColumns = config.columns.slice(1, 6);
+  const empty = rows.length === 0;
 
   return (
     <Layout>
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
-        <div className="p-5 border-b border-slate-800 space-y-4">
-          <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
+        <div className="space-y-3 border-b border-slate-800 p-4 sm:space-y-4 sm:p-5">
+          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
             {t(config.titleKey)}
             {isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
           </h1>
           {config.filters && config.filters.length > 0 && (
-            <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap items-end gap-3 sm:gap-4">
               {config.filters.map((f) => (
-                <div key={f.key} className="w-56 max-w-full space-y-1">
+                <div key={f.key} className="w-full space-y-1 sm:w-56">
                   <label htmlFor={`rf-${f.key}`} className="block text-xs font-medium text-slate-400">
                     {t(f.labelKey)}
                   </label>
@@ -107,7 +110,7 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
               <button
                 type="button"
                 onClick={() => setFilters(initialFilters(config.filters))}
-                className="bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm text-slate-200 px-3 py-2 rounded-lg text-sm flex items-center gap-1.5"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200 shadow-sm hover:bg-slate-800 sm:w-auto"
               >
                 <RotateCcw className="w-4 h-4" />
                 {t("bs.report.reset")}
@@ -122,33 +125,54 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
             <p className="text-sm text-rose-300">{err.forbidden ? t("common.forbidden") : t("common.load_failed")}</p>
             {!err.forbidden && err.general[0] && <p className="text-xs text-slate-500">{err.general[0]}</p>}
           </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-slate-400" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t("common.loading")}
+          </div>
+        ) : empty ? (
+          <div className="px-6 py-16 text-center text-sm text-slate-500" role="status">
+            {t("no_records")}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
-                <tr>
-                  {config.columns.map((c) => (
-                    <th key={c.key} className={`px-5 py-3.5 ${alignRight(c) ? "text-right" : ""}`}>
-                      {t(c.labelKey)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {isLoading ? (
+          <>
+            <div className="space-y-2 p-3 md:hidden">
+              {rows.map((row, i) => (
+                <div key={String(row.id ?? i)} className="rounded-xl border border-slate-800 bg-slate-900 p-3.5 shadow-sm">
+                  <p className="truncate text-sm font-semibold text-slate-100">
+                    {renderCell(titleColumn, getPath(row, titleColumn.key), row)}
+                  </p>
+                  {detailColumns.length > 0 && (
+                    <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2">
+                      {detailColumns.map((c) => (
+                        <div key={c.key} className="min-w-0">
+                          <dt className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                            {t(c.labelKey)}
+                          </dt>
+                          <dd className={`mt-0.5 truncate text-xs text-slate-300 ${alignRight(c) ? "tabular-nums" : ""}`}>
+                            {renderCell(c, getPath(row, c.key), row)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm text-slate-300">
+                <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
                   <tr>
-                    <td colSpan={config.columns.length} className="px-6 py-10 text-center text-slate-400">
-                      {t("common.loading")}
-                    </td>
+                    {config.columns.map((c) => (
+                      <th key={c.key} className={`px-5 py-3.5 ${alignRight(c) ? "text-right" : ""}`}>
+                        {t(c.labelKey)}
+                      </th>
+                    ))}
                   </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={config.columns.length} className="px-6 py-12 text-center text-slate-500">
-                      {t("no_records")}
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((row, i) => (
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {rows.map((row, i) => (
                     <tr key={String(row.id ?? i)} className="hover:bg-slate-800/40 transition-colors">
                       {config.columns.map((c) => (
                         <td key={c.key} className={`px-5 py-3 ${alignRight(c) ? "text-right" : ""}`}>
@@ -156,29 +180,50 @@ export const ReportPage: React.FC<{ config: ReportConfig }> = ({ config }) => {
                         </td>
                       ))}
                     </tr>
-                  ))
+                  ))}
+                </tbody>
+                {hasTotals && rows.length > 0 && (
+                  <tfoot className="bg-slate-950/60 border-t border-slate-700 font-semibold text-slate-100">
+                    <tr>
+                      {config.columns.map((c, idx) => {
+                        const src = config.totals![c.key];
+                        return (
+                          <td key={c.key} className={`px-5 py-3 ${alignRight(c) ? "text-right" : ""}`}>
+                            {idx === 0 && !src
+                              ? t(config.totalsLabelKey ?? "bs.report.total")
+                              : src
+                                ? renderCell(c, getPath(data, src))
+                                : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
                 )}
-              </tbody>
-              {hasTotals && rows.length > 0 && (
-                <tfoot className="bg-slate-950/60 border-t border-slate-700 font-semibold text-slate-100">
-                  <tr>
-                    {config.columns.map((c, idx) => {
-                      const src = config.totals![c.key];
-                      return (
-                        <td key={c.key} className={`px-5 py-3 ${alignRight(c) ? "text-right" : ""}`}>
-                          {idx === 0 && !src
-                            ? t(config.totalsLabelKey ?? "bs.report.total")
-                            : src
-                              ? renderCell(c, getPath(data, src))
-                              : ""}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+              </table>
+            </div>
+
+            {hasTotals && rows.length > 0 && (
+              <div className="border-t border-slate-700 bg-slate-950/60 p-4 md:hidden">
+                <dl className="space-y-2">
+                  {config.columns.map((c, idx) => {
+                    const src = config.totals![c.key];
+                    const isLabel = idx === 0 && !src;
+                    const value = isLabel ? null : src ? renderCell(c, getPath(data, src)) : null;
+                    if (!isLabel && (value === null || value === "")) return null;
+                    return (
+                      <div key={c.key} className="flex items-baseline justify-between gap-3 text-xs">
+                        <dt className={isLabel ? "font-semibold text-slate-100" : "text-slate-400"}>
+                          {isLabel ? t(config.totalsLabelKey ?? "bs.report.total") : t(c.labelKey)}
+                        </dt>
+                        {!isLabel && <dd className="font-semibold tabular-nums text-slate-100">{value}</dd>}
+                      </div>
+                    );
+                  })}
+                </dl>
+              </div>
+            )}
+          </>
         )}
       </div>
     </Layout>

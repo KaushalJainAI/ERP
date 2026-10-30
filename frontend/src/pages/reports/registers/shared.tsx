@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
 import { apiClient } from "@/api/client";
 import { todayISO } from "@/lib/format";
@@ -37,22 +36,11 @@ export const voucherTypeText = (r: VoucherLike): string => r.tally?.voucher_type
 /** The voucher number the business knows: Tally's ("2526/1"), else the ERP's. */
 export const voucherNoText = (r: VoucherLike): string => r.tally?.voucher_no ?? r.voucher_no;
 
-/**
- * Voucher number cell content. A Tally voucher links to its bill in Past Bills (the ERP
- * `TLY-*` name stays as the tooltip); `plain` (print views) renders text only.
- */
+/** Voucher number cell content: Tally's own number for an imported voucher (the ERP `TLY-*` name stays as the tooltip). */
 export const VoucherNo: React.FC<{ row: VoucherLike; plain?: boolean }> = ({ row, plain }) => {
   if (!row.tally) return <>{row.voucher_no}</>;
   if (plain) return <>{row.tally.voucher_no}</>;
-  return (
-    <Link
-      to={`/history/bills?open=${row.tally.id}`}
-      title={row.voucher_no}
-      className="text-sky-400 hover:underline"
-    >
-      {row.tally.voucher_no}
-    </Link>
-  );
+  return <span title={row.voucher_no}>{row.tally.voucher_no}</span>;
 };
 
 /** First day of the current month .. today, as YYYY-MM-DD. */

@@ -8,15 +8,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.company_context import resolve_active_company
+
 from .agent import Agent
-from .models import AssistantConversation, AssistantMessage, AssistantProposal
+from .models import AssistantConversation, AssistantProposal
 from .serializers import (
     AssistantConversationSerializer,
     AssistantMessageSerializer,
-    AssistantProposalSerializer,
     ChatStreamRequestSerializer,
 )
-from .stt import transcribe_audio
+from .stt import TranscriptionUnavailable, transcribe_audio
 from .throttles import (
     AssistantBurstThrottle,
     AssistantDailyThrottle,
@@ -51,8 +52,7 @@ class AssistantChatStreamView(APIView):
                 language=language,
             )
 
-        completion_fn = getattr(request, "_test_completion_fn", None)
-        agent = Agent(user=user, completion_fn=completion_fn)
+        agent = Agent(user=user, company=resolve_active_company(request, required=False))
 
         stream = agent.run_stream(
             user_text=msg_text,
@@ -115,7 +115,7 @@ class ProposalOpenedView(APIView):
             pk=pk,
             message__conversation__user=request.user,
         )
-        if proposal.status == "proposed":
+        if proposal.status in ["proposed", "abandoned"]:
             proposal.status = "opened"
             proposal.save(update_fields=["status", "updated_at"])
 
@@ -155,5 +155,12 @@ class TranscribeAudioView(APIView):
             )
 
         lang = request.data.get("language") or getattr(request.user, "language", "en") or "en"
-        text = transcribe_audio(audio_file, language=lang)
+        try:
+            text = transcribe_audio(audio_file, language=lang)
+        except TranscriptionUnavailable as exc:
+            logger.warning("Transcription unavailable: %s", exc)
+            return Response(
+                {"error": "stt_unavailable", "message": "Voice input is not available right now."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response({"text": text})

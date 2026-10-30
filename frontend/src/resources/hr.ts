@@ -605,7 +605,7 @@ export const hrResources: ResourceConfig[] = [
 
 /** Hand-written pages of the HR sidebar section (shown above the resources). */
 export const hrLinks: NavLink[] = [
-  { path: "/hr/muster-roll", labelKey: "hrm.res.muster_roll", icon: ClipboardCheck },
+  { path: "/hr/muster-roll", labelKey: "hrm.res.muster_roll", icon: ClipboardCheck, group: "transactions" },
 ];
 
 export const hrReports: ReportConfig[] = [

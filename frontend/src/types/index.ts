@@ -330,6 +330,9 @@ export interface TreeConfig {
   defaultFlat?: boolean;
 }
 
+/** Sidebar grouping for a module's links. */
+export type NavGroupKey = "transactions" | "masters" | "reports" | "tools";
+
 export interface ResourceConfig {
   /** URL slug: /<module>/<key> */
   key: string;
@@ -360,10 +363,10 @@ export interface ResourceConfig {
   noAttachments?: boolean;
   /** Hide from the sidebar (still routable). */
   hideInSidebar?: boolean;
+  /** Sidebar group override. Default: submittable → transactions, listOnly → reports, else masters. */
+  navGroup?: NavGroupKey;
   /** List-only (ledger / projection): no "New" button, rows are not clickable, no detail/new routes. */
   listOnly?: boolean;
-  /** Past-bills tab (pages/history) of the older Tally vouchers of this kind, linked above the list. */
-  history?: string;
   /**
    * Optional extra block rendered under the child tables / totals (e.g. the
    * Journal Entry "balanced / not balanced" warning). `values` is the form with
@@ -389,6 +392,8 @@ export interface NavLink {
   visible?: (user: UserProfile) => boolean;
   /** Id of a live count badge shown next to the link (see resources/navBadges.ts). */
   badge?: string;
+  /** Sidebar group. Default: reports for /reports/ paths, tools otherwise. */
+  group?: NavGroupKey;
 }
 
 export interface ModuleDef {

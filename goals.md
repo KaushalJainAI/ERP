@@ -177,6 +177,17 @@ capabilities are in daily use and the business would not go back.
 **Today:** ⚠️ models and APIs exist for most; production and HR are unused so
 far; print, bank reconciliation and e-way bill are not built.
 
+### G8 — Know where the money goes
+
+**Outcome:** every expense is recorded with proof, in a clear category, and shown as
+Paid or Due. The Admin is reminded of pending bills, and the owner can see what was
+spent, what is still owed, and what must be collected.
+
+**Done when** a full month of real expenses is entered, the expense summary matches
+the ledger, and the Admin receives correct reminders for pending bills.
+
+**Today:** ❌ not built. See [planning/05-expenses.md](planning/05-expenses.md).
+
 ---
 
 ## What this buys — utility by function and role
@@ -338,3 +349,4 @@ These hold regardless of goal or deadline:
 | Date | Change |
 |---|---|
 | 2026-10-29 | Initial goals, success horizons and utility map recorded after a full audit of the running system (Tally archive verified, 0 drifts, ₹0.00 reconciliation). |
+| 2026-10-31 | Added G8 (expenses and pending bills), at the owner's request. |

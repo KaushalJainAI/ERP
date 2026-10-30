@@ -9,11 +9,13 @@ import {
   Sparkles,
   X,
   PlusCircle,
-  HelpCircle,
   ArrowRight,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
-import { apiClient } from "@/api/client";
+import { API_URL, refreshAccessToken } from "@/api/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { getActiveCompanyId } from "@/lib/company";
 import { AgentWorkingOverlay, AgentStep } from "./AgentWorkingOverlay";
 
 export interface MessageBubble {
@@ -29,6 +31,20 @@ interface AssistantPanelProps {
   onClose: () => void;
   initialQuery?: string;
 }
+
+const PROPOSAL_LABEL_KEYS: Record<string, string> = {
+  "selling.SalesInvoice": "assistant.steps.propose_sales_invoice",
+  "buying.PurchaseInvoice": "assistant.steps.propose_purchase_invoice",
+  "accounts.PaymentEntry": "assistant.steps.propose_payment_entry",
+};
+
+const STARTER_SUGGESTIONS = [
+  "Sharma Traders ko 20 kilo haldi becha",
+  "Aaj ke open sales orders dikhao",
+  "Gupta Suppliers se 200 kilo dhaniya aaya",
+  "Haldi ka current stock kitna hai?",
+  "Kitna baaki hai Sharma Traders ka?",
+];
 
 export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   isOpen,
@@ -104,21 +120,32 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     abortControllerRef.current = controller;
 
     try {
-      const token = localStorage.getItem("access_token") || localStorage.getItem("token") || "";
-      const response = await fetch("/api/assistant/chat/stream/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify({
-          message: text,
-          conversation_id: conversationId,
-          input_mode: inputMode,
-          language: i18n.language || "en",
-        }),
-        signal: controller.signal,
-      });
+      // fetch, not apiClient: axios cannot read an SSE body as it arrives, so the
+      // auth, company and token-refresh handling of apiClient is repeated here.
+      const postTurn = (token: string | null) => {
+        const companyId = getActiveCompanyId();
+        return fetch(`${API_URL}/assistant/chat/stream/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(companyId ? { "X-Company-ID": String(companyId) } : {}),
+          },
+          body: JSON.stringify({
+            message: text,
+            conversation_id: conversationId,
+            input_mode: inputMode,
+            language: i18n.language || "en",
+          }),
+          signal: controller.signal,
+        });
+      };
+
+      let response = await postTurn(localStorage.getItem("access_token"));
+      if (response.status === 401) {
+        const freshToken = await refreshAccessToken().catch(() => null);
+        if (freshToken) response = await postTurn(freshToken);
+      }
 
       if (!response.ok) {
         throw new Error(`Server returned HTTP ${response.status}`);
@@ -185,7 +212,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 onClose();
               }
             } else if (eventType === "error") {
-              setStreamError(data.message || t("assistant.errors.turn_failed"));
+              setStreamError(t("assistant.errors.turn_failed"));
             } else if (eventType === "done") {
               if (data.proposal) {
                 proposalData = data.proposal;
@@ -204,30 +231,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
           {
             id: `asst-${Date.now()}`,
             role: "assistant",
-            content: activeReply || (questionData ? questionData.text : "Proposal prepared:"),
+            content: activeReply || questionData?.text || "",
             questionOptions: questionData?.options,
             proposal: proposalData,
           },
         ]);
-      }
-
-      // Handoff to prefilled document form if proposal was generated
-      if (proposalData && proposalData.route) {
-        setTimeout(() => {
-          onClose();
-          navigate(proposalData.route, {
-            state: {
-              initialValues: proposalData.values,
-              assistant: {
-                proposalId: proposalData.proposal_id,
-                summary: proposalData.summary,
-                aiFilledKeys: proposalData.ai_filled_keys,
-                warnings: proposalData.warnings,
-                target: proposalData.target,
-              },
-            },
-          });
-        }, 800);
       }
     } catch (err: any) {
       if (err.name !== "AbortError") {
@@ -263,19 +271,28 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
   return (
     <>
+      {/* Mobile Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm sm:hidden animate-in fade-in duration-200"
+        onClick={onClose}
+      />
+
       <div
         dir={isRTL ? "rtl" : "ltr"}
-        className="fixed bottom-6 right-6 z-40 w-full max-w-lg h-[620px] max-h-[85vh] bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-5 duration-200"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-700/80 bg-slate-900 pb-[env(safe-area-inset-bottom)] shadow-2xl animate-fade-up sm:inset-x-auto sm:bottom-6 sm:end-6 sm:h-[620px] sm:max-w-md sm:rounded-2xl sm:pb-0"
       >
+        {/* Mobile Drag Indicator */}
+        <div className="w-12 h-1 bg-slate-700 rounded-full mx-auto mt-2 sm:hidden shrink-0" />
+
         {/* Panel Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-slate-100">{t("assistant.title")}</h2>
-              <p className="text-xs text-slate-400">{t("assistant.floating_label")}</p>
+              <p className="text-[11px] sm:text-xs text-slate-400">{t("assistant.floating_label")}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -300,13 +317,31 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         {/* Message Thread */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-3">
-              <Sparkles className="w-8 h-8 text-indigo-400/50" />
-              <p className="text-sm">{t("assistant.no_messages")}</p>
-              <div className="text-xs text-slate-500 space-y-1">
-                <p>• "Sharma Traders ko 20 kilo haldi aur 10 kilo mirchi becha"</p>
-                <p>• "Gupta Suppliers se 200 kilo dhaniya aaya"</p>
-                <p>• "Kitna baaki hai Sharma ka?"</p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-3 text-slate-400 space-y-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-200">{t("assistant.title")}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{t("assistant.no_messages")}</p>
+              </div>
+              <div className="w-full pt-1 space-y-2">
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-start">
+                  {t("assistant.suggested_prompts")}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {STARTER_SUGGESTIONS.map((suggestion, sIdx) => (
+                    <button
+                      key={sIdx}
+                      type="button"
+                      onClick={() => void handleSend(suggestion, "text")}
+                      className="group flex items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-800/50 p-2.5 text-left text-xs text-slate-300 transition hover:border-indigo-500/40 hover:bg-slate-800 hover:text-white"
+                    >
+                      <span className="truncate">"{suggestion}"</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 shrink-0" />
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
@@ -316,10 +351,10 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
                     m.role === "user"
                       ? "bg-indigo-600 text-white rounded-br-none"
-                      : "bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none"
+                      : "bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>
@@ -340,9 +375,26 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Proposal link chip */}
+                  {/* Interactive Proposal Card (NGU style) */}
                   {m.proposal && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-700/60">
+                    <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-3 space-y-2 text-slate-200">
+                      <div className="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-2">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+                          <FileText className="w-3.5 h-3.5" />
+                          {t(PROPOSAL_LABEL_KEYS[m.proposal.target] ?? "assistant.review_banner_title")}
+                        </span>
+                        {m.proposal.warnings && m.proposal.warnings.length > 0 && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-medium">
+                            <AlertTriangle className="w-3 h-3" />
+                            {t("assistant.warnings")}: {m.proposal.warnings.length}
+                          </span>
+                        )}
+                      </div>
+                      {m.proposal.summary && (
+                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                          {m.proposal.summary}
+                        </p>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -360,9 +412,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                             },
                           });
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 transition"
+                        className="w-full mt-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-900/30 transition"
                       >
-                        <span>Open {m.proposal.target}</span>
+                        <span>{t("assistant.review_save")}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -375,7 +427,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
         </div>
 
         {/* Input Bar */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-900/90">
+        <div className="p-3 sm:p-3.5 border-t border-slate-800 bg-slate-900/90">
           {voiceError && (
             <p className="text-xs text-rose-400 mb-2 px-1">
               {t(`assistant.errors.${voiceError.replace("-", "_")}`)}
@@ -418,7 +470,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               onChange={(e) => setInputText(e.target.value)}
               placeholder={recording ? t("assistant.listening") : t("assistant.input_placeholder")}
               disabled={isStreaming || recording}
-              className="flex-1 bg-slate-800/80 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="flex-1 bg-slate-800/80 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs sm:text-sm px-3.5 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
             />
 
             <button

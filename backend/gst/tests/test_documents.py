@@ -1300,8 +1300,10 @@ class DBConstraintTests(GSTDocBase):
             self.assertEqual(len(model._meta.constraints), 3)
         # Invoices also carry the outstanding-sign CHECK and the three return CHECKs
         # (return_against needs is_return, not self, amount sign).
-        for model in (SalesInvoice, PurchaseInvoice):
-            self.assertEqual(len(model._meta.constraints), 7)
+        self.assertEqual(len(SalesInvoice._meta.constraints), 7)
+        # PurchaseInvoice adds the supplier-bill-number UNIQUE and the
+        # bill-date-not-after-posting CHECK.
+        self.assertEqual(len(PurchaseInvoice._meta.constraints), 9)
 
 
 class DryRunTests(GSTDocBase):

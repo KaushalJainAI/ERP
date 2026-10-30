@@ -10,7 +10,8 @@ from decimal import Decimal
 from rest_framework import status
 
 from accounts.models import Account, AccountRootType, AccountType, PaymentEntry
-from core.models import DocStatus
+from buying.testing import next_bill_no
+from core.models import Company, DocStatus
 from core.test_e2e import BaseAPITest
 from users.models import Role, RolePermission, User, UserRole
 
@@ -97,6 +98,7 @@ class DraftEditAPITests(BaseAPITest):
                 "/api/buying/purchase-invoices/",
                 {
                     "name": "PINV-ED-1",
+                    "bill_no": next_bill_no(),
                     "supplier": self.supplier.id,
                     "company": c,
                     "posting_date": "2026-04-01",
@@ -107,6 +109,7 @@ class DraftEditAPITests(BaseAPITest):
                 },
                 {
                     "name": "PINV-ED-1",
+                    "bill_no": next_bill_no(),
                     "supplier": self.supplier.id,
                     "company": c,
                     "posting_date": "2026-04-01",
@@ -431,7 +434,7 @@ class SalesMappingTests(MappingBase):
         first = self.client.post(f"{url}{so_id}/make-sales-invoice/")
         # Bill only 4 of 10 on the first invoice.
         inv_url = "/api/selling/sales-invoices/"
-        body = {**first.data, "update_stock": False}
+        body = {**first.data, "update_stock": False, "bill_no": next_bill_no()}
         body["items"] = [self._line("4.000")]
         put = self.client.put(f"{inv_url}{first.data['id']}/", body, format="json")
         self.assertEqual(put.status_code, 200, put.content)
@@ -510,7 +513,7 @@ class SalesMappingTests(MappingBase):
         url, so_id = self._submitted_order("so")
         inv = self.client.post(f"{url}{so_id}/make-sales-invoice/")
         inv_url = "/api/selling/sales-invoices/"
-        body = {**inv.data, "update_stock": False}
+        body = {**inv.data, "update_stock": False, "bill_no": next_bill_no()}
         self.client.put(f"{inv_url}{inv.data['id']}/", body, format="json")
         sub = self.client.post(f"{inv_url}{inv.data['id']}/submit/")
         self.assertEqual(sub.status_code, 200, sub.content)
@@ -606,7 +609,7 @@ class BuyingMappingTests(MappingBase):
         url, po_id = self._submitted_order("po")
         first = self.client.post(f"{url}{po_id}/make-purchase-invoice/")
         inv_url = "/api/buying/purchase-invoices/"
-        body = {**first.data, "update_stock": False}
+        body = {**first.data, "update_stock": False, "bill_no": next_bill_no()}
         body["items"] = [self._line("7.000")]
         self.assertEqual(
             self.client.put(
@@ -648,7 +651,7 @@ class BuyingMappingTests(MappingBase):
         url, po_id = self._submitted_order("po")
         inv = self.client.post(f"{url}{po_id}/make-purchase-invoice/")
         inv_url = "/api/buying/purchase-invoices/"
-        body = {**inv.data, "update_stock": False}
+        body = {**inv.data, "update_stock": False, "bill_no": next_bill_no()}
         self.client.put(f"{inv_url}{inv.data['id']}/", body, format="json")
         self.assertEqual(
             self.client.post(f"{inv_url}{inv.data['id']}/submit/").status_code, 200
@@ -742,11 +745,15 @@ class AutoNameAndLookupTests(BaseAPITest):
         for key, (url, create, _e, _c, _t) in self._spec().items():
             with self.subTest(doc=key):
                 payload = {k: v for k, v in create.items() if k != "name"}
+                if "bill_no" in payload:
+                    payload["bill_no"] = next_bill_no()
                 res = self.client.post(url, payload, format="json")
                 self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
                 self.assertTrue(
                     res.data["name"].startswith(prefixes[key]), res.data["name"]
                 )
+                if "bill_no" in payload:
+                    payload["bill_no"] = next_bill_no()
                 second = self.client.post(url, payload, format="json")
                 self.assertNotEqual(second.data["name"], res.data["name"])
 
@@ -789,12 +796,17 @@ class AutoNameAndLookupTests(BaseAPITest):
             ).status_code,
             status.HTTP_405_METHOD_NOT_ALLOWED,
         )
-        # No role -> 403.
+        # Authenticated-only (no model RBAC): with several companies a new user has
+        # no membership (it is only auto-assigned when exactly one company is
+        # active), and simply sees no companies.
+        Company.objects.create(name="Second Co", abbr="SEC")
         User.objects.create_user(
             username="nobody", email="n@t.com", password="Pass123!"
         )
         self.login("nobody", "Pass123!")
-        self.assertEqual(self.client.get("/api/core/companies/").status_code, 403)
+        res = self.client.get("/api/core/companies/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["count"], 0)
         # Read on core.Company -> 200.
         user = User.objects.get(username="nobody")
         role = Role.objects.create(name="company_reader")

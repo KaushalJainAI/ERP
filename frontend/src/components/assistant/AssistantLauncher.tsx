@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Mic, MessageSquare, Sparkles } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 import { AssistantPanel } from "./AssistantPanel";
 
 export const AssistantLauncher: React.FC = () => {
@@ -9,19 +9,20 @@ export const AssistantLauncher: React.FC = () => {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-30 flex items-center gap-2">
+      <div className="assistant-fab fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] end-4 z-30 flex items-center gap-2 sm:end-6 md:bottom-6">
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="group flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium text-sm shadow-xl hover:shadow-indigo-500/25 transition-all duration-200 border border-indigo-400/30"
+          aria-label={t("assistant.floating_label")}
           title={t("assistant.floating_label")}
+          className="group flex h-11 w-11 items-center justify-center rounded-full border border-indigo-400/30 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-xl transition-all duration-200 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-indigo-500/25 sm:h-auto sm:w-auto sm:gap-2 sm:px-4 sm:py-3"
         >
-          <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
             <Sparkles className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="hidden sm:inline font-semibold">{t("assistant.title")}</span>
-          <div className="w-px h-4 bg-white/20 hidden sm:block" />
-          <Mic className="w-4 h-4 text-indigo-100 group-hover:scale-110 transition-transform" />
+          <span className="hidden font-semibold sm:inline">{t("assistant.title")}</span>
+          <div className="hidden h-4 w-px bg-white/20 sm:block" />
+          <Mic className="hidden w-4 h-4 shrink-0 text-indigo-100 transition-transform group-hover:scale-110 sm:block" />
         </button>
       </div>
 

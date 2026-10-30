@@ -18,6 +18,7 @@ from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from buying.testing import next_bill_no
 from core.models import Company
 from accounts.models import Account, AccountRootType, AccountType
 from stock.models import UOM, ItemGroup, Item, Warehouse, ValuationMethod
@@ -163,6 +164,7 @@ class ProcureToPayE2E(BaseAPITest):
             "update_stock": True,
             "credit_to": self.creditors.id,
             "expense_account": self.purchase_expense.id,
+            "bill_no": next_bill_no(),
             "items": [
                 {
                     "item": self.item.id,
@@ -223,6 +225,7 @@ class ProcureToPayE2E(BaseAPITest):
             "update_stock": True,
             "credit_to": self.creditors.id,
             "expense_account": self.purchase_expense.id,
+            "bill_no": next_bill_no(),
             "items": [
                 {
                     "item": self.item.id,
@@ -257,6 +260,7 @@ class OrderToCashE2E(BaseAPITest):
             "update_stock": True,
             "credit_to": self.creditors.id,
             "expense_account": self.purchase_expense.id,
+            "bill_no": next_bill_no(),
             "items": [
                 {
                     "item": self.item.id,

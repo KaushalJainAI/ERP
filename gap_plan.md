@@ -27,6 +27,99 @@ day from happening in the ERP.
 
 ---
 
+## 0A. Operating plan (owner decisions, 2026-10-31)
+
+**This section wins** wherever it disagrees with the rest of this file. The current,
+detailed plan is in [planning/](planning/README.md); where that differs from this
+section, `planning/` wins. Added there on the same day: 90-day customer payment cycle,
+expenses as a main goal, email notifications modelled on NGU, and a tax scope of only
+employee TDS, GST input credit and GST payable.
+
+### The working day
+
+| Who | Does | The ERP does |
+|---|---|---|
+| Order entry | Says the order in Hindi, checks the prefilled page, approves | Creates the Sales Order |
+| Factory manager | Moves batches through Grinding → Packing → Ready | Moves stock; loss is recorded |
+| Factory manager | Ticks a pending order as dispatched | In one transaction: stock leaves Ready, the bill is created, the order completes |
+| Factory manager | Opens Workers | Shows attendance and pay on one page |
+| Accountant | Enters purchase bills, receipts, payments, expenses, tax paid | Proof is compulsory; everything queues for Tally |
+| Admin | Can do all of the above | Has all three workspaces |
+
+### Decisions
+
+| # | Decision | Effect on the plan |
+|---|---|---|
+| D1 | **One access level.** All staff are trusted; no per-role permissions for now | Keep the RBAC code, seed one role that can do everything. Workspaces only choose the landing page; they are not permissions. Deliberate exception to mandate 2's least privilege: update `CLAUDE.md`, `goals.md` and `erpnext_divergences.md`. Audit log, DB constraints and submitted-document immutability stay. Portal worker logins keep having no role |
+| D2 | **No lot tracking.** `stock.Batch`, `Item.has_batch_no` and expiry stay off | C3 and lot tracing dropped. "Batch" now means a production run (D3). Its number remains in production records, but is not linked to customers |
+| D3 | **Three batch stages:** Grinding, Packing, Ready, plus Unprocessed stock | Built on Work Order + Stock Entry so costing, repost, `verify_integrity` and Tally export keep working. Hide Work Order vocabulary from the factory screen |
+| D4 | **Nothing is tracked after dispatch** | Vehicle and transporter fields dropped unless the e-way bill answer requires them. Delivery Note (C2) dropped: dispatch and bill are one action. Purchase Receipt dropped too |
+| D5 | **Collections and supplier payments are in scope**, with overdue alerts to the responsible user | New work, `planning/04` |
+| D6 | **Opening balances for accounts and stock are required** | New work, `planning/09` |
+| D7 | **Non-negative stock enforced in the database**, with all sensible constraints | `Bin` has no quantity CHECK today (only the posting service guards it). Card P-1 |
+| D8 | **Backend messages must be translated** | Cards L-1 to L-6 |
+
+### Stock flow
+
+Warehouses: **Unprocessed → In Process → Ready**. The 46 current stock rows all sit
+in `Main Location` and are split at the go-live count.
+
+| Stage | Stock posting | Entered by the factory manager |
+|---|---|---|
+| Grinding | Material Transfer: raw moves Unprocessed → In Process | Product, quantity, raw used (suggested from the BOM) |
+| Packing | None; stage change only | Nothing beyond the move |
+| Ready | Manufacture: raw and packing material consumed, finished goods into Ready, loss recorded | Actual output |
+
+Open question Q2 below can change this table.
+
+### Constraints to enforce
+
+- `Bin.actual_qty >= 0`, plus the running balance on `StockLedgerEntry` if it has no
+  CHECK yet. The migration is safe: no negative rows exist on 2026-10-31.
+- Production: quantity > 0; output ≤ input; loss ≥ 0; stages only move forward; Ready
+  needs an output; a cancelled batch cannot move.
+- Dispatch: dispatched ≤ ordered per line; a line cannot be dispatched twice; the
+  order must be approved; insufficient Ready stock refuses the whole dispatch.
+- Money: allocation ≤ outstanding; due date ≥ bill date; amounts > 0; proof present
+  before a cash, bank, expense or tax voucher can be submitted.
+- Opening: one opening balance per party and company; opening stock posts once.
+- Alerts: unique per rule, record and day, so reminders never duplicate.
+
+### Why overdue needs opening bills
+
+On 2026-10-31 the books show 324 customers owing ₹5,64,22,429 and 53 suppliers owed
+₹1,60,06,453, but as **party balances only**, with no bill or due date behind them
+(Tally recorded just 125 bill allocations). Overdue alerts read invoices, so this
+money would be invisible. [planning/09-go-live.md](planning/09-go-live.md) therefore
+estimates opening bills from each party's ledger, for the accountant to confirm, with
+one bill per party as the fallback. Receipts settle the oldest bill first.
+These figures must be retaken at cutover: Tally entries are still being made, and
+the ERP's ledger currently ends on 2026-10-19.
+
+Opening documents must never go to Tally, which already holds these balances.
+`NEVER_EXPORTED_DOCTYPES` / the excluded prefixes need to cover them, with a test.
+
+### Superseded or moved
+
+| Item | Now |
+|---|---|
+| A1, section 2 (mirror 27,575 historical invoices) | Dropped: the `legacy` tables it depends on were removed on 2026-10-30, and opening bills cover the operating need |
+| C2 Delivery Note + Purchase Receipt | Dropped (D4) |
+| C3 Quality Inspection | Dropped for now (D2) |
+| W0 Company isolation | Remaining work deferred: one real company, trusted staff. Reopen before adding a second company |
+| G1 Assistant (P3) | Raised to P0: it is how orders enter the system |
+| A4 e-Way Bill / e-Invoice | Skipped, **pending Q1** |
+
+### Open questions
+
+| # | Question | Owner | Blocks |
+|---|---|---|---|
+| – | Tracked in [planning/README.md](planning/README.md) | – | – |
+
+Partial dispatch is allowed: bill what was sent and leave the rest pending.
+
+---
+
 ## 1. The gap register
 
 Severity: **P0** = cannot go live without it · **P1** = needed in the first
@@ -97,9 +190,10 @@ Rules for the mirror:
 - The backfill command is idempotent and has a `--dry-run` that reports clean vs
   unmatched vouchers before writing.
 
-**Outstanding policy:** party balances are already exact. Historical invoices
-carry zero outstanding; new receipts are allocated to new invoices only. Do not
-invent bill-wise allocations — Tally recorded only 125.
+**Outstanding policy (superseded 2026-10-31, section 0A):** party balances are
+exact. Each party gets one opening bill for its balance at cutover, and receipts
+settle the oldest bill first. Still do not invent bill-wise allocations — Tally
+recorded only 125.
 
 ---
 
@@ -316,15 +410,18 @@ The business stops opening Tally for daily work when **all** are true:
 - [ ] A GST invoice can be created, submitted and printed with the correct
       company GSTIN, HSN, tax split and totals.
 - [ ] Purchase invoices can be entered and paid; returns work both ways.
-- [ ] Party outstanding and ageing are correct for new documents.
+- [ ] Party outstanding and ageing are correct, including opening bills.
+- [ ] Opening bills and opening stock match the cutover figures, and neither was
+      exported to Tally.
+- [ ] One real order has gone from Hindi voice to dispatch, bill and Tally import.
+- [ ] Pending order, critical stock, procurement and overdue alerts reach the
+      assigned user.
 - [ ] Bank reconciliation for one full month is zero-difference.
 - [ ] The year-end close posts P&L to retained earnings; trial balance still
       balances.
 - [ ] No negative stock; the 7 items are physically counted.
 - [ ] `verify_integrity` is green; the nightly backup restores.
 - [ ] One full month closed in the ERP and accepted by the accountant.
-- [ ] Every user is a member of the right company/companies; cross-company tests
-      pass.
 
 `goals.md` G3 is met only then. Until then, the ERP is a trustworthy record and
 analysis layer.
@@ -332,6 +429,8 @@ analysis layer.
 ---
 
 ## 8. First ten working days
+
+> Superseded 2026-10-31: follow [checklist.md](checklist.md) Phase 10. Kept for history.
 
 | Day | Work |
 |---|---|
@@ -353,3 +452,6 @@ analysis layer.
 | Date | Change |
 |---|---|
 | 2026-10-29 | Plan created; Wave 0 (company isolation) started as the foundation. |
+| 2026-10-30 | Added Phase 9: Mobile UI Overhaul (compact 2-column cards, Top/Bottom navigation bars) & NGU Chatbot Experience Parity (bottom-sheet, suggestion chips, formatted bubbles, interactive proposal cards). |
+| 2026-10-31 | Added section 0A and checklist Phase 10 from the owner's real workflow: one access level, no lot tracking, three batch stages, collections, supplier payments, opening balances, translated server messages. Dropped historical invoices, Delivery Note, Purchase Receipt and Quality Inspection; deferred the rest of company isolation; raised the assistant to P0. |
+| 2026-10-31 | Moved the detailed plan to `planning/` with implementer guide, task cards and a subagent prompt; checklist Phase 10 now lists those cards. |

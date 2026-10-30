@@ -76,7 +76,7 @@ export function useVoiceInput(
       formData.append("file", wav, "audio.wav");
       formData.append("language", getLanguageRef.current());
 
-      const res = await apiClient.post<{ text: string }>("/api/assistant/transcribe/", formData, {
+      const res = await apiClient.post<{ text: string }>("/assistant/transcribe/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const transcript = res.data?.text?.trim();

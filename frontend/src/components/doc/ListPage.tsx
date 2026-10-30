@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -23,7 +23,6 @@ import { flattenTree, matchWithAncestors, parentIds } from "@/lib/tree";
 import { formatDate, formatIndianCurrency, formatIndianNumber } from "@/lib/format";
 import type { ApiRecord, ListColumnDef, ResourceConfig } from "@/types";
 import { Select } from "@/components/ui/Select";
-import { HistoryBanner } from "@/pages/history/HistoryBanner";
 
 const DOCSTATUS_FILTERS = [
   { value: "", labelKey: "common.all_statuses" },
@@ -148,40 +147,152 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
 
   const alignRight = (col: ListColumnDef) => col.type === "money" || col.type === "number";
 
+  /* ---- phone cards: a wide desktop table is unreadable on a phone ---- */
+  const titleColumn = config.columns.find((c) => c.key === config.titleField) ?? config.columns[0];
+  const statusColumn = config.columns.find((c) => c.type === "status");
+  const subtitleColumn = config.columns.find(
+    (c) => c.key !== titleColumn.key && c.key !== statusColumn?.key && c.type !== "status"
+  );
+  const hasValue = (row: ApiRecord, col: ListColumnDef) => {
+    const v = row[col.key];
+    return v !== null && v !== undefined && v !== "" && !(col.type === "boolean" && v === false);
+  };
+  const detailColumns = (() => {
+    const rest = config.columns.filter(
+      (c) => c.key !== titleColumn.key && c.key !== statusColumn?.key && c.key !== subtitleColumn?.key
+    );
+    const priority = rest.filter((c) => c.type === "money" || c.type === "number" || c.type === "date");
+    const text = rest.filter((c) => !priority.includes(c) && c.type !== "boolean");
+    const booleans = rest.filter((c) => c.type === "boolean");
+    return [...priority, ...text, ...booleans].slice(0, 4);
+  })();
+
+  const mobileCard = (
+    row: ApiRecord,
+    opts?: { depth?: number; hasChildren?: boolean; expanded?: boolean; onToggle?: () => void }
+  ) => {
+    const clickable = !config.listOnly;
+    const content = (
+      <>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div
+              className="flex min-w-0 items-center gap-1.5"
+              style={{ paddingInlineStart: `${(opts?.depth ?? 0) * 12}px` }}
+            >
+              {opts?.hasChildren && (
+                <button
+                  type="button"
+                  aria-expanded={opts.expanded}
+                  aria-label={t(opts.expanded ? "common.collapse_node" : "common.expand_node")}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    opts.onToggle?.();
+                  }}
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                >
+                  {opts.expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4 rtl:rotate-180" />}
+                </button>
+              )}
+              {opts?.hasChildren === false && <span className="w-5" />}
+              {row[groupKey] ? (
+                opts?.expanded ? (
+                  <FolderOpen className="h-4 w-4 shrink-0 text-amber-400/80" />
+                ) : (
+                  <Folder className="h-4 w-4 shrink-0 text-amber-400/80" />
+                )
+              ) : null}
+              <p className={`min-w-0 truncate text-sm font-semibold ${row[groupKey] ? "text-slate-100" : "text-slate-200"}`}>
+                {renderCell(titleColumn, row)}
+              </p>
+            </div>
+            {subtitleColumn &&
+              hasValue(row, subtitleColumn) &&
+              row[subtitleColumn.key] !== row[titleColumn.key] && (
+                <p className="mt-0.5 truncate text-[11px] text-slate-500">{renderCell(subtitleColumn, row)}</p>
+              )}
+          </div>
+          {statusColumn && <StatusBadge docstatus={row[statusColumn.key]} />}
+        </div>
+
+        {detailColumns.some((col) => hasValue(row, col)) && (
+          <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+            {detailColumns.filter((col) => hasValue(row, col)).map((col) => (
+              <div key={col.key} className="min-w-0">
+                <dt className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t(col.labelKey)}
+                </dt>
+                <dd className={`mt-0.5 truncate text-xs text-slate-300 ${alignRight(col) ? "tabular-nums" : ""}`}>
+                  {renderCell(col, row)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </>
+    );
+
+    const cls = "rounded-xl border border-slate-800 bg-slate-900 p-3.5 shadow-sm transition-colors";
+    if (!clickable) return <div key={String(row.id)} className={cls}>{content}</div>;
+    if (opts) {
+      return (
+        <div
+          key={String(row.id)}
+          role="link"
+          tabIndex={0}
+          onClick={() => navigate(`${base}/${row.id}`)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") navigate(`${base}/${row.id}`);
+          }}
+          className={`${cls} cursor-pointer hover:border-slate-700`}
+        >
+          {content}
+        </div>
+      );
+    }
+    return (
+      <Link key={String(row.id)} to={`${base}/${row.id}`} className={`${cls} block hover:border-slate-700`}>
+        {content}
+      </Link>
+    );
+  };
+
+  const empty = treeOn ? treeRows.length === 0 : rows.length === 0;
+
   return (
     <Layout>
-      {config.history && <HistoryBanner tab={config.history} />}
       <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden animate-fade-up">
-        <div className="p-5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-xl font-semibold text-slate-100 tracking-tight flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 p-4 sm:gap-4 sm:p-5">
+          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-100 sm:text-xl">
             {t(config.titleKey)}
             {isFetching && <Loader2 className="w-4 h-4 animate-spin text-slate-500" />}
           </h1>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
             {config.submittable && (
               <Select
                 value={docstatus}
                 onChange={setDocstatus}
                 aria-label={t("status")}
-                className="w-40"
+                className="w-full sm:w-40"
                 options={DOCSTATUS_FILTERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
               />
             )}
             {tree && (
-              <div className="flex items-center gap-1">
+              <div className="flex w-full items-center gap-1 sm:w-auto">
                 {treeOn && (
                   <>
                     <button
                       type="button"
                       onClick={expandAll}
-                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm"
+                      className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-2 text-xs text-slate-300 shadow-sm hover:bg-slate-800 sm:flex-none"
                     >
                       {t("common.expand_all")}
                     </button>
                     <button
                       type="button"
                       onClick={collapseAll}
-                      className="px-2.5 py-2 rounded-lg text-xs text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 shadow-sm"
+                      className="flex-1 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-2 text-xs text-slate-300 shadow-sm hover:bg-slate-800 sm:flex-none"
                     >
                       {t("common.collapse_all")}
                     </button>
@@ -191,32 +302,32 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                   type="button"
                   onClick={() => setTreeMode((m) => !m)}
                   aria-pressed={treeOn}
-                  className="px-2.5 py-2 rounded-lg text-xs text-indigo-300 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/30 inline-flex items-center gap-1.5"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-600/10 px-2.5 py-2 text-xs text-indigo-300 hover:bg-indigo-600/20 sm:flex-none"
                 >
                   {treeOn ? <List className="w-4 h-4" /> : <FolderTree className="w-4 h-4" />}
                   {treeOn ? t("common.list_view") : t("common.tree_view")}
                 </button>
               </div>
             )}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute start-3 top-3 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 placeholder={t("search")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 w-64 max-w-full"
+                className="w-full rounded-lg border border-slate-800 bg-slate-950 py-2 pe-4 ps-9 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none"
               />
             </div>
             {!config.listOnly && (
-            <button
-              type="button"
-              onClick={() => navigate(`${base}/new`)}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-sm shadow-lg shadow-indigo-600/20 flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              {t("common.new_item", { item: t(config.singularKey) })}
-            </button>
+              <button
+                type="button"
+                onClick={() => navigate(`${base}/new`)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                {t("common.new_item", { item: t(config.singularKey) })}
+              </button>
             )}
           </div>
         </div>
@@ -229,112 +340,116 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
             </p>
             {!err.forbidden && err.general[0] && <p className="text-xs text-slate-500">{err.general[0]}</p>}
           </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center gap-2 px-6 py-16 text-sm text-slate-400" role="status">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t("common.loading")}
+          </div>
+        ) : empty ? (
+          <div className="px-6 py-16 text-center text-sm text-slate-500" role="status">
+            {t("no_records")}
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
-                <tr>
-                  {config.columns.map((col) => (
-                    <th key={col.key} className={`px-5 py-3.5 ${alignRight(col) ? "text-right" : ""}`}>
-                      {t(col.labelKey)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody
-                className={`divide-y divide-slate-800/60 transition-opacity duration-200 ${
-                  flatQuery.isPlaceholderData ? "opacity-60" : "opacity-100"
-                }`}
-              >
-                {isLoading ? (
+          <>
+            <div className="space-y-2 p-3 md:hidden">
+              {treeOn
+                ? treeRows.map(({ row, depth, hasChildren, expanded: isOpen }) => (
+                    <React.Fragment key={String(row.id)}>
+                      {mobileCard(row, {
+                        depth,
+                        hasChildren,
+                        expanded: isOpen,
+                        onToggle: () => toggleNode(String(row.id), isOpen),
+                      })}
+                    </React.Fragment>
+                  ))
+                : rows.map((row) => mobileCard(row))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-sm text-slate-300">
+                <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
                   <tr>
-                    <td colSpan={config.columns.length} className="px-6 py-10 text-center text-slate-400">
-                      {t("common.loading")}
-                    </td>
+                    {config.columns.map((col) => (
+                      <th key={col.key} className={`px-5 py-3.5 ${alignRight(col) ? "text-right" : ""}`}>
+                        {t(col.labelKey)}
+                      </th>
+                    ))}
                   </tr>
-                ) : treeOn ? (
-                  treeRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={config.columns.length} className="px-6 py-12 text-center text-slate-500">
-                        {t("no_records")}
-                      </td>
-                    </tr>
-                  ) : (
-                    treeRows.map(({ row, depth, hasChildren, expanded: isOpen }) => (
-                      <tr
-                        key={String(row.id)}
-                        onClick={config.listOnly ? undefined : () => navigate(`${base}/${row.id}`)}
-                        className={`hover:bg-slate-800/40 transition-colors ${config.listOnly ? "" : "cursor-pointer"}`}
-                      >
-                        {config.columns.map((col) =>
-                          col.key === labelColumn ? (
-                            <td key={col.key} className="px-5 py-2">
-                              <div className="flex items-center gap-1.5" style={{ paddingInlineStart: `${depth * 20}px` }}>
-                                {hasChildren ? (
-                                  <button
-                                    type="button"
-                                    aria-expanded={isOpen}
-                                    aria-label={t(isOpen ? "common.collapse_node" : "common.expand_node")}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleNode(String(row.id), isOpen);
-                                    }}
-                                    className="p-0.5 rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800"
-                                  >
-                                    {isOpen ? (
-                                      <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4 rtl:rotate-180" />
-                                    )}
-                                  </button>
-                                ) : (
-                                  <span className="w-5 inline-block" />
-                                )}
-                                {row[groupKey] ? (
-                                  isOpen ? (
-                                    <FolderOpen className="w-4 h-4 text-amber-400/80 shrink-0" />
+                </thead>
+                <tbody
+                  className={`divide-y divide-slate-800/60 transition-opacity duration-200 ${
+                    flatQuery.isPlaceholderData ? "opacity-60" : "opacity-100"
+                  }`}
+                >
+                  {treeOn
+                    ? treeRows.map(({ row, depth, hasChildren, expanded: isOpen }) => (
+                        <tr
+                          key={String(row.id)}
+                          onClick={config.listOnly ? undefined : () => navigate(`${base}/${row.id}`)}
+                          className={`hover:bg-slate-800/40 transition-colors ${config.listOnly ? "" : "cursor-pointer"}`}
+                        >
+                          {config.columns.map((col) =>
+                            col.key === labelColumn ? (
+                              <td key={col.key} className="px-5 py-2">
+                                <div className="flex items-center gap-1.5" style={{ paddingInlineStart: `${depth * 20}px` }}>
+                                  {hasChildren ? (
+                                    <button
+                                      type="button"
+                                      aria-expanded={isOpen}
+                                      aria-label={t(isOpen ? "common.collapse_node" : "common.expand_node")}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleNode(String(row.id), isOpen);
+                                      }}
+                                      className="p-0.5 rounded text-slate-400 hover:text-slate-100 hover:bg-slate-800"
+                                    >
+                                      {isOpen ? (
+                                        <ChevronDown className="w-4 h-4" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+                                      )}
+                                    </button>
                                   ) : (
-                                    <Folder className="w-4 h-4 text-amber-400/80 shrink-0" />
-                                  )
-                                ) : null}
-                                <span className={row[groupKey] ? "font-medium text-slate-100" : ""}>
-                                  {renderCell(col, row)}
-                                </span>
-                              </div>
-                            </td>
-                          ) : (
-                            <td key={col.key} className={`px-5 py-2 ${alignRight(col) ? "text-right" : ""}`}>
+                                    <span className="w-5 inline-block" />
+                                  )}
+                                  {row[groupKey] ? (
+                                    isOpen ? (
+                                      <FolderOpen className="w-4 h-4 text-amber-400/80 shrink-0" />
+                                    ) : (
+                                      <Folder className="w-4 h-4 text-amber-400/80 shrink-0" />
+                                    )
+                                  ) : null}
+                                  <span className={row[groupKey] ? "font-medium text-slate-100" : ""}>
+                                    {renderCell(col, row)}
+                                  </span>
+                                </div>
+                              </td>
+                            ) : (
+                              <td key={col.key} className={`px-5 py-2 ${alignRight(col) ? "text-right" : ""}`}>
+                                {renderCell(col, row)}
+                              </td>
+                            )
+                          )}
+                        </tr>
+                      ))
+                    : rows.map((row) => (
+                        <tr
+                          key={String(row.id)}
+                          onClick={config.listOnly ? undefined : () => navigate(`${base}/${row.id}`)}
+                          className={`hover:bg-slate-800/40 transition-colors ${config.listOnly ? "" : "cursor-pointer"}`}
+                        >
+                          {config.columns.map((col) => (
+                            <td key={col.key} className={`px-5 py-3 ${alignRight(col) ? "text-right" : ""}`}>
                               {renderCell(col, row)}
                             </td>
-                          )
-                        )}
-                      </tr>
-                    ))
-                  )
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={config.columns.length} className="px-6 py-12 text-center text-slate-500">
-                      {t("no_records")}
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((row) => (
-                    <tr
-                      key={String(row.id)}
-                      onClick={config.listOnly ? undefined : () => navigate(`${base}/${row.id}`)}
-                      className={`hover:bg-slate-800/40 transition-colors ${config.listOnly ? "" : "cursor-pointer"}`}
-                    >
-                      {config.columns.map((col) => (
-                        <td key={col.key} className={`px-5 py-3 ${alignRight(col) ? "text-right" : ""}`}>
-                          {renderCell(col, row)}
-                        </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {!err && treeOn && (allTreeRows?.length ?? 0) > 0 && (

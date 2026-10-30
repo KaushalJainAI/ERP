@@ -422,3 +422,142 @@ route to `backend/docs/API.md`.
       photo as proof)
 - [ ] Attendance / advance / employee payment proposals (after HR screens exist)
 - [ ] Spoken read-back of the summary (TTS)
+
+
+---
+
+## Phase 9 - Mobile UI & NGU Experience Parity (2026-10-30)
+
+Design inspired by **Nidhi Gruh Udyog (NGU)**: mobile-first navigation, high data-density compact cards, and an interactive conversational assistant.
+
+### 9.1 Mobile Navigation Shell (Top & Bottom Bars)
+- [x] Mobile bottom navigation bar (`BottomBar.tsx`):
+      Fixed at `bottom-0`, thumb-zone layout with 5 primary destinations (Home, Modules, Pending/Orders, Reports, Menu/More), badge counters, active tab indicators, and iOS/Android `safe-area-inset-bottom` padding.
+- [x] Streamlined mobile `TopBar.tsx`:
+      Compact header height (`h-14`), active company switcher pill visible on mobile, quick profile access, and search/language toggles.
+- [x] `Layout.tsx` coordination:
+      Add `pb-24 md:pb-6` content padding to prevent bottom bar overlap; reposition `<AssistantLauncher>` to `bottom-20 md:bottom-6`.
+
+### 9.2 Compact Mobile Cards
+- [x] Mobile workspace cards in `Home.tsx`:
+      Refactor `WorkspaceCard` from heavy single-column `p-5` to compact 2-column grid (`grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4`), smaller icon badge (`h-8 w-8`), concise typography, and tap-friendly direct targets.
+- [x] Compact pending work items:
+      Tight padding (`py-2.5 px-3.5`), dense status badges, and quick link pills.
+- [x] Compact module tiles in `ModulePage.tsx`:
+      Dense `p-2.5`, `h-8 w-8` icons, and 1-column to 4-column responsive grid.
+- [ ] Responsive card view for records (`ListPage.tsx`):
+      Provide a compact card view alternative on `< 640px` instead of wide horizontal table scrolling.
+
+### 9.3 Assistant Chatbot NGU Parity
+- [x] Mobile bottom-sheet panel:
+      On mobile screens (`< 768px`), open `AssistantPanel` as a touch-friendly bottom sheet (`max-h-[85vh]` with drag handle, safe-area keyboard avoidance) matching NGU's `AssistantWidget.tsx`.
+- [x] Starter prompt suggestion chips:
+      Display tappable quick-question pills on empty state in the active language (e.g., "Aaj ke unbilled orders", "Haldi ka stock kitna hai?", "Naya Sales Invoice banao") matching NGU's `SUGGESTION_KEYS`.
+- [x] In-chat interactive Proposal Cards:
+      Render proposed documents (invoice, payment, stock) as an interactive card in the bubble with line items, quantities, and a single "Review & Save" trigger.
+- [ ] Voice recording waveform / pulsing visualizer.
+
+---
+
+## Phase 10 — Operating plan: the real working day (2026-10-31)
+
+Design and full card instructions are in [planning/](planning/README.md). Implementers
+read [planning/00-implementer-guide.md](planning/00-implementer-guide.md) first. Follow
+the waves in the README. **OWNER** means a human does it; **BLOCKED** waits for that
+question's recorded answer.
+
+### 1. Access and workspaces
+- [ ] A-1 One all-access role
+- [ ] A-2 Record the exception
+- [ ] A-3 Landing workspace
+- [ ] A-4 Workspace home pages
+- [ ] A-5 Hide menus
+- [ ] A-6 Plain words
+- [ ] A-7 Remove demo company (OWNER)
+
+### 2. Orders, dispatch and billing
+- [ ] O-1 Dispatch status
+- [ ] O-2 Pending orders service
+- [ ] O-3 Dispatch action
+- [ ] O-4 Bill numbering
+- [ ] O-5 Pending Orders page
+- [ ] O-6 Ready warehouse default
+- [ ] O-7 Real Tally test (OWNER)
+
+### 3. Production and stock
+- [ ] P-1 Warehouses and stock constraints
+- [ ] P-2 Batch stage
+- [ ] P-3 Batch service (BLOCKED Q2)
+- [ ] P-4 Today's Batches page
+- [ ] P-5 Stock view
+- [ ] P-6 Loss report
+- [ ] P-7 Item and recipe clean-up (OWNER, BLOCKED Q3)
+
+### 4. Collections and supplier payments
+- [ ] M-1 Credit days
+- [ ] M-2 Due dates on bills
+- [ ] M-3 Paid or Due label
+- [ ] M-4 Money to Collect
+- [ ] M-5 Bills to Pay
+- [ ] M-6 Pages and short form
+- [ ] M-7 Oldest-first allocation
+- [ ] M-8 Proof required
+
+### 5. Expenses
+- [ ] E-1 Category master
+- [ ] E-2 Mark bills as expenses
+- [ ] E-3 Expense service
+- [ ] E-4 Expense API
+- [ ] E-5 Expense page
+- [ ] E-6 Expense summary
+- [ ] E-7 Monthly repeats
+- [ ] E-8 Tally mapping check
+- [ ] E-9 Category list (OWNER)
+
+### 6. Taxes
+- [ ] T-1 Input credit flag
+- [ ] T-2 Tax Payment document
+- [ ] T-3 GST Position service
+- [ ] T-4 GST page
+- [ ] T-5 Credit at risk
+- [ ] T-6 TDS on salary (BLOCKED Q5)
+- [ ] T-7 TDS register
+- [ ] T-8 Rule check (OWNER)
+
+### 7. Alerts and reminders
+- [ ] N-1 Email settings
+- [ ] N-2 Notifications app
+- [ ] N-3 Outbox sender
+- [ ] N-4 Rules engine
+- [ ] N-5 Raw material shortage
+- [ ] N-6 Digest and weekly emails
+- [ ] N-7 Instant alerts
+- [ ] N-8 Scheduler
+- [ ] N-9 Bell and alert settings
+- [ ] N-10 Turn it on (OWNER)
+
+### 8. Hindi agent and translation
+- [ ] H-1 Order proposals
+- [ ] H-2 Correct warehouses
+- [ ] H-3 Hindi and Latin matching
+- [ ] H-4 Rank by habit
+- [ ] H-5 Read tools
+- [ ] H-6 More proposals
+- [ ] H-7 Evaluation (OWNER for sentences)
+- [ ] L-1 Mark everything
+- [ ] L-2 Guard test
+- [ ] L-3 Build setup
+- [ ] L-4 Hindi
+- [ ] L-5 Hindi review (OWNER)
+- [ ] L-6 Other languages
+
+### 9. Go-live
+- [ ] G-1 Opening bills
+- [ ] G-2 Opening bills generator
+- [ ] G-3 Accountant corrections
+- [ ] G-4 Integrity check
+- [ ] G-5 Keep openings out of Tally
+- [ ] G-6 Opening stock template
+- [ ] G-7 Backups
+- [ ] G-8 Cutover (OWNER)
+

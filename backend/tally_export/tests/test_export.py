@@ -5,7 +5,7 @@ import datetime
 import shutil
 import tempfile
 import xml.etree.ElementTree as ET
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
@@ -26,9 +26,7 @@ from accounts.models import (
 )
 from buying import mapping as buying_mapping
 from buying.models import PurchaseInvoice, PurchaseInvoiceItem, Supplier, SupplierGroup
-from core.models import AuditLog, Company
-from core.tally_import.masters import signed_debit
-from legacy.models import TallyRecord
+from core.models import AuditLog, Company, UserCompany
 from selling import mapping as selling_mapping
 from selling.models import Customer, CustomerGroup, SalesInvoice, SalesInvoiceItem
 from stock.models import (
@@ -48,12 +46,17 @@ from tally_export.models import (
 )
 from tally_export.services import export as svc
 from tally_export.services.collect import pending_counts
-from tally_export.services.maps import get_settings, seed_from_legacy
+from tally_export.services.maps import get_settings
 from users.models import Role, User, UserRole
 
 D = Decimal
 DATE = datetime.date(2026, 4, 1)
 MEDIA = tempfile.mkdtemp(prefix="tally-export-test-")
+
+def signed_debit(amount):
+    """Tally amount -> debit-positive Decimal (Tally writes debits as negatives)."""
+    return -Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
 
 
 def tearDownModule():
@@ -80,7 +83,7 @@ def parse_vouchers(data: bytes):
     ``ledgers`` is ``[(ledger, debit-positive amount)]`` of the voucher's own
     ledger entries, ``allocs`` the accounting allocations of its inventory
     entries (the sales / purchase ledger), both converted from Tally's sign
-    convention with the importer's own ``signed_debit``.
+    convention with ``signed_debit``.
     """
     root = ET.fromstring(data)
     out = []
@@ -667,77 +670,6 @@ class MappingAndPreflightTests(Base):
         ]
         self.assertEqual(addr, ["12 Mill Road", "Indore"])
 
-    def test_seed_from_legacy_maps_parties_accounts_items_and_voucher_types(self):
-        def rec(kind, guid, name, links, fy="2025-26", **kw):
-            return TallyRecord.objects.create(
-                company=self.company,
-                kind=kind,
-                company_year="010010",
-                fiscal_year=fy,
-                guid=guid,
-                name=name,
-                erp_links=links,
-                erp_name=links[0]["name"] if links else "",
-                raw=kw.pop("raw", "<X/>"),
-                **kw,
-            )
-
-        rec(
-            "ledger",
-            "g1",
-            "Cust  Traders (Indore)",
-            [{"doctype": "selling.Customer", "name": "Cust"}],
-        )
-        rec(
-            "ledger",
-            "g2",
-            "Supp   Mills",
-            [{"doctype": "buying.Supplier", "name": "Supp"}],
-        )
-        rec(
-            "ledger",
-            "g3",
-            "Sales Gst Local",
-            [{"doctype": "accounts.Account", "name": "Sales"}],
-        )
-        rec(
-            "stock_item",
-            "g4",
-            "CHILLI  POWDER",
-            [{"doctype": "stock.Item", "name": "CHILLI"}],
-            raw="<STOCKITEM><BASEUNITS>k.g</BASEUNITS></STOCKITEM>",
-        )
-        rec(
-            "voucher",
-            "v1",
-            "",
-            [],
-            voucher_type="Sales Gst",
-            base_voucher_type="Sales",
-            voucher_no="1",
-            posting_date=DATE,
-        )
-        counts = seed_from_legacy(self.company)
-        self.assertEqual(counts["parties"], 2)
-        self.assertEqual(counts["accounts"], 1)
-        self.assertEqual(counts["items"], 1)
-        cust = TallyLedgerMap.objects.get(party="Cust")
-        self.assertEqual(
-            cust.tally_ledger, "Cust  Traders (Indore)"
-        )  # exact Tally spelling
-        self.assertEqual(cust.account_id, self.debtors.pk)
-        self.assertEqual(cust.source, "legacy")
-        self.assertEqual(
-            TallyLedgerMap.objects.get(party="Supp").account_id, self.creditors.pk
-        )
-        self.assertEqual(TallyStockItemMap.objects.get().tally_unit, "k.g")
-        self.assertEqual(
-            get_settings(self.company).voucher_type_overrides["selling.SalesInvoice"],
-            "Sales Gst",
-        )
-        # Idempotent: nothing is created or overwritten the second time.
-        self.assertEqual(seed_from_legacy(self.company), {})
-
     def test_tally_history_and_opening_entries_are_never_exported(self):
         self.map_all()
         self.journal([(self.rent, "5.00", "0.00"), (self.cash, "0.00", "5.00")])
@@ -919,6 +851,7 @@ class ApiTests(Base):
             username=f"u-{role}", email=f"{role.replace(' ', '')}@x.io", password="x"
         )
         UserRole.objects.create(user=user, role=Role.objects.get(name=role))
+        UserCompany.objects.create(user=user, company=self.company, is_default=True)
         client = APIClient()
         client.force_authenticate(user)
         return client
@@ -1075,15 +1008,6 @@ class ApiTests(Base):
             format="json",
         )
         self.assertEqual(bad.status_code, 400)
-
-    def test_seed_endpoint(self):
-        client = self.client_for("Accounts Manager")
-        res = client.post(
-            "/api/tally-export/ledger-maps/seed-from-legacy/",
-            {"company": self.company.pk},
-            format="json",
-        )
-        self.assertEqual(res.status_code, 200)
 
     def test_only_accounts_and_system_managers_may_use_it(self):
         self.map_all()

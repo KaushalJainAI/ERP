@@ -27,6 +27,8 @@ export const enHome = {
     roles: "Signed in as",
     administrator: "Administrator",
     workspaces: "Your workspaces",
+    workspaces_short: "Workspaces",
+    workspaces_hint: "Quick jump to any module",
     open_workspace: "Open {{name}}",
     admin_title: "Administration",
     empty_title: "No workspace assigned yet",

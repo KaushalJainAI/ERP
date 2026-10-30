@@ -3,14 +3,18 @@
 Every Tally voucher became a ``TLY-<yy><yy>-NNNNNN`` Journal Entry, a name that means
 nothing to the business; they know the voucher by Tally's own type and number
 ("Receipt 2526/1"). Reports attach that as an additive ``tally`` object on each row
-whose voucher is such a Journal Entry (``None`` for every other row), resolved with one
-bulk, company-scoped query per page of rows -- never per row.
+whose voucher is such a Journal Entry (``None`` for every other row). The type and
+number are read from the entry's ``user_remark`` ("Tally <type> No. <no> | ..."), with
+one bulk, company-scoped query per page of rows -- never per row.
 """
 
-from legacy.models import TallyRecord, TallyRecordKind
+import re
+
+from accounts.models import JournalEntry
 
 TALLY_PREFIX = "TLY-"
 _CHUNK = 2000
+_REMARK = re.compile(r"^Tally (?P<type>.+?) No\. (?P<no>[^|]*?)\s*(?:\||$)")
 
 
 def tally_lookup(company, voucher_nos):
@@ -21,22 +25,15 @@ def tally_lookup(company, voucher_nos):
         return found
     ordered = sorted(names)
     for i in range(0, len(ordered), _CHUNK):
-        records = (
-            TallyRecord.objects.filter(
-                company=company,
-                kind=TallyRecordKind.VOUCHER,
-                erp_name__in=ordered[i : i + _CHUNK],
-            )
-            .only("id", "erp_name", "voucher_type", "voucher_no")
-            .order_by("id")
-        )
-        for r in records:
-            found.setdefault(
-                r.erp_name,
-                {
-                    "id": r.pk,
-                    "voucher_type": r.voucher_type,
-                    "voucher_no": r.voucher_no,
-                },
-            )
+        rows = JournalEntry.objects.filter(
+            company=company, name__in=ordered[i : i + _CHUNK]
+        ).values_list("id", "name", "user_remark")
+        for pk, name, remark in rows:
+            m = _REMARK.match(remark or "")
+            if m:
+                found[name] = {
+                    "id": pk,
+                    "voucher_type": m.group("type"),
+                    "voucher_no": m.group("no").strip(),
+                }
     return found

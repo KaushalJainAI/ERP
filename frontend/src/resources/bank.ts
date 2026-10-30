@@ -95,7 +95,7 @@ export const bankResources: ResourceConfig[] = [bankAccounts, periodClosingVouch
 
 /** Sidebar links to the hand-written bank pages. */
 export const bankLinks: NavLink[] = [
-  { path: "/accounts/bank-reconciliation", labelKey: "bank.nav.reconcile", icon: CheckCheck },
-  { path: "/accounts/bank-import", labelKey: "bank.nav.import", icon: FileUp },
+  { path: "/accounts/bank-reconciliation", labelKey: "bank.nav.reconcile", icon: CheckCheck, group: "tools" },
+  { path: "/accounts/bank-import", labelKey: "bank.nav.import", icon: FileUp, group: "tools" },
   { path: "/accounts/reports/bank-reconciliation-statement", labelKey: "bank.nav.brs", icon: Scale },
 ];

@@ -21,6 +21,7 @@ from django.core.management import call_command
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from core.models import Company
 from users.models import Role, RolePermission, User, UserRole
 from users.permissions import HasRolePermission, resolve_model_label
 
@@ -94,6 +95,7 @@ class StaffIsNotSuperuserTests(APITestCase):
         admin = User.objects.create_superuser(
             username="root", email="root@test.com", password="Pass123!"
         )
+        Company.objects.create(name="Root Co", abbr="ROOT")
         self.client.force_authenticate(admin)
         self.assertEqual(
             self.client.get("/api/stock/items/").status_code, status.HTTP_200_OK

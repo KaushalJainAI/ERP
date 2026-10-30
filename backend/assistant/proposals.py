@@ -13,13 +13,12 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from django.apps import apps
-from django.db.models import Q
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 
 from users.permissions import user_has_model_permission
 from .models import AssistantProposal, AssistantMessage
-from .tools import wrap_data
+from .tools import find_item, find_party
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,36 @@ def _q2(val: Any) -> Decimal:
         return Decimal(str(val)).quantize(Decimal("0.01"))
     except (InvalidOperation, TypeError, ValueError):
         return Decimal("0.00")
+
+
+def _pick_one(found: Dict[str, Any], kind: str, query: Any, label) -> Dict[str, Any]:
+    """{"record": obj} when `found` is one certain match, else a question or an error.
+
+    A close spelling is only ever offered: the user confirms it, then the next
+    call arrives with the exact name.
+    """
+    records = found["records"]
+    if len(records) == 1 and found["certain"]:
+        return {"record": records[0]}
+    if records:
+        return {
+            "type": "question",
+            "question": f"Which {kind} did you mean for '{query}'?",
+            "options": [label(r) for r in records],
+        }
+    return {"error": f"{kind}_not_found", "message": f"{kind.capitalize()} '{query}' not found."}
+
+
+def _company_of(company: Optional[Any], party) -> Any:
+    Company = apps.get_model("core.Company")
+    co = Company.objects.filter(pk=company).first() if company else None
+    return co or party.company or Company.objects.first()
+
+
+def _stock_warehouse(company) -> Any:
+    """Group warehouses hold no stock, so a line can never point at one."""
+    Warehouse = apps.get_model("stock.Warehouse")
+    return Warehouse.objects.filter(company=company, is_group=False).order_by("id").first()
 
 
 def propose_sales_invoice(
@@ -60,79 +89,32 @@ def propose_sales_invoice(
             "message": "You do not have permission to create Sales Invoices.",
         }
 
-    Customer = apps.get_model("selling.Customer")
-    Item = apps.get_model("stock.Item")
-    Company = apps.get_model("core.Company")
-    Warehouse = apps.get_model("stock.Warehouse")
-    FieldTranslation = apps.get_model("core.FieldTranslation")
-
     # 1. Resolve Customer
-    cust_q = (customer_query or "").strip()
-    trans_ids = FieldTranslation.objects.filter(
-        model_label="selling.Customer",
-        field_name="name",
-        value__icontains=cust_q,
-    ).values_list("object_id", flat=True)
-
-    c_qs = Customer.objects.filter(
-        Q(name__icontains=cust_q) | Q(pk__in=trans_ids),
-        is_active=True,
+    picked = _pick_one(
+        find_party("selling.Customer", customer_query, company),
+        "customer",
+        customer_query,
+        lambda c: c.name,
     )
-    if company:
-        c_qs = c_qs.filter(company_id=company)
-
-    cust_count = c_qs.count()
-    if cust_count == 0:
-        return {"error": "customer_not_found", "message": f"Customer '{customer_query}' not found."}
-    if cust_count > 1:
-        options = [f"{c.name} ({c.gstin or c.phone or c.pk})" for c in c_qs[:5]]
-        return {
-            "type": "question",
-            "question": f"Which customer did you mean for '{customer_query}'?",
-            "options": options,
-        }
-
-    customer = c_qs.first()
-
-    # Resolve company
-    co = None
-    if company:
-        co = Company.objects.filter(pk=company).first()
-    if not co:
-        co = customer.company or Company.objects.first()
+    if "record" not in picked:
+        return picked
+    customer = picked["record"]
+    co = _company_of(company, customer)
 
     warnings: List[str] = []
     resolved_items = []
     preview_total = Decimal("0.00")
     ai_filled_keys = ["customer", "company", "posting_date", "items"]
 
-    default_wh = Warehouse.objects.filter(company=co).first()
+    default_wh = _stock_warehouse(co)
 
     # 2. Resolve Items
     for line in items:
         raw_item = str(line.get("item", "")).strip()
-        it_trans = FieldTranslation.objects.filter(
-            model_label="stock.Item",
-            field_name__in=["name", "description"],
-            value__icontains=raw_item,
-        ).values_list("object_id", flat=True)
-
-        i_qs = Item.objects.filter(
-            Q(code__iexact=raw_item) | Q(name__icontains=raw_item) | Q(pk__in=it_trans),
-            is_active=True,
-        )
-        i_count = i_qs.count()
-        if i_count == 0:
-            return {"error": "item_not_found", "message": f"Item '{raw_item}' not found."}
-        if i_count > 1:
-            options = [f"{it.name} [{it.code}]" for it in i_qs[:5]]
-            return {
-                "type": "question",
-                "question": f"Which item did you mean for '{raw_item}'?",
-                "options": options,
-            }
-
-        item = i_qs.first()
+        picked = _pick_one(find_item(raw_item), "item", raw_item, lambda it: it.name)
+        if "record" not in picked:
+            return picked
+        item = picked["record"]
         qty = _q3(line.get("qty", 1))
         if qty <= 0:
             warnings.append(f"Quantity for {item.name} is zero or negative.")
@@ -156,6 +138,8 @@ def propose_sales_invoice(
                 warnings.append(f"Rate you specified for {item.name}: ₹{rate}, price list rate: ₹{server_rate}")
         else:
             rate = server_rate
+            if rate <= 0:
+                warnings.append(f"No rate found for {item.name}. Please enter it in the form.")
 
         line_amount = _q2(qty * rate)
         preview_total += line_amount
@@ -271,76 +255,30 @@ def propose_purchase_invoice(
             "message": "You do not have permission to create Purchase Invoices.",
         }
 
-    Supplier = apps.get_model("buying.Supplier")
-    Item = apps.get_model("stock.Item")
-    Company = apps.get_model("core.Company")
-    Warehouse = apps.get_model("stock.Warehouse")
-    FieldTranslation = apps.get_model("core.FieldTranslation")
-
-    supp_q = (supplier_query or "").strip()
-    trans_ids = FieldTranslation.objects.filter(
-        model_label="buying.Supplier",
-        field_name="name",
-        value__icontains=supp_q,
-    ).values_list("object_id", flat=True)
-
-    s_qs = Supplier.objects.filter(
-        Q(name__icontains=supp_q) | Q(pk__in=trans_ids),
-        is_active=True,
+    picked = _pick_one(
+        find_party("buying.Supplier", supplier_query, company),
+        "supplier",
+        supplier_query,
+        lambda p: p.name,
     )
-    if company:
-        s_qs = s_qs.filter(company_id=company)
-
-    supp_count = s_qs.count()
-    if supp_count == 0:
-        return {"error": "supplier_not_found", "message": f"Supplier '{supplier_query}' not found."}
-    if supp_count > 1:
-        options = [f"{s.name} ({s.gstin or s.phone or s.pk})" for s in s_qs[:5]]
-        return {
-            "type": "question",
-            "question": f"Which supplier did you mean for '{supplier_query}'?",
-            "options": options,
-        }
-
-    supplier = s_qs.first()
-
-    co = None
-    if company:
-        co = Company.objects.filter(pk=company).first()
-    if not co:
-        co = supplier.company or Company.objects.first()
+    if "record" not in picked:
+        return picked
+    supplier = picked["record"]
+    co = _company_of(company, supplier)
 
     warnings: List[str] = []
     resolved_items = []
     preview_total = Decimal("0.00")
     ai_filled_keys = ["supplier", "company", "posting_date", "items"]
 
-    default_wh = Warehouse.objects.filter(company=co).first()
+    default_wh = _stock_warehouse(co)
 
     for line in items:
         raw_item = str(line.get("item", "")).strip()
-        it_trans = FieldTranslation.objects.filter(
-            model_label="stock.Item",
-            field_name__in=["name", "description"],
-            value__icontains=raw_item,
-        ).values_list("object_id", flat=True)
-
-        i_qs = Item.objects.filter(
-            Q(code__iexact=raw_item) | Q(name__icontains=raw_item) | Q(pk__in=it_trans),
-            is_active=True,
-        )
-        i_count = i_qs.count()
-        if i_count == 0:
-            return {"error": "item_not_found", "message": f"Item '{raw_item}' not found."}
-        if i_count > 1:
-            options = [f"{it.name} [{it.code}]" for it in i_qs[:5]]
-            return {
-                "type": "question",
-                "question": f"Which item did you mean for '{raw_item}'?",
-                "options": options,
-            }
-
-        item = i_qs.first()
+        picked = _pick_one(find_item(raw_item), "item", raw_item, lambda it: it.name)
+        if "record" not in picked:
+            return picked
+        item = picked["record"]
         qty = _q3(line.get("qty", 1))
         if qty <= 0:
             warnings.append(f"Quantity for {item.name} is zero or negative.")
@@ -363,6 +301,8 @@ def propose_purchase_invoice(
                 warnings.append(f"Rate you specified for {item.name}: ₹{rate}, purchase rate: ₹{server_rate}")
         else:
             rate = server_rate
+            if rate <= 0:
+                warnings.append(f"No rate found for {item.name}. Please enter it in the form.")
 
         line_amount = _q2(qty * rate)
         preview_total += line_amount
@@ -481,61 +421,36 @@ def propose_payment_entry(
 
     pt = str(party_type).capitalize()
     model_label = "selling.Customer" if pt == "Customer" else "buying.Supplier"
-    PartyModel = apps.get_model(model_label)
-    Company = apps.get_model("core.Company")
     Account = apps.get_model("accounts.Account")
-    FieldTranslation = apps.get_model("core.FieldTranslation")
 
-    pq = (party_query or "").strip()
-    trans_ids = FieldTranslation.objects.filter(
-        model_label=model_label,
-        field_name="name",
-        value__icontains=pq,
-    ).values_list("object_id", flat=True)
-
-    p_qs = PartyModel.objects.filter(
-        Q(name__icontains=pq) | Q(pk__in=trans_ids),
-        is_active=True,
+    picked = _pick_one(
+        find_party(model_label, party_query, company),
+        pt.lower(),
+        party_query,
+        lambda p: p.name,
     )
-    if company:
-        p_qs = p_qs.filter(company_id=company)
-
-    p_count = p_qs.count()
-    if p_count == 0:
-        return {"error": "party_not_found", "message": f"{pt} '{party_query}' not found."}
-    if p_count > 1:
-        options = [f"{p.name} ({p.pk})" for p in p_qs[:5]]
-        return {
-            "type": "question",
-            "question": f"Which {pt.lower()} did you mean for '{party_query}'?",
-            "options": options,
-        }
-
-    party = p_qs.first()
-    co = None
-    if company:
-        co = Company.objects.filter(pk=company).first()
-    if not co:
-        co = getattr(party, "company", None) or Company.objects.first()
+    if "record" not in picked:
+        return picked
+    party = picked["record"]
+    co = _company_of(company, party)
 
     parsed_amount = _q2(amount)
     warnings: List[str] = []
     if parsed_amount <= 0:
         warnings.append("Payment amount must be greater than zero.")
 
-    # Resolve default bank/cash account
-    cash_or_bank = Account.objects.filter(
-        company=co,
-        account_type__in=["Bank", "Cash"],
-        is_group=False,
-    ).first()
+    # "cash" must land on a cash account; anything else (cheque, UPI) goes through the bank.
+    is_cash = "cash" in (mode_of_payment or "").lower()
+    accounts = Account.objects.filter(company=co, is_group=False).order_by("id")
+    cash_or_bank = accounts.filter(account_type="Cash" if is_cash else "Bank").first()
+    if cash_or_bank is None:
+        cash_or_bank = accounts.filter(account_type__in=["Bank", "Cash"]).first()
+        warnings.append("Please check the cash/bank account: the usual one was not found.")
 
-    # Resolve debtor / creditor account
-    party_account = None
     if pt == "Customer":
-        party_account = Account.objects.filter(company=co, account_type="Receivable", is_group=False).first()
+        party_account = co.default_receivable_account or accounts.filter(account_type="Receivable").first()
     else:
-        party_account = Account.objects.filter(company=co, account_type="Payable", is_group=False).first()
+        party_account = co.default_payable_account or accounts.filter(account_type="Payable").first()
 
     paid_from = cash_or_bank.pk if payment_type == "Pay" and cash_or_bank else (party_account.pk if party_account else None)
     paid_to = party_account.pk if payment_type == "Pay" and party_account else (cash_or_bank.pk if cash_or_bank else None)

@@ -73,18 +73,18 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='assistantmessage',
-            constraint=models.CheckConstraint(condition=models.Q(('role__in', ['user', 'assistant', 'tool'])), name='assistant_message_role_valid'),
+            constraint=models.CheckConstraint(check=models.Q(('role__in', ['user', 'assistant', 'tool'])), name='assistant_message_role_valid'),
         ),
         migrations.AddConstraint(
             model_name='assistantmessage',
-            constraint=models.CheckConstraint(condition=models.Q(('input_mode__in', ['text', 'voice'])), name='assistant_message_input_mode_valid'),
+            constraint=models.CheckConstraint(check=models.Q(('input_mode__in', ['text', 'voice'])), name='assistant_message_input_mode_valid'),
         ),
         migrations.AddConstraint(
             model_name='assistantproposal',
-            constraint=models.CheckConstraint(condition=models.Q(('status__in', ['proposed', 'opened', 'saved', 'abandoned'])), name='assistant_proposal_status_valid'),
+            constraint=models.CheckConstraint(check=models.Q(('status__in', ['proposed', 'opened', 'saved', 'abandoned'])), name='assistant_proposal_status_valid'),
         ),
         migrations.AddConstraint(
             model_name='assistantproposal',
-            constraint=models.CheckConstraint(condition=models.Q(models.Q(('saved_model_label__isnull', False), ('saved_object_id__isnull', False), ('status', 'saved')), models.Q(models.Q(('status', 'saved'), _negated=True), ('saved_model_label__isnull', True), ('saved_object_id__isnull', True)), _connector='OR'), name='assistant_proposal_saved_fields_check'),
+            constraint=models.CheckConstraint(check=models.Q(models.Q(('saved_model_label__isnull', False), ('saved_object_id__isnull', False), ('status', 'saved')), models.Q(models.Q(('status', 'saved'), _negated=True), ('saved_model_label__isnull', True), ('saved_object_id__isnull', True)), _connector='OR'), name='assistant_proposal_saved_fields_check'),
         ),
     ]

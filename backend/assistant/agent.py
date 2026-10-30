@@ -6,8 +6,12 @@ The LLM is advisory only:
 - Zero write tools.
 - Transaction creations go through proposal builders and are saved only by the human.
 - Step-by-step progress is streamed as Server-Sent Events (SSE).
+
+The completion seam is completion_fn(messages, allow_tools=True), returning
+{"content": str, "tool_calls": list|None, "usage": dict}. Tests stub it.
 """
 
+import inspect
 import json
 import logging
 import os
@@ -16,27 +20,31 @@ from typing import Any, Callable, Dict, Generator, List, Optional
 import urllib.request
 import urllib.error
 
-from django.conf import settings
 from django.utils import timezone
 
-from .models import AssistantConversation, AssistantMessage, AssistantProposal
-from .prompts import SYSTEM_PROMPT, FALLBACK_REPLY, LOOP_EXHAUSTED_REPLY
+from .models import AssistantConversation, AssistantMessage
+from .prompts import SYSTEM_PROMPT, failure_reply, turn_context
 from .tools import READ_TOOLS, CONTROL_TOOLS
 from .proposals import PROPOSAL_BUILDERS
 
 logger = logging.getLogger(__name__)
 
 MAX_TOOL_ROUNDS = 6
-LLM_TIMEOUT_SECONDS = int(os.getenv("ASSISTANT_LLM_TIMEOUT", "20"))
-MAX_HISTORY_TOKENS = int(os.getenv("ASSISTANT_MAX_HISTORY_TOKENS", "4000"))
-CHARS_PER_TOKEN = 3
+LLM_TIMEOUT_SECONDS = int(os.getenv("ASSISTANT_LLM_TIMEOUT", "30"))
+MAX_OUTPUT_TOKENS = int(os.getenv("ASSISTANT_MAX_OUTPUT_TOKENS", "1500"))
+# A new round starts only if it could still finish inside this budget, so a turn
+# always ends with a reply before the proxy gives up on the request. Keep
+# LLM_TIMEOUT_SECONDS < TURN_BUDGET_SECONDS < the proxy timeout.
+TURN_BUDGET_SECONDS = int(os.getenv("ASSISTANT_TURN_BUDGET_SECONDS", "75"))
+DEFAULT_MODEL = "anthropic/claude-haiku-5.5"
+HISTORY_MESSAGES = 10
 
 TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
             "name": "search_customers",
-            "description": "Search customers by name, phone, or GSTIN.",
+            "description": "Search customers by name. Tolerates spelling mistakes.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -50,7 +58,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "search_suppliers",
-            "description": "Search suppliers by name, phone, or GSTIN.",
+            "description": "Search suppliers by name. Tolerates spelling mistakes.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -64,7 +72,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "search_items",
-            "description": "Search items in catalogue by name, item code, or HSN code.",
+            "description": "Search items by name or code. Tolerates spelling mistakes.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -143,7 +151,7 @@ TOOL_DEFINITIONS = [
                 "type": "object",
                 "properties": {
                     "doctype": {"type": "string", "enum": ["SalesInvoice", "PurchaseInvoice", "PaymentEntry"]},
-                    "party_id": {"type": "string", "description": "Optional party id"},
+                    "party_id": {"type": "string", "description": "Optional numeric party id from a search"},
                     "days": {"type": "integer", "description": "Days back to search (default 30)"},
                 },
                 "required": ["doctype"],
@@ -162,6 +170,33 @@ TOOL_DEFINITIONS = [
                     "id": {"type": "string", "description": "Document name or ID"},
                 },
                 "required": ["doctype", "id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sales_summary",
+            "description": "Invoiced sales total, invoice count and unpaid amount for a period.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "period": {"type": "string", "enum": ["today", "7d", "30d", "90d", "365d"]},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "top_items",
+            "description": "Best-selling items by billed amount for a period.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "period": {"type": "string", "enum": ["today", "7d", "30d", "90d", "365d"]},
+                    "limit": {"type": "integer", "description": "Rows to return (default 10, max 20)"},
+                },
             },
         },
     },
@@ -284,23 +319,49 @@ def sse_event(event: str, data: Dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
 
 
+def to_wire(messages: List[Dict[str, Any]], model: str) -> List[Dict[str, Any]]:
+    """Mark the static prompt as a cache point for Claude models.
+
+    Claude only caches where a request marks it, and only an unchanged prefix, so
+    the per-turn context goes after the marker. Other providers cache by prefix on
+    their own, and an unknown cache_control key can be rejected, so they get the
+    plain list.
+    """
+    system = messages[0]["content"] if messages else ""
+    if not model.startswith("anthropic/") or not system.startswith(SYSTEM_PROMPT):
+        return messages
+    blocks = [
+        {"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": system[len(SYSTEM_PROMPT):].lstrip("\n")},
+    ]
+    return [{**messages[0], "content": blocks}, *messages[1:]]
+
+
+def _clock() -> float:
+    """Monotonic seconds. A module function so tests can fake the passage of time."""
+    return time.monotonic()
+
+
 class Agent:
     """Orchestrates an assistant turn."""
 
-    def __init__(self, user, completion_fn: Optional[Callable] = None):
+    def __init__(self, user, completion_fn: Optional[Callable] = None, company=None):
         self.user = user
+        self.company = company
+        self.language = "en"
         self.completion_fn = completion_fn or self._default_llm_completion
+        self.usage = {"input": 0, "output": 0, "cached": 0}
 
-    def _default_llm_completion(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Call LLM API (OpenRouter or Anthropic or OpenAI-compatible). Returns dict with content/tool_calls."""
+    def _default_llm_completion(
+        self, messages: List[Dict[str, Any]], allow_tools: bool = True
+    ) -> Dict[str, Any]:
+        """Call an OpenAI-compatible chat endpoint (OpenRouter by default)."""
         api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
-            logger.warning("No LLM API key configured.")
-            return {"content": FALLBACK_REPLY, "tool_calls": None}
+            logger.warning("Assistant LLM disabled: LLM_API_KEY is not set.")
+            return {"content": failure_reply("fallback", self.language), "tool_calls": None}
 
-        provider = (os.getenv("ASSISTANT_MODEL_PROVIDER") or "openrouter").lower()
-        model = os.getenv("ASSISTANT_LLM_MODEL") or "anthropic/claude-3.5-sonnet"
-
+        model = os.getenv("ASSISTANT_LLM_MODEL") or DEFAULT_MODEL
         endpoint = os.getenv("ASSISTANT_LLM_ENDPOINT") or "https://openrouter.ai/api/v1/chat/completions"
 
         headers = {
@@ -311,42 +372,72 @@ class Agent:
             headers["HTTP-Referer"] = "https://erp.local"
             headers["X-Title"] = "ERP Assistant"
 
-        payload = {
+        payload: Dict[str, Any] = {
             "model": model,
-            "messages": messages,
-            "tools": TOOL_DEFINITIONS,
-            "tool_choice": "auto",
+            "messages": to_wire(messages, model),
             "temperature": 0.1,
-            "max_tokens": 1000,
+            "max_tokens": MAX_OUTPUT_TOKENS,
         }
+        if allow_tools:
+            payload["tools"] = TOOL_DEFINITIONS
+            payload["tool_choice"] = "auto"
 
         try:
             req_data = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(endpoint, data=req_data, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=LLM_TIMEOUT_SECONDS) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
-                choice = result.get("choices", [{}])[0].get("message", {})
-                return {
-                    "content": choice.get("content") or "",
-                    "tool_calls": choice.get("tool_calls"),
-                }
+        except urllib.error.HTTPError as exc:
+            logger.warning("LLM API returned %s: %s", exc.code, exc.read()[:300])
+            return {"content": failure_reply("fallback", self.language), "tool_calls": None}
         except Exception as exc:
             logger.warning("LLM API call failed: %s", exc)
-            return {"content": FALLBACK_REPLY, "tool_calls": None}
+            return {"content": failure_reply("fallback", self.language), "tool_calls": None}
+
+        choices = result.get("choices") or []
+        if not choices:
+            logger.warning("LLM API returned no choices: %s", str(result)[:300])
+            return {"content": failure_reply("fallback", self.language), "tool_calls": None}
+
+        choice = choices[0].get("message", {})
+        return {
+            "content": choice.get("content") or "",
+            "tool_calls": choice.get("tool_calls"),
+            "usage": result.get("usage") or {},
+        }
 
     def _execute_tool(self, name: str, args: Dict[str, Any], message_obj: Optional[AssistantMessage] = None) -> Dict[str, Any]:
-        """Execute a tool strictly checking permissions."""
-        if name in READ_TOOLS:
-            fn = READ_TOOLS[name]
-            return fn(self.user, **args)
-        if name in CONTROL_TOOLS:
-            fn = CONTROL_TOOLS[name]
-            return fn(**args)
-        if name in PROPOSAL_BUILDERS:
-            fn = PROPOSAL_BUILDERS[name]
-            return fn(self.user, message=message_obj, **args)
+        """Execute a tool strictly checking permissions.
 
-        return {"error": "unknown_tool", "message": f"Tool '{name}' is not registered."}
+        The model chooses only declared arguments: anything else it sends is dropped,
+        and the company always comes from the request, never from the model.
+        """
+        if name in READ_TOOLS:
+            fn, extra = READ_TOOLS[name], {}
+        elif name in CONTROL_TOOLS:
+            return CONTROL_TOOLS[name](**self._declared_args(CONTROL_TOOLS[name], args))
+        elif name in PROPOSAL_BUILDERS:
+            fn, extra = PROPOSAL_BUILDERS[name], {"message": message_obj}
+        else:
+            return {"error": "unknown_tool", "message": f"Tool '{name}' is not registered."}
+
+        params = inspect.signature(fn).parameters
+        if "company" in params and self.company is not None:
+            extra["company"] = self.company.pk
+        return fn(self.user, **self._declared_args(fn, args), **extra)
+
+    @staticmethod
+    def _declared_args(fn: Callable, args: Dict[str, Any]) -> Dict[str, Any]:
+        hidden = {"user", "company", "message"}
+        params = inspect.signature(fn).parameters
+        return {k: v for k, v in args.items() if k in params and k not in hidden}
+
+    def _add_usage(self, usage: Optional[Dict[str, Any]]) -> None:
+        usage = usage or {}
+        self.usage["input"] += usage.get("prompt_tokens") or 0
+        self.usage["output"] += usage.get("completion_tokens") or 0
+        details = usage.get("prompt_tokens_details") or {}
+        self.usage["cached"] += details.get("cached_tokens") or 0
 
     def run_stream(
         self,
@@ -356,8 +447,10 @@ class Agent:
         language: str = "en",
     ) -> Generator[str, None, None]:
         """Generator running the agent loop and yielding SSE events."""
+        self.language = language
+        started = _clock()
         # 1. Save user turn
-        user_msg = AssistantMessage.objects.create(
+        AssistantMessage.objects.create(
             conversation=conversation,
             role="user",
             content=user_text,
@@ -368,13 +461,14 @@ class Agent:
 
         # 2. Build history
         history_msgs = []
-        recent = conversation.messages.order_by("-created_at")[:10]
+        recent = conversation.messages.order_by("-created_at")[:HISTORY_MESSAGES]
         for m in reversed(recent):
-            if m.role in ["user", "assistant"]:
-                history_msgs.append({"role": m.role, "content": m.content or ""})
+            if m.role in ["user", "assistant"] and m.content:
+                history_msgs.append({"role": m.role, "content": m.content})
 
+        context = turn_context(language, timezone.localdate(), getattr(self.company, "name", None))
         messages = [
-            {"role": "system", "content": f"{SYSTEM_PROMPT}\nUser preferred language: {language}"},
+            {"role": "system", "content": f"{SYSTEM_PROMPT}\n{context}"},
             *history_msgs,
         ]
 
@@ -392,12 +486,21 @@ class Agent:
 
         try:
             for round_idx in range(MAX_TOOL_ROUNDS):
-                llm_out = self.completion_fn(messages)
+                # The first round always runs; a later one only if it can finish in time.
+                if round_idx and _clock() - started + LLM_TIMEOUT_SECONDS > TURN_BUDGET_SECONDS:
+                    logger.warning("Assistant turn out of time after %d round(s).", round_idx)
+                    final_reply = failure_reply("slow", language)
+                    yield sse_event("reply", {"text": final_reply})
+                    break
+
+                # After a proposal the model only confirms it: no second proposal.
+                llm_out = self.completion_fn(messages, allow_tools=last_proposal is None)
+                self._add_usage(llm_out.get("usage"))
                 content = llm_out.get("content") or ""
                 tool_calls = llm_out.get("tool_calls") or []
 
                 if not tool_calls:
-                    final_reply = content
+                    final_reply = content or failure_reply("fallback", language)
                     yield sse_event("reply", {"text": final_reply})
                     break
 
@@ -405,6 +508,7 @@ class Agent:
                 asst_turn_msg = {"role": "assistant", "content": content, "tool_calls": tool_calls}
                 messages.append(asst_turn_msg)
 
+                question = None
                 for tc in tool_calls:
                     fn_info = tc.get("function", {})
                     fn_name = fn_info.get("name", "")
@@ -433,7 +537,7 @@ class Agent:
                         result = self._execute_tool(fn_name, parsed_args, message_obj=asst_msg)
                     except Exception as exc:
                         logger.exception("Error executing tool %s: %s", fn_name, exc)
-                        result = {"error": "tool_error", "message": str(exc)}
+                        result = {"error": "tool_error", "message": "That lookup failed."}
 
                     # Format preview
                     if "error" in result:
@@ -443,28 +547,26 @@ class Agent:
                         step_entry["status"] = "done"
                         if fn_name == "search_customers":
                             cnt = result.get("count", 0)
-                            step_entry["result_preview"] = f"Found {cnt} customer(s)"
+                            step_entry["result_preview"] = str(cnt)
                         elif fn_name == "search_items":
                             cnt = result.get("count", 0)
-                            step_entry["result_preview"] = f"Found {cnt} item(s)"
+                            step_entry["result_preview"] = str(cnt)
                         elif fn_name == "get_stock":
-                            step_entry["result_preview"] = f"{result.get('total_actual_qty', 0)} in stock"
+                            step_entry["result_preview"] = str(result.get("total_actual_qty", 0))
                         elif fn_name == "get_rate":
-                            step_entry["result_preview"] = f"Rate ₹{result.get('rate', '0.00')}"
-                        elif "proposal" in result.get("type", ""):
-                            step_entry["result_preview"] = "Proposal prepared"
+                            step_entry["result_preview"] = f"₹{result.get('rate', '0.00')}"
                         else:
-                            step_entry["result_preview"] = "Completed"
+                            step_entry["result_preview"] = ""
 
                     yield sse_event("step", step_entry)
                     steps_trace.append(step_entry)
 
                     # Check for special control events
                     if result.get("type") == "question":
-                        yield sse_event("question", {
+                        question = question or {
                             "text": result.get("question"),
                             "options": result.get("options", []),
-                        })
+                        }
 
                     if result.get("type") == "proposal":
                         last_proposal = result
@@ -481,17 +583,33 @@ class Agent:
                         "content": json.dumps(result, default=str),
                     })
 
+                # A question ends the turn: the user's answer is the next turn. It is
+                # kept as the reply so that turn's history shows what was asked.
+                if question:
+                    final_reply = question["text"]
+                    yield sse_event("question", question)
+                    break
+
             else:
                 # Loop exhausted
                 if not final_reply:
-                    final_reply = LOOP_EXHAUSTED_REPLY
+                    final_reply = failure_reply("loop", language)
                     yield sse_event("reply", {"text": final_reply})
 
         except Exception as exc:
             logger.exception("Unexpected error in agent stream: %s", exc)
-            final_reply = FALLBACK_REPLY
+            final_reply = failure_reply("fallback", language)
             yield sse_event("reply", {"text": final_reply})
-            yield sse_event("error", {"code": "internal_error", "message": str(exc)})
+            yield sse_event("error", {"code": "internal_error"})
+
+        logger.info(
+            "assistant_usage model=%s input=%d cached=%d output=%d seconds=%.1f",
+            os.getenv("ASSISTANT_LLM_MODEL") or DEFAULT_MODEL,
+            self.usage["input"],
+            self.usage["cached"],
+            self.usage["output"],
+            _clock() - started,
+        )
 
         # Update assistant message in DB
         asst_msg.content = final_reply

@@ -81,8 +81,6 @@ export const enTallyExport = {
     voucher_types: "Voucher type names in Tally",
     voucher_types_help: "Leave blank to use Tally's standard name. Fill in your own voucher type, for example Sales Gst.",
     settings_saved: "Settings saved.",
-    seed_btn: "Take mappings from Tally history",
-    seed_done: "Mapped {{accounts}} accounts, {{parties}} parties and {{items}} items.",
     err: {
       generic: "The export failed.",
       nothing_to_export: "There is nothing to export in this range.",

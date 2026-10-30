@@ -1,12 +1,10 @@
 import {
   BookOpen,
   Boxes,
-  FileClock,
   Building2,
   Contact,
   Factory,
   HardDrive,
-  History,
   Percent,
   ShoppingBag,
   ShoppingCart,
@@ -26,7 +24,6 @@ import { manufacturingReports, manufacturingResources } from "./manufacturing";
 import { ageingReports } from "./ageing";
 import { usersLinks, usersResources } from "./users";
 import { contactsResources } from "./contacts";
-import { legacyResources } from "./legacy";
 import { tallyExportLinks, tallyExportResources } from "./tallyExport";
 import { paymentReconciliationLinks } from "./paymentReconciliation";
 import { hrLinks, hrReports, hrResources } from "./hr";
@@ -49,7 +46,6 @@ export const RESOURCES: ResourceConfig[] = [
   ...gstResources,
   ...usersResources,
   ...contactsResources,
-  ...legacyResources,
   ...tallyExportResources,
   ...hrResources,
 ];
@@ -87,19 +83,6 @@ export const MODULES: ModuleDef[] = [
         visible: (user) => hasReadAccess(user.readable_models, ["core.Company"]),
       },
       { path: "/organisation/drive", labelKey: "organisation.drive", icon: HardDrive },
-    ],
-  },
-  {
-    key: "history",
-    titleKey: "tally_history",
-    icon: History,
-    extraLinks: [
-      {
-        path: "/history/bills",
-        labelKey: "pb.nav",
-        icon: FileClock,
-        visible: (user) => hasReadAccess(user.readable_models, ["legacy.TallyRecord"]),
-      },
     ],
   },
   { key: "gst", titleKey: "gst.title", icon: Percent, extraLinks: gstReportLinks },

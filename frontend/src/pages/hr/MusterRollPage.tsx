@@ -342,7 +342,7 @@ export const MusterRollPage: React.FC = () => {
       </div>
 
       {/* sticky save bar */}
-      <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-800 bg-slate-900/95 backdrop-blur px-4 py-3 flex justify-end md:ps-64">
+      <div className="fixed-save-bar fixed inset-x-0 bottom-[calc(4rem_+_env(safe-area-inset-bottom))] z-30 flex justify-end border-t border-slate-800 bg-slate-900/95 px-4 py-3 backdrop-blur md:bottom-0 md:ps-64">
         <button type="button" className={`${btnPrimary} h-12 px-6 text-base w-full sm:w-auto`} disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
           {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {dirty ? t("hrm.muster.save_n", { count: changed.length }) : t("hrm.muster.save")}

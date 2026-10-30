@@ -29,7 +29,6 @@ urlpatterns = [
     path("api/selling/", include("selling.urls")),
     path("api/buying/", include("buying.urls")),
     path("api/gst/", include("gst.urls")),
-    path("api/legacy/", include("legacy.urls")),
     path("api/ngu/", include("ngu.urls")),
     path("api/tally-export/", include("tally_export.urls")),
     path("api/print/", include("printing.urls")),

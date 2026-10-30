@@ -56,11 +56,11 @@ class AssistantMessage(models.Model):
         verbose_name_plural = "Assistant Messages"
         constraints = [
             models.CheckConstraint(
-                condition=Q(role__in=["user", "assistant", "tool"]),
+                check=Q(role__in=["user", "assistant", "tool"]),
                 name="assistant_message_role_valid",
             ),
             models.CheckConstraint(
-                condition=Q(input_mode__in=["text", "voice"]),
+                check=Q(input_mode__in=["text", "voice"]),
                 name="assistant_message_input_mode_valid",
             ),
         ]
@@ -105,11 +105,11 @@ class AssistantProposal(models.Model):
         verbose_name_plural = "Assistant Proposals"
         constraints = [
             models.CheckConstraint(
-                condition=Q(status__in=["proposed", "opened", "saved", "abandoned"]),
+                check=Q(status__in=["proposed", "opened", "saved", "abandoned"]),
                 name="assistant_proposal_status_valid",
             ),
             models.CheckConstraint(
-                condition=(
+                check=(
                     Q(status="saved", saved_model_label__isnull=False, saved_object_id__isnull=False)
                     | (~Q(status="saved") & Q(saved_model_label__isnull=True, saved_object_id__isnull=True))
                 ),

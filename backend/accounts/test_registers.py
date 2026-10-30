@@ -705,6 +705,7 @@ class TallyIdentityTests(RegisterBase):
             name=self.NAME,
             posting_date=datetime.date(2026, 10, 21),
             voucher_type="Journal Entry",
+            user_remark="Tally Receipt No. 2627/1 | being cash received",
         )
         JournalEntryLine.objects.create(
             journal_entry=je, account=self.bank, debit=D("77.00")
@@ -719,32 +720,12 @@ class TallyIdentityTests(RegisterBase):
         je.recompute_totals()
         je.save()
         je.submit()
-        self.tally_record = self._record(self.company, "Receipt", "2627/1")
-        # Another company's record under the same TLY name must never leak in.
-        other = Company.objects.create(name="Other Tally Co", abbr="OTC")
-        self._record(other, "Payment", "9999/9", guid="g-other")
-
-    def _record(self, company, voucher_type, voucher_no, guid="g-1"):
-        from legacy.models import TallyRecord
-
-        return TallyRecord.objects.create(
-            company=company,
-            kind="voucher",
-            company_year="200000",
-            fiscal_year="2026-27",
-            guid=guid,
-            voucher_type=voucher_type,
-            base_voucher_type=voucher_type,
-            voucher_no=voucher_no,
-            posting_date=datetime.date(2026, 10, 21),
-            erp_name=self.NAME,
-            raw="",
-        )
+        self.je = je
 
     @property
     def expected(self):
         return {
-            "id": self.tally_record.pk,
+            "id": self.je.pk,
             "voucher_type": "Receipt",
             "voucher_no": "2627/1",
         }
@@ -787,7 +768,9 @@ class TallyIdentityTests(RegisterBase):
 
         with CaptureQueriesContext(connection) as ctx:
             self.get(CASHBOOK, account=self.bank.id, **OCT)
-        legacy_queries = [
-            q for q in ctx.captured_queries if "legacy_tallyrecord" in q["sql"]
+        lookups = [
+            q
+            for q in ctx.captured_queries
+            if "user_remark" in q["sql"] and "TLY-" in q["sql"]
         ]
-        self.assertEqual(len(legacy_queries), 1)
+        self.assertEqual(len(lookups), 1)

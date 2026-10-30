@@ -173,12 +173,8 @@ def fetch_rate(
 def last_party_rate(item, *, selling, customer=None, supplier=None):
     """Rate of the party's most recent bill for this item, or None.
 
-    Looks at submitted ERP invoices and the Tally item history and takes the
-    newer one. The Tally rate is the effective one (line amount / billed qty),
-    so a line discount is already in it. Returns (rate, posting_date).
+    Looks at the party's submitted ERP invoices. Returns (rate, posting_date).
     """
-    from legacy.models import TallyItemLine
-
     party = customer if selling else supplier
     if party is None:
         return None
@@ -197,9 +193,6 @@ def last_party_rate(item, *, selling, customer=None, supplier=None):
             .values_list("rate", "sales_invoice__posting_date")
             .first()
         )
-        tally = TallyItemLine.objects.filter(
-            item=item, customer=party, voucher_type__istartswith="Sales", is_inward=False
-        )
     else:
         from buying.models import PurchaseInvoiceItem
 
@@ -215,24 +208,7 @@ def last_party_rate(item, *, selling, customer=None, supplier=None):
             .values_list("rate", "purchase_invoice__posting_date")
             .first()
         )
-        tally = TallyItemLine.objects.filter(
-            item=item, supplier=party, voucher_type__istartswith="Purchase", is_inward=True
-        )
-    line = (
-        tally.filter(amount__gt=0)
-        .exclude(billed_qty__isnull=True, qty__isnull=True)
-        .order_by("-posting_date", "-id")
-        .values("amount", "billed_qty", "qty", "posting_date")
-        .first()
-    )
-    old = None
-    if line:
-        qty = line["billed_qty"] or line["qty"]
-        if qty and qty > 0:
-            old = (q2(line["amount"] / qty), line["posting_date"])
-    if erp and (old is None or erp[1] >= old[1]):
-        return (q2(erp[0]), erp[1])
-    return old
+    return (q2(erp[0]), erp[1]) if erp else None
 
 
 def _value(attrs, instance, name):

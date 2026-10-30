@@ -1,13 +1,20 @@
-"""Speech-to-text dispatch for voice input with domain vocabulary biasing."""
+"""Speech-to-text dispatch for voice input.
+
+Uses Mistral Voxtral through OpenRouter, the same setup as the NGU assistant. It
+takes 16 kHz mono WAV from the browser. OpenRouter documents `prompt` as ignored on
+most providers, so vocabulary biasing is best-effort: Hindi/Hinglish accuracy
+comes from the model, not from the prompt.
+"""
 
 import logging
 import os
-from typing import Optional
 
 from django.apps import apps
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MODEL = "mistralai/voxtral-mini-transcribe"
+DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/audio/transcriptions"
 
 DOMAIN_VOCABULARY = (
     "ERP, Sales Invoice, Purchase Invoice, Payment Entry, bill, challan, "
@@ -16,20 +23,13 @@ DOMAIN_VOCABULARY = (
     "rate, price list, cash, bank, payment received, advance."
 )
 
-LANG_MAP = {
-    "en": "en",
-    "hi": "hi",
-    "hinglish": "hi",
-    "gu": "gu",
-    "mr": "mr",
-    "pa": "pa",
-    "ta": "ta",
-    "te": "te",
-    "kn": "kn",
-    "bn": "bn",
-    "ml": "ml",
-    "ur": "ur",
-}
+# UI language codes the transcription API accepts. Anything else is omitted, which
+# makes it auto-detect (it rejects the literal string "auto").
+STT_LANGUAGES = {"en", "hi", "gu", "mr", "pa", "ta", "te", "kn", "bn", "ml", "ur"}
+
+
+class TranscriptionUnavailable(Exception):
+    """The transcription service could not handle the request."""
 
 
 def build_biased_prompt(company=None) -> str:
@@ -52,46 +52,40 @@ def build_biased_prompt(company=None) -> str:
 
 
 def transcribe_audio(audio_file, language: str = "en", company=None) -> str:
-    """Transcribe audio bytes or file-like object using Voxtral / Whisper / OpenRouter.
+    """Transcribe audio bytes or a file-like object.
 
-    Degrades gracefully if STT service is unreachable or not configured.
+    Returns the text ("" when nothing was said). Raises TranscriptionUnavailable
+    when the service cannot be used, so the UI can tell that apart from silence.
     """
     api_key = os.getenv("STT_API_KEY") or os.getenv("LLM_API_KEY") or os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        logger.warning("No STT API key configured.")
-        return ""
+        raise TranscriptionUnavailable("No STT API key configured.")
 
-    provider = os.getenv("STT_PROVIDER", "openrouter").lower()
-    lang = LANG_MAP.get(language, "hi")
-    prompt = build_biased_prompt(company)
-
-    # In local/testing mode or when simulated:
-    if hasattr(audio_file, "read"):
-        content = audio_file.read()
-    else:
-        content = audio_file
-
+    content = audio_file.read() if hasattr(audio_file, "read") else audio_file
     if not content:
         return ""
 
+    data = {
+        "model": os.getenv("STT_MODEL") or DEFAULT_MODEL,
+        "temperature": "0.0",
+        "response_format": "json",
+        "prompt": build_biased_prompt(company),
+    }
+    lang = (language or "").split("-")[0].lower()
+    if lang in STT_LANGUAGES:
+        data["language"] = lang
+
+    import requests
+
     try:
-        # Standard Whisper/Voxtral endpoint via OpenRouter or OpenAI compatible STT
-        endpoint = os.getenv("STT_ENDPOINT", "https://openrouter.ai/api/v1/audio/transcriptions")
-        import requests
-
-        files = {"file": ("audio.wav", content, "audio/wav")}
-        data = {
-            "model": os.getenv("STT_MODEL", "mistralai/voxtral-mini"),
-            "language": lang,
-            "prompt": prompt,
-        }
-        headers = {"Authorization": f"Bearer {api_key}"}
-
-        resp = requests.post(endpoint, files=files, data=data, headers=headers, timeout=20)
-        if resp.status_code == 200:
-            return resp.json().get("text", "")
-        logger.warning("STT endpoint returned status %d: %s", resp.status_code, resp.text)
-    except Exception as exc:
-        logger.warning("STT request failed: %s", exc)
-
-    return ""
+        resp = requests.post(
+            os.getenv("STT_ENDPOINT") or DEFAULT_ENDPOINT,
+            files={"file": ("audio.wav", content, "audio/wav")},
+            data=data,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=int(os.getenv("STT_TIMEOUT", "30")),
+        )
+        resp.raise_for_status()
+        return (resp.json().get("text") or "").strip()
+    except (requests.RequestException, ValueError) as exc:
+        raise TranscriptionUnavailable(str(exc)) from exc

@@ -23,7 +23,7 @@ from tally_export.services.maps import (
     MapIndex,
     Unmapped,
     get_settings,
-    legacy_group_names,
+    erp_group_names,
     party_group,
     suggest_group,
     suggest_ledger,
@@ -98,7 +98,7 @@ def _unmapped_details(plan: Plan) -> dict:
     from accounts.models import Account
     from stock.models import Item
 
-    legacy = legacy_group_names(plan.company)
+    legacy = erp_group_names(plan.company)
     accounts, parties, items = [], [], []
     for u in plan.unmapped:
         used = plan.unmapped_vouchers.get((u.kind, u.key), 0)
@@ -195,7 +195,7 @@ def _auto_map(plan: Plan) -> List:
     from accounts.models import Account
     from stock.models import Item
 
-    legacy = legacy_group_names(plan.company)
+    legacy = erp_group_names(plan.company)
     created = []
     for u in plan.unmapped:
         if u.kind == "account":
@@ -289,7 +289,7 @@ def master_elements(created: list):
                 masters.append(_party_master(m))
             else:
                 if legacy is None:
-                    legacy = legacy_group_names(m.company)
+                    legacy = erp_group_names(m.company)
                 group = m.tally_group or suggest_group(m.account, legacy)
                 masters.append(
                     xmlgen.ledger_master(

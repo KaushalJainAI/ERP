@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getActiveCompanyId, setActiveCompanyId } from "@/lib/company";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 /** Fired when the session is irrecoverably unauthenticated; AuthProvider listens. */
 export const AUTH_LOGOUT_EVENT = "auth:logout";
@@ -18,6 +18,16 @@ function clearSession() {
   localStorage.removeItem("refresh_token");
   setActiveCompanyId(null);
   window.dispatchEvent(new Event(AUTH_LOGOUT_EVENT));
+}
+
+/** Exchange the refresh token for a new access token. For calls that bypass apiClient (SSE). */
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = localStorage.getItem("refresh_token");
+  if (!refreshToken) return null;
+  const res = await axios.post(`${API_URL}/auth/token/refresh/`, { refresh: refreshToken });
+  localStorage.setItem("access_token", res.data.access);
+  if (res.data.refresh) localStorage.setItem("refresh_token", res.data.refresh);
+  return res.data.access;
 }
 
 // Request Interceptor: Attach JWT Access Token & Language

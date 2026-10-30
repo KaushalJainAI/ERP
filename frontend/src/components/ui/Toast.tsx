@@ -53,7 +53,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <ToastContext.Provider value={api}>
       {children}
       <div
-        className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]"
+        className="toast-stack fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] end-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 md:bottom-4"
         role="status"
         aria-live="polite"
       >

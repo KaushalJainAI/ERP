@@ -76,7 +76,7 @@ DATABASE_URL=postgres://erp_user:erp_password@127.0.0.1:5433/erp_db
 ```
 
 This is the database that holds the real books (NIDHI GRAH UDYOG, imported from
-Tally with `python manage.py import_tally`; see
+Tally (the one-shot `import_tally` loader was removed on 2026-10-30; it lives in git history); see
 `backend/docs/tally_import_report.md`). SQLite is for tests and throwaway dev only.
 
 (If the whole stack runs under compose, the backend service reaches it at host

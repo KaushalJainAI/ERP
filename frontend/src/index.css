@@ -4,10 +4,14 @@
 
 /* Palette and light/dark variables live in tailwind.config.js. */
 
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   @apply bg-slate-950 text-slate-200 font-sans antialiased;
-  overflow-x: clip;
 }
 
 ::selection {
@@ -42,6 +46,44 @@ input[type="date"]::-webkit-calendar-picker-indicator {
    next to the module sidebar). */
 .overflow-x-auto > table :is(th, td):not([colspan]) {
   white-space: nowrap;
+}
+
+/* Pages with their own fixed save bar (e.g. Muster Roll) need the floating
+   assistant and toasts lifted above it, or they cover the primary action. */
+body:has(.fixed-save-bar) .assistant-fab,
+body:has(.fixed-save-bar) .toast-stack {
+  bottom: calc(5.5rem + env(safe-area-inset-bottom));
+}
+@media (max-width: 767px) {
+  body:has(.fixed-save-bar) .assistant-fab,
+  body:has(.fixed-save-bar) .toast-stack {
+    bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Phones: keep the row's identity visible while the numeric columns scroll. */
+@media (max-width: 767px) {
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  .overflow-x-auto > table :is(th, td):first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background-color: hsl(var(--slate-900));
+  }
+  .overflow-x-auto > table thead :is(th):first-child {
+    background-color: hsl(var(--slate-950));
+  }
+  /* An empty/loading row spans the full table width; keep its message on screen. */
+  .overflow-x-auto > table td[colspan] {
+    position: sticky;
+    inset-inline-start: 0;
+    width: calc(100vw - 3rem);
+    max-width: calc(100vw - 3rem);
+    text-align: center;
+    white-space: normal;
+  }
 }
 
 @keyframes pop-in {
