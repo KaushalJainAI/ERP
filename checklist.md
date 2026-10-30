@@ -481,7 +481,7 @@ question's recorded answer.
 - [x] O-3 Dispatch action
 - [x] O-4 Bill numbering
 - [ ] O-5 Pending Orders page
-- [ ] O-6 Ready warehouse default
+- [x] O-6 Ready warehouse default
 - [ ] O-7 Real Tally test (OWNER)
 
 ### 3. Production and stock

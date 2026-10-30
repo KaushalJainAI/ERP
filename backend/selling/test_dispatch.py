@@ -784,3 +784,70 @@ class DispatchStatusTests(TestCase):
     )
     def test_concurrent_double_dispatch_produces_one_bill(self):
         pass
+
+    def test_ready_warehouse_default_applied_when_blank(self):
+        from selling.serializers import SalesOrderSerializer
+
+        # 1. Serializer create with blank warehouse defaults to company.ready_warehouse
+        data = {
+            "customer": self.customer.pk,
+            "company": self.company.pk,
+            "transaction_date": datetime.date.today(),
+            "items": [
+                {
+                    "item": self.stock_item.pk,
+                    "qty": "5.000",
+                    "rate": "100.00",
+                    "warehouse": None,
+                }
+            ],
+        }
+        serializer = SalesOrderSerializer(data=data)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        so = serializer.save()
+        item = so.items.first()
+        self.assertEqual(item.warehouse, self.company.ready_warehouse)
+
+        # 2. Explicit warehouse is preserved
+        other_wh = Warehouse.objects.create(
+            name="Other Warehouse", company=self.company, is_group=False
+        )
+        data_explicit = {
+            "customer": self.customer.pk,
+            "company": self.company.pk,
+            "transaction_date": datetime.date.today(),
+            "items": [
+                {
+                    "item": self.stock_item.pk,
+                    "qty": "5.000",
+                    "rate": "100.00",
+                    "warehouse": other_wh.pk,
+                }
+            ],
+        }
+        serializer_explicit = SalesOrderSerializer(data=data_explicit)
+        self.assertTrue(serializer_explicit.is_valid(), serializer_explicit.errors)
+        so_explicit = serializer_explicit.save()
+        self.assertEqual(so_explicit.items.first().warehouse, other_wh)
+
+        # 3. Model save fallback to first non-group warehouse when ready_warehouse is None
+        self.company.ready_warehouse = None
+        self.company.save()
+        so3 = SalesOrder.objects.create(
+            name="SO-WH-FALLBACK",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date.today(),
+        )
+        item3 = SalesOrderItem.objects.create(
+            sales_order=so3,
+            item=self.stock_item,
+            qty=Decimal("3.000"),
+            rate=Decimal("100.00"),
+        )
+        first_wh = (
+            Warehouse.objects.filter(company=self.company, is_group=False)
+            .order_by("pk")
+            .first()
+        )
+        self.assertEqual(item3.warehouse, first_wh)

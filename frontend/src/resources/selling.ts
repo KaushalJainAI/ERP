@@ -126,7 +126,14 @@ const lineBatchLink: LinkDef = {
 
 const itemColumns: ChildColumnDef[] = [
   { key: "item", labelKey: "fields.item", type: "link", required: true, link: itemLink, widthClass: "min-w-[16rem]" },
-  { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink, widthClass: "min-w-[11rem]" },
+  {
+    key: "warehouse",
+    labelKey: "fields.warehouse",
+    type: "link",
+    link: warehouseLink,
+    placeholderKey: "org.fields.ready_warehouse",
+    widthClass: "min-w-[11rem]",
+  },
   {
     key: "batch",
     labelKey: "bs.fields.batch",

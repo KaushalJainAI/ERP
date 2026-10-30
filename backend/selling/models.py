@@ -206,6 +206,23 @@ class SalesOrderItem(TaxableLine):
     )
 
     def save(self, *args, **kwargs):
+        if (
+            not self.warehouse_id
+            and self.sales_order_id
+            and self.sales_order.company_id
+        ):
+            from stock.models import Warehouse
+
+            company = self.sales_order.company
+            default_wh = getattr(company, "ready_warehouse", None)
+            if not default_wh:
+                default_wh = (
+                    Warehouse.objects.filter(company=company, is_group=False)
+                    .order_by("pk")
+                    .first()
+                )
+            if default_wh:
+                self.warehouse = default_wh
         self.amount = self.compute_amount()
         super().save(*args, **kwargs)
 

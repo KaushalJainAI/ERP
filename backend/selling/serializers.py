@@ -193,6 +193,22 @@ class SalesOrderSerializer(
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        company = attrs.get("company") or getattr(self.instance, "company", None)
+        if company and "items" in attrs:
+            from stock.models import Warehouse
+
+            default_wh = getattr(company, "ready_warehouse", None)
+            if not default_wh:
+                default_wh = (
+                    Warehouse.objects.filter(company=company, is_group=False)
+                    .order_by("pk")
+                    .first()
+                )
+            if default_wh:
+                for line in attrs["items"]:
+                    if not line.get("warehouse"):
+                        line["warehouse"] = default_wh
+
         return pricing_service.apply_line_rates(
             self,
             attrs,
