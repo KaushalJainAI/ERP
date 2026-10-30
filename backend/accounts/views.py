@@ -4,7 +4,7 @@ from django.db.models import Q, Sum
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from rest_framework import viewsets, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from accounts.models import (
@@ -32,7 +32,7 @@ from core.company_context import (
     active_company_id,
     resolve_active_company,
 )
-from core.models import State
+from core.models import Company, State
 from gst.constants import GSTSupplyType
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
 from users.permissions import HasRolePermission, require_model_permission
@@ -202,6 +202,59 @@ class PaymentEntryViewSet(
     filterset_fields = ["company", "payment_type", "posting_date", "docstatus"]
     search_fields = ["name", "party_name", "reference_no"]
     ordering_fields = ["posting_date", "created_at"]
+    action_permission_flags = {
+        "suggest_allocation": "can_read",
+    }
+
+    @action(detail=False, methods=["get"], url_path="suggest-allocation")
+    def suggest_allocation(self, request):
+        """Suggest invoice allocation for a payment amount, oldest due first."""
+        party_type = request.query_params.get("party_type")
+        party = request.query_params.get("party")
+        amount_raw = request.query_params.get("amount")
+        company_param = request.query_params.get("company")
+
+        if not party_type or not party or amount_raw is None:
+            raise ValidationError(
+                {
+                    "detail": _(
+                        "party_type, party, and amount query parameters are required."
+                    )
+                }
+            )
+        try:
+            amount = Decimal(str(amount_raw))
+        except Exception:
+            raise ValidationError(
+                {"detail": _("Invalid amount '%(amount)s'.") % {"amount": amount_raw}}
+            )
+
+        company = company_param or resolve_active_company(request)
+        from accounts.services.allocation import suggest_allocation
+
+        try:
+            suggestion = suggest_allocation(party_type, party, company, amount)
+        except (ValueError, Company.DoesNotExist) as exc:
+            raise ValidationError({"detail": str(exc)})
+
+        return Response(
+            {
+                "references": [
+                    {
+                        "reference_doctype": ref["reference_doctype"],
+                        "reference_name": ref["reference_name"],
+                        "total_amount": str(ref["total_amount"]),
+                        "outstanding_amount": str(ref["outstanding_amount"]),
+                        "allocated_amount": str(ref["allocated_amount"]),
+                        "due_date": str(ref["due_date"]) if ref["due_date"] else None,
+                        "posting_date": str(ref["posting_date"]),
+                    }
+                    for ref in suggestion.references
+                ],
+                "unallocated": str(suggestion.unallocated),
+                "total_allocated": str(suggestion.total_allocated),
+            }
+        )
 
 
 @api_view(["GET"])

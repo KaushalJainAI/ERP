@@ -500,7 +500,7 @@ question's recorded answer.
 - [ ] M-4 Money to Collect
 - [ ] M-5 Bills to Pay
 - [ ] M-6 Pages and short form
-- [ ] M-7 Oldest-first allocation
+- [x] M-7 Oldest-first allocation
 - [ ] M-8 Proof required
 
 ### 5. Expenses

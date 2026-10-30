@@ -317,6 +317,49 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
         ):
             # Same currency: keep the received amount in step with the paid amount.
             attrs["received_amount"] = attrs["paid_amount"]
+
+        references = attrs.get("references")
+        if references is not None:
+            comp = current("company")
+            total_allocated = Decimal("0.00")
+            for row in references:
+                ref_doc = row.get("reference_doctype")
+                ref_name = row.get("reference_name")
+                alloc_amt = row.get("allocated_amount") or Decimal("0.00")
+                total_allocated += alloc_amt
+                if ref_doc in PaymentEntry.ALLOCATION_TARGETS and ref_name and comp:
+                    inv_model = PaymentEntry.invoice_model(ref_doc)
+                    inv = inv_model.objects.filter(name=ref_name, company=comp).first()
+                    if inv:
+                        from accounts.services import outstanding as outstanding_service
+
+                        open_amt = outstanding_service.current_outstanding(inv)
+                        if inv.is_return:
+                            open_amt = -open_amt
+                        if alloc_amt > open_amt:
+                            raise serializers.ValidationError(
+                                {
+                                    "references": _(
+                                        "Allocated amount (%(allocated)s) exceeds the outstanding "
+                                        "amount (%(outstanding)s) of '%(name)s'."
+                                    )
+                                    % {
+                                        "allocated": alloc_amt,
+                                        "outstanding": open_amt,
+                                        "name": ref_name,
+                                    }
+                                }
+                            )
+            paid_amount = current("paid_amount") or Decimal("0.00")
+            if total_allocated > paid_amount:
+                raise serializers.ValidationError(
+                    {
+                        "references": _(
+                            "Total allocated (%(allocated)s) exceeds the paid amount (%(paid)s)."
+                        )
+                        % {"allocated": total_allocated, "paid": paid_amount}
+                    }
+                )
         return attrs
 
     @staticmethod
