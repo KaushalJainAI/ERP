@@ -234,6 +234,11 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 | models.Q(bill_date__lte=models.F("posting_date")),
                 name="buying_pi_bill_date_not_after_posting",
             ),
+            models.CheckConstraint(
+                check=models.Q(due_date__isnull=True)
+                | models.Q(due_date__gte=models.F("posting_date")),
+                name="check_purchase_invoice_due_date_gte_posting",
+            ),
         ]
 
     supplier = models.ForeignKey(
@@ -275,6 +280,15 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
 
     def save(self, *args, **kwargs):
         self.bill_no = (self.bill_no or "").strip()
+        if not self.due_date and self.supplier_id:
+            from accounts.services import terms as terms_service
+
+            base_date = self.bill_date or self.posting_date
+            if base_date:
+                calc = terms_service.calculate_due_date(
+                    "Supplier", self.supplier, base_date
+                )
+                self.due_date = max(calc, self.posting_date)
         super().save(*args, **kwargs)
 
     @property
@@ -302,6 +316,12 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         return outcome
 
     def validate_before_submit(self):
+        if not self.due_date:
+            raise ValidationError(_("Due date is required at submit."))
+        if self.due_date < self.posting_date:
+            raise ValidationError(_("Due date cannot be before posting date."))
+        if self.bill_date and self.due_date < self.bill_date:
+            raise ValidationError(_("Due date cannot be before the bill date."))
         items = self.items.all()
         if not items.exists():
             raise ValidationError(

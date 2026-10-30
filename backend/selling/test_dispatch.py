@@ -1,6 +1,8 @@
 import datetime
 from decimal import Decimal
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.core.management import call_command
@@ -336,3 +338,107 @@ class DispatchStatusTests(TestCase):
         # Overly long prefix raises ValueError
         with self.assertRaises(ValueError):
             account_mapping.financial_year_series("VERYLONGPREFIXNAME", april_1)
+
+    def test_due_date_population_and_constraints(self):
+        from buying.models import (
+            Supplier,
+            SupplierGroup,
+            PurchaseInvoice,
+            PurchaseOrder,
+            PurchaseOrderItem,
+        )
+        from selling.mapping import make_sales_invoice
+        from buying.mapping import make_purchase_invoice
+
+        # 1. Customer credit_days override (30 days)
+        self.customer.credit_days = 30
+        self.customer.save()
+
+        order = self._create_and_submit_order()
+        inv = make_sales_invoice(order)
+        self.assertEqual(inv.due_date, inv.posting_date + datetime.timedelta(days=30))
+
+        # 2. Company default (90 days)
+        self.customer.credit_days = None
+        self.customer.save()
+        inv2 = SalesInvoice.objects.create(
+            customer=self.customer,
+            company=self.company,
+            posting_date=datetime.date(2026, 4, 1),
+            debit_to=self.debtors_acc,
+            income_account=self.sales_income_acc,
+            update_stock=False,
+        )
+        self.assertEqual(
+            inv2.due_date, datetime.date(2026, 4, 1) + datetime.timedelta(days=90)
+        )
+
+        # 3. CheckConstraint: due_date < posting_date is refused by DB
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                SalesInvoice.objects.create(
+                    customer=self.customer,
+                    company=self.company,
+                    posting_date=datetime.date(2026, 4, 10),
+                    due_date=datetime.date(2026, 4, 5),  # before posting_date
+                    debit_to=self.debtors_acc,
+                    income_account=self.sales_income_acc,
+                    update_stock=False,
+                )
+
+        # 4. Supplier credit days on purchase invoice
+        supp_grp = SupplierGroup.objects.create(name="Farmers")
+        supp = Supplier.objects.create(
+            name="Spice Farmer",
+            company=self.company,
+            supplier_group=supp_grp,
+            credit_days=15,
+        )
+        creditors_acc = Account.objects.create(
+            name="Creditors NF",
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.LIABILITY,
+            account_type=AccountType.PAYABLE,
+        )
+        expense_acc = Account.objects.create(
+            name="Purchases NF",
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.EXPENSE,
+        )
+
+        po = PurchaseOrder.objects.create(
+            name="PO-TEST-001",
+            supplier=supp,
+            company=self.company,
+            transaction_date=datetime.date(2026, 4, 1),
+        )
+        PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            item=self.item1,
+            qty=Decimal("10.000"),
+            rate=Decimal("50.00"),
+        )
+        po.submit()
+
+        pinv = make_purchase_invoice(po)
+        self.assertEqual(pinv.due_date, pinv.posting_date + datetime.timedelta(days=15))
+
+        # 5. PurchaseInvoice DB constraint: due_date < posting_date is refused by DB
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PurchaseInvoice.objects.create(
+                    supplier=supp,
+                    company=self.company,
+                    posting_date=datetime.date(2026, 4, 10),
+                    due_date=datetime.date(2026, 4, 5),
+                    credit_to=creditors_acc,
+                    expense_account=expense_acc,
+                    update_stock=False,
+                )
+
+        # 6. Purchase invoice validation before submit: due_date required at submit
+        pinv.due_date = None
+        with self.assertRaises(ValidationError):
+            pinv.validate_before_submit()

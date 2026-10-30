@@ -227,6 +227,11 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
             *PayableDocument.return_constraints(),
+            models.CheckConstraint(
+                check=models.Q(due_date__isnull=True)
+                | models.Q(due_date__gte=models.F("posting_date")),
+                name="check_sales_invoice_due_date_gte_posting",
+            ),
         ]
 
     customer = models.ForeignKey(
@@ -262,12 +267,25 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         related_name="+",
     )
 
+    def save(self, *args, **kwargs):
+        if not self.due_date and self.posting_date and self.customer_id:
+            from accounts.services import terms as terms_service
+
+            self.due_date = terms_service.calculate_due_date(
+                "Customer", self.customer, self.posting_date
+            )
+        super().save(*args, **kwargs)
+
     def submit(self, user=None):
         # Stash the user for the credit override (design 6.2).
         self._submit_user = user
         return super().submit(user=user)
 
     def validate_before_submit(self):
+        if not self.due_date:
+            raise ValidationError(_("Due date is required at submit."))
+        if self.due_date < self.posting_date:
+            raise ValidationError(_("Due date cannot be before posting date."))
         items = self.items.all()
         if not items.exists():
             raise ValidationError(_("Sales Invoice must have at least one line item."))

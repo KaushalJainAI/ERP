@@ -459,6 +459,21 @@ class PurchaseInvoiceSerializer(
         attrs = account_mapping.fill_default_accounts(
             self, attrs, self._DEFAULT_ACCOUNTS
         )
+        if not attrs.get("due_date"):
+            supplier = attrs.get("supplier", getattr(self.instance, "supplier", None))
+            posting_date = attrs.get(
+                "posting_date", getattr(self.instance, "posting_date", None)
+            )
+            base_date = (
+                attrs.get("bill_date")
+                or posting_date
+                or getattr(self.instance, "bill_date", None)
+            )
+            if supplier and base_date and posting_date:
+                from accounts.services import terms as terms_service
+
+                calc = terms_service.calculate_due_date("Supplier", supplier, base_date)
+                attrs["due_date"] = max(calc, posting_date)
         attrs = super().validate(attrs)
         self._validate_bill(attrs)
         self._validate_charges(attrs)

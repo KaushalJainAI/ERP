@@ -34,12 +34,18 @@ def make_sales_invoice(sales_order):
 
     company = sales_order.company
     posting_date = datetime.date.today()
+    from accounts.services import terms as terms_service
+
+    due_date = terms_service.calculate_due_date(
+        "Customer", sales_order.customer, posting_date
+    )
     with transaction.atomic():
         invoice = SalesInvoice.objects.create(
             name=NamingSeries.next(mapping.financial_year_series("SINV", posting_date)),
             customer=sales_order.customer,
             company=company,
             posting_date=posting_date,
+            due_date=due_date,
             sales_order=sales_order,
             price_list=sales_order.price_list,
             taxes_and_charges=sales_order.taxes_and_charges,

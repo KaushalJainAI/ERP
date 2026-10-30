@@ -35,12 +35,18 @@ def make_purchase_invoice(purchase_order):
     company = purchase_order.company
     update_stock = mapping.lines_update_stock(lines)
     posting_date = datetime.date.today()
+    from accounts.services import terms as terms_service
+
+    due_date = terms_service.calculate_due_date(
+        "Supplier", purchase_order.supplier, posting_date
+    )
     with transaction.atomic():
         invoice = PurchaseInvoice.objects.create(
             name=NamingSeries.next(mapping.financial_year_series("PINV", posting_date)),
             supplier=purchase_order.supplier,
             company=company,
             posting_date=posting_date,
+            due_date=due_date,
             purchase_order=purchase_order,
             price_list=purchase_order.price_list,
             taxes_and_charges=purchase_order.taxes_and_charges,

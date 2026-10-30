@@ -495,7 +495,7 @@ question's recorded answer.
 
 ### 4. Collections and supplier payments
 - [x] M-1 Credit days
-- [ ] M-2 Due dates on bills
+- [x] M-2 Due dates on bills
 - [ ] M-3 Paid or Due label
 - [ ] M-4 Money to Collect
 - [ ] M-5 Bills to Pay

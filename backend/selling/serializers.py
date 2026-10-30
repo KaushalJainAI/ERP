@@ -362,6 +362,17 @@ class SalesInvoiceSerializer(
         attrs = account_mapping.fill_default_accounts(
             self, attrs, self._DEFAULT_ACCOUNTS
         )
+        if not attrs.get("due_date"):
+            customer = attrs.get("customer", getattr(self.instance, "customer", None))
+            posting_date = attrs.get(
+                "posting_date", getattr(self.instance, "posting_date", None)
+            )
+            if customer and posting_date:
+                from accounts.services import terms as terms_service
+
+                attrs["due_date"] = terms_service.calculate_due_date(
+                    "Customer", customer, posting_date
+                )
         attrs = super().validate(attrs)
         return pricing_service.apply_line_rates(
             self,
