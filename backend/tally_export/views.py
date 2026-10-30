@@ -2,6 +2,7 @@
 ``tally_export.*`` model labels); the XML it returns is the company's books."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext as _
 from django.http import HttpResponse
 from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -169,7 +170,7 @@ class TallyExportBatchViewSet(
     def download(self, request, pk=None):
         part = request.query_params.get("part")
         if part not in (None, "vouchers", "masters", "zip"):
-            raise serializers.ValidationError({"part": "vouchers, masters or zip."})
+            raise serializers.ValidationError({"part": _("vouchers, masters or zip.")})
         return self._download(self.get_object(), part)
 
     @action(detail=True, methods=["get"])
@@ -196,13 +197,13 @@ class TallyExportBatchViewSet(
         rows = request.data.get("vouchers") or []
         if not isinstance(rows, list) or not rows:
             raise serializers.ValidationError(
-                {"vouchers": "Pick at least one voucher."}
+                {"vouchers": _("Pick at least one voucher.")}
             )
         try:
             keys = [(r["doctype"], r["name"]) for r in rows]
         except (KeyError, TypeError):
             raise serializers.ValidationError(
-                {"vouchers": "Each needs doctype and name."}
+                {"vouchers": _("Each needs doctype and name.")}
             )
         try:
             new = export_service.reexport_vouchers(company, keys, request.user)

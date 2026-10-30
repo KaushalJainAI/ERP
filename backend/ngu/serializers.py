@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from ngu.models import NguCatalogEntry, NguEntryKind, NguLinkMethod
@@ -35,7 +36,9 @@ class NguCatalogEntrySerializer(serializers.ModelSerializer):
 
     def validate_item(self, item):
         if item is not None and self.instance.kind != NguEntryKind.VARIANT:
-            raise serializers.ValidationError("Only variants can be linked to an item.")
+            raise serializers.ValidationError(
+                _("Only variants can be linked to an item.")
+            )
         taken = (
             item is not None
             and NguCatalogEntry.objects.filter(item=item)
@@ -44,7 +47,7 @@ class NguCatalogEntrySerializer(serializers.ModelSerializer):
         )
         if taken:
             raise serializers.ValidationError(
-                "This item is already linked to another NGU variant."
+                _("This item is already linked to another NGU variant.")
             )
         return item
 

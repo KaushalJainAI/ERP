@@ -545,7 +545,7 @@ question's recorded answer.
 - [ ] H-6 More proposals
 - [ ] H-7 Evaluation (OWNER for sentences)
 - [x] L-1 Mark everything
-- [ ] L-2 Guard test
+- [x] L-2 Guard test
 - [ ] L-3 Build setup
 - [ ] L-4 Hindi
 - [ ] L-5 Hindi review (OWNER)

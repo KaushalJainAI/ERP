@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from tally_export.models import (
@@ -29,13 +30,13 @@ class TallyExportSettingsSerializer(serializers.ModelSerializer):
             for k, v in value.items()
         ):
             raise serializers.ValidationError(
-                "Expected an object of voucher key -> Tally voucher type name."
+                _("Expected an object of voucher key -> Tally voucher type name.")
             )
         return value
 
     def validate_excluded_prefixes(self, value):
         if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
-            raise serializers.ValidationError("Expected a list of strings.")
+            raise serializers.ValidationError(_("Expected a list of strings."))
         return value
 
 
@@ -64,7 +65,7 @@ class TallyLedgerMapSerializer(serializers.ModelSerializer):
     def validate_tally_ledger(self, value):
         value = value.strip()
         if not value:
-            raise serializers.ValidationError("Tally ledger name is required.")
+            raise serializers.ValidationError(_("Tally ledger name is required."))
         return value
 
     def validate(self, attrs):
@@ -75,7 +76,7 @@ class TallyLedgerMapSerializer(serializers.ModelSerializer):
         }
         if bool(merged["party_type"]) != bool(merged["party"]):
             raise serializers.ValidationError(
-                "Party type and party are set together or not at all."
+                _("Party type and party are set together or not at all.")
             )
         probe = TallyLedgerMap(**merged)
         try:
@@ -108,7 +109,7 @@ class TallyStockItemMapSerializer(serializers.ModelSerializer):
     def validate_tally_item(self, value):
         value = value.strip()
         if not value:
-            raise serializers.ValidationError("Tally stock item name is required.")
+            raise serializers.ValidationError(_("Tally stock item name is required."))
         return value
 
 

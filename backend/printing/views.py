@@ -10,6 +10,7 @@ scoped to the active company (``X-Company-ID``): a document of another company i
 """
 
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
@@ -29,7 +30,10 @@ def parse_params(query):
     copy = (query.get("copy") or "original").lower()
     if copy not in builders.COPIES:
         raise ValidationError(
-            {"copy": f"Must be one of: {', '.join(builders.COPIES)}."}
+            {
+                "copy": _("Must be one of: %(options)s.")
+                % {"options": ", ".join(builders.COPIES)}
+            }
         )
     words_lang = (query.get("words_lang") or "en").lower()
     if words_lang not in builders.WORD_LANGS:

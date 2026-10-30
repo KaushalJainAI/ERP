@@ -13,6 +13,7 @@ ledgers, never stored; the only state kept here is
 import uuid
 
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 from django.db import models
 
 from core.models import Company, TimeStampedModel
@@ -20,10 +21,14 @@ from core.models import Company, TimeStampedModel
 
 class _AppendOnlyQuerySet(models.QuerySet):
     def update(self, **kwargs):
-        raise ValidationError("Export log rows are immutable and cannot be updated.")
+        raise ValidationError(
+            _("Export log rows are immutable and cannot be updated.")
+        )
 
     def delete(self):
-        raise ValidationError("Export log rows are immutable and cannot be deleted.")
+        raise ValidationError(
+            _("Export log rows are immutable and cannot be deleted.")
+        )
 
 
 class _AppendOnly(models.Model):
@@ -37,13 +42,19 @@ class _AppendOnly(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             raise ValidationError(
-                f"{type(self).__name__} rows are immutable and cannot be updated."
+                _(
+                    "%(model)s rows are immutable and cannot be updated."
+                )
+                % {"model": type(self).__name__}
             )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         raise ValidationError(
-            f"{type(self).__name__} rows are immutable and cannot be deleted."
+            _(
+                "%(model)s rows are immutable and cannot be deleted."
+            )
+            % {"model": type(self).__name__}
         )
 
 
@@ -120,10 +131,10 @@ class TallyLedgerMap(TimeStampedModel):
     def clean(self):
         if self.account_id and self.account.company_id != self.company_id:
             raise ValidationError(
-                {"account": "The account belongs to a different company."}
+                {"account": _("The account belongs to a different company.")}
             )
         if self.account_id and self.account.is_group:
-            raise ValidationError({"account": "Group accounts are not posted to."})
+            raise ValidationError({"account": _("Group accounts are not posted to.")})
 
     def __str__(self):
         who = f" [{self.party}]" if self.party else ""
