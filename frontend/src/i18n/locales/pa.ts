@@ -2358,6 +2358,13 @@ const pa: Record<string, unknown> = {
       "navigate": "ਨੇਵੀਗੇਟ ਕਰ ਰਿਹਾ ਹੈ"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default pa;

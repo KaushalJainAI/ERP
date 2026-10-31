@@ -2653,6 +2653,13 @@ const hi: Record<string, unknown> = {
     threshold_days: "सीमा (दिन)",
     recipients: "प्राप्तकर्ता:",
   },
+  plain: {
+    approve: "मंज़ूर करें",
+    bill: "बिल",
+    dispatch: "भेजें",
+    paid: "चुकाया",
+    due: "बाकी",
+  },
 };
 
 export default hi;

@@ -327,7 +327,7 @@ const salesOrders: ResourceConfig = {
   actions: [
     {
       key: "make_sales_invoice",
-      labelKey: "res.make_sales_invoice",
+      labelKey: "plain.bill",
       icon: FilePlus2,
       kind: "request",
       showWhen: (d) => d.docstatus === DocStatus.SUBMITTED,

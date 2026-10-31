@@ -2358,6 +2358,13 @@ const ta: Record<string, unknown> = {
       "navigate": "செல்கிறது"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default ta;

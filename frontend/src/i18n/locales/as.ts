@@ -2358,6 +2358,13 @@ const as: Record<string, unknown> = {
       "navigate": "নেভিগেট কৰা হৈছে"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default as;

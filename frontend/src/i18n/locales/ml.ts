@@ -2358,6 +2358,13 @@ const ml: Record<string, unknown> = {
       "navigate": "നാവിഗേറ്റ് ചെയ്യുന്നു"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default ml;
