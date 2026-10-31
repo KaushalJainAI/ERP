@@ -8,6 +8,7 @@ from .views import (
     ProposalOpenedView,
     ProposalAbandonedView,
     TranscribeAudioView,
+    BillPhotoView,
 )
 
 app_name = "assistant"
@@ -20,4 +21,5 @@ urlpatterns = [
     path("proposals/<uuid:pk>/opened/", ProposalOpenedView.as_view(), name="proposal_opened"),
     path("proposals/<uuid:pk>/abandoned/", ProposalAbandonedView.as_view(), name="proposal_abandoned"),
     path("transcribe/", TranscribeAudioView.as_view(), name="transcribe"),
+    path("bill-photo/", BillPhotoView.as_view(), name="bill_photo"),
 ]

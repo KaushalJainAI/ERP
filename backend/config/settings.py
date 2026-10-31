@@ -193,6 +193,7 @@ REST_FRAMEWORK = {
         "assistant": env("THROTTLE_ASSISTANT", default="60/min"),
         "assistant_day": env("THROTTLE_ASSISTANT_DAY", default="1000/day"),
         "assistant_stt": env("THROTTLE_ASSISTANT_STT", default="30/min"),
+        "assistant_bill": env("THROTTLE_ASSISTANT_BILL", default="60/hour"),
     },
     "DEFAULT_FILTER_BACKENDS": (
         "django_filters.rest_framework.DjangoFilterBackend",

@@ -64,6 +64,11 @@ MASTER_LABELS = frozenset(
     }
 )
 
+#: Parents that exist only to hold an assistant's bill photo until the purchase
+#: invoice it proposes is saved. The photo is copied onto that invoice then. The
+#: generic attachment API never names these parents (see ``resolve_parent_label``).
+STAGING_LABELS = frozenset({"assistant.AssistantMessage"})
+
 _attachable_cache: Optional[dict] = None
 
 
@@ -76,7 +81,11 @@ def attachable_models() -> dict:
         found = {}
         for model in apps.get_models():
             label = model._meta.label
-            if issubclass(model, SubmittableDocument) or label in MASTER_LABELS:
+            if (
+                issubclass(model, SubmittableDocument)
+                or label in MASTER_LABELS
+                or label in STAGING_LABELS
+            ):
                 found[label] = model
         _attachable_cache = found
     return _attachable_cache
@@ -106,7 +115,7 @@ def resolve_parent_label(model: str = "", endpoint: str = "") -> str:
                 resolve_model_label(view_cls(**getattr(match.func, "initkwargs", {})))
                 or ""
             )
-    if label not in attachable_models():
+    if label not in attachable_models() or label in STAGING_LABELS:
         raise AttachmentError(
             "attachment_parent_invalid",
             _("Files cannot be attached to this kind of record."),

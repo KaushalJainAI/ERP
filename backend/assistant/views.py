@@ -9,9 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core import attachments as att_rules
 from core.company_context import resolve_active_company
 
 from .agent import Agent
+from .bill_photo import BILL_KINDS, BILL_MAX_BYTES, run_bill_turn
 from .models import AssistantConversation, AssistantProposal
 from .serializers import (
     AssistantConversationSerializer,
@@ -20,6 +22,7 @@ from .serializers import (
 )
 from .stt import TranscriptionUnavailable, transcribe_audio
 from .throttles import (
+    AssistantBillThrottle,
     AssistantBurstThrottle,
     AssistantDailyThrottle,
     AssistantTranscribeThrottle,
@@ -180,3 +183,82 @@ class TranscribeAudioView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
         return Response({"text": text})
+
+
+class BillPhotoView(APIView):
+    """A supplier bill photo read into a Purchase Invoice proposal.
+
+    Read failures (model down, unreadable photo, permission) come back as 200 with a
+    friendly `reply` and an `error` code, and write nothing. Only a rejected file is
+    a 400 or 413.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [AssistantBillThrottle]
+
+    def post(self, request):
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"error": "no_file", "message": _("No bill photo uploaded.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            checked = att_rules.validate_upload(upload)
+        except att_rules.AttachmentError as exc:
+            return Response(
+                {"error": exc.code, "message": exc.message}, status=exc.status
+            )
+        if checked.kind not in BILL_KINDS:
+            return Response(
+                {
+                    "error": "bill_type_not_allowed",
+                    "message": _("Send the bill as a JPG, PNG or WebP photo."),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if checked.size > BILL_MAX_BYTES:
+            return Response(
+                {
+                    "error": "bill_too_large",
+                    "message": _(
+                        "The bill photo is too large. The maximum size is %(mb)s MB."
+                    )
+                    % {"mb": f"{BILL_MAX_BYTES / (1024 * 1024):g}"},
+                },
+                status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            )
+        data = upload.read()
+
+        conversation = None
+        raw_conv = request.data.get("conversation_id")
+        if raw_conv not in (None, ""):
+            try:
+                conv_id = int(raw_conv)
+            except (TypeError, ValueError):
+                return Response(
+                    {
+                        "error": "bad_conversation",
+                        "message": _("That conversation was not found."),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            conversation = get_object_or_404(
+                AssistantConversation, pk=conv_id, user=request.user
+            )
+
+        language = (
+            request.data.get("language")
+            or getattr(request.user, "language", "en")
+            or "en"
+        )
+        company = resolve_active_company(request, required=False)
+        body = run_bill_turn(
+            request.user,
+            data=data,
+            checked=checked,
+            company_pk=company.pk if company else None,
+            conversation=conversation,
+            language=language,
+        )
+        return Response(body)
