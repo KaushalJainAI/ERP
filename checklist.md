@@ -489,7 +489,7 @@ question's recorded answer.
 - [x] P-2 Batch stage
 - [ ] P-3 Batch service (BLOCKED Q2)
 - [ ] P-4 Today's Batches page
-- [ ] P-5 Stock view
+- [x] P-5 Stock view
 - [ ] P-6 Loss report
 - [ ] P-7 Item and recipe clean-up (OWNER, BLOCKED Q3)
 

@@ -1,3 +1,4 @@
+from stock.reports.stages import stock_stages_report
 import datetime
 from decimal import Decimal, InvalidOperation
 
@@ -643,3 +644,40 @@ def item_price_rate(request):
             PriceList.objects.get(pk=result["price_list"]), company, selling=selling
         )
     return Response(_jsonable(result))
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("stock.Bin")]
+)
+def stock_stages_report_view(request):
+    """Stock stages report: unprocessed, in-process, ready, total and critical stock level per item."""
+    company_val = request.query_params.get("company")
+    if company_val:
+        try:
+            if str(company_val).isdigit():
+                company = Company.objects.get(pk=int(company_val))
+            else:
+                company = Company.objects.get(name=company_val)
+        except Company.DoesNotExist:
+            raise DRFValidationError({"company": _("Company not found.")})
+    else:
+        company = resolve_active_company(request)
+
+    rows = stock_stages_report(company)
+    total_unprocessed = sum((Decimal(r["unprocessed_qty"]) for r in rows), Decimal("0.000"))
+    total_in_process = sum((Decimal(r["in_process_qty"]) for r in rows), Decimal("0.000"))
+    total_ready = sum((Decimal(r["ready_qty"]) for r in rows), Decimal("0.000"))
+    total_qty = sum((Decimal(r["total_qty"]) for r in rows), Decimal("0.000"))
+
+    return Response(
+        _jsonable(
+            {
+                "rows": rows,
+                "total_unprocessed_qty": total_unprocessed,
+                "total_in_process_qty": total_in_process,
+                "total_ready_qty": total_ready,
+                "total_qty": total_qty,
+            }
+        )
+    )

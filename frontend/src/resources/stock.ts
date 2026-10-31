@@ -796,4 +796,46 @@ const expiryReport: ReportConfig = {
   totals: { balance_qty: "total_balance_qty", stock_value: "total_stock_value" },
 };
 
-export const stockReports: ReportConfig[] = [stockBalance, batchWiseBalance, expiryReport];
+
+/** Stage status badge (Critical / Normal). */
+const stageCriticalBadge = (value: any, row: any) => {
+  const isCrit = row?.is_critical || value === "Critical" || value === true;
+  const cls = isCrit
+    ? "bg-rose-950/60 text-rose-300 border-rose-800/60 font-semibold"
+    : "bg-emerald-950/40 text-emerald-400 border-emerald-800/50";
+  const label = isCrit ? "Critical" : "Normal";
+  return createElement(
+    "span",
+    { className: `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${cls}` },
+    label
+  );
+};
+
+const stockStages: ReportConfig = {
+  key: "stages",
+  module: "stock",
+  endpoint: "/stock/reports/stages/",
+  titleKey: "bs.res.stock_stages",
+  icon: Layers,
+  filters: [
+    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
+  ],
+  columns: [
+    { key: "item_name", labelKey: "bs.fields.item_name" },
+    { key: "uom", labelKey: "fields.uom" },
+    { key: "unprocessed_qty", labelKey: "bs.fields.unprocessed_qty", type: "number", render: qtyCell },
+    { key: "in_process_qty", labelKey: "bs.fields.in_process_qty", type: "number", render: qtyCell },
+    { key: "ready_qty", labelKey: "bs.fields.ready_qty", type: "number", render: qtyCell },
+    { key: "total_qty", labelKey: "bs.fields.total_qty", type: "number", render: qtyCell },
+    { key: "critical_stock", labelKey: "bs.fields.critical_stock", type: "number", render: qtyCell },
+    { key: "status", labelKey: "fields.status", render: stageCriticalBadge },
+  ],
+  totals: {
+    unprocessed_qty: "total_unprocessed_qty",
+    in_process_qty: "total_in_process_qty",
+    ready_qty: "total_ready_qty",
+    total_qty: "total_qty",
+  },
+};
+
+export const stockReports: ReportConfig[] = [stockBalance, batchWiseBalance, expiryReport, stockStages];

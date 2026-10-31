@@ -17,6 +17,7 @@ from stock.views import (
     stock_balance,
     batch_wise_balance,
     expiry_report,
+    stock_stages_report_view,
 )
 
 app_name = "stock"
@@ -48,5 +49,6 @@ urlpatterns = [
         name="batch-wise-balance",
     ),
     path("reports/expiry/", expiry_report, name="expiry-report"),
+    path("reports/stages/", stock_stages_report_view, name="stock-stages-report"),
     path("", include(router.urls)),
 ]
