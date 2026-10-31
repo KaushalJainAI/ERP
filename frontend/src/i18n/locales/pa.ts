@@ -2430,6 +2430,8 @@ const pa: Record<string, unknown> = {
       "propose_sales_invoice": "ਵਿਕਰੀ ਇਨਵੌਇਸ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹੈ",
       "propose_purchase_invoice": "ਖਰੀਦ ਇਨਵੌਇਸ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹੈ",
       "propose_payment_entry": "ਭੁਗਤਾਨ ਐਂਟਰੀ ਤਿਆਰ ਕਰ ਰਿਹਾ ਹੈ",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "ਸਪਸ਼ਟੀਕਰਨ ਪੁੱਛ ਰਿਹਾ ਹੈ",
       "navigate": "ਨੇਵੀਗੇਟ ਕਰ ਰਿਹਾ ਹੈ"
     }

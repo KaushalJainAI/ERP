@@ -2430,6 +2430,8 @@ const bn: Record<string, unknown> = {
       "propose_sales_invoice": "বিক্রয় চালান প্রস্তুত করা হচ্ছে",
       "propose_purchase_invoice": "ক্রয় চালান প্রস্তুত করা হচ্ছে",
       "propose_payment_entry": "পেমেন্ট এন্ট্রি প্রস্তুত করা হচ্ছে",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "স্পষ্টীকরণ চাওয়া হচ্ছে",
       "navigate": "নেভিগেট করা হচ্ছে"
     }

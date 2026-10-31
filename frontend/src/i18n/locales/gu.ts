@@ -2430,6 +2430,8 @@ const gu: Record<string, unknown> = {
       "propose_sales_invoice": "વેચાણ બિલ તૈયાર કરી રહ્યું છે",
       "propose_purchase_invoice": "ખરીદી બિલ તૈયાર કરી રહ્યું છે",
       "propose_payment_entry": "ચૂકવણી નોંધ તૈયાર કરી રહ્યું છે",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "સ્પષ્ટતા પૂછી રહ્યું છે",
       "navigate": "નેવિગેટ કરી રહ્યું છે"
     }

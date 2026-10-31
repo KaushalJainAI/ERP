@@ -2669,6 +2669,8 @@ const hi: Record<string, unknown> = {
       "propose_sales_invoice": "बिक्री बिल तैयार कर रहे हैं",
       "propose_purchase_invoice": "खरीद बिल तैयार कर रहे हैं",
       "propose_payment_entry": "भुगतान प्रविष्टि तैयार कर रहे हैं",
+      "propose_expense": "खर्च का बिल तैयार कर रहे हैं",
+      "propose_batch": "पिसाई बैच तैयार कर रहे हैं",
       "ask_user": "स्पष्टीकरण पूछ रहे हैं",
       "navigate": "नेविगेट कर रहे हैं"
     }

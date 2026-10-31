@@ -2430,6 +2430,8 @@ const ml: Record<string, unknown> = {
       "propose_sales_invoice": "വിൽപ്പന ഇൻവോയ്സ് തയ്യാറാക്കുന്നു",
       "propose_purchase_invoice": "വാങ്ങൽ ഇൻവോയ്സ് തയ്യാറാക്കുന്നു",
       "propose_payment_entry": "പേയ്‌മെന്റ് എൻട്രി തയ്യാറാക്കുന്നു",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "വ്യക്തത ചോദിക്കുന്നു",
       "navigate": "നാവിഗേറ്റ് ചെയ്യുന്നു"
     }

@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Calendar,
@@ -45,20 +45,27 @@ interface AccountItem {
 export const NewExpensePage: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
+  // An expense bill proposed by the assistant arrives as router state (propose_expense).
+  const seed = (location.state as { initialValues?: Record<string, unknown> } | null)?.initialValues;
+  const seedSupplier = seed?.supplier ? String(seed.supplier) : "";
+  const seedPaidNow = seed?.paid_now;
+
   // Form states
-  const [categoryId, setCategoryId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>(seed?.category ? String(seed.category) : "");
   const [isCashExpense, setIsCashExpense] = useState<boolean>(true);
   const [supplierId, setSupplierId] = useState<string>("");
-  const [amount, setAmount] = useState<string>("");
+  const [supplierSeeded, setSupplierSeeded] = useState<boolean>(seedSupplier === "");
+  const [amount, setAmount] = useState<string>(seed?.amount ? String(seed.amount) : "");
   const [hasGst, setHasGst] = useState<boolean>(false);
-  const [billNo, setBillNo] = useState<string>("");
+  const [billNo, setBillNo] = useState<string>(seed?.bill_no ? String(seed.bill_no) : "");
   const [taxTemplateId, setTaxTemplateId] = useState<string>("");
-  const [date, setDate] = useState<string>(todayISO());
-  const [paidNow, setPaidNow] = useState<boolean>(true);
-  const [paidFromId, setPaidFromId] = useState<string>("");
-  const [dueDate, setDueDate] = useState<string>(todayISO());
+  const [date, setDate] = useState<string>(seed?.date ? String(seed.date) : todayISO());
+  const [paidNow, setPaidNow] = useState<boolean>(typeof seedPaidNow === "boolean" ? seedPaidNow : true);
+  const [paidFromId, setPaidFromId] = useState<string>(seed?.paid_from ? String(seed.paid_from) : "");
+  const [dueDate, setDueDate] = useState<string>(seed?.due_date ? String(seed.due_date) : todayISO());
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -78,7 +85,7 @@ export const NewExpensePage: React.FC = () => {
   });
 
   // Fetch suppliers
-  const { data: suppliers = [], isLoading: suppLoading } = useQuery<
+  const { data: suppliers = [], isLoading: suppLoading, isSuccess: suppliersLoaded } = useQuery<
     SupplierItem[]
   >({
     queryKey: ["suppliers-form"],
@@ -90,8 +97,20 @@ export const NewExpensePage: React.FC = () => {
       });
       return Array.isArray(res.data) ? res.data : res.data.results || [];
     },
-    enabled: !isCashExpense,
+    enabled: !isCashExpense || seedSupplier !== "",
   });
+
+  // A proposed bill names its supplier. Switch to Supplier only when that
+  // supplier is a named one; a cash-expense supplier stays on Cash Expense.
+  useEffect(() => {
+    if (supplierSeeded || !suppliersLoaded) return;
+    setSupplierSeeded(true);
+    const match = suppliers.find((s) => String(s.id) === seedSupplier);
+    if (match && !match.is_cash_expense) {
+      setIsCashExpense(false);
+      setSupplierId(String(match.id));
+    }
+  }, [supplierSeeded, suppliersLoaded, suppliers, seedSupplier]);
 
   // Fetch tax templates for GST
   const { data: taxTemplates = [] } = useQuery<TaxTemplateItem[]>({

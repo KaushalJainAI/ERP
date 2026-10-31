@@ -2430,6 +2430,8 @@ const te: Record<string, unknown> = {
       "propose_sales_invoice": "సేల్స్ ఇన్‌వాయిస్ సిద్ధం చేస్తోంది",
       "propose_purchase_invoice": "కొనుగోలు ఇన్‌వాయిస్ సిద్ధం చేస్తోంది",
       "propose_payment_entry": "చెల్లింపు నమోదు సిద్ధం చేస్తోంది",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "వివరణ అడుగుతోంది",
       "navigate": "వెళుతోంది"
     }

@@ -2430,6 +2430,8 @@ const ta: Record<string, unknown> = {
       "propose_sales_invoice": "விற்பனை விலைப்பட்டியல் தயாரிக்கிறது",
       "propose_purchase_invoice": "கொள்முதல் விலைப்பட்டியல் தயாரிக்கிறது",
       "propose_payment_entry": "பணம் செலுத்தும் பதிவைத் தயாரிக்கிறது",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "விளக்கம் கேட்கிறது",
       "navigate": "செல்கிறது"
     }

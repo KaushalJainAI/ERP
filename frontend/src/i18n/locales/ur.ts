@@ -2430,6 +2430,8 @@ const ur: Record<string, unknown> = {
       "propose_sales_invoice": "فروخت کا انوائس تیار کر رہا ہے",
       "propose_purchase_invoice": "خریداری کا انوائس تیار کر رہا ہے",
       "propose_payment_entry": "ادائیگی کا اندراج تیار کر رہا ہے",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "وضاحت پوچھ رہا ہے",
       "navigate": "نیویگیٹ کر رہا ہے"
     }

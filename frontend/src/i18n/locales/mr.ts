@@ -2430,6 +2430,8 @@ const mr: Record<string, unknown> = {
       "propose_sales_invoice": "विक्री बिल तयार करत आहे",
       "propose_purchase_invoice": "खरेदी बिल तयार करत आहे",
       "propose_payment_entry": "पेमेंट नोंद तयार करत आहे",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "स्पष्टीकरण विचारत आहे",
       "navigate": "नेव्हिगेट करत आहे"
     }

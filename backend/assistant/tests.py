@@ -33,6 +33,7 @@ from accounts.models import Account, AccountRootType, AccountType, PaymentEntry
 from core.models import AuditLog, Company
 from selling.models import Customer, CustomerGroup, SalesInvoice, SalesOrder
 from buying.models import ExpenseCategory, PurchaseInvoice, Supplier, SupplierGroup
+from manufacturing.models import BOM, Batch, WorkOrder
 from stock.models import Item, ItemGroup, UOM, Warehouse, Bin
 from hr.models import Employee
 
@@ -59,6 +60,7 @@ from .tools import (
 )
 from .proposals import (
     PROPOSAL_BUILDERS,
+    propose_batch,
     propose_expense,
     propose_payment_entry,
     propose_receipt,
@@ -802,6 +804,22 @@ class AssistantReportToolTests(TestCase):
         self.assertEqual(len(res["orders"]), len(dispatch.pending_orders(self.company.pk)))
 
 
+def assert_no_document_written(test, call):
+    """Run `call`; no INSERT/UPDATE/DELETE may touch a non-assistant table."""
+    with CaptureQueriesContext(connection) as ctx:
+        res = call()
+    for q in ctx.captured_queries:
+        sql_upper = q["sql"].strip().upper()
+        if "ASSISTANT_" in sql_upper:
+            continue
+        for verb in ("INSERT", "UPDATE", "DELETE"):
+            test.assertFalse(
+                sql_upper.startswith(verb),
+                f"Found forbidden non-assistant {verb}: {sql_upper}",
+            )
+    return res
+
+
 class AssistantReceiptExpenseProposalTests(TestCase):
     """propose_receipt (oldest-first allocation) and propose_expense: each makes a
     valid proposal and writes no document; failures leave nothing behind."""
@@ -851,19 +869,7 @@ class AssistantReceiptExpenseProposalTests(TestCase):
         )
 
     def _assert_no_document_written(self, call):
-        """Run `call`; no INSERT/UPDATE/DELETE may touch a non-assistant table."""
-        with CaptureQueriesContext(connection) as ctx:
-            res = call()
-        for q in ctx.captured_queries:
-            sql_upper = q["sql"].strip().upper()
-            if "ASSISTANT_" in sql_upper:
-                continue
-            for verb in ("INSERT", "UPDATE", "DELETE"):
-                self.assertFalse(
-                    sql_upper.startswith(verb),
-                    f"Found forbidden non-assistant {verb}: {sql_upper}",
-                )
-        return res
+        return assert_no_document_written(self, call)
 
     def test_receipt_allocates_oldest_first(self):
         # Created newest first, so creation order cannot explain the result.
@@ -1032,6 +1038,111 @@ class AssistantReceiptExpenseProposalTests(TestCase):
         )
 
 
+class AssistantBatchProposalTests(TestCase):
+    """propose_batch: a valid proposal that opens the Batches screen with the
+    product and quantity filled in; it writes no document, and a failed proposal
+    leaves nothing behind."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="grinder", email="grinder@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.company.unprocessed_warehouse = Warehouse.objects.create(
+            name="Unprocessed", company=self.company
+        )
+        self.company.in_process_warehouse = Warehouse.objects.create(
+            name="In Process", company=self.company
+        )
+        self.company.ready_warehouse = Warehouse.objects.create(
+            name="Ready", company=self.company
+        )
+        self.company.save()
+        BOM.objects.create(
+            name="BOM-HALDI",
+            company=self.company,
+            item=self.item,
+            quantity=Decimal("100"),
+            process_loss_percentage=Decimal("1.25"),
+            is_default=True,
+        )
+
+    def test_batch_proposal_opens_the_batches_screen_and_writes_nothing(self):
+        proposals = AssistantProposal.objects.count()
+        batches = Batch.objects.count()
+        orders = WorkOrder.objects.count()
+
+        res = assert_no_document_written(
+            self,
+            lambda: propose_batch(
+                self.user, item_query="Haldi Powder", quantity="250"
+            ),
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["target"], "manufacturing.Batch")
+        self.assertEqual(res["route"], "/manufacturing/batches")
+        self.assertEqual(res["values"]["bulk_item"], self.item.pk)
+        self.assertEqual(res["values"]["bulk_qty"], "250.000")
+        self.assertEqual(res["values"]["company"], self.company.pk)
+        self.assertEqual(res["warnings"], [])
+        self.assertEqual(res["ai_filled_keys"], ["bulk_item", "bulk_qty"])
+        self.assertTrue(
+            AssistantProposal.objects.filter(pk=res["proposal_id"]).exists()
+        )
+        self.assertEqual(AssistantProposal.objects.count(), proposals + 1)
+        self.assertEqual(Batch.objects.count(), batches)
+        self.assertEqual(WorkOrder.objects.count(), orders)
+
+    def test_batch_proposal_warns_before_the_user_starts_it(self):
+        zero = propose_batch(self.user, item_query="Haldi Powder", quantity="0")
+        self.assertEqual(zero.get("type"), "proposal")
+        self.assertTrue(any("greater than zero" in w for w in zero["warnings"]))
+
+        garbage = propose_batch(self.user, item_query="Haldi Powder", quantity="abc")
+        self.assertEqual(garbage["values"]["bulk_qty"], "0.000")
+        self.assertTrue(any("greater than zero" in w for w in garbage["warnings"]))
+
+        Item.objects.create(
+            code="SAUNF-NOBOM",
+            name="Saunf Unbomed",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_active=True,
+        )
+        no_bom = propose_batch(self.user, item_query="Saunf Unbomed", quantity="50")
+        self.assertEqual(no_bom.get("type"), "proposal")
+        self.assertTrue(any("no default BOM" in w for w in no_bom["warnings"]))
+
+        self.company.ready_warehouse = None
+        self.company.save()
+        no_stages = propose_batch(self.user, item_query="Haldi Powder", quantity="50")
+        self.assertTrue(any("warehouses" in w for w in no_stages["warnings"]))
+
+    def test_batch_proposal_failure_paths_write_nothing(self):
+        batches = Batch.objects.count()
+        proposals = AssistantProposal.objects.count()
+
+        unknown = propose_batch(self.user, item_query="Nonsense Masala", quantity="10")
+        self.assertEqual(unknown.get("error"), "item_not_found")
+        self.assertEqual(AssistantProposal.objects.count(), proposals)
+        self.assertEqual(Batch.objects.count(), batches)
+
+    def test_batch_proposal_needs_create_permission(self):
+        plain = User.objects.create_user(
+            username="plain-batch", email="pb@erp.local", password="password"
+        )
+        proposals = AssistantProposal.objects.count()
+
+        res = assert_no_document_written(
+            self,
+            lambda: propose_batch(plain, item_query="Haldi Powder", quantity="50"),
+        )
+
+        self.assertEqual(res.get("error"), "permission_denied")
+        self.assertEqual(AssistantProposal.objects.count(), proposals)
+
+
 class AssistantToolRegistryTests(TestCase):
     """Every proposal builder is offered to the model with exactly its declared arguments."""
 
@@ -1059,6 +1170,7 @@ class AssistantToolRegistryTests(TestCase):
             "/accounts/bills-to-pay",
             "/accounts/gst-position",
             "/selling/pending-orders",
+            "/manufacturing/batches",
         ):
             self.assertEqual(navigate(route)["type"], "navigate", route)
         self.assertEqual(navigate("/accounts/not-a-page").get("error"), "invalid_route")

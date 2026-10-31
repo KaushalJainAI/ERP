@@ -471,6 +471,27 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_batch",
+            "description": "Prepare a production batch for user review: grind a quantity of a bulk item (e.g. grinding haldi into powder). Opens the Batches screen; the user starts it. Never writes to DB.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "item_query": {
+                        "type": "string",
+                        "description": "Bulk item name or code to grind",
+                    },
+                    "quantity": {
+                        "type": "number",
+                        "description": "Bulk quantity to grind, in kg",
+                    },
+                },
+                "required": ["item_query", "quantity"],
+            },
+        },
+    },
 ]
 
 

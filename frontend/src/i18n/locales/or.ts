@@ -2430,6 +2430,8 @@ const or: Record<string, unknown> = {
       "propose_sales_invoice": "ବିକ୍ରୟ ଚାଲାଣ ପ୍ରସ୍ତୁତ କରୁଛି",
       "propose_purchase_invoice": "କ୍ରୟ ଚାଲାଣ ପ୍ରସ୍ତୁତ କରୁଛି",
       "propose_payment_entry": "ଦେୟ ଏଣ୍ଟ୍ରି ପ୍ରସ୍ତୁତ କରୁଛି",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "ସ୍ପଷ୍ଟୀକରଣ ପଚାରୁଛି",
       "navigate": "ନେଭିଗେଟ୍ କରୁଛି"
     }

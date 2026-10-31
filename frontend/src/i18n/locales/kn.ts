@@ -2430,6 +2430,8 @@ const kn: Record<string, unknown> = {
       "propose_sales_invoice": "ಮಾರಾಟ ಸರಕುಪಟ್ಟಿ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ",
       "propose_purchase_invoice": "ಖರೀದಿ ಸರಕುಪಟ್ಟಿ ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ",
       "propose_payment_entry": "ಪಾವತಿ ನಮೂದನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ",
+      "propose_expense": "Preparing Expense",
+      "propose_batch": "Preparing Batch",
       "ask_user": "ಸ್ಪಷ್ಟೀಕರಣ ಕೇಳಲಾಗುತ್ತಿದೆ",
       "navigate": "ತೆರಳಲಾಗುತ್ತಿದೆ"
     }

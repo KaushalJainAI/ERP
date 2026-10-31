@@ -38,6 +38,8 @@ export const enAssistant = {
   "assistant.steps.propose_sales_invoice": "Preparing Sales Invoice",
   "assistant.steps.propose_purchase_invoice": "Preparing Purchase Invoice",
   "assistant.steps.propose_payment_entry": "Preparing Payment Entry",
+  "assistant.steps.propose_expense": "Preparing Expense",
+  "assistant.steps.propose_batch": "Preparing Batch",
   "assistant.steps.ask_user": "Asking clarification",
   "assistant.steps.navigate": "Navigating",
 };

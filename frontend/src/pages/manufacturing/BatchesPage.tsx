@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import { AlertTriangle, Check, Info, LayoutGrid, Loader2, PackageCheck, Plus, Trash2, X } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -55,6 +56,9 @@ type PackResult = { batch: BatchRow; bulk_used: string; bulk_packed: string; pac
 type Notice = { id: number; tone: "info" | "warn"; label: string; text: string };
 
 type PackLine = { key: number; sku: string; packets: string };
+
+/** Product and quantity for the New batch form, from an assistant proposal. */
+type BatchSeed = { product: string; qty: string };
 
 /* ---- helpers ---- */
 
@@ -122,13 +126,14 @@ const ErrorList: React.FC<{ lines: string[] }> = ({ lines }) => (
 const NewBatchForm: React.FC<{
   companyId: number | null;
   boms: ActiveBom[];
+  seed: BatchSeed | null;
   onSaved: (batch: BatchRow) => void;
-}> = ({ companyId, boms, onSaved }) => {
+}> = ({ companyId, boms, seed, onSaved }) => {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const toast = useToast();
-  const [product, setProduct] = useState("");
-  const [qty, setQty] = useState("");
+  const [product, setProduct] = useState(seed?.product ?? "");
+  const [qty, setQty] = useState(seed?.qty ?? "");
   const [errors, setErrors] = useState<string[]>([]);
 
   const bom = boms.find((b) => String(b.item) === product) ?? null;
@@ -555,10 +560,18 @@ export const BatchesPage: React.FC = () => {
   const { t } = useTranslation();
   const toast = useToast();
   const qc = useQueryClient();
+  const location = useLocation();
   const { activeCompany } = useCompany();
   const companyId = activeCompany?.id ?? null;
 
-  const [newOpen, setNewOpen] = useState(false);
+  // A batch proposed by the assistant opens the New batch form filled in (propose_batch).
+  const proposed = (location.state as { initialValues?: { bulk_item?: unknown; bulk_qty?: unknown } } | null)
+    ?.initialValues;
+  const proposedSeed: BatchSeed | null = proposed
+    ? { product: String(proposed.bulk_item ?? ""), qty: String(proposed.bulk_qty ?? "") }
+    : null;
+  const [newBatchSeed, setNewBatchSeed] = useState<BatchSeed | null>(proposedSeed);
+  const [newOpen, setNewOpen] = useState<boolean>(proposedSeed !== null);
   const [finishing, setFinishing] = useState<BatchRow | null>(null);
   const [packing, setPacking] = useState<BatchRow | null>(null);
   const [cancelling, setCancelling] = useState<BatchRow | null>(null);
@@ -601,6 +614,11 @@ export const BatchesPage: React.FC = () => {
       toast.error(errorLines(err, t("common.forbidden"), t("common.action_failed")).join(" "));
     },
   });
+
+  const closeNew = () => {
+    setNewOpen(false);
+    setNewBatchSeed(null);
+  };
 
   const today = todayISO();
   const grinding = batches.filter((b) => b.status === "Grinding").sort(byCreatedAsc);
@@ -722,13 +740,14 @@ export const BatchesPage: React.FC = () => {
         open={newOpen}
         title={t("batches.new.title")}
         description={t("batches.new.description")}
-        onClose={() => setNewOpen(false)}
+        onClose={closeNew}
       >
         {newOpen && (
           <NewBatchForm
             companyId={companyId}
             boms={boms}
-            onSaved={() => setNewOpen(false)}
+            seed={newBatchSeed}
+            onSaved={closeNew}
           />
         )}
       </Modal>

@@ -32,11 +32,14 @@ interface AssistantPanelProps {
   initialQuery?: string;
 }
 
+/** Card title by proposal target, or by route where one target serves two forms (an expense is a Purchase Invoice). */
 const PROPOSAL_LABEL_KEYS: Record<string, string> = {
   "selling.SalesOrder": "assistant.steps.propose_sales_order",
   "selling.SalesInvoice": "assistant.steps.propose_sales_invoice",
   "buying.PurchaseInvoice": "assistant.steps.propose_purchase_invoice",
   "accounts.PaymentEntry": "assistant.steps.propose_payment_entry",
+  "/accounts/expenses/new": "assistant.steps.propose_expense",
+  "/manufacturing/batches": "assistant.steps.propose_batch",
 };
 
 const STARTER_SUGGESTIONS = [
@@ -382,7 +385,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       <div className="flex items-center justify-between gap-2 border-b border-emerald-500/20 pb-2">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
                           <FileText className="w-3.5 h-3.5" />
-                          {t(PROPOSAL_LABEL_KEYS[m.proposal.target] ?? "assistant.review_banner_title")}
+                          {t(
+                            PROPOSAL_LABEL_KEYS[m.proposal.route] ??
+                              PROPOSAL_LABEL_KEYS[m.proposal.target] ??
+                              "assistant.review_banner_title",
+                          )}
                         </span>
                         {m.proposal.warnings && m.proposal.warnings.length > 0 && (
                           <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-medium">

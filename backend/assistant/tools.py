@@ -715,6 +715,7 @@ SAFE_ROUTES = {
     "/stock/items",
     "/stock/stock-entries",
     "/accounts/reports/general-ledger",
+    "/manufacturing/batches",
 }
 
 

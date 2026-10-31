@@ -1219,6 +1219,100 @@ def propose_expense(
     }
 
 
+def propose_batch(
+    user,
+    item_query: str,
+    quantity: Any,
+    company: Optional[Any] = None,
+    message: Optional[AssistantMessage] = None,
+) -> Dict[str, Any]:
+    """Build a proposal to start a production batch: grind `quantity` of a bulk item.
+
+    Opens the Batches screen with the product and quantity filled in. The user
+    presses Start there. Starting posts the grinding Work Order, so this only reads:
+    it checks the rules batches.start_grinding applies (positive quantity, default
+    BOM, stage warehouses) and reports them as warnings. Never saves a Batch or a
+    WorkOrder row.
+    """
+    if not user_has_model_permission(user, "manufacturing.WorkOrder", "can_create"):
+        return {
+            "error": "permission_denied",
+            "message": _("You do not have permission to create Production Batches."),
+        }
+
+    picked = _pick_one(find_item(item_query), "item", item_query, lambda it: it.name)
+    if "record" not in picked:
+        return picked
+    item = picked["record"]
+
+    Company = apps.get_model("core.Company")
+    co = Company.objects.filter(pk=company).first() if company else None
+    co = co or Company.objects.first()
+    if co is None:
+        return {"error": "company_not_found", "message": _("Company not found.")}
+
+    warnings: List[str] = []
+    try:
+        parsed_qty = Decimal(str(quantity)).quantize(Decimal("0.001"))
+    except (InvalidOperation, TypeError, ValueError):
+        parsed_qty = Decimal("0.000")
+    if not parsed_qty.is_finite() or parsed_qty <= 0:
+        parsed_qty = Decimal("0.000")
+        warnings.append(_("Quantity must be greater than zero."))
+
+    BOM = apps.get_model("manufacturing.BOM")
+    if not BOM.objects.filter(
+        company=co, item=item, is_default=True, is_active=True
+    ).exists():
+        warnings.append(
+            _("Item '%(code)s' has no default BOM; set one before starting the batch.")
+            % {"code": item.code}
+        )
+    if not (
+        co.unprocessed_warehouse_id and co.in_process_warehouse_id and co.ready_warehouse_id
+    ):
+        warnings.append(
+            _(
+                "Set the Unprocessed, In Process and Ready warehouses for the "
+                "company first."
+            )
+        )
+
+    initial_values = {
+        "company": co.pk,
+        "bulk_item": item.pk,
+        "bulk_item_name": item.name,
+        "bulk_qty": str(parsed_qty),
+    }
+    ai_filled_keys = ["bulk_item", "bulk_qty"]
+    summary = _("Batch: %(qty)s of %(item)s") % {
+        "qty": parsed_qty,
+        "item": item.name,
+    }
+
+    proposal = AssistantProposal.objects.create(
+        message=message,
+        target="manufacturing.Batch",
+        route="/manufacturing/batches",
+        values=initial_values,
+        summary=summary,
+        ai_filled_keys=ai_filled_keys,
+        warnings=warnings,
+        status="proposed",
+    )
+
+    return {
+        "type": "proposal",
+        "proposal_id": str(proposal.id),
+        "target": proposal.target,
+        "route": proposal.route,
+        "values": initial_values,
+        "summary": summary,
+        "ai_filled_keys": ai_filled_keys,
+        "warnings": warnings,
+    }
+
+
 PROPOSAL_BUILDERS = {
     "propose_sales_order": propose_sales_order,
     "propose_sales_invoice": propose_sales_invoice,
@@ -1226,4 +1320,5 @@ PROPOSAL_BUILDERS = {
     "propose_payment_entry": propose_payment_entry,
     "propose_receipt": propose_receipt,
     "propose_expense": propose_expense,
+    "propose_batch": propose_batch,
 }
