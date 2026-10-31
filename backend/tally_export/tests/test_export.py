@@ -20,6 +20,7 @@ from accounts.models import (
     GLEntry,
     JournalEntry,
     JournalEntryLine,
+    OpeningBill,
     PaymentEntry,
     PaymentEntryReference,
     PaymentType,
@@ -40,9 +41,12 @@ from stock.models import (
     UOM,
     Item,
     ItemGroup,
+    ReconciliationPurpose,
     StockEntry,
     StockEntryItem,
     StockEntryType,
+    StockReconciliation,
+    StockReconciliationItem,
     Warehouse,
 )
 from tally_export.models import (
@@ -759,6 +763,115 @@ class MappingAndPreflightTests(Base):
         pre = svc.preflight(self.company)
         self.assertEqual(len(pre["vouchers"]), 1)
         self.assertEqual([s["name"] for s in pre["skipped"]], [opening.name])
+
+    def opening_bill(self, amount="50.00"):
+        bill = OpeningBill(
+            name=self.name("OB"),
+            company=self.company,
+            party_type="Customer",
+            party="Cust",
+            account=self.debtors,
+            bill_date=DATE,
+            due_date=DATE,
+            as_on=DATE,
+            amount=D(amount),
+        )
+        bill.save()
+        bill.submit()
+        return bill
+
+    def stock_count(self, purpose, qty, warehouse, expense):
+        reco = StockReconciliation(
+            name=self.name("MR"),
+            company=self.company,
+            posting_date=DATE,
+            purpose=purpose,
+            expense_account=expense,
+        )
+        reco.save()
+        StockReconciliationItem.objects.create(
+            reconciliation=reco,
+            item=self.chilli,
+            warehouse=warehouse,
+            qty=D(qty),
+            valuation_rate=D(40),
+        )
+        reco.submit()
+        return reco
+
+    def test_opening_bills_and_opening_stock_never_reach_the_export(self):
+        self.map_all()
+        temp_open = _acc(self.company, "Temporary Opening", AccountRootType.EQUITY)
+        # Normal business: a purchase and a stock count, both still exported.
+        pi = self.purchase()
+        count = self.stock_count(
+            ReconciliationPurpose.STOCK_RECONCILIATION, "7", self.wh, self.adjustment
+        )
+        # Opening entries: an Opening Stock count, an opening bill and an Opening Entry.
+        opening_count = self.stock_count(
+            ReconciliationPurpose.OPENING_STOCK, "5", self.wh2, temp_open
+        )
+        bill = self.opening_bill()
+        opening_jv = self.journal(
+            [(self.rent, "7.00", "0.00"), (self.cash, "0.00", "7.00")],
+            voucher_type="Opening Entry",
+        )
+        # The opening count is a real ledger posting (so the exclusion matters).
+        self.assertTrue(GLEntry.objects.filter(voucher_no=opening_count.name).exists())
+
+        pre = svc.preflight(self.company)
+        skipped = {s["name"]: s["reason"] for s in pre["skipped"]}
+        self.assertEqual(skipped.get(opening_count.name), "opening_stock")
+        self.assertEqual(skipped.get(opening_jv.name), "opening_entry")
+        self.assertNotIn(count.name, skipped)
+        listed = {v["name"] for v in pre["vouchers"]}
+        self.assertIn(pi.name, listed)
+        self.assertIn(count.name, listed)
+        self.assertNotIn(opening_count.name, listed)
+        self.assertNotIn(opening_jv.name, listed)
+
+        batch = self.export()
+        xml = self.read(batch)
+        for name in (opening_count.name, opening_jv.name, bill.name):
+            self.assertNotIn(name.encode(), xml, name)
+        self.assertIn(pi.name.encode(), xml)
+        self.assertIn(count.name.encode(), xml)
+        self.assertFalse(
+            TallyExportedVoucher.objects.filter(name=opening_count.name).exists()
+        )
+
+    def test_receipt_settling_an_opening_bill_is_on_account_in_tally(self):
+        self.map_all()
+        bill = self.opening_bill(amount="50.00")
+        pay = PaymentEntry.objects.create(
+            name=self.name("PE"),
+            payment_type=PaymentType.RECEIVE,
+            posting_date=DATE,
+            company=self.company,
+            party_type="Customer",
+            party_name="Cust",
+            paid_from=self.debtors,
+            paid_to=self.bank,
+            paid_amount=D("50.00"),
+            received_amount=D("50.00"),
+        )
+        PaymentEntryReference.objects.create(
+            payment_entry=pay,
+            reference_doctype="accounts.OpeningBill",
+            reference_name=bill.name,
+            allocated_amount=D("50.00"),
+        )
+        pay.submit()
+
+        batch = self.export()
+        voucher = self.vouchers(batch)[pay.name]
+        bill_types = [
+            b.findtext("BILLTYPE") for b in voucher["el"].iter("BILLALLOCATIONS.LIST")
+        ]
+        self.assertEqual(bill_types, ["On Account"])
+        self.assertNotIn(bill.name.encode(), self.read(batch))
+        bill.refresh_from_db()
+        self.assertEqual(bill.outstanding_amount, D("0.00"))
 
     def test_date_range_filters(self):
         self.map_all()

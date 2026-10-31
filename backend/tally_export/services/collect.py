@@ -12,7 +12,7 @@ from django.apps import apps
 from django.db.models import Case, Count, IntegerField, Min, When
 
 from accounts.models import GLEntry
-from tally_export.constants import NEVER_EXPORTED_DOCTYPES
+from tally_export.constants import NEVER_EXPORTED_DOCTYPES, OPENING_DOCTYPES
 from tally_export.models import TallyExportedVoucher
 
 Key = Tuple[str, str]  # (doctype "app.Model", voucher number)
@@ -119,6 +119,18 @@ def list_refs(
         )
         .values_list("name", flat=True)
     )
+    # Opening Stock counts (planning 09) are the stock Tally already holds.
+    from stock.models import ReconciliationPurpose
+
+    opening_stock = set(
+        apps.get_model("stock.StockReconciliation")
+        .objects.filter(
+            company=company,
+            purpose=ReconciliationPurpose.OPENING_STOCK,
+            name__in=[k[1] for k in found if k[0] == "stock.StockReconciliation"],
+        )
+        .values_list("name", flat=True)
+    )
     prev = last_exports(company)
     refs: List[VoucherRef] = []
     for key in sorted(found, key=lambda k: (found[k].posting_date, k)):
@@ -126,6 +138,12 @@ def list_refs(
         ref.prev = prev.get(key)
         if key[0] == "accounts.JournalEntry" and key[1] in openings:
             skipped.append({**_skip(ref), "reason": "opening_entry"})
+            continue
+        if key[0] == "stock.StockReconciliation" and key[1] in opening_stock:
+            skipped.append({**_skip(ref), "reason": "opening_stock"})
+            continue
+        if key[0] in OPENING_DOCTYPES:
+            skipped.append({**_skip(ref), "reason": "opening_bill"})
             continue
         if key[0] in NEVER_EXPORTED_DOCTYPES:
             skipped.append({**_skip(ref), "reason": "period_closing"})

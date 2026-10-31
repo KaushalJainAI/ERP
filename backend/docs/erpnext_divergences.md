@@ -701,3 +701,6 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 
 - **Integrity: errors and a warning.** `verify_integrity` (step 17) fails when a bill's stored `outstanding_amount` is not its amount less its live allocations, or when a submitted bill's party is no longer a master of its company; `repost_outstanding` repairs drift. A party whose submitted opening bills do not add up to its ledger balance on the bills' `as_on` date is a **warning only**, because the cutover balances may still be retaken from Tally before go-live (planning 09).
 
+- **Receipts against opening bills export to Tally as On Account.** Tally holds the opening balance as a ledger balance, not as a bill of the ERP's name, so an `Agst Ref` to an opening bill would point at a bill Tally does not have. The export sends such a receipt On Account. Tally's own pending-bill list for those parties is not cleared by the export; the accountant clears it in Tally.
+- **Opening entries never export.** Opening bills post no GL, so nothing of theirs reaches the export. An Opening Stock reconciliation (purpose `Opening Stock`) is excluded (ERPNext has no Tally export), and so is the `Opening Entry` journal. Preflight lists each in `skipped` with its reason (`opening_stock`, `opening_entry`, `opening_bill`).
+

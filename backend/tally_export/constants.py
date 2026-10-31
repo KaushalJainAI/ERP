@@ -53,6 +53,13 @@ GST_LEDGER_NAMES = {
 #: year-end Period Closing Voucher would double-close the books.
 NEVER_EXPORTED_DOCTYPES = ["accounts.PeriodClosingVoucher", "accounts.TaxPayment"]
 
+#: Opening bills (planning 09) are the outstanding balances Tally already holds, so they
+#: are never exported. An opening bill posts no GL, so it has no voucher to skip; the rule
+#: stays so that such a document could never reach Tally. A receipt that settles one is
+#: a new payment and is exported, On Account (see build._bill). An Opening Stock
+#: reconciliation is skipped by its purpose (collect.list_refs).
+OPENING_DOCTYPES = ["accounts.OpeningBill"]
+
 #: Voucher names with these prefixes were imported from Tally; they are history.
 DEFAULT_EXCLUDED_PREFIXES = ["TLY-"]
 

@@ -364,6 +364,11 @@ def _bill(draft: VoucherDraft, ln: _Line) -> Bill:
         # sits "On Account" (no bill name), so the debit side of the reconciling
         # Journal is On Account too and nets against it.
         return Bill("On Account", "", ln.amount)
+    if ln.against_type in C.OPENING_DOCTYPES:
+        # A receipt that settles an opening bill (planning 09). Tally holds that balance
+        # as a ledger balance, not as a bill of the ERP's name, so the receipt is On
+        # Account rather than an Agst Ref to a bill Tally does not have.
+        return Bill("On Account", "", ln.amount)
     if ln.against_no:
         return Bill("Agst Ref", ln.against_no, ln.amount)
     return Bill("On Account", "", ln.amount)
