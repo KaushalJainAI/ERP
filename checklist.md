@@ -533,7 +533,7 @@ question's recorded answer.
 - [x] N-6 Digest and weekly emails
 - [x] N-7 Instant alerts
 - [x] N-8 Scheduler
-- [ ] N-9 Bell and alert settings
+- [x] N-9 Bell and alert settings
 - [ ] N-10 Turn it on (OWNER)
 
 ### 8. Hindi agent and translation

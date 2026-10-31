@@ -41,6 +41,7 @@ import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
 import { NewExpensePage } from "@/pages/accounts/NewExpensePage";
 import { GstPositionPage } from "@/pages/accounts/GstPositionPage";
+import { AlertSettingsPage } from "@/pages/notifications/AlertSettingsPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
@@ -419,6 +420,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <SalesAnalyticsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings/alerts"
+        element={
+          <ProtectedRoute>
+            <AlertSettingsPage />
           </ProtectedRoute>
         }
       />

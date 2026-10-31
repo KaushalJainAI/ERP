@@ -2641,6 +2641,17 @@ const hi: Record<string, unknown> = {
     dismiss: "हटाएं",
     total_dispatch_units: "{{units}} यूनिट भेजने के लिए",
   },
+  notifications: {
+    title: "सूचनाएं",
+    unread: "नई",
+    mark_all_read: "सभी को पढ़ा हुआ चिह्नित करें",
+    no_notifications: "कोई नई सूचना नहीं है।",
+    alert_settings: "अलर्ट सेटिंग्स",
+    rules_title: "अलर्ट और सूचना नियम",
+    rules_subtitle: "स्वचालित अलर्ट सीमाएं, ईमेल शेड्यूल और प्राप्तकर्ता कॉन्फ़िगर करें।",
+    threshold_days: "सीमा (दिन)",
+    recipients: "प्राप्तकर्ता:",
+  },
 };
 
 export default hi;

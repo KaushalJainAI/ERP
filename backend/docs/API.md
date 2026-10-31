@@ -487,4 +487,20 @@ Models: `AssistantConversation`, `AssistantMessage`, `AssistantProposal`. Endpoi
 | `proposals/{id}/abandoned/` | POST | Mark that the user navigated away without saving | IsAuthenticated (owner only) | O(1) | ✅ | (plain dict) | AssistantProposal | No | Status transitions to `abandoned` |
 | `transcribe/` | POST multipart `file` | Audio to text via OpenRouter Voxtral; 503 `stt_unavailable` when the service fails | IsAuthenticated | O(audio) | ✅ | (plain dict) | — | N/A | Throttled via `AssistantTranscribeThrottle` |
 
+---
+
+## Notifications & Alerts — app: `notifications` — [notifications/views.py](../notifications/views.py)
+
+Models: `Notification`, `AlertRule`.
+
+| URL (`/api/notifications/…`) | Methods | What | Access | Complexity | Tested | Serializer | DB tables | Atomic | Notes |
+|-----|--------|------|--------|-----------|--------|-----------|-----------|--------|-------|
+| `notifications/` | GET | List authenticated user's notifications (newest first, paginated) | Authenticated (owner only) | O(n) | ✅ | `NotificationSerializer` | Notification | No | Filters by `user=request.user` |
+| `notifications/{id}/read/` | POST | Mark a notification as read (`is_read=True`) | Authenticated (owner only) | O(1) | ✅ | `NotificationSerializer` | Notification | No | |
+| `notifications/read-all/` | POST | Mark all notifications for current user as read | Authenticated (owner only) | O(n) | ✅ | Plain dict `{"marked": count}` | Notification | Yes | |
+| `notifications/unread-count/` | GET | Count unread notifications for current user | Authenticated (owner only) | O(1) | ✅ | Plain dict `{"unread_count": count}` | Notification | No | |
+| `rules/` | GET | List all alert rules with recipients | IsAdminOrStaff | O(n) | ✅ | `AlertRuleSerializer` | AlertRule, User | No | Admin/Staff configuration |
+| `rules/{id}/` | GET, PUT, PATCH | Retrieve or update alert rule (`is_active`, `days`, `recipients`) | IsAdminOrStaff | O(1) | ✅ | `AlertRuleSerializer` | AlertRule, User | Yes | Configures threshold days, active status, recipients |
+
+
 

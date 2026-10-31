@@ -119,4 +119,15 @@ export const enExtra = {
     make_sales_invoice: "Make Sales Invoice",
     make_payment_entry: "Make Payment Entry",
   },
+  notifications: {
+    title: "Notifications",
+    unread: "new",
+    mark_all_read: "Mark all as read",
+    no_notifications: "No notifications yet.",
+    alert_settings: "Alert Settings",
+    rules_title: "Alert & Notification Rules",
+    rules_subtitle: "Configure automated alert thresholds, email schedules, and staff recipients.",
+    threshold_days: "Threshold (days)",
+    recipients: "Recipients:",
+  },
 };

@@ -20,6 +20,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useActiveModule, useModuleNav, type ModuleNav } from "@/resources/nav";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { NotificationBell } from "./notifications/NotificationBell";
 import { GlobalSearch } from "./GlobalSearch";
 import { badgeClass, useNavBadges } from "@/resources/navBadges";
 
@@ -477,6 +478,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
           <div className="hidden sm:block">
             <LanguageSwitcher compact />
           </div>
+          <NotificationBell />
           <ThemeToggle />
           <UserMenu />
         </div>

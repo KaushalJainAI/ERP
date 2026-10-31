@@ -56,21 +56,22 @@ class NotificationModelTests(TestCase):
         self.assertIsNotNone(n2.pk)
 
     def test_alert_rule_seed_idempotency(self):
-        """Seeding alert rules creates the 9 defined rules and running again adds no duplicates."""
+        """Seeding alert rules creates the defined rules and running again adds no duplicates."""
         self.assertEqual(AlertRule.objects.count(), 0)
 
+        expected_count = len(DEFAULT_ALERT_RULES)
         created_first = seed_alert_rules()
-        self.assertEqual(created_first, 9)
-        self.assertEqual(AlertRule.objects.count(), 9)
+        self.assertEqual(created_first, expected_count)
+        self.assertEqual(AlertRule.objects.count(), expected_count)
 
-        # All 9 keys exist
+        # All keys exist
         existing_keys = set(AlertRule.objects.values_list("key", flat=True))
         self.assertEqual(existing_keys, set(DEFAULT_ALERT_RULES))
 
         # Second seed run should create 0 new rules
         created_second = seed_alert_rules()
         self.assertEqual(created_second, 0)
-        self.assertEqual(AlertRule.objects.count(), 9)
+        self.assertEqual(AlertRule.objects.count(), expected_count)
 
     def test_alert_rule_recipients_and_days(self):
         """AlertRule supports M2M recipients and threshold days."""
@@ -604,6 +605,110 @@ class SchedulerTests(TestCase):
 
         self.assertIsNone(res1)
         self.assertEqual(res2, "ok")
+
+
+class NotificationAPITests(TestCase):
+    def setUp(self):
+        from rest_framework.test import APIClient
+
+        self.client = APIClient()
+        self.admin = User.objects.create_superuser(
+            username="admin_api",
+            email="admin@nidhimasala.com",
+            password="pass",
+        )
+        self.staff1 = User.objects.create_user(
+            username="staff1",
+            email="staff1@example.com",
+            password="pass",
+        )
+        self.staff2 = User.objects.create_user(
+            username="staff2",
+            email="staff2@example.com",
+            password="pass",
+        )
+
+        self.n1 = Notification.objects.create(
+            user=self.staff1,
+            rule_key="raw_material_shortage",
+            message_key="alert.raw_material_shortage",
+            params={"item": "Jeera"},
+            link="/stock/items/1",
+            dedupe_key="notif_1",
+        )
+        self.n2 = Notification.objects.create(
+            user=self.staff2,
+            rule_key="large_order",
+            message_key="alert.large_order",
+            params={"order": "SO-1"},
+            link="/selling/orders/1",
+            dedupe_key="notif_2",
+        )
+        self.rule = AlertRule.objects.create(
+            key="raw_material_shortage",
+            is_active=True,
+            days=5,
+        )
+
+    def test_list_and_unread_count_isolated(self):
+        self.client.force_authenticate(user=self.staff1)
+        res = self.client.get("/api/notifications/")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        results = data["results"] if isinstance(data, dict) and "results" in data else data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], self.n1.id)
+
+        res_count = self.client.get("/api/notifications/unread-count/")
+        self.assertEqual(res_count.status_code, 200)
+        self.assertEqual(res_count.json()["count"], 1)
+
+    def test_cannot_read_other_users_notification(self):
+        self.client.force_authenticate(user=self.staff1)
+        # Attempting to read staff2's notification returns 404
+        res = self.client.post(f"/api/notifications/{self.n2.id}/read/")
+        self.assertEqual(res.status_code, 404)
+
+        # Reading own notification succeeds
+        res_own = self.client.post(f"/api/notifications/{self.n1.id}/read/")
+        self.assertEqual(res_own.status_code, 200)
+        self.n1.refresh_from_db()
+        self.assertIsNotNone(self.n1.read_at)
+
+    def test_read_all(self):
+        self.client.force_authenticate(user=self.staff1)
+        res = self.client.post("/api/notifications/read-all/")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["status"], "all_read")
+        self.n1.refresh_from_db()
+        self.assertIsNotNone(self.n1.read_at)
+
+        res_count = self.client.get("/api/notifications/unread-count/")
+        self.assertEqual(res_count.json()["count"], 0)
+
+    def test_alert_rule_admin_permissions(self):
+        # Non-admin cannot update alert rule
+        self.client.force_authenticate(user=self.staff1)
+        res_patch = self.client.patch(
+            f"/api/notifications/rules/{self.rule.id}/",
+            {"is_active": False, "days": 10},
+            format="json",
+        )
+        self.assertEqual(res_patch.status_code, 403)
+
+        # Admin can update alert rule
+        self.client.force_authenticate(user=self.admin)
+        res_admin = self.client.patch(
+            f"/api/notifications/rules/{self.rule.id}/",
+            {"is_active": False, "days": 10, "recipients": [self.staff1.id]},
+            format="json",
+        )
+        self.assertEqual(res_admin.status_code, 200)
+        self.rule.refresh_from_db()
+        self.assertFalse(self.rule.is_active)
+        self.assertEqual(self.rule.days, 10)
+        self.assertIn(self.staff1, self.rule.recipients.all())
+
 
 
 
