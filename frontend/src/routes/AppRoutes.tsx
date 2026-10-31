@@ -36,6 +36,8 @@ import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
 import { SalesAnalyticsPage } from "@/pages/selling/SalesAnalyticsPage";
 import { PendingOrdersPage } from "@/pages/selling/PendingOrdersPage";
+import { CollectionsPage } from "@/pages/accounts/CollectionsPage";
+import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
@@ -172,6 +174,23 @@ export const AppRoutes: React.FC = () => {
         }
       />
 
+      {/* Accounts: Collections, Bills to Pay, GL Entries, etc. */}
+      <Route
+        path="/accounts/collections"
+        element={
+          <ProtectedRoute>
+            <CollectionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/bills-to-pay"
+        element={
+          <ProtectedRoute>
+            <BillsToPayPage />
+          </ProtectedRoute>
+        }
+      />
       {/* Accounts: GL Entries list and the four financial reports (hand-written pages). */}
       <Route
         path="/accounts/gl-entries"

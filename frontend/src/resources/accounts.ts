@@ -352,6 +352,8 @@ export const accountsResources: ResourceConfig[] = [accountsMaster, journalEntri
 
 /** Sidebar links to the hand-written Accounts pages (GL Entries list + the four reports). */
 export const accountsLinks: NavLink[] = [
+  { path: "/accounts/collections", labelKey: "acc.nav.collections", icon: Wallet, group: "transactions" },
+  { path: "/accounts/bills-to-pay", labelKey: "acc.nav.bills_to_pay", icon: FileSpreadsheet, group: "transactions" },
   { path: "/accounts/gl-entries", labelKey: "acc.nav.gl_entries", icon: Library, group: "reports" },
   { path: "/accounts/reports/trial-balance", labelKey: "acc.nav.trial_balance", icon: Scale },
   { path: "/accounts/reports/general-ledger", labelKey: "acc.nav.general_ledger", icon: BarChart3 },
