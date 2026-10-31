@@ -540,7 +540,7 @@ question's recorded answer.
 - [x] H-1 Order proposals
 - [x] H-2 Correct warehouses
 - [x] H-3 Hindi and Latin matching
-- [ ] H-4 Rank by habit
+- [x] H-4 Rank by habit
 - [ ] H-5 Read tools
 - [ ] H-6 More proposals
 - [ ] H-7 Evaluation (OWNER for sentences)

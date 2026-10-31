@@ -7,12 +7,13 @@ AssistantProposal for audit and form prefill handoff. The actual ERP document
 is ONLY ever saved by the human user from the frontend form.
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 import logging
 from typing import Any, Dict, List, Optional
 
 from django.apps import apps
+from django.db.models import Count
 from django.utils.translation import gettext as _
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
@@ -63,6 +64,91 @@ def _pick_one(found: Dict[str, Any], kind: str, query: Any, label) -> Dict[str, 
     }
 
 
+def _customer_choice_label(customer) -> str:
+    """Format customer option with town and last order date if available."""
+    parts = []
+    addr = getattr(customer, "addresses", None)
+    if addr:
+        first_addr = addr.filter(is_active=True).first()
+        if first_addr and first_addr.city:
+            parts.append(first_addr.city)
+
+    so = getattr(customer, "sales_orders", None)
+    if so:
+        last_date = (
+            so.filter(docstatus__lt=2)
+            .order_by("-transaction_date")
+            .values_list("transaction_date", flat=True)
+            .first()
+        )
+        if last_date:
+            parts.append(f"last order: {last_date}")
+
+    if parts:
+        return f"{customer.name} ({', '.join(parts)})"
+    return customer.name
+
+
+def _pick_item_with_habit(
+    found: Dict[str, Any],
+    query: Any,
+    customer: Any,
+    warnings: List[str],
+) -> Dict[str, Any]:
+    """Pick item, ranking by customer's last 90 days of SalesOrderItem lines when known.
+
+    If one item covers >= 80% of their matching lines, return it with a warning to confirm
+    rather than asking. Otherwise ask, showing usual pack first.
+    """
+    records = found.get("records", [])
+    if len(records) == 1 and found.get("certain"):
+        return {"record": records[0]}
+
+    if not records:
+        return {
+            "error": "item_not_found",
+            "message": _("Item '%(query)s' not found.") % {"query": query},
+        }
+
+    # If customer is known and multiple records match:
+    if len(records) > 1 and customer:
+        SalesOrderItem = apps.get_model("selling.SalesOrderItem")
+        cutoff = date.today() - timedelta(days=90)
+        so_lines = SalesOrderItem.objects.filter(
+            sales_order__customer=customer,
+            sales_order__transaction_date__gte=cutoff,
+            sales_order__docstatus__lt=2,
+            item__in=records,
+        )
+        counts = dict(
+            so_lines.values("item_id")
+            .annotate(cnt=Count("id"))
+            .values_list("item_id", "cnt")
+        )
+        total_lines = sum(counts.values())
+
+        if total_lines > 0:
+            records = sorted(records, key=lambda it: counts.get(it.pk, 0), reverse=True)
+            top_item = records[0]
+            top_count = counts.get(top_item.pk, 0)
+
+            if (top_count / total_lines) >= 0.8:
+                pct = int((top_count / total_lines) * 100)
+                warnings.append(
+                    _(
+                        "Selected %(item)s based on customer's usual orders (%(pct)d%% of past 90 days). Please confirm."
+                    )
+                    % {"item": top_item.name, "pct": pct}
+                )
+                return {"record": top_item}
+
+    return {
+        "type": "question",
+        "question": _("Which item did you mean for '%(query)s'?") % {"query": query},
+        "options": [it.name for it in records],
+    }
+
+
 def _company_of(company: Optional[Any], party) -> Any:
     Company = apps.get_model("core.Company")
     co = Company.objects.filter(pk=company).first() if company else None
@@ -94,7 +180,7 @@ def propose_sales_order(
         find_party("selling.Customer", customer_query, company),
         "customer",
         customer_query,
-        lambda c: c.name,
+        _customer_choice_label,
     )
     if "record" not in picked:
         return picked
@@ -111,7 +197,7 @@ def propose_sales_order(
     # 2. Resolve Items
     for line in items:
         raw_item = str(line.get("item", "")).strip()
-        picked = _pick_one(find_item(raw_item), "item", raw_item, lambda it: it.name)
+        picked = _pick_item_with_habit(find_item(raw_item), raw_item, customer, warnings)
         if "record" not in picked:
             return picked
         item = picked["record"]
@@ -291,7 +377,7 @@ def propose_sales_invoice(
         find_party("selling.Customer", customer_query, company),
         "customer",
         customer_query,
-        lambda c: c.name,
+        _customer_choice_label,
     )
     if "record" not in picked:
         return picked
@@ -308,7 +394,7 @@ def propose_sales_invoice(
     # 2. Resolve Items
     for line in items:
         raw_item = str(line.get("item", "")).strip()
-        picked = _pick_one(find_item(raw_item), "item", raw_item, lambda it: it.name)
+        picked = _pick_item_with_habit(find_item(raw_item), raw_item, customer, warnings)
         if "record" not in picked:
             return picked
         item = picked["record"]
