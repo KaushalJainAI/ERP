@@ -421,7 +421,7 @@ route to `backend/docs/API.md`.
 - [ ] Bill photo → pre-filled Purchase Invoice (vision extraction + attach the
       photo as proof)
 - [ ] Attendance / advance / employee payment proposals (after HR screens exist)
-- [ ] Spoken read-back of the summary (TTS)
+- [x] Spoken read-back of the summary (TTS)
 
 
 ---

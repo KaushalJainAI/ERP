@@ -6,6 +6,8 @@ export const enAssistant = {
   "assistant.input_placeholder": "Ask anything or say what happened (e.g. Sold 20kg Haldi to Sharma)...",
   "assistant.listening": "Listening...",
   "assistant.waveform_label": "Recording level",
+  "assistant.read_aloud": "Read aloud",
+  "assistant.stop_reading": "Stop reading",
   "assistant.transcribing": "Transcribing...",
   "assistant.processing": "Agent Working...",
   "assistant.stop": "Stop",

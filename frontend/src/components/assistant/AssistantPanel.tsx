@@ -12,10 +12,13 @@ import {
   ArrowRight,
   FileText,
   AlertTriangle,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { API_URL, refreshAccessToken } from "@/api/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { getActiveCompanyId } from "@/lib/company";
+import { canSpeak, speak, stopSpeaking } from "@/lib/speech";
 import { AgentWorkingOverlay, AgentStep } from "./AgentWorkingOverlay";
 import { VoiceWaveform } from "./VoiceWaveform";
 
@@ -65,6 +68,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   const [isStreaming, setIsStreaming] = useState(false);
   const [steps, setSteps] = useState<AgentStep[]>([]);
   const [streamError, setStreamError] = useState<string | null>(null);
+  /** Which summary is being read aloud ("<messageId>:reply" or "<messageId>:summary"). */
+  const [speakingKey, setSpeakingKey] = useState<string | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -76,6 +81,15 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, steps]);
+
+  // Read-aloud stops when the panel closes and when it unmounts.
+  useEffect(() => {
+    if (!isOpen) {
+      stopSpeaking();
+      setSpeakingKey(null);
+    }
+  }, [isOpen]);
+  useEffect(() => () => stopSpeaking(), []);
 
   const {
     supported: micSupported,
@@ -265,6 +279,47 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     void handleSend(option, "text");
   };
 
+  const toggleReadAloud = (key: string, text: string) => {
+    if (speakingKey === key) {
+      stopSpeaking();
+      setSpeakingKey(null);
+      return;
+    }
+    const started = speak(text, i18n.language || "en", () =>
+      setSpeakingKey((cur) => (cur === key ? null : cur)),
+    );
+    setSpeakingKey(started ? key : null);
+  };
+
+  const startMic = () => {
+    stopSpeaking();
+    setSpeakingKey(null);
+    void startVoice();
+  };
+
+  /** Speaker button for a summary. Renders nothing where speechSynthesis is unavailable. */
+  const readAloudButton = (key: string, text: string) => {
+    if (!canSpeak()) return null;
+    const reading = speakingKey === key;
+    const label = reading ? t("assistant.stop_reading") : t("assistant.read_aloud");
+    return (
+      <button
+        type="button"
+        onClick={() => toggleReadAloud(key, text)}
+        aria-label={label}
+        aria-pressed={reading}
+        title={label}
+        className={`shrink-0 p-1 rounded-md transition ${
+          reading
+            ? "text-indigo-300 bg-indigo-500/20"
+            : "text-slate-500 hover:text-slate-200 hover:bg-slate-700/60"
+        }`}
+      >
+        {reading ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+      </button>
+    );
+  };
+
   const startNewChat = () => {
     setConversationId(null);
     setMessages([]);
@@ -365,6 +420,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>
 
+                  {m.role === "assistant" && m.content && (
+                    <div className="mt-1.5 flex justify-start">
+                      {readAloudButton(`${m.id}:reply`, m.content)}
+                    </div>
+                  )}
+
                   {/* Tappable question options */}
                   {m.questionOptions && m.questionOptions.length > 0 && (
                     <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex flex-wrap gap-2">
@@ -401,9 +462,12 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                         )}
                       </div>
                       {m.proposal.summary && (
-                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          {m.proposal.summary}
-                        </p>
+                        <div className="flex items-start gap-2">
+                          <p className="flex-1 text-xs text-slate-300 leading-relaxed font-medium">
+                            {m.proposal.summary}
+                          </p>
+                          {readAloudButton(`${m.id}:summary`, m.proposal.summary)}
+                        </div>
                       )}
                       <button
                         type="button"
@@ -454,7 +518,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             {micSupported && (
               <button
                 type="button"
-                onClick={recording ? stopVoice : startVoice}
+                onClick={recording ? stopVoice : startMic}
                 disabled={transcribing || isStreaming}
                 className={`p-2.5 rounded-xl border transition shrink-0 ${
                   recording
