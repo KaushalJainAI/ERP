@@ -140,7 +140,7 @@ class BatchFullCycleTests(BatchBase):
         )
 
         # Grinding: 96 kg actually produced, 4 kg grinding loss.
-        batch = batch_service.finish_grinding(wo, "96")
+        batch = batch_service.finish_grinding(wo, "96")["batch"]
         wo.refresh_from_db()
         self.assertEqual(batch.status, BatchStatus.PACKING)
         self.assertEqual(wo.stage, BatchStage.PACKING)
@@ -327,66 +327,50 @@ class BatchRefusalTests(BatchBase):
         self.assertFalse(Batch.objects.exists())
 
 
-class PackingLossWarningTests(BatchBase):
-    """The allowance is the SKU BOMs' process_loss_percentage. It only warns."""
+class LossWarningTests(BatchBase):
+    """Loss is measured at grinding. The warning is advisory and never blocks."""
 
-    def set_allowance(self, pct):
-        BOM.objects.filter(pk__in=[self.pack_500.pk, self.pack_1kg.pk]).update(
-            process_loss_percentage=D(pct)
-        )
+    def set_grind_allowance(self, pct):
+        BOM.objects.filter(pk=self.grind_bom.pk).update(process_loss_percentage=D(pct))
 
-    def grind_to_packing(self):
-        batch, wo = self.start()
+    def test_grinding_loss_above_allowance_warns_and_still_posts(self):
+        # Planned 98.75 on a 1.25 % BOM; 96 produced from 100 raw: 4 % loss.
+        _batch, wo = self.start("98.75")
+        result = batch_service.finish_grinding(wo, "96")
+        self.assertEqual(len(result["warnings"]), 1)
+        self.assertIn("above the", result["warnings"][0])
+        self.assertEqual(result["grinding_loss"], D("4.000"))
+        # The posting went through unchanged.
+        self.assertEqual(self.bin_qty(self.powder, self.wip), D("96.000"))
+        self.assertEqual(self.bin_qty(self.turmeric, self.raw), D("0.000"))
+
+    def test_grinding_loss_at_allowance_does_not_warn(self):
+        # 98.75 produced from 100 raw: 1.25 % loss, exactly the allowance.
+        _batch, wo = self.start("98.75")
+        result = batch_service.finish_grinding(wo, "98.75")
+        self.assertEqual(result["warnings"], [])
+        self.assertEqual(self.bin_qty(self.powder, self.wip), D("98.750"))
+
+    def test_grinding_loss_below_allowance_does_not_warn(self):
+        # A planned shortfall is always at or above the BOM allowance, so a strictly
+        # lower allowance is reached only by changing the BOM after submit (the app
+        # locks a used BOM). This exercises the comparison: 4 % loss, 5 % allowance.
+        _batch, wo = self.start("98.75")
+        self.set_grind_allowance("5")
+        result = batch_service.finish_grinding(wo, "96")
+        self.assertEqual(result["warnings"], [])
+        self.assertEqual(self.bin_qty(self.powder, self.wip), D("96.000"))
+
+    def test_packing_no_longer_warns(self):
+        # 5 kg of 60 kg is packing loss, far above any allowance; packing stays silent.
+        _batch, wo = self.start("98.75")
         batch_service.finish_grinding(wo, "96")
-        return batch, wo
-
-    def test_loss_above_allowance_warns_and_still_posts(self):
-        _batch, wo = self.grind_to_packing()
-        # Allowance 0 (the BOMs as built). 5 kg of 60 kg is loss.
         result = batch_service.pack(
             wo, "60", [(self.sku_500, "100"), (self.sku_1kg, "5")]
         )
-        self.assertEqual(len(result["warnings"]), 1)
-        self.assertIn("above the", result["warnings"][0])
-        # The posting went through unchanged.
+        self.assertNotIn("warnings", result)
         self.assertEqual(result["packing_loss"], D("5.000"))
         self.assertEqual(self.bin_qty(self.powder, self.loss_warehouse()), D("5.000"))
-        self.assertEqual(self.bin_qty(self.sku_500, self.fg), D("100.000"))
-
-    def test_no_warning_when_there_is_no_loss(self):
-        _batch, wo = self.grind_to_packing()
-        result = batch_service.pack(
-            wo, "55", [(self.sku_500, "100"), (self.sku_1kg, "5")]
-        )
-        self.assertEqual(result["warnings"], [])
-        self.assertEqual(result["packing_loss"], D("0.000"))
-        self.assertEqual(self.bin_qty(self.sku_500, self.fg), D("100.000"))
-
-    def test_no_warning_at_or_below_allowance_and_posts(self):
-        self.set_allowance("10")
-        _batch, wo = self.grind_to_packing()
-        # Gross bulk for 100 x 500 g and 5 x 1 kg at a 10 % allowance is about
-        # 61.112; 62 leaves about 0.888 loss, 1.43 % of bulk used: within 10 %.
-        result = batch_service.pack(
-            wo, "62", [(self.sku_500, "100"), (self.sku_1kg, "5")]
-        )
-        self.assertEqual(result["warnings"], [])
-        self.assertGreater(result["packing_loss"], D("0"))
-        self.assertEqual(
-            self.bin_qty(self.powder, self.loss_warehouse()), result["packing_loss"]
-        )
-
-    def test_warning_above_a_nonzero_allowance_still_posts(self):
-        self.set_allowance("1")
-        _batch, wo = self.grind_to_packing()
-        # Same 62 kg: about 6.44 kg loss, about 10.4 % of bulk used, above 1 %.
-        result = batch_service.pack(
-            wo, "62", [(self.sku_500, "100"), (self.sku_1kg, "5")]
-        )
-        self.assertEqual(len(result["warnings"]), 1)
-        self.assertEqual(
-            self.bin_qty(self.powder, self.loss_warehouse()), result["packing_loss"]
-        )
 
 
 class BatchApiTests(BatchBase):
@@ -416,7 +400,7 @@ class BatchApiTests(BatchBase):
             format="json",
         )
         self.assertEqual(r.status_code, 200, r.content)
-        self.assertEqual(r.data["status"], BatchStatus.PACKING)
+        self.assertEqual(r.data["batch"]["status"], BatchStatus.PACKING)
 
         r = self.c.post(
             f"/api/manufacturing/batches/{batch_id}/pack/",

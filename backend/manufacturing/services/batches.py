@@ -160,8 +160,11 @@ def start_grinding(company, bulk_item: Item, bulk_qty, user=None) -> Batch:
         )
 
 
-def finish_grinding(wo: WorkOrder, bulk_qty, user=None) -> Batch:
-    """Post the grinding Manufacture with the bulk actually produced."""
+def finish_grinding(wo: WorkOrder, bulk_qty, user=None) -> dict:
+    """Post the grinding Manufacture with the bulk actually produced.
+
+    Returns ``{"batch", "grinding_loss", "warnings"}``. The warning is advisory.
+    """
     actual = _as_positive_qty(bulk_qty, _("Bulk produced"))
     with transaction.atomic():
         batch, grinding = _lock_batch(wo)
@@ -188,7 +191,32 @@ def finish_grinding(wo: WorkOrder, bulk_qty, user=None) -> Batch:
         WorkOrder.objects.filter(pk=grinding.pk).update(stage=BatchStage.PACKING)
         Batch.objects.filter(pk=batch.pk).update(status=BatchStatus.PACKING)
         batch.status = BatchStatus.PACKING
-    return batch
+
+        # Advisory only: grinding loss (raw consumed minus bulk produced, as a
+        # share of raw consumed) above the grinding BOM's process_loss_percentage.
+        # Never blocks posting and never changes a quantity.
+        raw_consumed = wo_service.q3(
+            StockEntryItem.objects.filter(
+                stock_entry=entry, is_finished_item=False, is_scrap_item=False
+            ).aggregate(total=Sum("qty"))["total"]
+            or Decimal("0")
+        )
+        allowance_pct = Decimal(grinding.bom.process_loss_percentage or 0)
+        loss = raw_consumed - actual
+        warnings: List[str] = []
+        if raw_consumed > 0 and loss > 0:
+            loss_pct = loss * 100 / raw_consumed
+            if loss_pct > allowance_pct:
+                warnings.append(
+                    _(
+                        "Grinding loss is %(loss)s%% of the raw consumed, above the %(allowance)s%% allowance."
+                    )
+                    % {
+                        "loss": loss_pct.quantize(Decimal("0.01")),
+                        "allowance": allowance_pct.quantize(Decimal("0.01")),
+                    }
+                )
+    return {"batch": batch, "grinding_loss": loss, "warnings": warnings}
 
 
 # --------------------------------------------------------------------------- #
@@ -303,26 +331,7 @@ def pack(wo: WorkOrder, bulk_used, lines: List[Tuple[Item, object]], user=None) 
                 % {"need": packed_total, "item": batch.bulk_item.code, "used": used}
             )
 
-        # Advisory only: the allowance is the bulk-weighted process_loss_percentage
-        # of the SKU BOMs, and it never changes a quantity or blocks the posting.
-        weighted = sum(
-            (p[3] * Decimal(p[1].process_loss_percentage or 0) for p in plan),
-            Decimal("0"),
-        )
-        allowance_pct = weighted / packed_total if packed_total > 0 else Decimal("0")
-        loss_pct = Decimal(loss) * 100 / used
-        warnings: List[str] = []
-        if loss > 0 and loss_pct > allowance_pct:
-            warnings.append(
-                _(
-                    "Packing loss is %(loss)s%% of the bulk used, above the %(allowance)s%% allowance."
-                )
-                % {
-                    "loss": loss_pct.quantize(Decimal("0.01")),
-                    "allowance": allowance_pct.quantize(Decimal("0.01")),
-                }
-            )
-
+        # Packing does not warn: loss is measured at grinding (owner decision).
         if loss > 0:
             _post_packing_loss(batch, grinding, in_process, loss, user)
         for sku, bom, packets, _bulk in plan:
@@ -336,7 +345,6 @@ def pack(wo: WorkOrder, bulk_used, lines: List[Tuple[Item, object]], user=None) 
         "bulk_used": used,
         "bulk_packed": packed_total,
         "packing_loss": loss,
-        "warnings": warnings,
     }
 
 
