@@ -235,7 +235,7 @@ Full backend audit; fixes below are in code + tests (`verify_integrity` green,
 - [ ] Get the sender's Day Book + All Masters XML per year (`Desktop\Tally\SENDER_REQUEST.md`) and import it: stock-journal lines, bank instrument details, invoice consignee / e-way bill, company GSTIN (`backend/docs/tally_data_gaps.md` §2)
 - [ ] Physical count + Stock Reconciliation for the 7 negative-stock items (needs 6.8 Stock Reconciliation)
 - [ ] Accountant decision: reclassify the 20 ledgers that change type between years (profit differs in 3 years)
-- [ ] Translate the new `lg.*` strings (Addresses, Tally History) and the Journal Entry type / reference labels into the 12 Indian languages (English fallback until then)
+- [x] Translate the new `lg.*` strings (Addresses, Tally History) and the Journal Entry type / reference labels into the 12 Indian languages (English fallback until then)
 
 ### 6.8 Go-live gaps against ERPNext (P1, `backend/docs/erpnext_gap_analysis.md`)
 - [x] Print formats (GST Tax Invoice, Delivery Challan, PO, receipt) as PDF **(V)** — `GET /api/print/…` (backend/printing), A4 view `/print/<kind>/<id>` (Print / Save as PDF = browser dialog)
@@ -547,7 +547,7 @@ question's recorded answer.
 - [x] L-1 Mark everything
 - [x] L-2 Guard test
 - [x] L-3 Build setup
-- [ ] L-4 Hindi
+- [x] L-4 Hindi
 - [ ] L-5 Hindi review (OWNER)
 - [x] L-6 Other languages
 

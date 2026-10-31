@@ -225,8 +225,6 @@ const hi: Record<string, unknown> = {
       supplier: "आपूर्तिकर्ता",
       sales_invoice: "बिक्री चालान",
       purchase_invoice: "खरीद चालान",
-      expense_categories: "खर्च श्रेणियां",
-      expense_category: "खर्च श्रेणी",
       journal_entry: "जर्नल प्रविष्टि",
       bank_entry: "बैंक प्रविष्टि",
       cash_entry: "नकद प्रविष्टि",
@@ -534,6 +532,8 @@ const hi: Record<string, unknown> = {
       entry_manufacture: "निर्माण",
       entry_repack: "पुनः पैकिंग",
       batch: "बैच",
+      expense_categories: "खर्च श्रेणियां",
+      expense_category: "खर्च श्रेणी",
     },
     fields: {
       supplier: "आपूर्तिकर्ता",
@@ -585,6 +585,7 @@ const hi: Record<string, unknown> = {
       within_days: "इस अवधि में समाप्त (दिन)",
       include_expired: "समाप्त शामिल करें",
       expiry_status: "समाप्ति स्थिति",
+      account: "खाता",
     },
     help: {
       has_batch_no: "Each stock movement of this item will carry a batch (lot). Frozen once the item has ledger entries.",
@@ -1738,6 +1739,45 @@ const hi: Record<string, unknown> = {
       open_orders_hint_one: "{{count}} ऑर्डर का पूरा चालान नहीं बना",
       open_orders_hint_other: "{{count}} ऑर्डर का पूरा चालान नहीं बना",
     },
+    ws: {
+      all_modules: "सभी मॉड्यूल",
+      all_modules_hint: "हर मॉड्यूल, जो आपके रोज़ के काम से हटकर है।",
+      nothing: "आपकी भूमिका के लिए अभी कुछ नहीं दिख रहा।",
+      orders: {
+        title: "ऑर्डर",
+        subtitle: "बोलकर या हाथ से ऑर्डर लें, और देखें कि कौन से ऑर्डर मंज़ूरी का इंतज़ार कर रहे हैं।",
+        speak: "ऑर्डर बोलें",
+        speak_hint: "माइक दबाएं और हिंदी या अंग्रेज़ी में बोलें",
+        today: "आज के ऑर्डर",
+        today_hint: "आज की तारीख के ऑर्डर",
+        drafts_hint: "आपके लिए रुके हुए ड्राफ़्ट",
+        open: "खुले ऑर्डर",
+        open_hint: "अभी तक पूरा बिल नहीं बना",
+      },
+      factory: {
+        title: "फ़ैक्ट्री",
+        subtitle: "जो तैयार है उसे भेजें और आज के बैच चलते रहें।",
+        dispatch_hint: "मंज़ूर ऑर्डर जो अभी तक नहीं भेजे गए",
+        batches_hint: "अभी पीसाई या पैकिंग चल रही है",
+        ready: "तैयार स्टॉक",
+        ready_hint: "बेचने के लिए तैयार स्टॉक वाली चीज़ें",
+        workers: "कर्मचारी",
+        workers_hint: "कर्मचारी और दिहाड़ी",
+      },
+      accounts: {
+        title: "हिसाब-किताब",
+        subtitle: "पैसा आना और जाना, खर्चे और देय टैक्स।",
+        overdue: "{{amount}} अतिदेय",
+        due: "{{amount}} अभी बाकी",
+        gst_due: "{{status}} — {{date}} तक",
+      },
+      admin: {
+        title: "याद दिलाने वाली बातें और टूल",
+        subtitle: "तीनों वर्कस्पेस, याद दिलाने वाली बातें और एडमिन टूल।",
+        reminders: "याद दिलाने वाली बातें",
+        reminders_hint: "बिना पढ़े अलर्ट। चुनने के लिए दबाएं कि किन बातों की याद दिलाई जाए।",
+      },
+    },
   },
   hrm: {
     title: "मानव संसाधन",
@@ -2680,7 +2720,10 @@ const hi: Record<string, unknown> = {
       "propose_batch": "पिसाई बैच तैयार कर रहे हैं",
       "ask_user": "स्पष्टीकरण पूछ रहे हैं",
       "navigate": "नेविगेट कर रहे हैं"
-    }
+    },
+    waveform_label: "रिकॉर्डिंग का स्तर",
+    read_aloud: "ज़ोर से पढ़कर सुनाएं",
+    stop_reading: "पढ़ना बंद करें",
   },
   pending_orders: {
     nav_title: "बाकी ऑर्डर",
