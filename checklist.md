@@ -508,7 +508,7 @@ question's recorded answer.
 - [x] E-2 Mark bills as expenses
 - [x] E-3 Expense service
 - [x] E-4 Expense API
-- [ ] E-5 Expense page
+- [x] E-5 Expense page
 - [x] E-6 Expense summary
 - [ ] E-7 Monthly repeats
 - [x] E-8 Tally mapping check
