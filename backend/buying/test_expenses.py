@@ -12,6 +12,7 @@ from accounts.models import (
     Account,
     AccountRootType,
     AccountType,
+    GLEntry,
     PaymentEntry,
     TaxTemplate,
     TaxTemplateRow,
@@ -619,3 +620,268 @@ class ExpenseServiceTests(TestCase):
                 amount=Decimal("-500.00"),
                 bill_no="BILL-NEG",
             )
+
+
+class ExpenseAPITests(APITestCase):
+    def setUp(self):
+        self.company = Company.objects.create(
+            name="Test Spices Ltd", abbr="TSL", default_currency="INR"
+        )
+        self.user = User.objects.create_user(
+            username="expense_clerk", password="password123"
+        )
+        self.role = Role.objects.create(name="Expense Staff")
+        RolePermission.objects.create(
+            role=self.role,
+            model_label="buying.PurchaseInvoice",
+            can_read=True,
+            can_create=True,
+            can_write=True,
+            can_submit=True,
+        )
+        RolePermission.objects.create(
+            role=self.role,
+            model_label="accounts.PaymentEntry",
+            can_read=True,
+            can_create=True,
+            can_submit=True,
+        )
+        UserRole.objects.create(user=self.user, role=self.role)
+        self.client.force_authenticate(user=self.user)
+
+        self.payable_account = Account.objects.create(
+            name="Creditors",
+            company=self.company,
+            root_type=AccountRootType.LIABILITY,
+            account_type=AccountType.PAYABLE,
+            is_group=False,
+        )
+        self.company.default_payable_account = self.payable_account
+        self.company.save()
+
+        self.bank_account = Account.objects.create(
+            name="HDFC Bank",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+            is_group=False,
+        )
+
+        self.expense_group = Account.objects.create(
+            name="Expenses",
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+            is_group=True,
+        )
+        self.valid_expense_account = Account.objects.create(
+            name="Office Expense",
+            company=self.company,
+            parent=self.expense_group,
+            root_type=AccountRootType.EXPENSE,
+            is_group=False,
+        )
+        self.uom = UOM.objects.create(name="Nos")
+        self.item_group = ItemGroup.objects.create(name="Services", is_group=False)
+        self.item = Item.objects.create(
+            name="Expense Item",
+            item_group=self.item_group,
+            stock_uom=self.uom,
+            is_stock_item=False,
+            gst_hsn_code="998211",
+        )
+        self.category = ExpenseCategory.objects.create(
+            company=self.company,
+            name="Office & Stationery",
+            account=self.valid_expense_account,
+            item=self.item,
+            is_active=True,
+        )
+        self.supplier_group = SupplierGroup.objects.create(name="Service Providers")
+        self.supplier = Supplier.objects.create(
+            name="Office Supplies Co",
+            company=self.company,
+            supplier_group=self.supplier_group,
+            is_cash_expense=False,
+        )
+        self.cash_supplier = Supplier.objects.create(
+            name="Cash Expense",
+            company=self.company,
+            supplier_group=self.supplier_group,
+            is_cash_expense=True,
+        )
+
+        self.input_cgst = Account.objects.create(
+            name="Input CGST",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.TAX,
+            is_group=False,
+            gst_direction="Input",
+            gst_component="CGST",
+        )
+        self.input_sgst = Account.objects.create(
+            name="Input SGST",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.TAX,
+            is_group=False,
+            gst_direction="Input",
+            gst_component="SGST",
+        )
+        self.tax_template = TaxTemplate.objects.create(
+            company=self.company,
+            title="GST 18%",
+            template_type="Purchase",
+        )
+        TaxTemplateRow.objects.create(
+            template=self.tax_template,
+            idx=1,
+            account=self.input_cgst,
+            rate=Decimal("9.000"),
+        )
+        TaxTemplateRow.objects.create(
+            template=self.tax_template,
+            idx=2,
+            account=self.input_sgst,
+            rate=Decimal("9.000"),
+        )
+
+    def test_post_creates_expense_invoice_pay_later(self):
+        """POST /api/buying/expenses/ creates submitted invoice with status Due when pay later."""
+        payload = {
+            "company": self.company.id,
+            "category": self.category.id,
+            "supplier": self.supplier.id,
+            "amount": "5000.00",
+            "date": "2026-10-15",
+            "due_date": "2026-11-15",
+            "bill_no": "BILL-OCT-01",
+            "paid_now": False,
+        }
+        res = self.client.post("/api/buying/expenses/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        self.assertTrue(res.data["is_expense"])
+        self.assertEqual(res.data["expense_category"], self.category.id)
+        self.assertEqual(res.data["payment_status"], "Due")
+        self.assertEqual(res.data["payment_label"], "Due")
+        self.assertEqual(res.data["outstanding_amount"], "5000.00")
+        self.assertEqual(res.data["docstatus"], DocStatus.SUBMITTED)
+
+    def test_post_creates_expense_invoice_paid_now(self):
+        """POST /api/buying/expenses/ creates submitted invoice + PaymentEntry when paid now."""
+        payload = {
+            "company": self.company.id,
+            "category": self.category.id,
+            "supplier": self.supplier.id,
+            "amount": "12000.00",
+            "date": "2026-10-20",
+            "bill_no": "BILL-PAID-01",
+            "paid_now": True,
+            "paid_from": self.bank_account.id,
+        }
+        res = self.client.post("/api/buying/expenses/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+        self.assertEqual(res.data["payment_status"], "Paid")
+        self.assertEqual(res.data["payment_label"], "Paid")
+        self.assertEqual(res.data["outstanding_amount"], "0.00")
+
+        # PaymentEntry was created and submitted
+        pe = PaymentEntry.objects.filter(paid_amount=Decimal("12000.00")).first()
+        self.assertIsNotNone(pe)
+        self.assertEqual(pe.docstatus, DocStatus.SUBMITTED)
+        self.assertEqual(pe.paid_from, self.bank_account)
+
+    def test_get_filters_by_month_and_payment_status(self):
+        """GET /api/buying/expenses/ supports month, category, and payment_status filters."""
+        # 1: Paid in October 2026
+        create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("3000.00"),
+            date=datetime.date(2026, 10, 5),
+            bill_no="BILL-OCT-P",
+            paid_now=True,
+            paid_from=self.bank_account,
+        )
+        # 2: Due in October 2026
+        create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("4000.00"),
+            date=datetime.date(2026, 10, 15),
+            due_date=datetime.date(2026, 11, 15),
+            bill_no="BILL-OCT-D",
+            paid_now=False,
+        )
+        # 3: Paid in September 2026
+        create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("2000.00"),
+            date=datetime.date(2026, 9, 10),
+            bill_no="BILL-SEP-P",
+            paid_now=True,
+            paid_from=self.bank_account,
+        )
+
+        # Filter by month=2026-10: should get OCT bills, but not SEP
+        res_oct = self.client.get("/api/buying/expenses/?month=2026-10")
+        self.assertEqual(res_oct.status_code, status.HTTP_200_OK)
+        bills_oct = res_oct.data.get("results", res_oct.data)
+        bill_nos = [b["bill_no"] for b in bills_oct]
+        self.assertIn("BILL-OCT-P", bill_nos)
+        self.assertIn("BILL-OCT-D", bill_nos)
+        self.assertNotIn("BILL-SEP-P", bill_nos)
+
+        # Filter by month=2026-10 and payment_status=Paid
+        res_oct_paid = self.client.get(
+            "/api/buying/expenses/?month=2026-10&payment_status=Paid"
+        )
+        self.assertEqual(res_oct_paid.status_code, status.HTTP_200_OK)
+        bills_paid = res_oct_paid.data.get("results", res_oct_paid.data)
+        bill_nos_paid = [b["bill_no"] for b in bills_paid]
+        self.assertIn("BILL-OCT-P", bill_nos_paid)
+        self.assertNotIn("BILL-OCT-D", bill_nos_paid)
+
+        # Filter by month=2026-10 and payment_status=Due
+        res_oct_due = self.client.get(
+            "/api/buying/expenses/?month=2026-10&payment_status=Due"
+        )
+        self.assertEqual(res_oct_due.status_code, status.HTTP_200_OK)
+        bills_due = res_oct_due.data.get("results", res_oct_due.data)
+        bill_nos_due = [b["bill_no"] for b in bills_due]
+        self.assertIn("BILL-OCT-D", bill_nos_due)
+        self.assertNotIn("BILL-OCT-P", bill_nos_due)
+
+    def test_cash_expense_gives_no_input_credit(self):
+        """Cash expense gives no input credit (unregistered / no tax rows / no input GST GL)."""
+        payload = {
+            "company": self.company.id,
+            "category": self.category.id,
+            "supplier": self.cash_supplier.id,
+            "amount": "1180.00",
+            "date": "2026-10-22",
+            "has_gst": True,
+            "tax_template": self.tax_template.id,
+            "paid_now": True,
+            "paid_from": self.bank_account.id,
+        }
+        res = self.client.post("/api/buying/expenses/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.data)
+
+        invoice = PurchaseInvoice.objects.get(pk=res.data["id"])
+        self.assertEqual(invoice.taxes.count(), 0)
+        self.assertEqual(invoice.total_taxes_and_charges, Decimal("0.00"))
+        self.assertEqual(invoice.grand_total, Decimal("1180.00"))
+
+        # GL entries check: no GL entries to input GST accounts
+        gl_accounts = set(
+            GLEntry.objects.filter(voucher_no=invoice.name).values_list(
+                "account__name", flat=True
+            )
+        )
+        self.assertNotIn("Input CGST", gl_accounts)
+        self.assertNotIn("Input SGST", gl_accounts)

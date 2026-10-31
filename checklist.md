@@ -507,7 +507,7 @@ question's recorded answer.
 - [x] E-1 Category master
 - [x] E-2 Mark bills as expenses
 - [x] E-3 Expense service
-- [ ] E-4 Expense API
+- [x] E-4 Expense API
 - [ ] E-5 Expense page
 - [ ] E-6 Expense summary
 - [ ] E-7 Monthly repeats

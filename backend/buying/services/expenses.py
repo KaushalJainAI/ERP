@@ -34,6 +34,7 @@ def create_expense(
     paid_from=None,
     due_date=None,
     user=None,
+    proof=None,
 ):
     """Create and submit an expense invoice, optionally with immediate payment.
 
@@ -68,7 +69,18 @@ def create_expense(
             _("Paid from account is required when paid now is selected.")
         )
 
+    if isinstance(date, str):
+        try:
+            date = datetime.date.fromisoformat(date)
+        except ValueError:
+            raise ValidationError(_("Invalid date format."))
     date = date or datetime.date.today()
+
+    if isinstance(due_date, str):
+        try:
+            due_date = datetime.date.fromisoformat(due_date)
+        except ValueError:
+            raise ValidationError(_("Invalid due date format."))
     due_date = due_date or date
 
     with transaction.atomic():
@@ -96,6 +108,9 @@ def create_expense(
             )
             category.item = item
             category.save(update_fields=["item"])
+
+        if getattr(supplier, "is_cash_expense", False):
+            has_gst = False
 
         if has_gst and not category.item.gst_hsn_code:
             category.item.gst_hsn_code = "998211"
@@ -179,6 +194,31 @@ def create_expense(
                     tax_amount=row_tax,
                     total=net_amount + row_tax,
                 )
+
+        if proof:
+            from core import attachments as att_rules
+            from core.models import Attachment
+            from users.models import User
+
+            checked = att_rules.validate_upload(proof)
+            att_user = user if (user and getattr(user, "pk", None)) else None
+            if not att_user:
+                att_user = (
+                    User.objects.filter(is_superuser=True).first()
+                    or User.objects.first()
+                )
+            att = Attachment(
+                model_label="buying.PurchaseInvoice",
+                object_id=str(invoice.pk),
+                original_filename=checked.filename,
+                content_type=checked.content_type,
+                size=checked.size,
+                sha256=checked.sha256,
+                description="Expense Proof",
+                uploaded_by=att_user,
+            )
+            att.file.save(checked.filename, proof, save=False)
+            att.save()
 
         invoice.submit(user=user)
 

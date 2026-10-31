@@ -7,6 +7,7 @@ from buying.views import (
     PurchaseOrderViewSet,
     PurchaseInvoiceViewSet,
     PurchaseChargeTemplateViewSet,
+    ExpenseViewSet,
 )
 
 app_name = "buying"
@@ -21,6 +22,7 @@ router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-orde
 router.register(
     "purchase-invoices", PurchaseInvoiceViewSet, basename="purchase-invoice"
 )
+router.register("expenses", ExpenseViewSet, basename="expense")
 
 router.register(
     "charge-templates",

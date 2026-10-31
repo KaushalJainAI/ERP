@@ -400,6 +400,7 @@ class PurchaseInvoiceSerializer(
         source="price_list.name", read_only=True, allow_null=True
     )
     payment_status = serializers.CharField(read_only=True)
+    payment_label = serializers.CharField(read_only=True)
 
     class Meta:
         model = PurchaseInvoice
@@ -434,6 +435,7 @@ class PurchaseInvoiceSerializer(
             "is_overdue",
             "display_status",
             "payment_status",
+            "payment_label",
             "place_of_supply_name",
             "taxes_and_charges_name",
             "docstatus",
@@ -455,6 +457,7 @@ class PurchaseInvoiceSerializer(
             "is_overdue",
             "display_status",
             "payment_status",
+            "payment_label",
             *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",
