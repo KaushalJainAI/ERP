@@ -532,7 +532,7 @@ question's recorded answer.
 - [x] N-5 Raw material shortage
 - [x] N-6 Digest and weekly emails
 - [x] N-7 Instant alerts
-- [ ] N-8 Scheduler
+- [x] N-8 Scheduler
 - [ ] N-9 Bell and alert settings
 - [ ] N-10 Turn it on (OWNER)
 

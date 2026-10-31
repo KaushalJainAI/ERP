@@ -580,6 +580,33 @@ class DigestTests(TestCase):
         )
 
 
+class SchedulerTests(TestCase):
+    def test_run_scheduler_once_runs_cleanly(self):
+        from django.core.management import call_command
+        from io import StringIO
+
+        out = StringIO()
+        call_command("run_scheduler", "--once", "--force-weekly", stdout=out)
+        output = out.getvalue()
+        self.assertIn("Scheduler pass complete", output)
+
+    def test_job_failure_does_not_stop_next_jobs(self):
+        from notifications.management.commands.run_scheduler import safe_execute
+
+        def failing_job():
+            raise RuntimeError("Database connection glitch")
+
+        def successful_job():
+            return "ok"
+
+        res1 = safe_execute("failing_job", failing_job)
+        res2 = safe_execute("successful_job", successful_job)
+
+        self.assertIsNone(res1)
+        self.assertEqual(res2, "ok")
+
+
+
 
 
 
