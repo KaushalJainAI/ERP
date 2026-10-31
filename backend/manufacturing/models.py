@@ -213,6 +213,14 @@ class WorkOrder(SubmittableDocument):
         choices=BatchStage.choices,
         default=BatchStage.GRINDING,
     )
+    # Set on the packing Work Orders of a production batch (services.batches).
+    batch = models.ForeignKey(
+        "manufacturing.Batch",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="packing_work_orders",
+    )
 
     class Meta:
         verbose_name = "Work Order"
@@ -329,3 +337,47 @@ class WorkOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.work_order.name} - {self.item.code} ({self.required_qty})"
+
+
+class BatchStatus(models.TextChoices):
+    GRINDING = "Grinding", "Grinding"
+    PACKING = "Packing", "Packing"
+    DONE = "Done", "Done"
+    CANCELLED = "Cancelled", "Cancelled"
+
+
+class Batch(TimeStampedModel):
+    """One production run: a grinding Work Order, then packing Work Orders per SKU.
+
+    Owns its Work Orders (planning doc 03, Q2). Not lot tracking: ``stock.Batch``
+    is unrelated. Stage moves are written with ``QuerySet.update()`` by
+    ``services.batches``.
+    """
+
+    name = models.CharField(max_length=140, unique=True)
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="production_batches"
+    )
+    bulk_item = models.ForeignKey(
+        "stock.Item", on_delete=models.PROTECT, related_name="production_batches"
+    )
+    status = models.CharField(
+        max_length=20, choices=BatchStatus.choices, default=BatchStatus.GRINDING
+    )
+    grinding_work_order = models.OneToOneField(
+        WorkOrder, on_delete=models.PROTECT, related_name="grinding_batch"
+    )
+
+    class Meta:
+        verbose_name = "Batch"
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(
+                    status__in=[choice for choice, _label in BatchStatus.choices]
+                ),
+                name="check_batch_status_known",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} [{self.status}]"
