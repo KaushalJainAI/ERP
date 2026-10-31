@@ -47,6 +47,7 @@ from .tools import (
     mask_phone,
     sales_summary,
     top_items,
+    _stock_warehouse,
 )
 from .proposals import (
     propose_payment_entry,
@@ -413,6 +414,40 @@ class AssistantProposalBuilderTests(TestCase):
 
         self.assertEqual(res.get("type"), "proposal")
         self.assertTrue(any("Bill total mismatch" in w for w in res.get("warnings", [])))
+
+    def test_stock_warehouse_picks_correct_warehouse_per_direction(self):
+        """_stock_warehouse returns ready_warehouse for sales, unprocessed_warehouse for purchases, and falls back if unset."""
+        # Unset state
+        self.company.ready_warehouse = None
+        self.company.unprocessed_warehouse = None
+        self.company.save()
+        self.assertEqual(_stock_warehouse(self.company, "sales").pk, self.wh.pk)
+        self.assertEqual(_stock_warehouse(self.company, "purchases").pk, self.wh.pk)
+
+        # Set warehouses
+        ready_wh = Warehouse.objects.create(name="Ready Store " + str(uuid.uuid4())[:4], company=self.company)
+        raw_wh = Warehouse.objects.create(name="Raw Store " + str(uuid.uuid4())[:4], company=self.company)
+        self.company.ready_warehouse = ready_wh
+        self.company.unprocessed_warehouse = raw_wh
+        self.company.save()
+
+        self.assertEqual(_stock_warehouse(self.company, "sales").pk, ready_wh.pk)
+        self.assertEqual(_stock_warehouse(self.company, "purchases").pk, raw_wh.pk)
+
+        # Proposals use them
+        sales_res = propose_sales_order(
+            self.user,
+            customer_query="Sharma",
+            items=[{"item": "Haldi Powder", "qty": 1}],
+        )
+        self.assertEqual(sales_res["values"]["items"][0]["warehouse"], ready_wh.pk)
+
+        pur_res = propose_purchase_invoice(
+            self.user,
+            supplier_query="Gupta",
+            items=[{"item": "Haldi Powder", "qty": 1}],
+        )
+        self.assertEqual(pur_res["values"]["items"][0]["warehouse"], raw_wh.pk)
 
 
 class AssistantSaveTaggingTests(APITestCase):

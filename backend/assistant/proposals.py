@@ -19,7 +19,7 @@ from rest_framework.test import APIRequestFactory
 
 from users.permissions import user_has_model_permission
 from .models import AssistantProposal, AssistantMessage
-from .tools import find_item, find_party
+from .tools import find_item, find_party, _stock_warehouse
 
 logger = logging.getLogger(__name__)
 
@@ -69,13 +69,6 @@ def _company_of(company: Optional[Any], party) -> Any:
     return co or party.company or Company.objects.first()
 
 
-def _stock_warehouse(company) -> Any:
-    """Group warehouses hold no stock, so a line can never point at one."""
-    Warehouse = apps.get_model("stock.Warehouse")
-    return (
-        Warehouse.objects.filter(company=company, is_group=False).order_by("id").first()
-    )
-
 
 def propose_sales_order(
     user,
@@ -113,7 +106,7 @@ def propose_sales_order(
     preview_total = Decimal("0.00")
     ai_filled_keys = ["customer", "company", "transaction_date", "delivery_date", "items"]
 
-    default_wh = _stock_warehouse(co)
+    default_wh = _stock_warehouse(co, direction="sales")
 
     # 2. Resolve Items
     for line in items:
@@ -310,7 +303,7 @@ def propose_sales_invoice(
     preview_total = Decimal("0.00")
     ai_filled_keys = ["customer", "company", "posting_date", "items"]
 
-    default_wh = _stock_warehouse(co)
+    default_wh = _stock_warehouse(co, direction="sales")
 
     # 2. Resolve Items
     for line in items:
@@ -507,7 +500,7 @@ def propose_purchase_invoice(
     preview_total = Decimal("0.00")
     ai_filled_keys = ["supplier", "company", "posting_date", "items"]
 
-    default_wh = _stock_warehouse(co)
+    default_wh = _stock_warehouse(co, direction="purchases")
 
     for line in items:
         raw_item = str(line.get("item", "")).strip()

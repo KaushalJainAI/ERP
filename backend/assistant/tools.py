@@ -645,6 +645,28 @@ def top_items(
 # -----------------------------------------------------------------------------
 
 
+def _stock_warehouse(company: Any, direction: str = "sales") -> Any:
+    """Group warehouses hold no stock, so a line can never point at one.
+
+    Uses Company.ready_warehouse for sales and Company.unprocessed_warehouse for purchases,
+    falling back to the first non-group warehouse if not set.
+    """
+    if company:
+        if not hasattr(company, "ready_warehouse"):
+            Company = apps.get_model("core.Company")
+            company = Company.objects.filter(pk=company).first()
+        if company:
+            if direction in ("sales", "selling") and getattr(company, "ready_warehouse_id", None):
+                return company.ready_warehouse
+            elif direction in ("purchase", "purchases", "buying") and getattr(company, "unprocessed_warehouse_id", None):
+                return company.unprocessed_warehouse
+
+    Warehouse = apps.get_model("stock.Warehouse")
+    return (
+        Warehouse.objects.filter(company=company, is_group=False).order_by("id").first()
+    )
+
+
 def ask_user(question: str, options: List[str]) -> Dict[str, Any]:
     """Produce tappable choices for ambiguity."""
     return {
