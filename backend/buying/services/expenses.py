@@ -17,7 +17,7 @@ from buying.models import (
     PurchaseInvoiceItem,
     PurchaseInvoiceTax,
 )
-from core.models import NamingSeries
+from core.models import DocStatus, NamingSeries
 from stock.models import Item, ItemGroup, UOM
 
 
@@ -35,6 +35,9 @@ def create_expense(
     due_date=None,
     user=None,
     proof=None,
+    as_draft=False,
+    docstatus=None,
+    recurring_expense=None,
 ):
     """Create and submit an expense invoice, optionally with immediate payment.
 
@@ -100,6 +103,7 @@ def create_expense(
             item, _created = Item.objects.get_or_create(
                 name=f"Expense - {category.name}",
                 defaults={
+                    "code": f"EXP-{category.id}",
                     "item_group": item_group,
                     "stock_uom": uom,
                     "is_stock_item": False,
@@ -169,6 +173,7 @@ def create_expense(
                 if (has_gst and isinstance(tax_template, TaxTemplate))
                 else None
             ),
+            recurring_expense=recurring_expense,
         )
 
         PurchaseInvoiceItem.objects.create(
@@ -195,6 +200,8 @@ def create_expense(
                     total=net_amount + row_tax,
                 )
 
+        invoice.calculate_taxes_and_totals()
+
         if proof:
             from core import attachments as att_rules
             from core.models import Attachment
@@ -220,10 +227,13 @@ def create_expense(
             att.file.save(checked.filename, proof, save=False)
             att.save()
 
-        invoice.submit(user=user)
+        is_draft = as_draft or (docstatus == DocStatus.DRAFT)
+
+        if not is_draft:
+            invoice.submit(user=user)
 
         pe = None
-        if paid_now:
+        if paid_now and not is_draft:
             pe_name = NamingSeries.next("PE-2026-")
             party_name = supplier.name if hasattr(supplier, "name") else str(supplier)
             pe = PaymentEntry.objects.create(
@@ -248,3 +258,73 @@ def create_expense(
             invoice.refresh_from_db()
 
         return invoice, pe
+
+
+def generate_due_recurring_expenses(company=None, as_on=None):
+    """
+    Generate draft PurchaseInvoices for recurring expenses due as of `as_on`.
+
+    A recurring expense is due if:
+    - day_of_month == as_on.day
+    - OR as_on is the last day of the month AND day_of_month > last_day_of_month
+
+    Deduplication:
+    Only creates if no non-cancelled invoice already exists for this
+    recurring expense in (year, month).
+    """
+    import calendar
+    from django.utils import timezone
+    from buying.models import RecurringExpense
+
+    if as_on is None:
+        as_on = timezone.localdate()
+    elif isinstance(as_on, str):
+        as_on = datetime.date.fromisoformat(as_on)
+    elif hasattr(as_on, "date") and callable(as_on.date):
+        as_on = as_on.date()
+
+    _, last_day = calendar.monthrange(as_on.year, as_on.month)
+    is_last_day = as_on.day == last_day
+
+    qs = RecurringExpense.objects.filter(is_active=True).select_related(
+        "company", "category", "supplier", "category__account"
+    )
+    if company is not None:
+        qs = qs.filter(company=company)
+
+    created_invoices = []
+
+    for rec in qs:
+        is_due = (rec.day_of_month == as_on.day) or (
+            is_last_day and rec.day_of_month > last_day
+        )
+        if not is_due:
+            continue
+
+        already_exists = (
+            PurchaseInvoice.objects.filter(
+                recurring_expense=rec,
+                posting_date__year=as_on.year,
+                posting_date__month=as_on.month,
+            )
+            .exclude(docstatus=DocStatus.CANCELLED)
+            .exists()
+        )
+
+        if already_exists:
+            continue
+
+        inv, _ = create_expense(
+            company=rec.company,
+            category=rec.category,
+            supplier=rec.supplier,
+            amount=rec.amount,
+            date=as_on,
+            due_date=as_on,
+            as_draft=True,
+            docstatus=DocStatus.DRAFT,
+            recurring_expense=rec,
+        )
+        created_invoices.append(inv)
+
+    return created_invoices

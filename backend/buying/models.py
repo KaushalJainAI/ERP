@@ -141,6 +141,72 @@ class ExpenseCategory(TimeStampedModel):
         return f"{self.name} ({self.company.abbr})"
 
 
+class RecurringExpense(TimeStampedModel):
+    """Monthly recurring expense (Rent, Electricity, Hamali...) which triggers
+    the automatic creation of a draft PurchaseInvoice once a month."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="recurring_expenses"
+    )
+    category = models.ForeignKey(
+        ExpenseCategory, on_delete=models.PROTECT, related_name="recurring_expenses"
+    )
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.PROTECT, related_name="recurring_expenses"
+    )
+    amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    day_of_month = models.PositiveSmallIntegerField(
+        help_text=_("Day of month when this expense is due (1-31).")
+    )
+    is_active = models.BooleanField(default=True)
+    remarks = models.TextField(blank=True, default="")
+    description = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["day_of_month", "id"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(amount__gt=0),
+                name="buying_recurring_expense_amount_gt_0",
+            ),
+            models.CheckConstraint(
+                check=models.Q(day_of_month__gte=1) & models.Q(day_of_month__lte=31),
+                name="buying_recurring_expense_day_of_month_valid",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.amount is not None and self.amount <= Decimal("0.00"):
+            errors["amount"] = _("Amount must be greater than zero.")
+        if self.day_of_month is not None and not (1 <= self.day_of_month <= 31):
+            errors["day_of_month"] = _("Day of month must be between 1 and 31.")
+        if self.category_id and self.company_id:
+            if self.category.company_id != self.company_id:
+                errors["category"] = _(
+                    "Expense category must belong to the same company."
+                )
+        if self.supplier_id and self.company_id:
+            if self.supplier.company_id != self.company_id:
+                errors["supplier"] = _("Supplier must belong to the same company.")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        if not self.description and self.remarks:
+            self.description = self.remarks
+        elif not self.remarks and self.description:
+            self.remarks = self.description
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.category.name} - {self.supplier.name} ({self.company.abbr}) [Day {self.day_of_month}]"
+
+
 class PurchaseOrder(TaxableDocument, SubmittableDocument):
     """Purchase Order document."""
 
@@ -324,6 +390,13 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         on_delete=models.PROTECT,
         null=True,
         blank=True,
+        related_name="purchase_invoices",
+    )
+    recurring_expense = models.ForeignKey(
+        "buying.RecurringExpense",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
         related_name="purchase_invoices",
     )
     itc_eligible = models.BooleanField(default=True)

@@ -7,6 +7,7 @@ from buying.models import (
     SupplierGroup,
     Supplier,
     ExpenseCategory,
+    RecurringExpense,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseInvoice,
@@ -117,6 +118,32 @@ class ExpenseCategorySerializer(TranslatedSerializerMixin, serializers.ModelSeri
             "modified_at",
         )
         translatable_fields = ["name"]
+
+
+class RecurringExpenseSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+
+    class Meta:
+        model = RecurringExpense
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "category",
+            "category_name",
+            "supplier",
+            "supplier_name",
+            "amount",
+            "day_of_month",
+            "is_active",
+            "remarks",
+            "description",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = ("id", "created_at", "modified_at")
 
 
 class PurchaseOrderItemSerializer(
@@ -427,6 +454,7 @@ class PurchaseInvoiceSerializer(
             "is_expense",
             "expense_category",
             "expense_category_name",
+            "recurring_expense",
             "itc_eligible",
             "grand_total",
             *TAX_HEADER_READ_ONLY,
@@ -459,6 +487,7 @@ class PurchaseInvoiceSerializer(
             "display_status",
             "payment_status",
             "payment_label",
+            "recurring_expense",
             *TAX_HEADER_READ_ONLY,
             "created_at",
             "modified_at",

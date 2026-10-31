@@ -4,6 +4,7 @@ from buying.views import (
     SupplierGroupViewSet,
     SupplierViewSet,
     ExpenseCategoryViewSet,
+    RecurringExpenseViewSet,
     PurchaseOrderViewSet,
     PurchaseInvoiceViewSet,
     PurchaseChargeTemplateViewSet,
@@ -17,6 +18,9 @@ router.register("supplier-groups", SupplierGroupViewSet, basename="supplier-grou
 router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register(
     "expense-categories", ExpenseCategoryViewSet, basename="expense-category"
+)
+router.register(
+    "recurring-expenses", RecurringExpenseViewSet, basename="recurring-expense"
 )
 router.register("purchase-orders", PurchaseOrderViewSet, basename="purchase-order")
 router.register(

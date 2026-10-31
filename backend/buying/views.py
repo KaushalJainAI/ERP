@@ -10,6 +10,7 @@ from buying.models import (
     SupplierGroup,
     Supplier,
     ExpenseCategory,
+    RecurringExpense,
     PurchaseOrder,
     PurchaseInvoice,
     PurchaseChargeTemplate,
@@ -18,6 +19,7 @@ from buying.serializers import (
     SupplierGroupSerializer,
     SupplierSerializer,
     ExpenseCategorySerializer,
+    RecurringExpenseSerializer,
     PurchaseOrderSerializer,
     PurchaseInvoiceSerializer,
     PurchaseChargeTemplateSerializer,
@@ -70,6 +72,17 @@ class ExpenseCategoryViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelVi
     filterset_fields = ["company", "is_active"]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
+
+
+class RecurringExpenseViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
+    queryset = RecurringExpense.objects.all().select_related(
+        "company", "category", "supplier"
+    )
+    serializer_class = RecurringExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["company", "is_active", "category", "supplier"]
+    search_fields = ["category__name", "supplier__name", "description", "remarks"]
+    ordering_fields = ["day_of_month", "amount", "created_at"]
 
 
 class PurchaseChargeTemplateViewSet(

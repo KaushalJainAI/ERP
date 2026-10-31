@@ -97,6 +97,7 @@ _MASTER_LABELS = (
     "buying.SupplierGroup",
     "buying.Supplier",
     "buying.ExpenseCategory",
+    "buying.RecurringExpense",
     "buying.PurchaseChargeTemplate",
     "contacts.Address",
     # GST masters (state list, per-company tax templates, global item tax templates).
@@ -175,6 +176,7 @@ _BUYING_LABELS = (
     "buying.SupplierGroup",
     "buying.Supplier",
     "buying.ExpenseCategory",
+    "buying.RecurringExpense",
     "buying.PurchaseChargeTemplate",
     "contacts.Address",
     "buying.PurchaseOrder",
