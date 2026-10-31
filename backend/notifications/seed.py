@@ -5,6 +5,8 @@ DEFAULT_ALERT_RULES = [
     "daily_summary",
     "weekly_digest",
     "raw_material_shortage",
+    "ready_low",
+    "integrity_failed",
     "large_order",
     "large_payment",
     "payment_delay",

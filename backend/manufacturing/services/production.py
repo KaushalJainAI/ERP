@@ -348,6 +348,9 @@ def post_transfer_for_manufacture(se: StockEntry) -> List:
         se, legs, posting_date=se.posting_date, posting_time=se.posting_time
     )
     refresh_bound_work_order(se)
+    affected_items = [line.item for line in se.items.all()]
+    from notifications.services.instant import trigger_ready_low_for_items
+    transaction.on_commit(lambda: trigger_ready_low_for_items(affected_items))
     return sles
 
 
@@ -456,6 +459,9 @@ def post_manufacture(se: StockEntry) -> List:
     se.process_loss_qty = process_loss
 
     refresh_bound_work_order(se)
+    affected_items = [line.item for line in se.items.all()]
+    from notifications.services.instant import trigger_ready_low_for_items
+    transaction.on_commit(lambda: trigger_ready_low_for_items(affected_items))
     return out_sles + in_sles
 
 

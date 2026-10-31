@@ -310,4 +310,13 @@ def dispatch_order(order, quantities=None, user=None):
         refresh_status(locked_order)
         if hasattr(order, "refresh_from_db"):
             order.refresh_from_db()
+
+        dispatched_items = [
+            line["item"]
+            for line in remaining
+            if (qty_map is None or line["order_item_id"] in qty_map)
+        ]
+        from notifications.services.instant import trigger_ready_low_for_items
+        transaction.on_commit(lambda: trigger_ready_low_for_items(dispatched_items))
+
         return invoice

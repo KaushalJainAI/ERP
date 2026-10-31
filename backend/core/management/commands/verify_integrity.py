@@ -352,6 +352,8 @@ class Command(BaseCommand):
             )
             for err in errors:
                 self.stderr.write(self.style.ERROR(f"  - {err}"))
+            from notifications.services.instant import on_integrity_failed
+            on_integrity_failed(errors)
             raise CommandError("ERP Integrity verification failed.")
 
         self.stdout.write(

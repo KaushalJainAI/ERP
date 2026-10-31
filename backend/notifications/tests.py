@@ -418,4 +418,95 @@ class RawMaterialShortageTests(TestCase):
         self.assertEqual(Notification.objects.filter(rule_key="raw_material_shortage").count(), 0)
 
 
+class InstantAlertsTests(TestCase):
+    def setUp(self):
+        from core.models import Company
+        from stock.models import Warehouse
+
+        self.user = User.objects.create_user(
+            username="admin_user_instant",
+            email="admin@nidhimasala.com",
+            password="pass",
+        )
+        self.company = Company.objects.create(name="Nidhi Spices Pvt Ltd")
+        self.wh_ready = Warehouse.objects.create(company=self.company, name="Finished Goods")
+        self.company.ready_warehouse = self.wh_ready
+        self.company.save()
+
+        self.uom = UOM.objects.create(name="Nos")
+        self.group = ItemGroup.objects.create(name="Finished Goods", is_group=False)
+        self.item = Item.objects.create(
+            code="FG-HALDI-500",
+            name="Haldi 500g",
+            item_group=self.group,
+            stock_uom=self.uom,
+            critical_stock=Decimal("100.000"),
+            is_stock_item=True,
+        )
+
+        self.rule_ready_low = AlertRule.objects.create(key="ready_low", is_active=True)
+        self.rule_ready_low.recipients.add(self.user)
+
+        self.rule_integrity = AlertRule.objects.create(key="integrity_failed", is_active=True)
+        self.rule_integrity.recipients.add(self.user)
+
+        self.rule_large_order = AlertRule.objects.create(key="large_order", is_active=True)
+        self.rule_large_order.recipients.add(self.user)
+
+    def test_ready_low_triggers_and_second_drop_dedupes(self):
+        from stock.models import Bin
+        from notifications.services.instant import check_item_ready_low
+
+        # Bin has 50 units (critical: 100) -> triggers ready_low
+        Bin.objects.create(item=self.item, warehouse=self.wh_ready, actual_qty=Decimal("50.000"))
+
+        notifs = check_item_ready_low(self.item, company=self.company)
+        self.assertIsNotNone(notifs)
+        self.assertEqual(Notification.objects.filter(rule_key="ready_low").count(), 1)
+        notif = Notification.objects.filter(rule_key="ready_low").first()
+        self.assertEqual(notif.params["item"], "Haldi 500g")
+        self.assertEqual(notif.params["qty"], "50.000")
+
+        # Second drop on same day does not duplicate
+        notifs_second = check_item_ready_low(self.item, company=self.company)
+        self.assertEqual(len(notifs_second), 0)
+        self.assertEqual(Notification.objects.filter(rule_key="ready_low").count(), 1)
+
+    def test_integrity_failed_triggers_alert(self):
+        from notifications.services.instant import on_integrity_failed
+
+        on_integrity_failed(["GL Imbalance error 1", "Bin drift error 2"])
+        notif = Notification.objects.filter(rule_key="integrity_failed").first()
+        self.assertIsNotNone(notif)
+        self.assertEqual(notif.params["error_count"], "2")
+        self.assertIn("GL Imbalance error 1", notif.params["summary"])
+
+    def test_large_order_triggers_above_50k(self):
+        from notifications.services.instant import on_sales_order_submit
+        from unittest.mock import MagicMock
+
+        # > 50,000 triggers
+        order_large = MagicMock()
+        order_large.id = 101
+        order_large.name = "SO-101"
+        order_large.grand_total = Decimal("55000.00")
+        order_large.customer = MagicMock(name="Sharma Traders")
+        order_large.customer.name = "Sharma Traders"
+
+        on_sales_order_submit(order_large)
+        self.assertEqual(Notification.objects.filter(rule_key="large_order").count(), 1)
+
+        # <= 50,000 does not trigger
+        order_small = MagicMock()
+        order_small.id = 102
+        order_small.name = "SO-102"
+        order_small.grand_total = Decimal("50000.00")
+        order_small.customer = MagicMock(name="Gupta Store")
+        order_small.customer.name = "Gupta Store"
+
+        on_sales_order_submit(order_small)
+        self.assertEqual(Notification.objects.filter(rule_key="large_order").count(), 1)
+
+
+
 

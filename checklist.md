@@ -531,7 +531,7 @@ question's recorded answer.
 - [x] N-4 Rules engine
 - [x] N-5 Raw material shortage
 - [ ] N-6 Digest and weekly emails
-- [ ] N-7 Instant alerts
+- [x] N-7 Instant alerts
 - [ ] N-8 Scheduler
 - [ ] N-9 Bell and alert settings
 - [ ] N-10 Turn it on (OWNER)
