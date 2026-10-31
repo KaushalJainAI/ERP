@@ -1,4 +1,3 @@
-import datetime
 """HR masters, attendance and daily-wage payroll.
 
 Design (see ``docs/erpnext_divergences.md``, "HR and payroll"):
@@ -18,6 +17,7 @@ Design (see ``docs/erpnext_divergences.md``, "HR and payroll"):
   -- nothing is stored that cannot be rebuilt.
 """
 
+import datetime
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -48,6 +48,13 @@ class PayType(models.TextChoices):
     MONTHLY = "Monthly", _("Monthly")
 
 
+class TaxRegime(models.TextChoices):
+    """Income-tax regime a salaried employee's monthly TDS is worked out under."""
+
+    NEW = "New", _("New regime")
+    OLD = "Old", _("Old regime")
+
+
 class AttendanceStatus(models.TextChoices):
     PRESENT = "Present", _("Present")
     ABSENT = "Absent", _("Absent")
@@ -66,6 +73,7 @@ class SystemComponent(models.TextChoices):
     WAGES = "wages", _("Wages")
     OVERTIME = "overtime", _("Overtime")
     ADVANCE_RECOVERY = "advance_recovery", _("Advance Recovery")
+    TDS = "tds", _("TDS")
 
 
 class AdvanceRequestStatus(models.TextChoices):
@@ -248,6 +256,23 @@ class Employee(TimeStampedModel):
     )
     ifsc_code = models.CharField(_("IFSC code"), max_length=11, blank=True, default="")
     pan = models.CharField(_("PAN"), max_length=10, blank=True, default="")
+    # Salaried (Monthly) staff only; daily wagers get no salary TDS.
+    tax_regime = models.CharField(
+        _("tax regime"),
+        max_length=10,
+        choices=TaxRegime.choices,
+        default=TaxRegime.NEW,
+    )
+    # NULL: the monthly TDS is worked out from the income-tax rates
+    # (hr.services.tds).  A value is a fixed monthly figure the accountant
+    # enters instead; 0 means no TDS for this employee.
+    tds_per_month = models.DecimalField(
+        _("TDS per month (fixed)"),
+        max_digits=18,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
     aadhaar = models.CharField(_("Aadhaar"), max_length=12, blank=True, default="")
     uan = models.CharField(_("UAN"), max_length=20, blank=True, default="")
     esic_no = models.CharField(_("ESIC number"), max_length=20, blank=True, default="")
@@ -288,6 +313,10 @@ class Employee(TimeStampedModel):
             models.CheckConstraint(
                 check=Q(mobile_no__isnull=True) | ~Q(mobile_no=""),
                 name="check_employee_mobile_not_blank",
+            ),
+            models.CheckConstraint(
+                check=Q(tds_per_month__isnull=True) | Q(tds_per_month__gte=0),
+                name="check_employee_tds_non_negative",
             ),
         ]
 
@@ -532,6 +561,15 @@ class HRSettings(TimeStampedModel):
     default_payment_account = models.ForeignKey(
         "accounts.Account", on_delete=models.PROTECT, related_name="+"
     )
+    # Credited by each slip's TDS row; TaxPayment (TDS) debits it.  Nullable so
+    # existing rows migrate; ensure_hr_setup fills it in.
+    tds_payable_account = models.ForeignKey(
+        "accounts.Account",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
 
     class Meta:
         verbose_name = "HR Settings"
@@ -539,6 +577,8 @@ class HRSettings(TimeStampedModel):
 
     #: Accounts whose change would orphan existing postings.
     LOCKED_ONCE_POSTED = ("payroll_payable_account", "employee_advance_account")
+    #: Locked once posted, but only when already set (filled in on first setup).
+    LOCKED_IF_SET = ("tds_payable_account",)
 
     def has_postings(self):
         return (
@@ -556,21 +596,163 @@ class HRSettings(TimeStampedModel):
     def save(self, *args, **kwargs):
         if self.pk:
             old = type(self).objects.filter(pk=self.pk).first()
-            if old is not None and any(
-                getattr(old, f + "_id") != getattr(self, f + "_id")
-                for f in self.LOCKED_ONCE_POSTED
-            ):
-                if self.has_postings():
+            if old is not None:
+                changed = any(
+                    getattr(old, f + "_id") != getattr(self, f + "_id")
+                    for f in self.LOCKED_ONCE_POSTED
+                ) or any(
+                    getattr(old, f + "_id") is not None
+                    and getattr(old, f + "_id") != getattr(self, f + "_id")
+                    for f in self.LOCKED_IF_SET
+                )
+                if changed and self.has_postings():
                     raise ValidationError(
                         _(
-                            "The payroll payable and employee advance accounts cannot "
-                            "be changed once salary slips, advances or payments are submitted."
+                            "The payroll payable, employee advance and TDS payable "
+                            "accounts cannot be changed once salary slips, advances or "
+                            "payments are submitted."
                         )
                     )
         super().save(*args, **kwargs)
 
     def __str__(self):
         return f"HR Settings - {self.company}"
+
+
+# ------------------------------------------------------------- income tax rates
+class IncomeTaxRateSet(TimeStampedModel):
+    """Income-tax rules for one regime, effective from a date (versioned).
+
+    The figures are data, not code: the accountant changes them here, and a
+    new year is a new row with a later ``effective_from``.  A set applies to a
+    date from ``effective_from`` until the next set of the same regime
+    (``hr.services.tax_rates.rate_set_for``).  The rates are the same for every
+    company, so this table is global, not per company.
+
+    The seeded FY 2026-27 values must be confirmed by the accountant (checklist
+    T-8) before go-live; ``notes`` records what is confirmed and by whom.
+    """
+
+    regime = models.CharField(_("regime"), max_length=10, choices=TaxRegime.choices)
+    effective_from = models.DateField(_("effective from"))
+    label = models.CharField(_("label"), max_length=140)
+    standard_deduction = models.DecimalField(
+        _("standard deduction"),
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    #: Taxable income up to this amount gets the rebate; above it, marginal relief.
+    rebate_income_limit = models.DecimalField(
+        _("rebate income limit"),
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+    rebate_amount = models.DecimalField(
+        _("maximum rebate"), max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    cess_percent = models.DecimalField(
+        _("health and education cess (%)"),
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("4.00"),
+    )
+    notes = models.TextField(_("notes"), blank=True, default="")
+
+    class Meta:
+        ordering = ["regime", "-effective_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["regime", "effective_from"],
+                name="unique_income_tax_rate_set_per_date",
+            ),
+            models.CheckConstraint(
+                check=Q(standard_deduction__gte=0)
+                & Q(rebate_income_limit__gte=0)
+                & Q(rebate_amount__gte=0),
+                name="check_income_tax_rate_set_amounts",
+            ),
+            models.CheckConstraint(
+                check=Q(cess_percent__gte=0) & Q(cess_percent__lte=100),
+                name="check_income_tax_rate_set_cess",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.label} ({self.regime}, from {self.effective_from})"
+
+
+class IncomeTaxSlab(models.Model):
+    """One band of a rate set: the rate applies to taxable income above
+    ``lower_limit`` and up to ``upper_limit`` (blank = no upper limit)."""
+
+    rate_set = models.ForeignKey(
+        IncomeTaxRateSet, on_delete=models.CASCADE, related_name="slabs"
+    )
+    lower_limit = models.DecimalField(
+        _("income above"), max_digits=18, decimal_places=2
+    )
+    upper_limit = models.DecimalField(
+        _("income up to"), max_digits=18, decimal_places=2, null=True, blank=True
+    )
+    rate_percent = models.DecimalField(_("rate (%)"), max_digits=5, decimal_places=2)
+
+    class Meta:
+        ordering = ["rate_set_id", "lower_limit"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rate_set", "lower_limit"], name="unique_income_tax_slab_lower"
+            ),
+            models.CheckConstraint(
+                check=Q(lower_limit__gte=0), name="check_income_tax_slab_lower"
+            ),
+            models.CheckConstraint(
+                check=Q(upper_limit__isnull=True) | Q(upper_limit__gt=F("lower_limit")),
+                name="check_income_tax_slab_upper",
+            ),
+            models.CheckConstraint(
+                check=Q(rate_percent__gte=0) & Q(rate_percent__lte=100),
+                name="check_income_tax_slab_rate",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.rate_set_id}: {self.lower_limit} to {self.upper_limit} @ {self.rate_percent}%"
+
+
+class IncomeTaxSurcharge(models.Model):
+    """Surcharge band of a rate set: applies when taxable income is above
+    ``above_income``.  Only the highest band crossed applies."""
+
+    rate_set = models.ForeignKey(
+        IncomeTaxRateSet, on_delete=models.CASCADE, related_name="surcharges"
+    )
+    above_income = models.DecimalField(
+        _("income above"), max_digits=18, decimal_places=2
+    )
+    rate_percent = models.DecimalField(
+        _("surcharge (%)"), max_digits=5, decimal_places=2
+    )
+
+    class Meta:
+        ordering = ["rate_set_id", "above_income"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rate_set", "above_income"],
+                name="unique_income_tax_surcharge_threshold",
+            ),
+            models.CheckConstraint(
+                check=Q(above_income__gte=0), name="check_income_tax_surcharge_above"
+            ),
+            models.CheckConstraint(
+                check=Q(rate_percent__gte=0) & Q(rate_percent__lte=100),
+                name="check_income_tax_surcharge_rate",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.rate_set_id}: above {self.above_income} @ {self.rate_percent}%"
 
 
 # ------------------------------------------------------------------ documents

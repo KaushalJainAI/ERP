@@ -90,8 +90,12 @@ people, or nobody. Q5 answers that before any build starts.
 
 ### Design
 
-Do not build a tax calculator. Slabs change every year, and a wrong automatic figure is
-worse than none.
+Original position: do not build a tax calculator, because slabs change every year and a
+wrong automatic figure is worse than none. **Owner decision, 2026-10-31, supersedes this:**
+the monthly TDS is worked out from a dated rate table that the accountant edits (no rate
+in code), with the new regime as default and the old regime as a per-employee opt-in. A
+fixed monthly figure (`tds_per_month`) still overrides it. See
+[backend/docs/erpnext_divergences.md](../backend/docs/erpnext_divergences.md), "Salary TDS".
 
 1. Add a `tds` system component to `SystemComponent` and an account `TDS Payable` to
    `HRSettings`.

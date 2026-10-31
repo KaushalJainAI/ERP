@@ -31,6 +31,7 @@ const options = (values: string[]): SelectOption[] => values.map((value) => ({ v
 const GENDERS = options(["Male", "Female", "Other"]);
 const EMPLOYEE_STATUS = options(["Active", "Inactive", "Left"]);
 const PAY_TYPES = options(["Daily", "Monthly"]);
+const TAX_REGIMES = options(["New", "Old"]);
 const ATTENDANCE_STATUS = options(["Present", "Absent", "Half Day", "Paid Leave"]);
 const COMPONENT_TYPES = options(["Earning", "Deduction"]);
 const PAYMENT_MODES = options(["Cash", "Bank", "UPI"]);
@@ -216,6 +217,8 @@ const employees: ResourceConfig = {
     { key: "bank_account_no", labelKey: "hrm.fields.bank_account_no", type: "text" },
     { key: "ifsc_code", labelKey: "hrm.fields.ifsc_code", type: "text" },
     { key: "pan", labelKey: "hrm.fields.pan", type: "text" },
+    { key: "tax_regime", labelKey: "hrm.fields.tax_regime", type: "select", options: TAX_REGIMES, defaultValue: "New", helpKey: "hrm.help.tax_regime" },
+    { key: "tds_per_month", labelKey: "hrm.fields.tds_per_month", type: "decimal", helpKey: "hrm.help.tds_per_month" },
     { key: "aadhaar", labelKey: "hrm.fields.aadhaar", type: "text", helpKey: "hrm.help.aadhaar" },
     { key: "uan", labelKey: "hrm.fields.uan", type: "text" },
     { key: "esic_no", labelKey: "hrm.fields.esic_no", type: "text" },
@@ -318,6 +321,7 @@ const hrSettings: ResourceConfig = {
     { key: "payroll_payable_account", labelKey: "hrm.fields.payroll_payable_account", type: "link", required: true, link: hrAccountLink("Liability") },
     { key: "employee_advance_account", labelKey: "hrm.fields.employee_advance_account", type: "link", required: true, link: hrAccountLink("Asset") },
     { key: "default_payment_account", labelKey: "hrm.fields.default_payment_account", type: "link", required: true, link: hrAccountLink("Asset") },
+    { key: "tds_payable_account", labelKey: "hrm.fields.tds_payable_account", type: "link", link: hrAccountLink("Liability") },
   ],
   renderSummary: ({ values }) => createElement(HrSettingsPanel, { values }),
 };

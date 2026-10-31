@@ -438,7 +438,7 @@ class MasterTests(HRBase):
                 "system_key", flat=True
             )
         )
-        self.assertEqual(keys, {"wages", "overtime", "advance_recovery"})
+        self.assertEqual(keys, {"wages", "overtime", "advance_recovery", "tds"})
         self.assertEqual(self.cfg.default_payment_account, self.cash)
         self.assertEqual(
             self.cfg.payroll_payable_account.root_type, AccountRootType.LIABILITY
@@ -1797,6 +1797,10 @@ class LeaveAndReportTests(HRBase):
         self.assertTrue(any(row["employee_name"] == "Anita" and row["balance"] == "6.00" for row in data["rows"]))
 
     def test_salary_and_wage_register_reports(self):
+        # A Monthly slip needs the income-tax rates in force (see hr/test_tds.py).
+        from hr.services.tax_rates import seed_income_tax_rates
+
+        seed_income_tax_rates()
         w_daily = self.employee("DailyWorker", pay_type=PayType.DAILY)
         self.rate(w_daily, daily="400", ot="50")
         self.present(w_daily, d(2026, 4, 1), d(2026, 4, 5))

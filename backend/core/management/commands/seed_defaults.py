@@ -16,6 +16,7 @@ from accounts.services.closing import ensure_closing_account
 from gst.services.seeding import seed_gst
 from hr.seed import HR_LABELS, HR_ROLE_MATRIX, HR_ROLES
 from hr.services.setup import ensure_hr_setup
+from hr.services.tax_rates import seed_income_tax_rates
 from buying.services.charges import ensure_charge_setup
 from tally_export.seed import TALLY_EXPORT_LABELS
 from payment_reconciliation.seed import PAYMENT_RECONCILIATION_LABELS
@@ -595,6 +596,8 @@ class Command(BaseCommand):
 
         # 9. HR: wage/payable/advance accounts, HR Settings, system components.
         ensure_hr_setup(company)
+        # 9b. Income-tax rates (global; idempotent, so a re-seed keeps edits).
+        seed_income_tax_rates()
 
         # 10. Purchase-bill charges: Freight / Hamali accounts, Expenses Included
         # In Valuation and the charge templates.

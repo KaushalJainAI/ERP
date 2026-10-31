@@ -2,6 +2,7 @@
 submit / cancel always go through the model (and the GL posting service)."""
 
 from django.contrib import admin
+from django.forms.models import BaseInlineFormSet
 
 from core.admin import SubmittableDocumentAdmin, TimeStampedAdminMixin
 from hr.models import (
@@ -19,6 +20,9 @@ from hr.models import (
     Holiday,
     HolidayList,
     HRSettings,
+    IncomeTaxRateSet,
+    IncomeTaxSlab,
+    IncomeTaxSurcharge,
     PayrollEntry,
     PayrollEntryEmployee,
     SalaryComponent,
@@ -28,6 +32,7 @@ from hr.models import (
     LeaveAllocation,
     LeaveApplication,
 )
+from hr.services.tax_rates import check_slab_rows
 
 _RO = TimeStampedAdminMixin.readonly_timestamp_fields
 
@@ -102,6 +107,43 @@ class SalaryComponentAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
 @admin.register(HRSettings)
 class HRSettingsAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
     list_display = ("company", "wage_expense_account", "payroll_payable_account")
+    readonly_fields = _RO
+
+
+class IncomeTaxSlabFormSet(BaseInlineFormSet):
+    """Refuses a slab table with a gap, an overlap, or a missing zero start."""
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        rows = [
+            (form.cleaned_data["lower_limit"], form.cleaned_data.get("upper_limit"))
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE")
+        ]
+        check_slab_rows(rows)
+
+
+class IncomeTaxSlabInline(admin.TabularInline):
+    model = IncomeTaxSlab
+    formset = IncomeTaxSlabFormSet
+    extra = 0
+
+
+class IncomeTaxSurchargeInline(admin.TabularInline):
+    model = IncomeTaxSurcharge
+    extra = 0
+
+
+@admin.register(IncomeTaxRateSet)
+class IncomeTaxRateSetAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
+    """The versioned income-tax rates the monthly TDS is worked out from.  A new
+    year is a new row with a later effective date; old rows stay for history."""
+
+    list_display = ("label", "regime", "effective_from")
+    list_filter = ("regime",)
+    inlines = (IncomeTaxSlabInline, IncomeTaxSurchargeInline)
     readonly_fields = _RO
 
 

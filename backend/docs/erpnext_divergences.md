@@ -595,6 +595,17 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **Cancelled after export** is sent as `ACTION="Cancel"` with the same `REMOTEID`; a
   voucher cancelled before it was ever exported is simply not sent.
 
+## Salary TDS (2026-10-31, planning/06-taxes.md cards T-6 and T-7)
+
+- **Income-tax slabs are data, not code.** ERPNext core has no income-tax model (it lives in the separate hrms app, which is not in `erpnext/`). Here `IncomeTaxRateSet` holds the standard deduction, rebate limit and amount, cess and effective date, with `IncomeTaxSlab` and `IncomeTaxSurcharge` rows. The accountant edits them in the Django admin; a new year is a new row. FY 2026-27 new-regime values are seeded by `seed_defaults`, never by a migration. **They must be confirmed by the accountant (checklist T-8) before go-live.** The cess and the surcharge bands are not in the sources the seed was written from.
+- **Monthly staff only.** TDS is worked out for Monthly employees. Daily wagers never get salary TDS.
+- **New regime is the default.** `Employee.tax_regime` = Old opts an employee into the old regime, which uses the old-regime rate set. No old-regime figures are seeded, so an Old employee's slip is refused until the accountant enters them.
+- **Planning change.** `planning/06-taxes.md` said "do not build a tax calculator". The owner decided on 2026-10-31 that TDS is computed from the rate table. `Employee.tds_per_month` stays: blank means computed, a value is a fixed monthly figure the accountant enters (0 means none).
+- **Salary-only calculation.** Only the salary is counted. Other income, HRA, 80C-type deductions and employer contributions are not modelled. The surcharge has no marginal relief at its thresholds.
+- **Once a month, by posting date.** A later slip of the same employee in the same calendar month carries no TDS row. A stale row is refused at submit, and recompute fixes it.
+- **Deposits per challan, not per employee.** A TaxPayment (TDS) challan covers many employees, so the TDS register shows deposits by month for the company, not against each employee.
+- **Section numbers stay out of code and user text.** The sources disagree on the numbering under the Income-tax Act, 2025.
+
 ## NGU online-store catalogue (no ERPNext equivalent)
 
 - **Crosswalk, not import.** `ngu.NguCatalogEntry` mirrors NGU `products_productvariant` /
