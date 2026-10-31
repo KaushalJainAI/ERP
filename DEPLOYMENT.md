@@ -254,6 +254,70 @@ sudo systemctl reload nginx
 
 ---
 
+## 9. Backups, Retention Policy & Restore Drill
+
+### Nightly Backup Procedure
+
+Backups are executed nightly using PostgreSQL's custom format (`pg_dump -Fc`), which supports compressed, verifiable, and selective restoration via `pg_restore`.
+
+#### Automated PowerShell / Cron Job
+- **PowerShell (Windows / Cross-platform):**
+  ```powershell
+  # Nightly run with 30-day retention:
+  pwsh ./scripts/backup.ps1 -DatabaseUrl "postgres://erp_user:PASSWORD@127.0.0.1:5432/erp_db" -BackupDir "/var/backups/erp" -RetentionDays 30
+  ```
+- **Linux Crontab (`/etc/cron.d/erp-backup`):**
+  ```cron
+  0 2 * * * root pwsh /srv/erp/scripts/backup.ps1 -DatabaseUrl "$DATABASE_URL" -BackupDir /var/backups/erp -RetentionDays 30 >> /var/log/erp-backup.log 2>&1
+  ```
+  Or native bash:
+  ```bash
+  0 2 * * * erp_user pg_dump -Fc "postgres://erp_user:PASSWORD@127.0.0.1:5432/erp_db" > /var/backups/erp/erp_db_$(date +\%Y\%m\%d_\%H\%M\%S).dump && find /var/backups/erp -name "erp_db_*.dump" -mtime +30 -delete
+  ```
+
+### Retention Policy
+- **Daily retention:** 30 days. Backups older than 30 days are automatically deleted by `scripts/backup.ps1`.
+- **Monthly snapshots:** On the 1st day of each month, one backup is archived to `/var/backups/erp/archive/` and kept for 7 years for GST and statutory audit compliance.
+- **Off-site sync:** Daily backups must be synced offsite (e.g. AWS S3, Cloudflare R2, or remote NAS via `rclone` or `rsync`).
+
+### Step-by-Step Restore Drill Runbook
+
+> [!WARNING]
+> NEVER execute a restore drill against the live production database (`erp_db`). Drills must always be performed in an isolated scratch database.
+
+#### Step 1: Create a scratch database
+```bash
+sudo -u postgres createdb -O erp_user erp_db_scratch
+```
+
+#### Step 2: Restore the dump into scratch database
+Using PowerShell helper:
+```powershell
+pwsh ./scripts/verify_backup.ps1 -BackupFile "/var/backups/erp/erp_db_20261031_020000.dump" -ScratchDbUrl "postgres://erp_user:PASSWORD@127.0.0.1:5432/erp_db_scratch"
+```
+Or directly via `pg_restore`:
+```bash
+pg_restore --dbname="postgres://erp_user:PASSWORD@127.0.0.1:5432/erp_db_scratch" \
+  --clean --if-exists --no-owner --no-privileges \
+  /var/backups/erp/erp_db_20261031_020000.dump
+```
+
+#### Step 3: Verify data integrity in the restored database
+Connect the Django environment to the scratch database and run integrity checks:
+```bash
+cd /srv/erp/backend
+source venv/bin/activate
+DATABASE_URL="postgres://erp_user:PASSWORD@127.0.0.1:5432/erp_db_scratch" python manage.py verify_integrity
+```
+`verify_integrity` must complete with zero errors. All stock ledgers, GL postings, and party outstanding balances must match their derived projections.
+
+#### Step 4: Tear down scratch database
+```bash
+sudo -u postgres dropdb erp_db_scratch
+```
+
+---
+
 ## Alternative: Docker Compose
 
 The repo ships a `docker-compose.yml` (Postgres + backend + frontend). On the VPS:
