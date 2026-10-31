@@ -233,7 +233,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
       </>
     );
 
-    const cls = "rounded-xl border border-slate-800 bg-slate-900 p-3.5 shadow-sm transition-colors";
+    const cls = "rounded-xl border border-slate-800 bg-slate-900 p-3 shadow-sm transition-colors";
     if (!clickable) return <div key={String(row.id)} className={cls}>{content}</div>;
     if (opts) {
       return (
@@ -351,7 +351,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
           </div>
         ) : (
           <>
-            <div className="space-y-2 p-3 md:hidden">
+            <div className="space-y-2 p-3 sm:hidden">
               {treeOn
                 ? treeRows.map(({ row, depth, hasChildren, expanded: isOpen }) => (
                     <React.Fragment key={String(row.id)}>
@@ -366,7 +366,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                 : rows.map((row) => mobileCard(row))}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto sm:block">
               <table className="w-full text-left text-sm text-slate-300">
                 <thead className="bg-slate-950/80 text-xs uppercase text-slate-400 font-semibold border-b border-slate-800">
                   <tr>

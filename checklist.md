@@ -445,7 +445,7 @@ Design inspired by **Nidhi Gruh Udyog (NGU)**: mobile-first navigation, high dat
       Tight padding (`py-2.5 px-3.5`), dense status badges, and quick link pills.
 - [x] Compact module tiles in `ModulePage.tsx`:
       Dense `p-2.5`, `h-8 w-8` icons, and 1-column to 4-column responsive grid.
-- [ ] Responsive card view for records (`ListPage.tsx`):
+- [x] Responsive card view for records (`ListPage.tsx`):
       Provide a compact card view alternative on `< 640px` instead of wide horizontal table scrolling.
 
 ### 9.3 Assistant Chatbot NGU Parity
