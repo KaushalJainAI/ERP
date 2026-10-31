@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import {
+  Camera,
   Loader2,
   Mic,
   MicOff,
@@ -70,9 +71,11 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
   const [streamError, setStreamError] = useState<string | null>(null);
   /** Which summary is being read aloud ("<messageId>:reply" or "<messageId>:summary"). */
   const [speakingKey, setSpeakingKey] = useState<string | null>(null);
+  const [readingBill, setReadingBill] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const billInputRef = useRef<HTMLInputElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -320,6 +323,62 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     );
   };
 
+  /** A supplier bill photo: the server reads it into a Purchase Invoice proposal. */
+  const handleBillPhoto = async (file: File) => {
+    if (isStreaming || readingBill) return;
+    setReadingBill(true);
+    setStreamError(null);
+    setMessages((prev) => [
+      ...prev,
+      { id: `bill-${Date.now()}`, role: "user", content: file.name },
+    ]);
+
+    // Same auth and company headers as a chat turn. A photo goes as multipart,
+    // so the Content-Type is left to the browser.
+    const postBill = (token: string | null) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("language", i18n.language || "en");
+      if (conversationId) form.append("conversation_id", String(conversationId));
+      const companyId = getActiveCompanyId();
+      return fetch(`${API_URL}/assistant/bill-photo/`, {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(companyId ? { "X-Company-ID": String(companyId) } : {}),
+        },
+        body: form,
+      });
+    };
+
+    try {
+      let response = await postBill(localStorage.getItem("access_token"));
+      if (response.status === 401) {
+        const freshToken = await refreshAccessToken().catch(() => null);
+        if (freshToken) response = await postBill(freshToken);
+      }
+      const data = await response.json().catch(() => null);
+      if (data?.conversation_id) setConversationId(data.conversation_id);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `bill-reply-${Date.now()}`,
+          role: "assistant",
+          content: data?.reply ?? data?.message ?? t("assistant.bill.failed"),
+          questionOptions: data?.question?.options,
+          proposal: data?.proposal ?? undefined,
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: `bill-err-${Date.now()}`, role: "assistant", content: t("assistant.bill.failed") },
+      ]);
+    } finally {
+      setReadingBill(false);
+    }
+  };
+
   const startNewChat = () => {
     setConversationId(null);
     setMessages([]);
@@ -418,7 +477,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                       : "bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-none shadow-sm"
                   }`}
                 >
-                  <p className="whitespace-pre-wrap">{m.content}</p>
+                  {/* The <<DATA>> markers mark read-back data for the model; people see plain text. */}
+                  <p className="whitespace-pre-wrap">{m.content.replace(/<<\/?DATA>>/g, "")}</p>
 
                   {m.role === "assistant" && m.content && (
                     <div className="mt-1.5 flex justify-start">
@@ -508,6 +568,9 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             </p>
           )}
           {recording && <VoiceWaveform analyser={voiceMeter} label={t("assistant.waveform_label")} />}
+          {readingBill && (
+            <p className="text-xs text-slate-400 mb-2 px-1">{t("assistant.bill.reading")}</p>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -515,6 +578,32 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
             }}
             className="flex items-center gap-2"
           >
+            <input
+              ref={billInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const picked = e.target.files?.[0];
+                e.target.value = "";
+                if (picked) void handleBillPhoto(picked);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => billInputRef.current?.click()}
+              disabled={readingBill || isStreaming || recording || transcribing}
+              title={t("assistant.bill.upload")}
+              aria-label={t("assistant.bill.upload")}
+              className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 border border-slate-700 transition shrink-0"
+            >
+              {readingBill ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Camera className="w-4 h-4" />
+              )}
+            </button>
+
             {micSupported && (
               <button
                 type="button"

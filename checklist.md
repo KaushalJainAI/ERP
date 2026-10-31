@@ -418,7 +418,7 @@ route to `backend/docs/API.md`.
       ratio and most-edited fields; fix before wider rollout
 
 ### 8.8 Later
-- [ ] Bill photo → pre-filled Purchase Invoice (vision extraction + attach the
+- [x] Bill photo → pre-filled Purchase Invoice (vision extraction + attach the
       photo as proof)
 - [ ] Attendance / advance / employee payment proposals (after HR screens exist)
 - [x] Spoken read-back of the summary (TTS)

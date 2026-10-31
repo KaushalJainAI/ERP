@@ -386,56 +386,69 @@ class AuditLogMixin:
     """Mixin for ModelViewSet to automatically record CRUD operations in AuditLog."""
 
     def perform_create(self, serializer):
-        instance = serializer.save()
         user = getattr(self.request, "user", None)
-        changes = dict(serializer.data) if isinstance(serializer.data, dict) else {}
         proposal_hdr = None
         if hasattr(self, "request") and self.request:
             proposal_hdr = self.request.headers.get("X-Assistant-Proposal")
-        if proposal_hdr and user and getattr(user, "is_authenticated", False):
-            try:
-                import uuid
-                from assistant.models import AssistantProposal
-
-                prop_id = uuid.UUID(str(proposal_hdr).strip())
-                proposal = (
-                    AssistantProposal.objects.filter(
-                        id=prop_id,
-                        status__in=["proposed", "opened", "abandoned"],
-                    )
-                    .select_related("message__conversation")
-                    .first()
-                )
-                if (
-                    proposal
-                    and proposal.message
-                    and proposal.message.conversation.user_id == user.id
-                ):
-                    proposal.status = "saved"
-                    proposal.saved_model_label = (
-                        f"{instance._meta.app_label}.{instance._meta.object_name}"
-                    )
-                    proposal.saved_object_id = str(
-                        getattr(instance, "name", getattr(instance, "pk", ""))
-                    )
-                    proposal.save(
-                        update_fields=[
-                            "status",
-                            "saved_model_label",
-                            "saved_object_id",
-                            "updated_at",
-                        ]
-                    )
-                    changes = {
-                        **changes,
-                        "source": "assistant",
-                        "proposal": str(proposal.id),
-                    }
-            except Exception:
-                logger.exception(
-                    "Failed to tag assistant proposal %s on create", proposal_hdr
+        # The document and any proof carried over from an assistant bill photo commit
+        # together: if the copy fails, the document is not saved either.
+        with transaction.atomic():
+            instance = serializer.save()
+            changes = dict(serializer.data) if isinstance(serializer.data, dict) else {}
+            if proposal_hdr and user and getattr(user, "is_authenticated", False):
+                changes = self._tag_assistant_save(
+                    instance, user, proposal_hdr, changes
                 )
         record_audit_log(user, "create", instance, changes=changes)
+
+    @staticmethod
+    def _tag_assistant_save(instance, user, proposal_hdr, changes):
+        """Mark the assistant proposal saved; return the audit changes to record."""
+        try:
+            import uuid
+            from assistant.models import AssistantProposal
+
+            prop_id = uuid.UUID(str(proposal_hdr).strip())
+            proposal = (
+                AssistantProposal.objects.filter(
+                    id=prop_id,
+                    status__in=["proposed", "opened", "abandoned"],
+                )
+                .select_related("message__conversation")
+                .first()
+            )
+            if not (
+                proposal
+                and proposal.message
+                and proposal.message.conversation.user_id == user.id
+            ):
+                return changes
+            proposal.status = "saved"
+            proposal.saved_model_label = (
+                f"{instance._meta.app_label}.{instance._meta.object_name}"
+            )
+            proposal.saved_object_id = str(
+                getattr(instance, "name", getattr(instance, "pk", ""))
+            )
+            proposal.save(
+                update_fields=[
+                    "status",
+                    "saved_model_label",
+                    "saved_object_id",
+                    "updated_at",
+                ]
+            )
+        except Exception:
+            logger.exception(
+                "Failed to tag assistant proposal %s on create", proposal_hdr
+            )
+            return changes
+
+        # Outside the try: a failed proof copy must roll the save back, not vanish.
+        from assistant.bill_photo import carry_proof
+
+        carry_proof(proposal, instance, user)
+        return {**changes, "source": "assistant", "proposal": str(proposal.id)}
 
     def perform_update(self, serializer):
         instance = serializer.save()

@@ -35,3 +35,17 @@ class AssistantTranscribeThrottle(SimpleRateThrottle):
             else self.get_ident(request)
         )
         return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
+class AssistantBillThrottle(SimpleRateThrottle):
+    """Each bill photo is one paid vision call, so it has its own, lower ceiling."""
+
+    scope = "assistant_bill"
+
+    def get_cache_key(self, request, view):
+        ident = (
+            request.user.pk
+            if request.user and request.user.is_authenticated
+            else self.get_ident(request)
+        )
+        return self.cache_format % {"scope": self.scope, "ident": ident}
