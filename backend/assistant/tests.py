@@ -55,6 +55,8 @@ from .proposals import (
     propose_sales_invoice,
     propose_purchase_invoice,
 )
+from .transliterate import to_latin
+from .aliases import strip_honorifics, parse_hindi_quantity
 from . import agent as agent_module
 from .agent import Agent, to_wire
 from .prompts import FAILURE_REPLIES, SYSTEM_PROMPT, failure_reply
@@ -948,3 +950,101 @@ class AssistantTranscribeTests(APITestCase):
         ):
             resp = self._post()
         self.assertEqual(resp.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+class HindiLatinMatchingTests(TestCase):
+    """Test transliteration, honorific stripping, Hindi numbers, and spelling tolerance."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="hinditester",
+            email="hindi@erp.local",
+            password="adminpassword",
+        )
+        setup_test_masters(self)
+
+    def test_transliteration_and_number_pairs_table(self):
+        """Table of >=30 Hindi/Latin words and Hindi number words."""
+        from difflib import SequenceMatcher
+
+        translit_pairs = [
+            ("शर्मा", "Sharma"),
+            ("गुप्ता", "Gupta"),
+            ("हल्दी", "Haldi"),
+            ("मिर्ची", "Mirchi"),
+            ("धनिया", "Dhaniya"),
+            ("जीरा", "Jeera"),
+            ("राई", "Rai"),
+            ("रमेश", "Ramesh"),
+            ("सुरेश", "Suresh"),
+            ("अग्रवाल", "Agarwal"),
+            ("जैन", "Jain"),
+            ("पटेल", "Patel"),
+            ("शाह", "Shah"),
+            ("वर्मा", "Verma"),
+            ("मसाला", "Masala"),
+            ("पाउडर", "Powder"),
+            ("किराना", "Kirana"),
+            ("स्टोर", "Store"),
+            ("ट्रेडर्स", "Traders"),
+            ("दुकान", "Dukan"),
+        ]
+        for dev, lat in translit_pairs:
+            dev_lat = to_latin(dev)
+            lat_norm = to_latin(lat)
+            sim = SequenceMatcher(None, dev_lat, lat_norm).ratio()
+            self.assertGreaterEqual(
+                sim,
+                0.65,
+                f"Devanagari '{dev}' ({dev_lat}) did not match Latin '{lat}' ({lat_norm}) with high similarity (got {sim})",
+            )
+
+        number_pairs = [
+            ("dedh", Decimal("1.5")),
+            ("dhai", Decimal("2.5")),
+            ("sava", Decimal("1.25")),
+            ("paune", Decimal("0.75")),
+            ("adha", Decimal("0.5")),
+            ("sava do", Decimal("2.25")),
+            ("paune do", Decimal("1.75")),
+            ("dedh sau", Decimal("150")),
+            ("dhai sau", Decimal("250")),
+            ("dedh hazaar", Decimal("1500")),
+            ("dhai hazaar", Decimal("2500")),
+            ("डेढ़", Decimal("1.5")),
+            ("ढाई", Decimal("2.5")),
+            ("सवा", Decimal("1.25")),
+        ]
+        for word, expected in number_pairs:
+            qty = parse_hindi_quantity(word)
+            self.assertEqual(
+                qty,
+                expected,
+                f"Hindi number word '{word}' returned {qty}, expected {expected}",
+            )
+
+    def test_strip_honorifics(self):
+        """Honorifics ji, sahab, bhai, seth are stripped from names."""
+        self.assertEqual(strip_honorifics("Sharma ji"), "Sharma")
+        self.assertEqual(strip_honorifics("Gupta sahab"), "Gupta")
+        self.assertEqual(strip_honorifics("Ramesh bhai"), "Ramesh")
+        self.assertEqual(strip_honorifics("Seth Agarwal"), "Agarwal")
+        self.assertEqual(strip_honorifics("शर्मा जी"), "शर्मा")
+
+    def test_devanagari_query_matches_latin_customer(self):
+        """Devanagari 'शर्मा' matches 'Sharma Traders' in customer search as close spelling."""
+        res = search_customers(self.user, "शर्मा")
+        self.assertEqual(res["count"], 1)
+        self.assertTrue(res["close_spelling"])
+        self.assertIn("Sharma Traders", res["results"][0]["name"])
+
+    def test_close_match_prompts_question_never_silent_choice(self):
+        """A close transliterated match prompts ask_user, never a silent proposal."""
+        res = propose_sales_invoice(
+            self.user,
+            customer_query="शर्मा",
+            items=[{"item": "Haldi", "qty": 1}],
+        )
+        self.assertEqual(res.get("type"), "question")
+        self.assertIn("Sharma Traders", res["options"])
+

@@ -539,7 +539,7 @@ question's recorded answer.
 ### 8. Hindi agent and translation
 - [x] H-1 Order proposals
 - [x] H-2 Correct warehouses
-- [ ] H-3 Hindi and Latin matching
+- [x] H-3 Hindi and Latin matching
 - [ ] H-4 Rank by habit
 - [ ] H-5 Read tools
 - [ ] H-6 More proposals

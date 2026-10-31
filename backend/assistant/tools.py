@@ -18,6 +18,8 @@ from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from users.permissions import user_has_model_permission
+from .aliases import ITEM_ALIASES, strip_honorifics
+from .transliterate import to_latin
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +45,27 @@ MAX_MATCHES = 5
 
 def _spelling_score(query: str, name: str) -> float:
     """How closely every word of `query` matches some word of `name` (0 to 1)."""
-    name_words = re.findall(r"\w+", name.lower())
-    query_words = re.findall(r"\w+", query.lower())
+    norm_query = to_latin(strip_honorifics(query))
+    norm_name = to_latin(strip_honorifics(name))
+    name_words = re.findall(r"\w+", norm_name)
+    query_words = re.findall(r"\w+", norm_query)
     if not name_words or not query_words:
         return 0.0
+
+    def word_similarity(qw: str, nw: str) -> float:
+        base = SequenceMatcher(None, qw, nw).ratio()
+        if base >= 0.8:
+            return base
+        for canonical, aliases in ITEM_ALIASES.items():
+            canonical_latin = to_latin(canonical)
+            alias_latins = [to_latin(a) for a in aliases]
+            all_forms = {canonical_latin, *alias_latins}
+            if qw in all_forms and nw in all_forms:
+                return 1.0
+        return base
+
     best = [
-        max(SequenceMatcher(None, q, n).ratio() for n in name_words)
+        max(word_similarity(q, n) for n in name_words)
         for q in query_words
     ]
     return sum(best) / len(best)
@@ -68,9 +85,11 @@ def find_matches(
     if not query:
         return {"records": [], "certain": True}
 
+    clean_query = strip_honorifics(query).strip() or query
+
     exact = Q()
     for field in fields:
-        exact |= Q(**{f"{field}__iexact": query})
+        exact |= Q(**{f"{field}__iexact": clean_query})
     records = list(queryset.filter(exact)[:MAX_MATCHES])
     if records:
         return {"records": records, "certain": True}
@@ -79,18 +98,18 @@ def find_matches(
     translated_ids = FieldTranslation.objects.filter(
         model_label=model_label,
         field_name__in=["name", "description"],
-        value__icontains=query,
+        value__icontains=clean_query,
     ).values_list("object_id", flat=True)
 
     partial = Q(pk__in=translated_ids)
     for field in fields:
-        partial |= Q(**{f"{field}__icontains": query})
+        partial |= Q(**{f"{field}__icontains": clean_query})
     records = list(queryset.filter(partial).distinct()[:MAX_MATCHES])
     if records:
         return {"records": records, "certain": True}
 
     all_words = Q()
-    for word in query.split():
+    for word in clean_query.split():
         any_field = Q()
         for field in fields:
             any_field |= Q(**{f"{field}__icontains": word})
