@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from buying.models import (
     SupplierGroup,
     Supplier,
+    ExpenseCategory,
     PurchaseOrder,
     PurchaseInvoice,
     PurchaseChargeTemplate,
@@ -12,6 +13,7 @@ from buying.models import (
 from buying.serializers import (
     SupplierGroupSerializer,
     SupplierSerializer,
+    ExpenseCategorySerializer,
     PurchaseOrderSerializer,
     PurchaseInvoiceSerializer,
     PurchaseChargeTemplateSerializer,
@@ -53,6 +55,15 @@ class SupplierViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
     ordering_fields = ["name", "created_at"]
 
 
+class ExpenseCategoryViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
+    queryset = ExpenseCategory.objects.all().select_related("company", "account", "item")
+    serializer_class = ExpenseCategorySerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["company", "is_active"]
+    search_fields = ["name"]
+    ordering_fields = ["name", "created_at"]
+
+
 class PurchaseChargeTemplateViewSet(
     CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet
 ):
@@ -65,6 +76,7 @@ class PurchaseChargeTemplateViewSet(
     filterset_fields = ["company", "is_active"]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
+
 
     @action(detail=False, methods=["post"], url_path="ensure-defaults")
     def ensure_defaults(self, request):

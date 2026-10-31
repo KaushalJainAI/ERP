@@ -6,6 +6,7 @@ from gst.serializers import PartyGSTSerializerMixin
 from buying.models import (
     SupplierGroup,
     Supplier,
+    ExpenseCategory,
     PurchaseOrder,
     PurchaseOrderItem,
     PurchaseInvoice,
@@ -86,6 +87,31 @@ class SupplierSerializer(
             "default_price_list",
             "default_price_list_name",
             "credit_days",
+            "created_at",
+            "modified_at",
+        )
+        translatable_fields = ["name"]
+
+
+class ExpenseCategorySerializer(
+    TranslatedSerializerMixin, serializers.ModelSerializer
+):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    account_name = serializers.CharField(source="account.name", read_only=True)
+    item_name = serializers.CharField(source="item.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = ExpenseCategory
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "name",
+            "account",
+            "account_name",
+            "item",
+            "item_name",
+            "is_active",
             "created_at",
             "modified_at",
         )

@@ -96,6 +96,7 @@ _MASTER_LABELS = (
     "selling.Customer",
     "buying.SupplierGroup",
     "buying.Supplier",
+    "buying.ExpenseCategory",
     "buying.PurchaseChargeTemplate",
     "contacts.Address",
     # GST masters (state list, per-company tax templates, global item tax templates).
@@ -171,6 +172,7 @@ _SELLING_LABELS = (
 _BUYING_LABELS = (
     "buying.SupplierGroup",
     "buying.Supplier",
+    "buying.ExpenseCategory",
     "buying.PurchaseChargeTemplate",
     "contacts.Address",
     "buying.PurchaseOrder",
@@ -591,6 +593,9 @@ class Command(BaseCommand):
         # In Valuation and the charge templates.
         ensure_charge_setup(company)
 
+        # 10b. Expense categories (if accounts mapped or present)
+        ensure_categories(company)
+
         # 11. Notifications: default alert rules
         seed_alert_rules()
 
@@ -633,3 +638,91 @@ class Command(BaseCommand):
                 updated += 1
 
         return created, updated, deleted
+
+
+@transaction.atomic
+def ensure_categories(company, mapping=None):
+    """Ensure standard expense categories exist for ``company``.
+
+    Categories and their hidden non-stock items are created only when an account
+    is provided in the mapping or matches an existing non-group Expense account.
+    It must never guess an account.
+    """
+    from accounts.models import Account, AccountRootType
+    from buying.models import ExpenseCategory
+    from stock.models import Item, ItemGroup, UOM
+
+    cat_names = [
+        "Electricity",
+        "Rent",
+        "Freight and cartage",
+        "Packing and labour charges",
+        "Machinery repair",
+        "Fuel and vehicle",
+        "Office and stationery",
+        "Phone and internet",
+        "Professional fees",
+        "Bank charges",
+        "Licence and lab fees",
+        "Marketing and advertising",
+        "Staff welfare",
+        "Other",
+    ]
+
+    mapping = mapping or {}
+    uom = UOM.objects.filter(name="Nos").first() or UOM.objects.first()
+    if not uom:
+        uom, _ = UOM.objects.get_or_create(name="Nos")
+    item_group = (
+        ItemGroup.objects.filter(is_group=False).first()
+        or ItemGroup.objects.first()
+    )
+    if not item_group:
+        item_group, _ = ItemGroup.objects.get_or_create(
+            name="All Item Groups", defaults={"is_group": False}
+        )
+
+    for name in cat_names:
+        acc = mapping.get(name)
+        if acc is None:
+            acc = Account.objects.filter(
+                company=company,
+                name=name,
+                root_type=AccountRootType.EXPENSE,
+                is_group=False,
+            ).first()
+        elif isinstance(acc, str):
+            acc = Account.objects.filter(
+                company=company,
+                name=acc,
+                root_type=AccountRootType.EXPENSE,
+                is_group=False,
+            ).first()
+
+        if acc is None:
+            continue
+
+        item = None
+        if uom and item_group:
+            item, _ = Item.objects.get_or_create(
+                name=f"Expense - {name}",
+                defaults={
+                    "item_group": item_group,
+                    "stock_uom": uom,
+                    "is_stock_item": False,
+                    "is_active": True,
+                },
+            )
+
+        cat, created = ExpenseCategory.objects.get_or_create(
+            company=company,
+            name=name,
+            defaults={
+                "account": acc,
+                "item": item,
+                "is_active": True,
+            },
+        )
+        if not created and cat.item is None and item is not None:
+            cat.item = item
+            cat.save(update_fields=["item"])

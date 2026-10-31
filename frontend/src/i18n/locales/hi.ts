@@ -221,6 +221,8 @@ const hi: Record<string, unknown> = {
       supplier: "आपूर्तिकर्ता",
       sales_invoice: "बिक्री चालान",
       purchase_invoice: "खरीद चालान",
+      expense_categories: "खर्च श्रेणियां",
+      expense_category: "खर्च श्रेणी",
       journal_entry: "जर्नल प्रविष्टि",
       bank_entry: "बैंक प्रविष्टि",
       cash_entry: "नकद प्रविष्टि",

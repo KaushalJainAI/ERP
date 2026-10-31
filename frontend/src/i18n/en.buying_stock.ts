@@ -15,6 +15,8 @@ export const enBuyingStock = {
       purchase_order: "Purchase Order",
       purchase_invoices: "Purchase Invoices",
       purchase_invoice: "Purchase Invoice",
+      expense_categories: "Expense Categories",
+      expense_category: "Expense Category",
       make_purchase_invoice: "Make Purchase Invoice",
       items: "Items",
       item: "Item",
@@ -45,6 +47,7 @@ export const enBuyingStock = {
       entry_repack: "Repack",
     },
     fields: {
+      account: "Account",
       supplier: "Supplier",
       supplier_group: "Supplier Group",
       purchase_order: "Purchase Order",

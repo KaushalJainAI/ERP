@@ -15,6 +15,7 @@ from gst.services import posting
 from gst.validators import validate_gstin_format
 from accounts.models import (
     Account,
+    AccountRootType,
     PayableDocument,
     TaxableDocument,
     TaxableLine,
@@ -83,6 +84,57 @@ class Supplier(TimeStampedModel):
                 fields=["company", "name"], name="unique_supplier_per_company"
             )
         ]
+
+    def __str__(self):
+        return f"{self.name} ({self.company.abbr})"
+
+
+class ExpenseCategory(TimeStampedModel):
+    """Expense Category master (Electricity, Rent, Hamali...) binding
+    a user-friendly expense category to a non-group Expense account and
+    an optional non-stock Item."""
+
+    company = models.ForeignKey(
+        Company, on_delete=models.CASCADE, related_name="expense_categories"
+    )
+    name = models.CharField(max_length=140)
+    account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="expense_categories"
+    )
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="expense_categories",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "name"], name="unique_company_expense_category_name"
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.account_id:
+            account = self.account
+            if account.root_type != AccountRootType.EXPENSE:
+                errors["account"] = _("The GL account must be of root type Expense.")
+            if account.is_group:
+                errors["account"] = _("The GL account must not be a group.")
+            if self.company_id and account.company_id != self.company_id:
+                errors["account"] = _("The GL account must belong to the company.")
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.company.abbr})"

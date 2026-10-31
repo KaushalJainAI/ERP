@@ -504,7 +504,7 @@ question's recorded answer.
 - [x] M-8 Proof required
 
 ### 5. Expenses
-- [ ] E-1 Category master
+- [x] E-1 Category master
 - [ ] E-2 Mark bills as expenses
 - [ ] E-3 Expense service
 - [ ] E-4 Expense API

@@ -362,4 +362,46 @@ const purchaseInvoices: ResourceConfig = {
   ],
 };
 
-export const buyingResources: ResourceConfig[] = [suppliers, supplierGroups, purchaseOrders, purchaseInvoices];
+export const expenseCategoryLink: LinkDef = {
+  endpoint: "/buying/expense-categories/",
+  labelField: "name",
+  display: (v) => v.expense_category_name ?? v.name,
+  filters: (_row, form) => ({ company: form.company, is_active: true }),
+};
+
+export const expenseCategories: ResourceConfig = {
+  key: "expense-categories",
+  module: "buying",
+  endpoint: "/buying/expense-categories/",
+  titleKey: "bs.res.expense_categories",
+  singularKey: "bs.res.expense_category",
+  icon: Receipt,
+  titleField: "name",
+  ordering: "name",
+  columns: [
+    { key: "name", labelKey: "fields.name" },
+    { key: "account_name", labelKey: "bs.fields.account" },
+    { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
+  ],
+  fields: [
+    companyField,
+    { key: "name", labelKey: "fields.name", type: "text", required: true },
+    {
+      key: "account",
+      labelKey: "bs.fields.account",
+      type: "link",
+      required: true,
+      link: accountLink("Expense"),
+      helpKey: "doc.help.default_account",
+    },
+    { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
+  ],
+};
+
+export const buyingResources: ResourceConfig[] = [
+  suppliers,
+  supplierGroups,
+  purchaseOrders,
+  purchaseInvoices,
+  expenseCategories,
+];
