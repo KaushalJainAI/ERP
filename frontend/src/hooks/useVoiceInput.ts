@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiClient } from "@/api/client";
 import { toWav16kMono } from "@/lib/audio";
 
@@ -18,6 +18,8 @@ interface UseVoiceInput {
   recording: boolean;
   transcribing: boolean;
   error: VoiceError;
+  /** Mic level analyser while recording; null when Web Audio is unavailable. */
+  meter: AnalyserNode | null;
   clearError: () => void;
   start: () => Promise<void>;
   stop: () => void;
@@ -30,6 +32,7 @@ export function useVoiceInput(
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<VoiceError>(null);
+  const [meter, setMeter] = useState<AnalyserNode | null>(null);
 
   const onTranscriptRef = useRef(onTranscript);
   const getLanguageRef = useRef(getLanguage);
@@ -42,6 +45,7 @@ export function useVoiceInput(
   const stoppedRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const meterTimerRef = useRef<number | null>(null);
+  const mountedRef = useRef(false);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -54,11 +58,27 @@ export function useVoiceInput(
       audioCtxRef.current.close().catch(() => undefined);
       audioCtxRef.current = null;
     }
+    setMeter(null);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     recorderRef.current = null;
     chunksRef.current = [];
   }, []);
+
+  // Unmounting mid-recording discards the take: no transcription request, and the
+  // mic, audio context and timers are released.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      const rec = recorderRef.current;
+      if (rec) {
+        rec.onstop = null;
+        if (rec.state !== "inactive") rec.stop();
+      }
+      releaseStream();
+    };
+  }, [releaseStream]);
 
   const transcribeNow = useCallback(async () => {
     const mime = recorderRef.current?.mimeType || "audio/webm";
@@ -112,6 +132,11 @@ export function useVoiceInput(
       setError("mic-denied");
       return;
     }
+    if (!mountedRef.current) {
+      // Unmounted while the permission prompt was open: do not keep the mic live.
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     streamRef.current = stream;
     const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
@@ -138,6 +163,7 @@ export function useVoiceInput(
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 1024;
         src.connect(analyser);
+        setMeter(analyser);
         const buf = new Float32Array(analyser.fftSize);
         let quietSince: number | null = null;
         const startedAt = Date.now();
@@ -157,7 +183,12 @@ export function useVoiceInput(
         }, 200);
       }
     } catch {
-      // AudioContext fallback
+      // AudioContext unavailable or failed: record without the level meter.
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => undefined);
+        audioCtxRef.current = null;
+      }
+      setMeter(null);
     }
   }, [finish, releaseStream]);
 
@@ -165,5 +196,14 @@ export function useVoiceInput(
     void finish();
   }, [finish]);
 
-  return { supported: isSupported(), recording, transcribing, error, clearError, start, stop };
+  return {
+    supported: isSupported(),
+    recording,
+    transcribing,
+    error,
+    meter,
+    clearError,
+    start,
+    stop,
+  };
 }

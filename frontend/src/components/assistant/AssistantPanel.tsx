@@ -17,6 +17,7 @@ import { API_URL, refreshAccessToken } from "@/api/client";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { getActiveCompanyId } from "@/lib/company";
 import { AgentWorkingOverlay, AgentStep } from "./AgentWorkingOverlay";
+import { VoiceWaveform } from "./VoiceWaveform";
 
 export interface MessageBubble {
   id: string;
@@ -81,6 +82,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     recording,
     transcribing,
     error: voiceError,
+    meter: voiceMeter,
     start: startVoice,
     stop: stopVoice,
   } = useVoiceInput(
@@ -441,6 +443,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
               {t(`assistant.errors.${voiceError.replace("-", "_")}`)}
             </p>
           )}
+          {recording && <VoiceWaveform analyser={voiceMeter} label={t("assistant.waveform_label")} />}
           <form
             onSubmit={(e) => {
               e.preventDefault();

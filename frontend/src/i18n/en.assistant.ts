@@ -5,6 +5,7 @@ export const enAssistant = {
   "assistant.mic_stop": "Stop recording",
   "assistant.input_placeholder": "Ask anything or say what happened (e.g. Sold 20kg Haldi to Sharma)...",
   "assistant.listening": "Listening...",
+  "assistant.waveform_label": "Recording level",
   "assistant.transcribing": "Transcribing...",
   "assistant.processing": "Agent Working...",
   "assistant.stop": "Stop",

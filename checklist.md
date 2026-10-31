@@ -455,7 +455,7 @@ Design inspired by **Nidhi Gruh Udyog (NGU)**: mobile-first navigation, high dat
       Display tappable quick-question pills on empty state in the active language (e.g., "Aaj ke unbilled orders", "Haldi ka stock kitna hai?", "Naya Sales Invoice banao") matching NGU's `SUGGESTION_KEYS`.
 - [x] In-chat interactive Proposal Cards:
       Render proposed documents (invoice, payment, stock) as an interactive card in the bubble with line items, quantities, and a single "Review & Save" trigger.
-- [ ] Voice recording waveform / pulsing visualizer.
+- [x] Voice recording waveform / pulsing visualizer.
 
 ---
 
