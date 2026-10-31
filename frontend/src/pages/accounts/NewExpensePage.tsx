@@ -77,7 +77,7 @@ export const NewExpensePage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get<
         ExpenseCategoryItem[] | { results: ExpenseCategoryItem[] }
-      >("/api/buying/expense-categories/", {
+      >("/buying/expense-categories/", {
         params: { is_active: true },
       });
       return Array.isArray(res.data) ? res.data : res.data.results || [];
@@ -92,7 +92,7 @@ export const NewExpensePage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get<
         SupplierItem[] | { results: SupplierItem[] }
-      >("/api/buying/suppliers/", {
+      >("/buying/suppliers/", {
         params: { is_active: true },
       });
       return Array.isArray(res.data) ? res.data : res.data.results || [];
@@ -118,7 +118,7 @@ export const NewExpensePage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get<
         TaxTemplateItem[] | { results: TaxTemplateItem[] }
-      >("/api/accounts/tax-templates/");
+      >("/accounts/tax-templates/");
       const all = Array.isArray(res.data) ? res.data : res.data.results || [];
       return all.filter((t) => !t.template_type || t.template_type === "Purchase");
     },
@@ -131,7 +131,7 @@ export const NewExpensePage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get<
         AccountItem[] | { results: AccountItem[] }
-      >("/api/accounts/accounts/", {
+      >("/accounts/accounts/", {
         params: { is_group: false },
       });
       const all = Array.isArray(res.data) ? res.data : res.data.results || [];
@@ -221,7 +221,7 @@ export const NewExpensePage: React.FC = () => {
         formData.append("proof", proofFile);
       }
 
-      await apiClient.post("/api/buying/expenses/", formData, {
+      await apiClient.post("/buying/expenses/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

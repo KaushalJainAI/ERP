@@ -80,7 +80,7 @@ export const ExpensesPage: React.FC = () => {
       queryKey: ["expense-summary", fromDate, toDate],
       queryFn: async () => {
         const res = await apiClient.get<ExpenseSummaryReport>(
-          "/api/accounts/reports/expense-summary/",
+          "/accounts/reports/expense-summary/",
           {
             params: { from_date: fromDate, to_date: toDate },
           }
@@ -95,7 +95,7 @@ export const ExpensesPage: React.FC = () => {
     queryFn: async () => {
       const res = await apiClient.get<
         ExpenseCategoryItem[] | { results: ExpenseCategoryItem[] }
-      >("/api/buying/expense-categories/", {
+      >("/buying/expense-categories/", {
         params: { is_active: true },
       });
       return Array.isArray(res.data) ? res.data : res.data.results || [];
@@ -117,7 +117,7 @@ export const ExpensesPage: React.FC = () => {
 
       const res = await apiClient.get<
         ExpenseItem[] | { results: ExpenseItem[] }
-      >("/api/buying/expenses/", { params });
+      >("/buying/expenses/", { params });
       return Array.isArray(res.data) ? res.data : res.data.results || [];
     },
   });
