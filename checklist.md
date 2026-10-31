@@ -528,7 +528,7 @@ question's recorded answer.
 - [x] N-1 Email settings
 - [x] N-2 Notifications app
 - [x] N-3 Outbox sender
-- [ ] N-4 Rules engine
+- [x] N-4 Rules engine
 - [ ] N-5 Raw material shortage
 - [ ] N-6 Digest and weekly emails
 - [ ] N-7 Instant alerts

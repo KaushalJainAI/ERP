@@ -259,3 +259,81 @@ class OutboxSenderTests(TestCase):
         self.assertEqual(bad_entry.status, "Pending")
         self.assertEqual(good_entry.status, "Sent")
 
+
+class RulesEngineTests(TestCase):
+    def setUp(self):
+        self.user_with_email = User.objects.create_user(
+            username="admin_user",
+            email="admin@nidhimasala.com",
+            password="pass",
+        )
+        self.user_no_email = User.objects.create_user(
+            username="no_email_user",
+            email="",
+            password="pass",
+        )
+        self.active_rule = AlertRule.objects.create(
+            key="test_active_rule",
+            is_active=True,
+        )
+        self.active_rule.recipients.add(self.user_with_email, self.user_no_email)
+
+        self.inactive_rule = AlertRule.objects.create(
+            key="test_inactive_rule",
+            is_active=False,
+        )
+        self.inactive_rule.recipients.add(self.user_with_email)
+
+    def test_active_rule_creates_notifications_and_outbox(self):
+        from core.models import Outbox
+        from notifications.services.engine import evaluate_rule
+
+        notifs = evaluate_rule(
+            rule_key="test_active_rule",
+            message_key="alert.test_active",
+            params={"item": "Jeera", "qty": "10"},
+            link="/stock/items/1",
+            dedupe_key="active_run_1",
+        )
+
+        # Creates notification for both recipients
+        self.assertEqual(len(notifs), 2)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="test_active_rule").count(), 2
+        )
+
+        # Queues email only for the user with an email address
+        outbox_entries = Outbox.objects.filter(channel="email")
+        self.assertEqual(outbox_entries.count(), 1)
+        self.assertEqual(outbox_entries.first().recipient, "admin@nidhimasala.com")
+
+        # Running again with same dedupe_key creates no duplicate notifications or emails
+        notifs_second = evaluate_rule(
+            rule_key="test_active_rule",
+            message_key="alert.test_active",
+            params={"item": "Jeera", "qty": "10"},
+            dedupe_key="active_run_1",
+        )
+        self.assertEqual(len(notifs_second), 0)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="test_active_rule").count(), 2
+        )
+        self.assertEqual(Outbox.objects.filter(channel="email").count(), 1)
+
+    def test_inactive_rule_creates_nothing(self):
+        from core.models import Outbox
+        from notifications.services.engine import evaluate_rule
+
+        notifs = evaluate_rule(
+            rule_key="test_inactive_rule",
+            message_key="alert.test_inactive",
+            params={"foo": "bar"},
+            dedupe_key="inactive_run_1",
+        )
+        self.assertEqual(len(notifs), 0)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="test_inactive_rule").count(), 0
+        )
+        self.assertEqual(Outbox.objects.filter(channel="email").count(), 0)
+
+
