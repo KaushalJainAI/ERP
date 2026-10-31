@@ -25,7 +25,14 @@ from accounts.models import (
     PaymentType,
 )
 from buying import mapping as buying_mapping
-from buying.models import PurchaseInvoice, PurchaseInvoiceItem, Supplier, SupplierGroup
+from buying.models import (
+    ExpenseCategory,
+    PurchaseInvoice,
+    PurchaseInvoiceItem,
+    Supplier,
+    SupplierGroup,
+)
+from buying.services.expenses import create_expense
 from core.models import AuditLog, Company, UserCompany
 from selling import mapping as selling_mapping
 from selling.models import Customer, CustomerGroup, SalesInvoice, SalesInvoiceItem
@@ -53,10 +60,10 @@ D = Decimal
 DATE = datetime.date(2026, 4, 1)
 MEDIA = tempfile.mkdtemp(prefix="tally-export-test-")
 
+
 def signed_debit(amount):
     """Tally amount -> debit-positive Decimal (Tally writes debits as negatives)."""
     return -Decimal(str(amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
 
 
 def tearDownModule():
@@ -337,6 +344,68 @@ class VoucherXmlTests(Base):
         self.assertEqual(el.findtext("PARTYLEDGERNAME"), "Supp Traders")
         self.assertEqual(el.findtext("DATE"), "20260401")
         self.assertEqual(el.findtext("VOUCHERNUMBER"), pi.name)
+
+    def test_expense_invoice_voucher_generation_and_ledger_name_mapping(self):
+        """Expense invoice (is_expense=True, update_stock=False) exports cleanly
+        as Purchase voucher without stock lines, mapping ExpenseCategory account."""
+        category = ExpenseCategory.objects.create(
+            company=self.company,
+            name="Office Rent",
+            account=self.rent,
+            item=self.service,
+            is_active=True,
+        )
+        invoice, _ = create_expense(
+            company=self.company,
+            category=category,
+            supplier=self.supplier,
+            amount=D("1500.00"),
+            date=DATE,
+            bill_no="EXP-BILL-01",
+            paid_now=False,
+        )
+        batch = self.export()
+        v = self.vouchers(batch)[invoice.name]
+        self.assertEqual(v["type"], "Purchase")
+        # No inventory lines
+        self.assertEqual(len(v["allocs"]), 0)
+        self.assertIsNone(v["el"].find("ALLINVENTORYENTRIES.LIST"))
+
+        # Ledger entries: Rent debited (+1500), Supplier credited (-1500)
+        ledgers = dict(v["ledgers"])
+        self.assertEqual(ledgers.get("T Rent"), D("1500.00"))
+        self.assertEqual(ledgers.get("Supp Traders"), D("-1500.00"))
+
+    def test_expense_invoice_journal_voucher_override(self):
+        """When settings override buying.PurchaseInvoice:expense to Journal,
+        expense invoices export as Journal vouchers."""
+        settings = get_settings(self.company)
+        settings.voucher_type_overrides = {"buying.PurchaseInvoice:expense": "Journal"}
+        settings.save()
+
+        category = ExpenseCategory.objects.create(
+            company=self.company,
+            name="Office Rent",
+            account=self.rent,
+            item=self.service,
+            is_active=True,
+        )
+        invoice, _ = create_expense(
+            company=self.company,
+            category=category,
+            supplier=self.supplier,
+            amount=D("2500.00"),
+            date=DATE,
+            bill_no="EXP-BILL-02",
+            paid_now=False,
+        )
+        batch = self.export()
+        v = self.vouchers(batch)[invoice.name]
+        self.assertEqual(v["type"], "Journal")
+        self.assertIsNone(v["el"].find("ALLINVENTORYENTRIES.LIST"))
+        ledgers = dict(v["ledgers"])
+        self.assertEqual(ledgers.get("T Rent"), D("2500.00"))
+        self.assertEqual(ledgers.get("Supp Traders"), D("-2500.00"))
 
     def test_sales_invoice_valuation_legs_dropped_and_non_stock_line_residual(self):
         self.purchase(qty=10, rate=40)

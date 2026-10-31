@@ -511,7 +511,7 @@ question's recorded answer.
 - [ ] E-5 Expense page
 - [x] E-6 Expense summary
 - [ ] E-7 Monthly repeats
-- [ ] E-8 Tally mapping check
+- [x] E-8 Tally mapping check
 - [ ] E-9 Category list (OWNER)
 
 ### 6. Taxes

@@ -120,7 +120,11 @@ def _q(v) -> Decimal:
 
 def _variant(doc, doctype: str) -> str:
     if doctype in INVOICES:
-        return "return" if getattr(doc, "is_return", False) else ""
+        if getattr(doc, "is_return", False):
+            return "return"
+        if getattr(doc, "is_expense", False):
+            return "expense"
+        return ""
     if doctype == "accounts.PaymentEntry":
         return doc.payment_type
     if doctype == "accounts.JournalEntry":
