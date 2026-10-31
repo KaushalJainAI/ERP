@@ -295,3 +295,82 @@ def commit_opening_bills(company, as_on):
             bill.submit()
             created.append(bill)
     return created
+
+
+# --------------------------------------------------------------- integrity (G-4)
+
+
+def integrity_errors():
+    """Each opening bill's stored outstanding must equal its amount less the live
+    allocations, and a submitted bill's party must still be a master of its company.
+    Returns the drift messages (empty = consistent)."""
+    errors = []
+    for bill in OpeningBill.objects.order_by("pk"):
+        expected = derive(bill)
+        if bill.outstanding_amount != expected:
+            errors.append(
+                _(
+                    "Opening Bill Outstanding Drift for %(name)s: stored %(stored)s "
+                    "!= amount %(amount)s less allocations = %(expected)s."
+                )
+                % {
+                    "name": bill.name,
+                    "stored": bill.outstanding_amount,
+                    "amount": bill.amount,
+                    "expected": expected,
+                }
+            )
+        if bill.docstatus == DocStatus.SUBMITTED and not (
+            _party_model(bill.party_type)
+            .objects.filter(company_id=bill.company_id, name=bill.party)
+            .exists()
+        ):
+            errors.append(
+                _(
+                    "Opening Bill %(name)s: '%(party)s' is not a %(party_type)s of its company."
+                )
+                % {
+                    "name": bill.name,
+                    "party": bill.party,
+                    "party_type": bill.party_type,
+                }
+            )
+    return errors
+
+
+def integrity_warnings():
+    """A party's submitted opening bills should add up to its ledger balance on the
+    as-on date they were built for. A difference is reported, not an error: the
+    cutover balances may still be retaken from Tally before go-live (planning 09)."""
+    from django.db.models import Sum
+
+    from accounts.services import outstanding as outstanding_service
+
+    warnings = []
+    groups = (
+        OpeningBill.objects.filter(docstatus=DocStatus.SUBMITTED)
+        .values("company_id", "party_type", "party", "as_on")
+        .annotate(total=Sum("amount"))
+        .order_by("company_id", "party_type", "party", "as_on")
+    )
+    for group in groups:
+        balance = outstanding_service.party_balance(
+            group["party_type"],
+            group["party"],
+            group["company_id"],
+            as_on=group["as_on"],
+        )
+        if group["total"] != balance:
+            warnings.append(
+                _(
+                    "Opening bills for %(party)s total %(bills)s, but the ledger "
+                    "balance on %(as_on)s is %(balance)s."
+                )
+                % {
+                    "party": group["party"],
+                    "bills": group["total"],
+                    "as_on": group["as_on"],
+                    "balance": balance,
+                }
+            )
+    return warnings
