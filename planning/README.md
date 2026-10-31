@@ -91,3 +91,59 @@ Record each answer here, with the date, when it is given.
 - `backend/docs/API.md` is updated for route, permission or serializer changes.
 - Deliberate ERPNext differences are in `backend/docs/erpnext_divergences.md`.
 - The card is ticked in `checklist.md`, in one commit.
+
+## Implementation status (updated 2026-10-31)
+
+### ✅ Complete (committed on `plan/phase-10`)
+
+| Wave | Cards done | Commit range |
+|---|---|---|
+| 1 Foundations | A-1, A-2, A-3, A-5, P-1, P-2, M-1, N-1, N-2, L-1, L-2, L-3 (12/12) | `c8f73e5`–`aa21088` |
+| 2 Order to bill | O-1, O-2, O-3, O-4, O-5, O-6, M-2, M-3 (8/8) | `365f222`–`566adf5` |
+| 3 Money & Expenses | M-4, M-5, M-6, M-7, M-8, E-1–E-6, E-8 (13/13) | `1a30ef9`–`4c7bdcc` |
+| 4 Taxes & Factory | T-1, T-2, T-3, T-4, T-5, P-5 (6/6) | `d4b3aea`–`b6bbe53` |
+| 5 Alerts | N-3, N-4, N-5, N-6, N-7, N-8, N-9, E-7 (8/8) | `bc66696`–`7ae8b9d` |
+| 6 Agent (partial) | H-1, H-2, H-3, L-6 (4/7) | `cca28f2`–`be91bdb`, `7972600` |
+| 7 Go-live (partial) | G-6, G-7 (2/9) | `83c6c0f`, `ef27781` |
+
+**Total committed: 53 cards.**
+
+### 🔶 Remaining (not yet committed)
+
+| Card | Wave | What it does | Notes |
+|---|---|---|---|
+| H-4 | 6 | Rank items by 90-day customer purchase history | Subagent was mid-implementation |
+| H-5 | 6 | Read tools (pending orders, money, stock, GST) | Subagent was mid-implementation |
+| H-6 | 6 | Batch, receipt, expense proposals | Subagent was mid-implementation |
+| L-4 | 6 | Hindi `.po` full translation and compiled `.mo` | Subagent was mid-implementation |
+| A-4 | 7 | Workspace home pages (Orders, Factory, Accounts, Admin) | Subagent was mid-implementation |
+| A-6 | 7 | Plain words in i18n keys (Approve, Bill, Dispatch, Paid, Due) | Not started |
+| G-1 | 7 | Opening bills model and allocation | Subagent was starting |
+| G-2 | 7 | Opening bills generator (dry-run/commit) | Not started |
+| G-3 | 7 | Accountant CSV corrections | Not started |
+| G-4 | 7 | Integrity check for opening bill outstanding | Not started |
+| G-5 | 7 | Keep opening bills and stock out of Tally export | Not started |
+
+### 🚫 Skipped (by plan design)
+
+| Card | Reason |
+|---|---|
+| A-7 | OWNER: remove demo company |
+| O-7 | OWNER: real Tally test |
+| P-3, P-4, P-6 | BLOCKED on Q2 (grinding run question) |
+| P-7 | OWNER + BLOCKED Q3 |
+| E-9 | OWNER: category list |
+| T-6, T-7 | BLOCKED on Q5 (staff income tax) |
+| T-8 | OWNER: rule check |
+| N-10 | OWNER: turn on notifications |
+| H-7 | OWNER: evaluation sentences |
+| L-5 | OWNER: Hindi review |
+| G-8 | OWNER: cutover |
+
+### Next steps for a resuming session
+
+1. Resume Wave 6 remaining: H-4, H-5, H-6, L-4.
+2. Resume Wave 7 remaining: A-4, A-6, G-1, G-2, G-3, G-4, G-5.
+3. Wave 8: full test suite (`pytest -q`), `makemigrations --check --dry-run`,
+   `npm run build`, `verify_integrity` on SQLite, handover report.
+4. Answer open questions Q2, Q5, Q6 to unblock P-3/P-4/P-6 and T-6/T-7.

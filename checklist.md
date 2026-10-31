@@ -557,7 +557,7 @@ question's recorded answer.
 - [ ] G-3 Accountant corrections
 - [ ] G-4 Integrity check
 - [ ] G-5 Keep openings out of Tally
-- [ ] G-6 Opening stock template
-- [ ] G-7 Backups
+- [x] G-6 Opening stock template
+- [x] G-7 Backups
 - [ ] G-8 Cutover (OWNER)
 
