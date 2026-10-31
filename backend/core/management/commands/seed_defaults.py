@@ -116,6 +116,7 @@ _GST_MASTER_LABELS = (
 _DOCUMENT_LABELS = (
     "accounts.JournalEntry",
     "accounts.PaymentEntry",
+    "accounts.TaxPayment",
     "stock.StockEntry",
     "stock.StockReconciliation",
     "selling.SalesOrder",
@@ -155,6 +156,7 @@ _ACCOUNTS_LABELS = (
     "accounts.GLEntry",
     "accounts.JournalEntry",
     "accounts.PaymentEntry",
+    "accounts.TaxPayment",
     "accounts.TaxTemplate",
     "accounts.ItemTaxTemplate",
 )

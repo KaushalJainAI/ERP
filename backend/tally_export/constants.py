@@ -51,7 +51,7 @@ GST_LEDGER_NAMES = {
 
 #: ERP documents that are never sent to Tally: Tally closes its own years, so the
 #: year-end Period Closing Voucher would double-close the books.
-NEVER_EXPORTED_DOCTYPES = ["accounts.PeriodClosingVoucher"]
+NEVER_EXPORTED_DOCTYPES = ["accounts.PeriodClosingVoucher", "accounts.TaxPayment"]
 
 #: Voucher names with these prefixes were imported from Tally; they are history.
 DEFAULT_EXCLUDED_PREFIXES = ["TLY-"]

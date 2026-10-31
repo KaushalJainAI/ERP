@@ -200,6 +200,15 @@ class JournalEntry(SubmittableDocument):
         self.total_debit = sum((line.debit for line in lines), Decimal("0.00"))
         self.total_credit = sum((line.credit for line in lines), Decimal("0.00"))
 
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields and "journal_entry" in update_fields:
+            TaxPayment.objects.filter(pk=self.pk).update(
+                journal_entry=self.journal_entry
+            )
+            return
+        super().save(*args, **kwargs)
+
     def validate_before_submit(self):
         if self.company.require_proof:
             from core.attachments import has_proof
@@ -1637,3 +1646,170 @@ class PeriodClosingVoucher(SubmittableDocument):
 
     def __str__(self):
         return f"{self.name} ({self.fiscal_year.name})"
+
+
+class TaxType(models.TextChoices):
+    GST = "GST", "GST"
+    TDS = "TDS", "TDS"
+
+
+class TaxPayment(SubmittableDocument):
+    """GST or TDS Tax Payment with challan details and GL posting via JournalEntry."""
+
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="tax_payments"
+    )
+    tax_type = models.CharField(max_length=10, choices=TaxType.choices)
+    period = models.DateField()  # first day of the month
+    posting_date = models.DateField()
+    challan_no = models.CharField(max_length=64)
+    paid_from = models.ForeignKey(
+        "accounts.Account",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tax_payments",
+    )
+    igst_cash = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    cgst_cash = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    sgst_cash = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    igst_credit_used = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    cgst_credit_used = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    sgst_credit_used = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    tds_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    journal_entry = models.OneToOneField(
+        "accounts.JournalEntry",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="tax_payment",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "tax_type", "period", "challan_no"],
+                condition=~models.Q(docstatus=DocStatus.CANCELLED),
+                name="unique_tax_payment_challan_per_period",
+            ),
+            models.CheckConstraint(
+                check=models.Q(igst_cash__gte=0)
+                & models.Q(cgst_cash__gte=0)
+                & models.Q(sgst_cash__gte=0)
+                & models.Q(igst_credit_used__gte=0)
+                & models.Q(cgst_credit_used__gte=0)
+                & models.Q(sgst_credit_used__gte=0)
+                & models.Q(tds_amount__gte=0),
+                name="check_tax_payment_amounts_non_negative",
+            ),
+            models.CheckConstraint(
+                check=models.Q(igst_cash__gt=0)
+                | models.Q(cgst_cash__gt=0)
+                | models.Q(sgst_cash__gt=0)
+                | models.Q(igst_credit_used__gt=0)
+                | models.Q(cgst_credit_used__gt=0)
+                | models.Q(sgst_credit_used__gt=0)
+                | models.Q(tds_amount__gt=0),
+                name="check_tax_payment_has_non_zero_amount",
+            ),
+            models.CheckConstraint(
+                check=~models.Q(tax_type="GST") | models.Q(tds_amount=Decimal("0.00")),
+                name="check_tax_payment_gst_no_tds",
+            ),
+            models.CheckConstraint(
+                check=~models.Q(tax_type="TDS")
+                | (
+                    models.Q(igst_cash=Decimal("0.00"))
+                    & models.Q(cgst_cash=Decimal("0.00"))
+                    & models.Q(sgst_cash=Decimal("0.00"))
+                    & models.Q(igst_credit_used=Decimal("0.00"))
+                    & models.Q(cgst_credit_used=Decimal("0.00"))
+                    & models.Q(sgst_credit_used=Decimal("0.00"))
+                ),
+                name="check_tax_payment_tds_no_gst",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.period and self.period.day != 1:
+            self.period = self.period.replace(day=1)
+        if self.tax_type == "GST":
+            if self.tds_amount and self.tds_amount > 0:
+                raise ValidationError(_("GST tax payments cannot have TDS amount."))
+            total_cash = self.igst_cash + self.cgst_cash + self.sgst_cash
+            total_amount = (
+                total_cash
+                + self.igst_credit_used
+                + self.cgst_credit_used
+                + self.sgst_credit_used
+            )
+            if total_amount <= 0:
+                raise ValidationError(
+                    _("Tax payment must have at least one non-zero amount.")
+                )
+            if total_cash > 0 and not self.paid_from:
+                raise ValidationError(
+                    _("Paid From account is required when paying tax in cash.")
+                )
+        elif self.tax_type == "TDS":
+            if (
+                self.igst_cash > 0
+                or self.cgst_cash > 0
+                or self.sgst_cash > 0
+                or self.igst_credit_used > 0
+                or self.cgst_credit_used > 0
+                or self.sgst_credit_used > 0
+            ):
+                raise ValidationError(_("TDS tax payments cannot have GST amounts."))
+            if self.tds_amount <= 0:
+                raise ValidationError(_("TDS amount must be greater than zero."))
+            if not self.paid_from:
+                raise ValidationError(
+                    _("Paid From account is required for TDS payment.")
+                )
+        if self.paid_from:
+            if self.paid_from.company_id != self.company_id:
+                raise ValidationError(
+                    _("Paid From account does not belong to company '%(company)s'.")
+                    % {"company": self.company.name}
+                )
+            if self.paid_from.is_group:
+                raise ValidationError(_("Paid From account cannot be a group account."))
+
+    def validate_before_submit(self):
+        if self.company.require_proof:
+            from core.attachments import has_proof
+
+            if not has_proof(self):
+                raise ValidationError(
+                    _("Proof attachment is required before submission.")
+                )
+        self.clean()
+
+    def on_submit(self):
+        from accounts.services.tax_payment import submit_tax_payment
+
+        submit_tax_payment(self)
+
+    def on_cancel(self):
+        from accounts.services.tax_payment import cancel_tax_payment
+
+        cancel_tax_payment(self)
+
+    def __str__(self):
+        return f"{self.name} ({self.tax_type} - {self.challan_no})"

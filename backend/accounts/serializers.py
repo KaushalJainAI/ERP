@@ -17,6 +17,7 @@ from accounts.models import (
     PaymentType,
     TaxTemplate,
     TaxTemplateRow,
+    TaxPayment,
 )
 from accounts.mapping import (
     default_bank_or_cash_account,
@@ -847,3 +848,54 @@ class TaxCalculateSerializer(serializers.Serializer):
                 _("Each tax account may appear only once in the tax table.")
             )
         return rows
+
+
+
+class TaxPaymentSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    name_prefix = "TAX-2026-"
+
+    paid_from_name = serializers.CharField(source="paid_from.name", read_only=True)
+    journal_entry_name = serializers.CharField(
+        source="journal_entry.name", read_only=True
+    )
+
+    class Meta:
+        model = TaxPayment
+        fields = (
+            "id",
+            "name",
+            "company",
+            "tax_type",
+            "period",
+            "posting_date",
+            "challan_no",
+            "paid_from",
+            "paid_from_name",
+            "igst_cash",
+            "cgst_cash",
+            "sgst_cash",
+            "igst_credit_used",
+            "cgst_credit_used",
+            "sgst_credit_used",
+            "tds_amount",
+            "journal_entry",
+            "journal_entry_name",
+            "docstatus",
+            "amended_from",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "journal_entry",
+            "created_at",
+            "modified_at",
+        )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        period = attrs.get("period")
+        if period and period.day != 1:
+            attrs["period"] = period.replace(day=1)
+        return attrs

@@ -516,7 +516,7 @@ question's recorded answer.
 
 ### 6. Taxes
 - [x] T-1 Input credit flag
-- [ ] T-2 Tax Payment document
+- [x] T-2 Tax Payment document
 - [ ] T-3 GST Position service
 - [ ] T-4 GST page
 - [ ] T-5 Credit at risk

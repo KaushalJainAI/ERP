@@ -9,6 +9,7 @@ from accounts.views import (
     JournalEntryViewSet,
     PaymentEntryViewSet,
     TaxTemplateViewSet,
+    TaxPaymentViewSet,
     calculate_taxes,
     trial_balance,
     general_ledger,
@@ -27,6 +28,7 @@ router.register("accounts", AccountViewSet, basename="account")
 router.register("gl-entries", GLEntryViewSet, basename="gl-entry")
 router.register("journal-entries", JournalEntryViewSet, basename="journal-entry")
 router.register("payment-entries", PaymentEntryViewSet, basename="payment-entry")
+router.register("tax-payments", TaxPaymentViewSet, basename="tax-payment")
 router.register("tax-templates", TaxTemplateViewSet, basename="tax-template")
 router.register(
     "item-tax-templates", ItemTaxTemplateViewSet, basename="item-tax-template"

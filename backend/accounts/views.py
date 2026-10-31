@@ -15,6 +15,7 @@ from accounts.models import (
     JournalEntry,
     PaymentEntry,
     TaxTemplate,
+    TaxPayment,
 )
 from accounts.serializers import (
     AccountSerializer,
@@ -24,6 +25,7 @@ from accounts.serializers import (
     PaymentEntrySerializer,
     TaxCalculateSerializer,
     TaxTemplateSerializer,
+    TaxPaymentSerializer,
 )
 from accounts.reports.tally import tally_lookup
 from accounts.services.closing import PCV_VOUCHER_TYPE
@@ -752,3 +754,15 @@ def expense_summary_view(request):
 
     data = expense_summary(company, from_date, to_date)
     return Response(data)
+
+
+
+class TaxPaymentViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = TaxPayment.objects.all().select_related("paid_from", "journal_entry")
+    serializer_class = TaxPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    filterset_fields = ["company", "tax_type", "period", "posting_date", "docstatus"]
+    search_fields = ["name", "challan_no"]
+    ordering_fields = ["posting_date", "period", "created_at"]
