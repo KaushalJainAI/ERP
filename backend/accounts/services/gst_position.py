@@ -164,3 +164,72 @@ def gst_position(company: Any, month: Any) -> dict[str, Any]:
             for p in payments
         ],
     }
+
+
+
+def gst_credit_at_risk(company: Any, as_on: Any = None) -> list[dict[str, Any]]:
+    company_obj = resolve_company(company)
+    if as_on is None:
+        as_on_date = datetime.date.today()
+    elif isinstance(as_on, datetime.datetime):
+        as_on_date = as_on.date()
+    elif isinstance(as_on, datetime.date):
+        as_on_date = as_on
+    elif isinstance(as_on, str):
+        try:
+            as_on_date = datetime.date.fromisoformat(as_on.strip())
+        except ValueError:
+            raise ValidationError(_("Invalid as_on date format. Expected YYYY-MM-DD."))
+    else:
+        as_on_date = datetime.date.today()
+
+    cutoff_date = as_on_date - datetime.timedelta(days=150)
+
+    from buying.models import PurchaseInvoice
+
+    invoices = (
+        PurchaseInvoice.objects.filter(
+            company=company_obj,
+            docstatus=DocStatus.SUBMITTED,
+            outstanding_amount__gt=ZERO,
+            posting_date__lte=cutoff_date,
+        )
+        .select_related("supplier")
+        .prefetch_related("items")
+        .order_by("posting_date")
+    )
+
+    results = []
+    for inv in invoices:
+        gst_sum = sum(
+            (
+                item.igst_amount + item.cgst_amount + item.sgst_amount
+                for item in inv.items.all()
+            ),
+            ZERO,
+        )
+        if gst_sum <= ZERO:
+            continue
+
+        base_date = inv.bill_date or inv.posting_date
+        days_unpaid = (as_on_date - base_date).days
+        if days_unpaid < 150:
+            continue
+
+        status = "Reversed" if days_unpaid >= 180 else "Approaching 180 days"
+
+        results.append(
+            {
+                "id": inv.id,
+                "name": inv.name,
+                "supplier_name": inv.supplier.name,
+                "bill_date": inv.bill_date.isoformat() if inv.bill_date else None,
+                "posting_date": inv.posting_date.isoformat(),
+                "days_unpaid": days_unpaid,
+                "gst_amount": _money(gst_sum),
+                "outstanding_amount": _money(inv.outstanding_amount),
+                "status": status,
+                "days_left": max(0, 180 - days_unpaid),
+            }
+        )
+    return results

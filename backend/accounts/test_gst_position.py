@@ -102,3 +102,73 @@ class GstPositionTests(OutstandingBase):
         # Missing month param -> 400
         res = client.get(GST_POSITION_URL, {"company": self.company.id})
         self.assertEqual(res.status_code, 400)
+
+    def test_gst_credit_at_risk(self):
+        as_on = datetime.date(2026, 10, 1)
+
+        # 1. Invoice at 155 days (posted 2026-04-29): open with GST -> should appear (Approaching 180 days)
+        inv155 = self.purchase(
+            self.sup_intra,
+            (self.item18, 1, 1000),
+            posting_date="2026-04-29",
+            itc_eligible=True,
+        )
+
+        # 2. Invoice at 185 days (posted 2026-03-30): open with GST -> should appear (Reversed)
+        inv185 = self.purchase(
+            self.sup_intra,
+            (self.item18, 1, 1000),
+            posting_date="2026-03-30",
+            itc_eligible=True,
+        )
+
+        # 3. Invoice under 150 days (posted 2026-06-01): open with GST -> should NOT appear
+        inv_recent = self.purchase(
+            self.sup_intra,
+            (self.item18, 1, 1000),
+            posting_date="2026-06-01",
+            itc_eligible=True,
+        )
+
+        # 4. Invoice at 160 days (posted 2026-04-24), but fully paid -> should NOT appear
+        inv_paid = self.purchase(
+            self.sup_intra,
+            (self.item18, 1, 1000),
+            posting_date="2026-04-24",
+            itc_eligible=True,
+        )
+        from buying.models import PurchaseInvoice
+        PurchaseInvoice.objects.filter(pk=inv_paid["id"]).update(
+            outstanding_amount=Decimal("0.00")
+        )
+
+        from accounts.services.gst_position import gst_credit_at_risk
+
+        results = gst_credit_at_risk(self.company, as_on=as_on)
+        result_names = {r["name"] for r in results}
+
+        self.assertIn(inv155["name"], result_names)
+        self.assertIn(inv185["name"], result_names)
+        self.assertNotIn(inv_recent["name"], result_names)
+        self.assertNotIn(inv_paid["name"], result_names)
+
+        row155 = next(r for r in results if r["name"] == inv155["name"])
+        self.assertEqual(row155["days_unpaid"], 155)
+        self.assertEqual(row155["status"], "Approaching 180 days")
+        self.assertEqual(row155["gst_amount"], "180.00")
+
+        row185 = next(r for r in results if r["name"] == inv185["name"])
+        self.assertEqual(row185["days_unpaid"], 185)
+        self.assertEqual(row185["status"], "Reversed")
+
+        # API endpoint test
+        client = APIClient()
+        client.force_authenticate(user=self.admin)
+        res = client.get(
+            "/api/accounts/reports/gst-credit-at-risk/",
+            {"company": self.company.id, "as_on": "2026-10-01"},
+        )
+        self.assertEqual(res.status_code, 200)
+        api_names = {r["name"] for r in res.data}
+        self.assertIn(inv155["name"], api_names)
+        self.assertIn(inv185["name"], api_names)

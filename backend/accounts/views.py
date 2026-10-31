@@ -791,3 +791,24 @@ def gst_position_view(request):
     except (ValueError, DjangoValidationError, Company.DoesNotExist) as exc:
         raise ValidationError({"detail": str(exc)})
     return Response(data)
+
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
+)
+def gst_credit_at_risk_view(request):
+    """Credit at risk report (GET /api/accounts/reports/gst-credit-at-risk/?company=&as_on=)."""
+    company_id = active_company_id(request)
+    company_param = request.query_params.get("company")
+    company = company_param or company_id
+    as_on = request.query_params.get("as_on")
+
+    from accounts.services.gst_position import gst_credit_at_risk
+
+    try:
+        data = gst_credit_at_risk(company, as_on=as_on)
+    except (ValueError, DjangoValidationError, Company.DoesNotExist) as exc:
+        raise ValidationError({"detail": str(exc)})
+    return Response(data)

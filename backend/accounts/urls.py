@@ -20,6 +20,7 @@ from accounts.views import (
     bills_to_pay_view,
     expense_summary_view,
     gst_position_view,
+    gst_credit_at_risk_view,
 )
 
 app_name = "accounts"
@@ -60,6 +61,7 @@ urlpatterns = [
     path("reports/ageing/", ageing, name="ageing"),
     path("reports/expense-summary/", expense_summary_view, name="expense-summary"),
     path("reports/gst-position/", gst_position_view, name="gst-position"),
+    path("reports/gst-credit-at-risk/", gst_credit_at_risk_view, name="gst-credit-at-risk"),
     path("collections/", collections_view, name="collections"),
     path("bills-to-pay/", bills_to_pay_view, name="bills-to-pay"),
     path("reports/sales-register/", report_views.sales_register, name="sales-register"),

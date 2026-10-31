@@ -519,7 +519,7 @@ question's recorded answer.
 - [x] T-2 Tax Payment document
 - [x] T-3 GST Position service
 - [ ] T-4 GST page
-- [ ] T-5 Credit at risk
+- [x] T-5 Credit at risk
 - [ ] T-6 TDS on salary (BLOCKED Q5)
 - [ ] T-7 TDS register
 - [ ] T-8 Rule check (OWNER)
