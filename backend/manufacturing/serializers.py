@@ -11,7 +11,14 @@ from rest_framework import serializers
 
 from core.mixins import NestedMasterWriteMixin
 from core.models import NamingSeries
-from manufacturing.models import BOM, BOMItem, BOMScrapItem, WorkOrder, WorkOrderItem
+from manufacturing.models import (
+    BOM,
+    Batch,
+    BOMItem,
+    BOMScrapItem,
+    WorkOrder,
+    WorkOrderItem,
+)
 from manufacturing.services import boms as boms_service
 from manufacturing.services import costing
 
@@ -307,6 +314,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "process_loss_qty",
             "status",
             "stage",
+            "batch",
             "docstatus",
             "amended_from",
             "required_items",
@@ -321,6 +329,7 @@ class WorkOrderSerializer(serializers.ModelSerializer):
             "process_loss_qty",
             "status",
             "stage",
+            "batch",
             "docstatus",
             "amended_from",
             "required_items",
@@ -348,3 +357,51 @@ class WorkOrderSerializer(serializers.ModelSerializer):
         if not validated_data.get("name"):
             validated_data["name"] = NamingSeries.next("WO-2026-")
         return super().create(validated_data)
+
+
+class BatchSerializer(serializers.ModelSerializer):
+    """A production batch. Written only by ``services.batches``, so read-only here."""
+
+    bulk_item_code = serializers.CharField(source="bulk_item.code", read_only=True)
+    bulk_item_name = serializers.CharField(source="bulk_item.name", read_only=True)
+    grinding_work_order_name = serializers.CharField(
+        source="grinding_work_order.name", read_only=True
+    )
+    grinding_planned_qty = serializers.DecimalField(
+        source="grinding_work_order.qty",
+        max_digits=18,
+        decimal_places=3,
+        read_only=True,
+    )
+    grinding_produced_qty = serializers.DecimalField(
+        source="grinding_work_order.produced_qty",
+        max_digits=18,
+        decimal_places=3,
+        read_only=True,
+    )
+    grinding_process_loss_qty = serializers.DecimalField(
+        source="grinding_work_order.process_loss_qty",
+        max_digits=18,
+        decimal_places=3,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Batch
+        fields = (
+            "id",
+            "name",
+            "company",
+            "bulk_item",
+            "bulk_item_code",
+            "bulk_item_name",
+            "status",
+            "grinding_work_order",
+            "grinding_work_order_name",
+            "grinding_planned_qty",
+            "grinding_produced_qty",
+            "grinding_process_loss_qty",
+            "created_at",
+            "modified_at",
+        )
+        read_only_fields = fields

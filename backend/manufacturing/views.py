@@ -5,17 +5,23 @@ from decimal import Decimal
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Sum
-from rest_framework import permissions, status, viewsets
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 
 from core.company_context import CompanyScopedMixin, active_company_id
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
-from manufacturing.models import BOM, WorkOrder, WorkOrderStatus
-from manufacturing.serializers import BOMSerializer, WorkOrderSerializer
+from core.models import Company
+from manufacturing.models import BOM, Batch, WorkOrder, WorkOrderStatus
+from manufacturing.serializers import (
+    BatchSerializer,
+    BOMSerializer,
+    WorkOrderSerializer,
+)
+from manufacturing.services import batches as batch_service
 from manufacturing.services import costing
 from manufacturing.services import work_orders as wo_service
-from stock.models import StockEntry, StockEntryItem, StockEntryType
+from stock.models import Item, StockEntry, StockEntryItem, StockEntryType
 from stock.serializers import StockEntrySerializer
 from stock.views import _jsonable, _params_400, _parse_date, _parse_int
 from users.permissions import HasRolePermission, require_model_permission
@@ -149,6 +155,117 @@ class WorkOrderViewSet(
             StockEntrySerializer(entry, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class BatchViewSet(
+    CompanyScopedMixin,
+    mixins.CreateModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Production batches (grind, then pack per SKU). Stock moves only through
+    ``services.batches``. Permissions reuse the Work Order model, the production
+    authority, so no new role rows are needed."""
+
+    model_label = "manufacturing.WorkOrder"
+    queryset = Batch.objects.select_related(
+        "company", "bulk_item", "grinding_work_order"
+    ).order_by("-created_at", "-pk")
+    serializer_class = BatchSerializer
+    permission_classes = [permissions.IsAuthenticated, HasRolePermission]
+    action_permission_flags = {
+        "finish_grinding": "can_submit",
+        "pack": "can_submit",
+        "cancel": "can_cancel",
+    }
+
+    def create(self, request, *args, **kwargs):
+        """Start grinding: body ``{"company", "bulk_item", "bulk_qty"}``. Posts no stock."""
+        try:
+            company = Company.objects.get(pk=request.data.get("company"))
+            bulk_item = Item.objects.get(pk=request.data.get("bulk_item"))
+        except (Company.DoesNotExist, Item.DoesNotExist, TypeError, ValueError):
+            return Response(
+                {"error": _("Choose a company and a bulk item.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        active = getattr(self, "active_company", None)
+        if active is not None and company.pk != active.pk:
+            return Response(
+                {"error": _("The company must be the one selected.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            batch = batch_service.start_grinding(
+                company, bulk_item, request.data.get("bulk_qty"), user=request.user
+            )
+        except DjangoValidationError as exc:
+            return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            BatchSerializer(batch, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["post"], url_path="finish-grinding")
+    def finish_grinding(self, request, pk=None):
+        """Body ``{"bulk_qty"}``: the bulk actually produced. Posts the grinding."""
+        batch = self.get_object()
+        try:
+            batch_service.finish_grinding(
+                batch.grinding_work_order,
+                request.data.get("bulk_qty"),
+                user=request.user,
+            )
+        except DjangoValidationError as exc:
+            return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+        batch.refresh_from_db()
+        return Response(self.get_serializer(batch).data)
+
+    @action(detail=True, methods=["post"])
+    def pack(self, request, pk=None):
+        """Body ``{"bulk_used", "lines": [{"sku", "packets"}, ...]}``."""
+        batch = self.get_object()
+        try:
+            lines = [
+                (Item.objects.get(pk=row.get("sku")), row.get("packets"))
+                for row in request.data.get("lines") or []
+            ]
+        except (Item.DoesNotExist, AttributeError, TypeError, ValueError):
+            return Response(
+                {"error": _("Choose a SKU for every line.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            result = batch_service.pack(
+                batch.grinding_work_order,
+                request.data.get("bulk_used"),
+                lines,
+                user=request.user,
+            )
+        except DjangoValidationError as exc:
+            return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {
+                "batch": BatchSerializer(
+                    result["batch"], context={"request": request}
+                ).data,
+                "bulk_used": str(result["bulk_used"]),
+                "bulk_packed": str(result["bulk_packed"]),
+                "packing_loss": str(result["packing_loss"]),
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """Cancel the batch: every entry and Work Order, restoring stock."""
+        batch = self.get_object()
+        try:
+            batch_service.cancel_batch(batch.grinding_work_order, user=request.user)
+        except DjangoValidationError as exc:
+            return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
+        batch.refresh_from_db()
+        return Response(self.get_serializer(batch).data)
 
 
 @api_view(["GET"])

@@ -7,6 +7,7 @@ from django.db import transaction
 from core.models import Company, FiscalYear, Language
 from users.models import Role, RolePermission
 from users.permissions import PERMISSION_FLAGS
+from manufacturing.services.batches import ensure_loss_warehouse
 from stock.models import UOM, ItemGroup, Warehouse
 from selling.models import CustomerGroup
 from buying.models import SupplierGroup
@@ -517,6 +518,8 @@ class Command(BaseCommand):
         ):
             warehouse.account = wip_account
             warehouse.save(update_fields=["account"])
+        # Packing loss is moved here by the batch service (planning doc 03, Q2).
+        ensure_loss_warehouse(company)
 
         # Sub accounts under Liabilities
         Account.objects.get_or_create(

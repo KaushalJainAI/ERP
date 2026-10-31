@@ -683,4 +683,11 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **Trade-off accepted by owner:** Every staff member can view financial data, bank details, wages, and reports.
 - **Safeguards preserved:** Database constraints (`CHECK`, `UNIQUE`, `ON DELETE PROTECT`), full audit logging (`AuditLog`), immutable submitted documents (`DocStatus.SUBMITTED`), and ledger posting services remain strictly enforced. Portal workers (`hr.EmployeePortalAccess`) remain role-less and restricted to their own records. The underlying RBAC infrastructure (`users/permissions.py`) remains intact so granular permissions can be re-applied without architectural rework.
 
+## Production batches (2026-10-31, planning doc 03, Q2)
+
+- **One batch, several Work Orders.** ERPNext makes one Work Order per finished item. Here a `Batch` owns one grinding Work Order (bulk item) and one packing Work Order per SKU. One grind is packed into several SKUs, so a batch has several `Manufacture` entries. The Work Order and Manufacture rules are unchanged.
+- **Grinding posts at finish, not start.** `start_grinding` creates and submits the Work Order and posts nothing. `finish_grinding` posts one Manufacture with the bulk actually produced. Raw is consumed at the full BOM input, and the grinding loss is the gap, recorded as `process_loss_qty`. A submitted entry cannot be edited, so the posted output must be the real one.
+- **Packing loss leaves In Process.** Bulk used minus bulk packed goes to the `Process Loss` warehouse (created on first use) by a Material Transfer. ERPNext has no equivalent. Its loss is absorbed into finished-goods value. Here the loss value stays on the books in `Process Loss` until the accountant writes it off, which is not built yet. The consumption gate is unchanged: each SKU consumes exactly its BOM.
+- **Not yet built:** the warning when packing loss is above a per-item allowance. No allowance field exists on the item.
+- **Name clash.** `manufacturing.Batch` (a production run) is unrelated to `stock.Batch` (a lot, `has_batch_no`). Lot tracking stays off for these items.
 
