@@ -1,6 +1,7 @@
 from decimal import Decimal
 import django_filters
 from django.db.models import Q, Sum
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 from rest_framework import viewsets, permissions
@@ -35,7 +36,12 @@ from core.company_context import (
 from core.models import Company, State
 from gst.constants import GSTSupplyType
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin
-from users.permissions import HasRolePermission, require_model_permission
+from rest_framework.exceptions import PermissionDenied
+from users.permissions import (
+    HasRolePermission,
+    require_model_permission,
+    user_has_model_permission,
+)
 
 
 ZERO = Decimal("0.00")
@@ -713,3 +719,36 @@ def calculate_taxes(request):
             **{key: str(value) for key, value in totals.items()},
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def expense_summary_view(request):
+    """GET /api/accounts/reports/expense-summary/?from_date=&to_date=&company="""
+    if not (
+        user_has_model_permission(request.user, "buying.PurchaseInvoice", "can_read")
+        or user_has_model_permission(request.user, "accounts.GLEntry", "can_read")
+    ):
+        raise PermissionDenied()
+
+    company_param = request.query_params.get("company")
+    company = None
+    if company_param:
+        try:
+            company = Company.objects.get(pk=company_param)
+        except Company.DoesNotExist:
+            raise ValidationError({"company": _("Company not found.")})
+    if not company:
+        company = resolve_active_company(request)
+
+    from_date = _date_param(request, "from_date")
+    to_date = _date_param(request, "to_date")
+    if not to_date:
+        to_date = timezone.localdate()
+    if not from_date:
+        from_date = to_date.replace(day=1)
+
+    from accounts.reports.expenses import expense_summary
+
+    data = expense_summary(company, from_date, to_date)
+    return Response(data)

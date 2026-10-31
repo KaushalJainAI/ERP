@@ -509,7 +509,7 @@ question's recorded answer.
 - [x] E-3 Expense service
 - [x] E-4 Expense API
 - [ ] E-5 Expense page
-- [ ] E-6 Expense summary
+- [x] E-6 Expense summary
 - [ ] E-7 Monthly repeats
 - [ ] E-8 Tally mapping check
 - [ ] E-9 Category list (OWNER)
