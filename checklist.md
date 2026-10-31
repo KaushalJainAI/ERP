@@ -501,7 +501,7 @@ question's recorded answer.
 - [ ] M-5 Bills to Pay
 - [ ] M-6 Pages and short form
 - [x] M-7 Oldest-first allocation
-- [ ] M-8 Proof required
+- [x] M-8 Proof required
 
 ### 5. Expenses
 - [ ] E-1 Category master

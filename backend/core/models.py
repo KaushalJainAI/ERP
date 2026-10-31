@@ -453,6 +453,7 @@ class Company(TimeStampedModel):
     # (standard 90 days) and supplier bills (blank until confirmed).
     default_customer_credit_days = models.PositiveIntegerField(default=90)
     default_supplier_credit_days = models.PositiveIntegerField(null=True, blank=True)
+    require_proof = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = "Companies"

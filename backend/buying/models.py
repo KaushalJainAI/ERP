@@ -316,6 +316,13 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         return outcome
 
     def validate_before_submit(self):
+        if self.company.require_proof:
+            from core.attachments import has_proof
+
+            if not has_proof(self) and not (self.name and self.name.startswith("TLY-")):
+                raise ValidationError(
+                    _("Proof attachment is required before submission.")
+                )
         if not self.due_date:
             raise ValidationError(_("Due date is required at submit."))
         if self.due_date < self.posting_date:

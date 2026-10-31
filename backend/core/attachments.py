@@ -359,3 +359,20 @@ def check_integrity() -> list:
                 f"{ref}: stored file does not match its recorded size/SHA-256."
             )
     return errors
+
+
+def has_proof(doc) -> bool:
+    """Check if document has proof (an Attachment or non-empty reference_no / proof)."""
+    if doc is None:
+        return False
+    if getattr(doc, "reference_no", None) and str(doc.reference_no).strip():
+        return True
+    if getattr(doc, "proof", None) and str(doc.proof).strip():
+        return True
+    if not getattr(doc, "pk", None):
+        return False
+    from core.models import Attachment
+
+    return Attachment.objects.filter(
+        model_label=doc._meta.label, object_id=str(doc.pk)
+    ).exists()

@@ -201,6 +201,13 @@ class JournalEntry(SubmittableDocument):
         self.total_credit = sum((line.credit for line in lines), Decimal("0.00"))
 
     def validate_before_submit(self):
+        if self.company.require_proof:
+            from core.attachments import has_proof
+
+            if not has_proof(self) and not (self.name and self.name.startswith("TLY-")):
+                raise ValidationError(
+                    _("Proof attachment is required before submission.")
+                )
         lines = self.lines.all()
         if not lines.exists():
             raise ValidationError(_("Journal Entry must have at least one line."))
@@ -472,6 +479,13 @@ class PaymentEntry(SubmittableDocument):
         return allocations
 
     def validate_before_submit(self):
+        if self.company.require_proof:
+            from core.attachments import has_proof
+
+            if not has_proof(self) and not (self.name and self.name.startswith("TLY-")):
+                raise ValidationError(
+                    _("Proof attachment is required before submission.")
+                )
         if self.paid_amount <= 0:
             raise ValidationError(_("Paid amount must be greater than zero."))
         if self.paid_from.is_group or self.paid_to.is_group:

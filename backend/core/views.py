@@ -269,6 +269,7 @@ class CompanySerializer(serializers.ModelSerializer):
             "round_off_gst_values",
             "default_customer_credit_days",
             "default_supplier_credit_days",
+            "require_proof",
         )
         read_only_fields = (
             "id",
