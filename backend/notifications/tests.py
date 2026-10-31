@@ -337,3 +337,85 @@ class RulesEngineTests(TestCase):
         self.assertEqual(Outbox.objects.filter(channel="email").count(), 0)
 
 
+class RawMaterialShortageTests(TestCase):
+    def setUp(self):
+        from core.models import Company
+        from stock.models import Warehouse
+
+        self.user = User.objects.create_user(
+            username="manager",
+            email="manager@nidhimasala.com",
+            password="pass",
+        )
+        self.rule = AlertRule.objects.create(
+            key="raw_material_shortage",
+            is_active=True,
+        )
+        self.rule.recipients.add(self.user)
+
+        self.company = Company.objects.create(name="Nidhi Spices Pvt Ltd")
+        self.wh = Warehouse.objects.create(company=self.company, name="Stores")
+        self.uom = UOM.objects.create(name="Kg")
+        self.group = ItemGroup.objects.create(name="Raw Materials", is_group=False)
+
+        # Item 1: Low stock (critical: 50, actual: 20)
+        self.item_low = Item.objects.create(
+            code="RM-CHILLI",
+            name="Red Chilli Whole",
+            item_group=self.group,
+            stock_uom=self.uom,
+            critical_stock=Decimal("50.000"),
+            is_stock_item=True,
+        )
+        # Item 2: Sufficient stock (critical: 30, actual: 100)
+        self.item_ok = Item.objects.create(
+            code="RM-TURMERIC",
+            name="Turmeric Whole",
+            item_group=self.group,
+            stock_uom=self.uom,
+            critical_stock=Decimal("30.000"),
+            is_stock_item=True,
+        )
+        # Item 3: Zero critical stock (critical: 0, actual: 0)
+        self.item_zero_crit = Item.objects.create(
+            code="RM-SALT",
+            name="Salt",
+            item_group=self.group,
+            stock_uom=self.uom,
+            critical_stock=Decimal("0.000"),
+            is_stock_item=True,
+        )
+
+    def test_shortage_triggers_alert_when_below_critical(self):
+        from stock.models import Bin
+        from notifications.services.engine import check_raw_material_shortage
+
+        Bin.objects.create(item=self.item_low, warehouse=self.wh, actual_qty=Decimal("20.000"))
+        Bin.objects.create(item=self.item_ok, warehouse=self.wh, actual_qty=Decimal("100.000"))
+        Bin.objects.create(item=self.item_zero_crit, warehouse=self.wh, actual_qty=Decimal("0.000"))
+
+        alerts = check_raw_material_shortage(company=self.company)
+        self.assertEqual(len(alerts), 1)
+        alert_item, qty, notifs = alerts[0]
+        self.assertEqual(alert_item.id, self.item_low.id)
+        self.assertEqual(qty, Decimal("20.000"))
+
+        notif = Notification.objects.get(rule_key="raw_material_shortage")
+        self.assertEqual(notif.user, self.user)
+        self.assertEqual(notif.params["item"], "Red Chilli Whole")
+        self.assertEqual(notif.params["qty"], "20.000")
+        self.assertEqual(notif.params["critical"], "50.000")
+
+    def test_no_alert_when_stock_at_or_above_critical(self):
+        from stock.models import Bin
+        from notifications.services.engine import check_raw_material_shortage
+
+        Bin.objects.create(item=self.item_low, warehouse=self.wh, actual_qty=Decimal("50.000"))
+        Bin.objects.create(item=self.item_ok, warehouse=self.wh, actual_qty=Decimal("100.000"))
+
+        alerts = check_raw_material_shortage(company=self.company)
+        self.assertEqual(len(alerts), 0)
+        self.assertEqual(Notification.objects.filter(rule_key="raw_material_shortage").count(), 0)
+
+
+

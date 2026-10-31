@@ -74,3 +74,66 @@ def evaluate_rule(rule_key, message_key, params=None, link="", dedupe_key=None, 
             )
 
     return created_notifications
+
+
+def check_raw_material_shortage(company=None):
+    """
+    Checks all stock items where critical_stock > 0.
+    For each, gets ready/unprocessed Bin qty. If qty < critical_stock:
+    Calls evaluate_rule(
+        "raw_material_shortage",
+        message_key="alert.raw_material_shortage",
+        params={"item": item.name, "qty": str(qty), "critical": str(item.critical_stock)},
+        dedupe_key=f"shortage_{item.id}_{today}",
+    )
+    """
+    from decimal import Decimal
+    from django.db import models
+    from django.db.models import Sum, Q
+    from django.utils import timezone
+    from stock.models import Bin, Item
+
+    today = timezone.localdate().isoformat()
+    items = Item.objects.filter(is_stock_item=True, critical_stock__gt=Decimal("0.000"))
+
+    triggered_alerts = []
+
+    for item in items:
+        bins_qs = Bin.objects.filter(item=item)
+        if company is not None:
+            bins_qs = bins_qs.filter(warehouse__company=company)
+            wh_candidates = [
+                getattr(company, "unprocessed_warehouse_id", None),
+                getattr(company, "ready_warehouse_id", None),
+            ]
+            wh_candidates = [w for w in wh_candidates if w]
+            if wh_candidates and bins_qs.filter(warehouse_id__in=wh_candidates).exists():
+                bins_qs = bins_qs.filter(warehouse_id__in=wh_candidates)
+        else:
+            stage_wh_bins = bins_qs.filter(
+                Q(warehouse__company__unprocessed_warehouse=models.F("warehouse"))
+                | Q(warehouse__company__ready_warehouse=models.F("warehouse"))
+            )
+            if stage_wh_bins.exists():
+                bins_qs = stage_wh_bins
+
+        total_qty = bins_qs.aggregate(total=Sum("actual_qty"))["total"]
+        if total_qty is None:
+            qty = Decimal("0.000")
+        else:
+            qty = Decimal(str(total_qty)).quantize(Decimal("0.001"))
+
+        if qty < item.critical_stock:
+            res = evaluate_rule(
+                rule_key="raw_material_shortage",
+                message_key="alert.raw_material_shortage",
+                params={
+                    "item": item.name,
+                    "qty": str(qty),
+                    "critical": str(item.critical_stock),
+                },
+                dedupe_key=f"shortage_{item.id}_{today}",
+            )
+            triggered_alerts.append((item, qty, res))
+
+    return triggered_alerts

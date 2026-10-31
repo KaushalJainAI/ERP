@@ -529,7 +529,7 @@ question's recorded answer.
 - [x] N-2 Notifications app
 - [x] N-3 Outbox sender
 - [x] N-4 Rules engine
-- [ ] N-5 Raw material shortage
+- [x] N-5 Raw material shortage
 - [ ] N-6 Digest and weekly emails
 - [ ] N-7 Instant alerts
 - [ ] N-8 Scheduler
