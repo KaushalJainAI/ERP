@@ -323,6 +323,7 @@ const purchaseInvoices: ResourceConfig = {
     { key: "credit_to", labelKey: "bs.fields.credit_to", type: "link", link: accountLink("Liability"), helpKey: "doc.help.default_account", advanced: true },
     { key: "expense_account", labelKey: "bs.fields.expense_account", type: "link", link: accountLink("Expense"), helpKey: "doc.help.default_account", advanced: true },
     { key: "update_stock", labelKey: "fields.update_stock", type: "boolean", defaultValue: true, advanced: true },
+    { key: "itc_eligible", labelKey: "fields.itc_eligible", type: "boolean", defaultValue: true, advanced: true },
     ...returnHeaderFields("debit", "/buying/purchase-invoices", "/buying/purchase-invoices/", "supplier", "supplier_name"),
     ...taxHeaderFields("Purchase"),
     ...taxTotalFields(),

@@ -116,6 +116,7 @@ def build(company, from_date, to_date):
     non_gst = _Tax()  # 3.1(e)
     inward_rcm = _Tax()  # 3.1(d) / 4(A)(3)
     other_itc = _Tax()  # 4(A)(5)
+    ineligible_itc = _Tax()  # 4(D)
     table_3_2 = defaultdict(_Tax)
     table_5 = {"inter_state": ZERO, "intra_state": ZERO}
     legacy_sales = legacy_purchases = 0
@@ -148,6 +149,8 @@ def build(company, from_date, to_date):
         for line in inv.items.all():
             if _table_5_line(inv, line):
                 table_5["inter_state" if inter else "intra_state"] += line.amount
+            elif not getattr(inv, "itc_eligible", True):
+                ineligible_itc.add(line)
             elif line.gst_treatment == GSTTreatment.TAXABLE and inv.is_reverse_charge:
                 inward_rcm.add(line)
             else:
@@ -207,7 +210,7 @@ def build(company, from_date, to_date):
             },
             "B": {"reversed": _zero_tax()},
             "C_net_itc": itc.tax_only(),
-            "D_ineligible": _zero_tax(),
+            "D_ineligible": ineligible_itc.tax_only(),
         },
         "5": {
             "inter_state": money(table_5["inter_state"]),

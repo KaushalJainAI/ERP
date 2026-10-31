@@ -700,6 +700,18 @@ class GSTR3BTests(ReportBase):
         self.assertEqual(report["3.2"], [])
         self.assertEqual(report["6.1"]["igst"]["net_payable"], "0.00")
 
+    def test_ineligible_purchase_invoice_excluded_from_itc(self):
+        self.purchase(self.sup_intra, (self.item18, 1, 100), **OCT, itc_eligible=True)
+        self.purchase(self.sup_intra, (self.item18, 1, 200), **OCT, itc_eligible=False)
+
+        report = self.gstr3b()
+        self.assertEqual(report["4"]["A"]["all_other_itc"]["cgst"], "9.00")
+        self.assertEqual(report["4"]["A"]["all_other_itc"]["sgst"], "9.00")
+        self.assertEqual(report["4"]["C_net_itc"]["cgst"], "9.00")
+        self.assertEqual(report["4"]["C_net_itc"]["sgst"], "9.00")
+        self.assertEqual(report["4"]["D_ineligible"]["cgst"], "18.00")
+        self.assertEqual(report["4"]["D_ineligible"]["sgst"], "18.00")
+
 
 class TaxLedgerTests(ReportBase):
     def ledger(self, **params):

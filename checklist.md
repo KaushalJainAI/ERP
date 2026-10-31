@@ -515,7 +515,7 @@ question's recorded answer.
 - [ ] E-9 Category list (OWNER)
 
 ### 6. Taxes
-- [ ] T-1 Input credit flag
+- [x] T-1 Input credit flag
 - [ ] T-2 Tax Payment document
 - [ ] T-3 GST Position service
 - [ ] T-4 GST page

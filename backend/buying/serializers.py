@@ -427,6 +427,7 @@ class PurchaseInvoiceSerializer(
             "is_expense",
             "expense_category",
             "expense_category_name",
+            "itc_eligible",
             "grand_total",
             *TAX_HEADER_READ_ONLY,
             *TAX_HEADER_WRITABLE,

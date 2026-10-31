@@ -326,6 +326,7 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         blank=True,
         related_name="purchase_invoices",
     )
+    itc_eligible = models.BooleanField(default=True)
     update_stock = models.BooleanField(default=True)
     credit_to = models.ForeignKey(
         Account, on_delete=models.PROTECT, related_name="creditor_invoices"

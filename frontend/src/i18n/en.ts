@@ -96,6 +96,7 @@ export const enExtra = {
     credit_days_help: "Payment terms in days. Leave blank to use the company default.",
     sales_order: "Sales Order",
     update_stock: "Update Stock",
+    itc_eligible: "ITC Eligible",
     debit_to: "Debit To (Receivable)",
     income_account: "Income Account",
     grand_total: "Grand Total",

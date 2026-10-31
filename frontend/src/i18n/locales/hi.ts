@@ -759,6 +759,7 @@ const hi: Record<string, unknown> = {
     credit_days_help: "भुगतान के लिए दिन। कंपनी डिफ़ॉल्ट के लिए खाली छोड़ें।",
     sales_order: "बिक्री आदेश",
     update_stock: "स्टॉक अपडेट करें",
+    itc_eligible: "इनपुट टैक्स क्रेडिट (ITC) योग्य",
     debit_to: "नामे में (प्राप्य)",
     income_account: "आय खाता",
     grand_total: "कुल योग",
