@@ -490,7 +490,7 @@ question's recorded answer.
 - [x] P-3 Batch service (Q2 answered: bulk then pack)
 - [ ] P-4 Today's Batches page
 - [x] P-5 Stock view
-- [ ] P-6 Loss report
+- [x] P-6 Loss report
 - [ ] P-7 Item and recipe clean-up (OWNER, BLOCKED Q3)
 
 ### 4. Collections and supplier payments

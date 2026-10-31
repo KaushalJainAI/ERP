@@ -107,6 +107,19 @@ def _lock_batch(wo: WorkOrder) -> Tuple[Batch, WorkOrder]:
     return batch, grinding
 
 
+def packing_loss_qty(batch: Batch, grinding: WorkOrder) -> Decimal:
+    """Bulk posted to the Process Loss warehouse by this batch's packing."""
+    lost = StockEntryItem.objects.filter(
+        stock_entry__work_order=grinding,
+        stock_entry__docstatus=DocStatus.SUBMITTED,
+        stock_entry__stock_entry_type=StockEntryType.MATERIAL_TRANSFER,
+        item=batch.bulk_item,
+        target_warehouse__company=batch.company,
+        target_warehouse__name=LOSS_WAREHOUSE_NAME,
+    ).aggregate(total=Sum("qty"))["total"] or Decimal("0")
+    return wo_service.q3(lost)
+
+
 def _bulk_remaining(batch: Batch, grinding: WorkOrder) -> Decimal:
     """Bulk still in the batch: produced, less packed, less moved to loss."""
     packed = StockEntryItem.objects.filter(
@@ -117,14 +130,7 @@ def _bulk_remaining(batch: Batch, grinding: WorkOrder) -> Decimal:
         is_finished_item=False,
         is_scrap_item=False,
     ).aggregate(total=Sum("qty"))["total"] or Decimal("0")
-    lost = StockEntryItem.objects.filter(
-        stock_entry__work_order=grinding,
-        stock_entry__docstatus=DocStatus.SUBMITTED,
-        stock_entry__stock_entry_type=StockEntryType.MATERIAL_TRANSFER,
-        item=batch.bulk_item,
-        target_warehouse__company=batch.company,
-        target_warehouse__name=LOSS_WAREHOUSE_NAME,
-    ).aggregate(total=Sum("qty"))["total"] or Decimal("0")
+    lost = packing_loss_qty(batch, grinding)
     return wo_service.q3(Decimal(grinding.produced_qty) - packed - lost)
 
 
@@ -378,3 +384,87 @@ def cancel_batch(wo: WorkOrder, user=None) -> Batch:
         Batch.objects.filter(pk=batch.pk).update(status=BatchStatus.CANCELLED)
         batch.status = BatchStatus.CANCELLED
     return batch
+
+
+# --------------------------------------------------------------------------- #
+# Loss report (read-only)
+# --------------------------------------------------------------------------- #
+
+
+def _consumed_qty(entries, item=None) -> Decimal:
+    """Consumed component quantity of these entries (not finished or scrap rows)."""
+    rows = StockEntryItem.objects.filter(
+        stock_entry__in=entries, is_finished_item=False, is_scrap_item=False
+    )
+    if item is not None:
+        rows = rows.filter(item=item)
+    return Decimal(rows.aggregate(total=Sum("qty"))["total"] or Decimal("0"))
+
+
+def batch_loss_rows(company_id, from_date=None, to_date=None) -> List[dict]:
+    """Expected against actual loss for each batch whose grinding is posted.
+
+    Expected loss is the BOM's ``process_loss_percentage`` applied to what was
+    consumed: raw material for grinding (grinding BOM), and bulk for each packing
+    entry (that SKU's BOM). Actual loss is what was posted: the grinding entry's
+    ``process_loss_qty`` and the packing Material Transfer to Process Loss.
+
+    A batch is dated by its grinding entry. Batches with no posted grinding (not
+    started, or cancelled) are left out. Reads only; posts nothing.
+    """
+    batches = (
+        Batch.objects.filter(company_id=company_id)
+        .select_related("bulk_item", "grinding_work_order__bom")
+        .order_by("created_at", "pk")
+    )
+    hundred = Decimal("100")
+    rows = []
+    for batch in batches:
+        grinding = batch.grinding_work_order
+        entries = StockEntry.objects.filter(
+            work_order=grinding,
+            docstatus=DocStatus.SUBMITTED,
+            stock_entry_type=StockEntryType.MANUFACTURE,
+        )
+        if from_date:
+            entries = entries.filter(posting_date__gte=from_date)
+        if to_date:
+            entries = entries.filter(posting_date__lte=to_date)
+        entry = entries.first()
+        if entry is None:
+            continue
+
+        grind_pct = Decimal(grinding.bom.process_loss_percentage or 0)
+        grind_expected = wo_service.q3(_consumed_qty([entry]) * grind_pct / hundred)
+        grind_actual = wo_service.q3(entry.process_loss_qty)
+
+        packing_expected = Decimal("0")
+        for packing in batch.packing_work_orders.select_related("bom"):
+            pack_pct = Decimal(packing.bom.process_loss_percentage or 0)
+            packed_entries = StockEntry.objects.filter(
+                work_order=packing,
+                docstatus=DocStatus.SUBMITTED,
+                stock_entry_type=StockEntryType.MANUFACTURE,
+            )
+            bulk = _consumed_qty(packed_entries, item=batch.bulk_item)
+            packing_expected += bulk * pack_pct / hundred
+        packing_expected = wo_service.q3(packing_expected)
+        packing_actual = packing_loss_qty(batch, grinding)
+
+        rows.append(
+            {
+                "batch": batch.name,
+                "bulk_item": batch.bulk_item.code,
+                "status": batch.status,
+                "posting_date": entry.posting_date,
+                "grinding_expected_loss_qty": grind_expected,
+                "grinding_actual_loss_qty": grind_actual,
+                "grinding_variance_qty": wo_service.q3(grind_actual - grind_expected),
+                "packing_expected_loss_qty": packing_expected,
+                "packing_actual_loss_qty": packing_actual,
+                "packing_variance_qty": wo_service.q3(
+                    packing_actual - packing_expected
+                ),
+            }
+        )
+    return rows

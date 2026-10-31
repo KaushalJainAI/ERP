@@ -366,6 +366,11 @@ def production_yield(request):
                 "total_loss_percent": (
                     (total_loss / gross_total * 100) if gross_total else Decimal("0")
                 ),
+                # P-6: expected against actual loss per batch. Follows the company
+                # and date filters only; work_order and bom filter the rows above.
+                "batches": batch_service.batch_loss_rows(
+                    company, from_date=from_date, to_date=to_date
+                ),
             }
         )
     )

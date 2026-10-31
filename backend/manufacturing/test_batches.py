@@ -12,6 +12,7 @@ from io import StringIO
 
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
+from django.db.models import Sum
 from rest_framework.test import APIClient
 
 from core.models import DocStatus
@@ -440,5 +441,163 @@ class BatchApiTests(BatchBase):
             f"/api/manufacturing/batches/{batch.pk}/pack/",
             {"bulk_used": "10", "lines": [{"sku": 999999, "packets": "1"}]},
             format="json",
+        )
+        self.assertEqual(r.status_code, 400, r.content)
+
+
+class BatchLossReportTests(BatchBase):
+    """P-6: expected against actual loss per batch. Read-only."""
+
+    def setUp(self):
+        super().setUp()
+        self.admin = User.objects.create_superuser("loss_admin", "l@t.com", "pw")
+        self.c = APIClient()
+        self.c.force_authenticate(self.admin)
+
+    def loss_rows(self, **params):
+        return batch_service.batch_loss_rows(self.company.pk, **params)
+
+    def grinding_entry(self, wo):
+        return StockEntry.objects.get(
+            work_order=wo,
+            docstatus=DocStatus.SUBMITTED,
+            stock_entry_type=StockEntryType.MANUFACTURE,
+        )
+
+    def test_grinding_expected_loss_uses_bom_process_loss_percentage(self):
+        # 100 raw consumed at 1.25 % BOM loss: expected 1.25. Posted 4 kg loss.
+        _batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        row = self.loss_rows()[0]
+        self.assertEqual(row["grinding_expected_loss_qty"], D("1.250"))
+        self.assertEqual(row["grinding_actual_loss_qty"], D("4.000"))
+        self.assertEqual(row["grinding_variance_qty"], D("2.750"))
+
+    def test_grinding_expected_follows_the_bom_percentage(self):
+        # At 5 % a 95 kg order needs exactly 100 kg raw: expected loss 5 kg.
+        BOM.objects.filter(pk=self.grind_bom.pk).update(process_loss_percentage=D("5"))
+        _batch, wo = self.start("95")
+        batch_service.finish_grinding(wo, "92")
+        row = self.loss_rows()[0]
+        self.assertEqual(row["grinding_expected_loss_qty"], D("5.000"))
+        self.assertEqual(row["grinding_actual_loss_qty"], D("8.000"))
+        self.assertEqual(row["grinding_variance_qty"], D("3.000"))
+
+    def test_actual_grinding_loss_equals_posted_loss(self):
+        _batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        wo.refresh_from_db()
+        entry = self.grinding_entry(wo)
+        row = self.loss_rows()[0]
+        self.assertEqual(row["grinding_actual_loss_qty"], entry.process_loss_qty)
+        self.assertEqual(row["grinding_actual_loss_qty"], wo.process_loss_qty)
+
+    def test_packing_loss_expected_against_actual(self):
+        # 60 kg used, 55 packed, 5 kg posted to Process Loss. SKU BOMs at 0 %.
+        batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        batch_service.pack(wo, "60", [(self.sku_500, "100"), (self.sku_1kg, "5")])
+        row = self.loss_rows()[0]
+        self.assertEqual(row["packing_expected_loss_qty"], D("0.000"))
+        self.assertEqual(row["packing_actual_loss_qty"], D("5.000"))
+        self.assertEqual(row["packing_variance_qty"], D("5.000"))
+        self.assertEqual(
+            row["packing_actual_loss_qty"],
+            self.bin_qty(self.powder, self.loss_warehouse()),
+        )
+
+    def test_packing_expected_uses_the_sku_bom_percentage(self):
+        BOM.objects.filter(pk=self.pack_500.pk).update(process_loss_percentage=D("2"))
+        batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        batch_service.pack(wo, "60", [(self.sku_500, "100"), (self.sku_1kg, "5")])
+        packing_500 = WorkOrder.objects.get(batch=batch, production_item=self.sku_500)
+        bulk_500 = StockEntryItem.objects.filter(
+            stock_entry__work_order=packing_500,
+            stock_entry__docstatus=DocStatus.SUBMITTED,
+            item=self.powder,
+            is_finished_item=False,
+            is_scrap_item=False,
+        ).aggregate(total=Sum("qty"))["total"]
+        self.assertGreater(bulk_500, D("0"))
+        row = self.loss_rows()[0]
+        self.assertEqual(
+            row["packing_expected_loss_qty"],
+            (D(bulk_500) * D("2") / D("100")).quantize(D("0.001")),
+        )
+        self.assertEqual(
+            row["packing_variance_qty"],
+            row["packing_actual_loss_qty"] - row["packing_expected_loss_qty"],
+        )
+
+    def test_batch_with_no_loss_shows_zero(self):
+        # 0 % grinding BOM: 100 raw makes 100 bulk. Packing uses all 100 kg.
+        BOM.objects.filter(pk=self.grind_bom.pk).update(process_loss_percentage=D("0"))
+        batch, wo = self.start("100")
+        batch_service.finish_grinding(wo, "100")
+        batch_service.pack(wo, "100", [(self.sku_500, "100"), (self.sku_1kg, "50")])
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, BatchStatus.DONE)
+        row = self.loss_rows()[0]
+        for key in (
+            "grinding_expected_loss_qty",
+            "grinding_actual_loss_qty",
+            "grinding_variance_qty",
+            "packing_expected_loss_qty",
+            "packing_actual_loss_qty",
+            "packing_variance_qty",
+        ):
+            self.assertEqual(row[key], D("0.000"), key)
+
+    def test_unposted_and_cancelled_batches_are_left_out(self):
+        _batch, wo = self.start()
+        self.assertEqual(self.loss_rows(), [])
+        batch_service.finish_grinding(wo, "96")
+        self.assertEqual(len(self.loss_rows()), 1)
+        batch_service.cancel_batch(wo)
+        self.assertEqual(self.loss_rows(), [])
+
+    def test_date_filter_uses_the_grinding_posting_date(self):
+        _batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        posted = self.grinding_entry(wo).posting_date
+        self.assertEqual(len(self.loss_rows(from_date=posted)), 1)
+        self.assertEqual(len(self.loss_rows(to_date=posted)), 1)
+        self.assertEqual(
+            self.loss_rows(from_date=posted + datetime.timedelta(days=1)), []
+        )
+
+    def test_loss_report_posts_nothing(self):
+        _batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        batch_service.pack(wo, "60", [(self.sku_500, "100"), (self.sku_1kg, "5")])
+        before = self.snapshot()
+        self.loss_rows()
+        r = self.c.get(
+            f"/api/manufacturing/reports/production-yield/?company={self.company.pk}"
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_production_yield_api_returns_batches_beside_rows(self):
+        _batch, wo = self.start("98.75")
+        batch_service.finish_grinding(wo, "96")
+        r = self.c.get(
+            f"/api/manufacturing/reports/production-yield/?company={self.company.pk}"
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        # The existing shape is unchanged; batches is an extra key.
+        self.assertEqual(len(r.data["rows"]), 1)
+        self.assertEqual(r.data["total_process_loss_qty"], "4.000")
+        self.assertEqual(len(r.data["batches"]), 1)
+        batch_row = r.data["batches"][0]
+        self.assertEqual(batch_row["grinding_expected_loss_qty"], "1.250")
+        self.assertEqual(batch_row["grinding_actual_loss_qty"], "4.000")
+        self.assertEqual(batch_row["packing_actual_loss_qty"], "0.000")
+
+    def test_production_yield_api_rejects_a_bad_date(self):
+        r = self.c.get(
+            f"/api/manufacturing/reports/production-yield/?company={self.company.pk}"
+            "&from_date=not-a-date"
         )
         self.assertEqual(r.status_code, 400, r.content)
