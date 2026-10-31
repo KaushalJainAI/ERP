@@ -253,6 +253,7 @@ class BatchViewSet(
                 "bulk_used": str(result["bulk_used"]),
                 "bulk_packed": str(result["bulk_packed"]),
                 "packing_loss": str(result["packing_loss"]),
+                "warnings": result["warnings"],
             }
         )
 

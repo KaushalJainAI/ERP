@@ -303,6 +303,26 @@ def pack(wo: WorkOrder, bulk_used, lines: List[Tuple[Item, object]], user=None) 
                 % {"need": packed_total, "item": batch.bulk_item.code, "used": used}
             )
 
+        # Advisory only: the allowance is the bulk-weighted process_loss_percentage
+        # of the SKU BOMs, and it never changes a quantity or blocks the posting.
+        weighted = sum(
+            (p[3] * Decimal(p[1].process_loss_percentage or 0) for p in plan),
+            Decimal("0"),
+        )
+        allowance_pct = weighted / packed_total if packed_total > 0 else Decimal("0")
+        loss_pct = Decimal(loss) * 100 / used
+        warnings: List[str] = []
+        if loss > 0 and loss_pct > allowance_pct:
+            warnings.append(
+                _(
+                    "Packing loss is %(loss)s%% of the bulk used, above the %(allowance)s%% allowance."
+                )
+                % {
+                    "loss": loss_pct.quantize(Decimal("0.01")),
+                    "allowance": allowance_pct.quantize(Decimal("0.01")),
+                }
+            )
+
         if loss > 0:
             _post_packing_loss(batch, grinding, in_process, loss, user)
         for sku, bom, packets, _bulk in plan:
@@ -316,6 +336,7 @@ def pack(wo: WorkOrder, bulk_used, lines: List[Tuple[Item, object]], user=None) 
         "bulk_used": used,
         "bulk_packed": packed_total,
         "packing_loss": loss,
+        "warnings": warnings,
     }
 
 
