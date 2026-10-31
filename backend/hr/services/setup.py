@@ -16,11 +16,22 @@ WAGE_EXPENSE_NAME = "Wages Expense"
 PAYROLL_PAYABLE_NAME = "Wages Payable"
 EMPLOYEE_ADVANCE_NAME = "Employee Advances"
 CASH_NAME = "Cash Account"
+TDS_PAYABLE_NAME = "TDS Payable"
 
 SYSTEM_COMPONENTS = (
     (SystemComponent.WAGES, "Wages", ComponentType.EARNING),
     (SystemComponent.OVERTIME, "Overtime", ComponentType.EARNING),
     (SystemComponent.ADVANCE_RECOVERY, "Advance Recovery", ComponentType.DEDUCTION),
+    (SystemComponent.TDS, "TDS", ComponentType.DEDUCTION),
+)
+
+#: Components a company must have before ordinary payroll runs.  TDS is not
+#: among them: a company set up before TDS existed keeps paying wages, and a
+#: slip that needs TDS asks for setup (``hr.services.tds.tds_component``).
+REQUIRED_SYSTEM_KEYS = (
+    SystemComponent.WAGES,
+    SystemComponent.OVERTIME,
+    SystemComponent.ADVANCE_RECOVERY,
 )
 
 
@@ -80,10 +91,17 @@ def ensure_hr_setup(company):
             default_payment_account=cash,
         )
 
+    if settings_row.tds_payable_account_id is None:
+        settings_row.tds_payable_account = _ensure_account(
+            company, TDS_PAYABLE_NAME, AccountRootType.LIABILITY
+        )
+        settings_row.save()
+
     account_for = {
         SystemComponent.WAGES: settings_row.wage_expense_account,
         SystemComponent.OVERTIME: settings_row.wage_expense_account,
         SystemComponent.ADVANCE_RECOVERY: settings_row.employee_advance_account,
+        SystemComponent.TDS: settings_row.tds_payable_account,
     }
     for key, name, component_type in SYSTEM_COMPONENTS:
         if SalaryComponent.objects.filter(company=company, system_key=key).exists():
@@ -133,7 +151,7 @@ def system_components(company):
             company=company, system_key__isnull=False
         ).select_related("account")
     }
-    missing = [k for k, _n, _t in SYSTEM_COMPONENTS if k not in found]
+    missing = [k for k in REQUIRED_SYSTEM_KEYS if k not in found]
     if missing:
         raise ValidationError(
             _(

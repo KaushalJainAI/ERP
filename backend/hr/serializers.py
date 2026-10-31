@@ -222,6 +222,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "bank_account_no",
             "ifsc_code",
             "pan",
+            "tax_regime",
+            "tds_per_month",
             "aadhaar",
             "uan",
             "esic_no",
@@ -296,6 +298,13 @@ class EmployeeSerializer(serializers.ModelSerializer):
         value = (value or "").strip().upper()
         if value and not PAN_RE.match(value):
             raise serializers.ValidationError(_("Enter a valid PAN."))
+        return value
+
+    def validate_tds_per_month(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError(
+                _("The fixed monthly TDS cannot be negative.")
+            )
         return value
 
     def validate_ifsc_code(self, value):
@@ -548,6 +557,7 @@ class HRSettingsSerializer(ModelErrorMixin, serializers.ModelSerializer):
             "payroll_payable_account",
             "employee_advance_account",
             "default_payment_account",
+            "tds_payable_account",
         )
         read_only_fields = ("id",)
         validators = []
@@ -589,6 +599,13 @@ class HRSettingsSerializer(ModelErrorMixin, serializers.ModelSerializer):
             AccountRootType.ASSET,
             "default_payment_account",
         )
+        if get("tds_payable_account") is not None:
+            _check_account(
+                get("tds_payable_account"),
+                company,
+                AccountRootType.LIABILITY,
+                "tds_payable_account",
+            )
         return attrs
 
 
@@ -709,8 +726,9 @@ class SalarySlipSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
             if component.system_key in (
                 SystemComponent.WAGES,
                 SystemComponent.OVERTIME,
+                SystemComponent.TDS,
             ):
-                continue  # server owned: regenerated from attendance
+                continue  # server owned: regenerated from attendance and rates
             if component.company_id != company.pk:
                 raise DRFValidationError(
                     {

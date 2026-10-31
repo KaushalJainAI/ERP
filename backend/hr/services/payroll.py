@@ -30,6 +30,7 @@ from hr.models import (
     SystemComponent,
 )
 from hr.services import advances as advance_service
+from hr.services import tds as tds_service
 from hr.services.balances import payable_balance
 from hr.services.setup import get_settings, system_components
 from hr.services.wages import compute_wages
@@ -119,6 +120,7 @@ def refresh_draft_slip(slip):
     if slip.docstatus != DocStatus.DRAFT:
         raise ValidationError(_("Only draft salary slips can be recomputed."))
     regenerate_system_rows(slip)
+    tds_service.refresh_tds(slip)
     refresh_slip_totals(slip)
 
 
@@ -165,6 +167,7 @@ def recompute_slip(slip):
         slip.details.filter(is_manual=False).delete()
         regenerate_system_rows(slip)
         refresh_slip_totals(slip)
+        tds_service.propose_tds(slip)
         propose_advance_recovery(slip)
         refresh_slip_totals(slip)
     return slip
@@ -185,7 +188,7 @@ def create_draft_slip(
             end_date=end_date,
             created_by=user if getattr(user, "pk", None) else None,
         )
-        refresh_draft_slip(slip)
+        refresh_draft_slip(slip)  # also proposes the TDS row
         propose_advance_recovery(slip)
         refresh_slip_totals(slip)
     return slip
@@ -202,7 +205,7 @@ def _stored_sum(slip, key):
 def validate_slip(slip):
     """Everything that must hold before a slip may post (runs in the submit
     transaction, on a draft row)."""
-    get_settings(slip.company)  # clear error when HR is not set up
+    settings_row = get_settings(slip.company)  # clear error when HR is not set up
     # Lock the employee: it serialises concurrent slip submissions (so the
     # overlap check below cannot be raced past) and attendance writes, which take
     # the same lock before they check for a covering slip.
@@ -239,6 +242,7 @@ def validate_slip(slip):
         )
     slip.payment_days = fresh.payment_days
     slip.ot_hours = fresh.ot_hours
+    tds_service.check_tds(slip, employee, settings_row)
 
     rows = list(slip.details.select_related("component__account", "advance"))
     for row in rows:
@@ -323,6 +327,12 @@ def post_slip(slip):
                     "against_voucher_no": row.advance.name,
                     **party,
                 }
+            )
+        elif component.system_key == SystemComponent.TDS:
+            # The TDS payable account is HR Settings', not the component's own
+            # account, so changing it there takes effect on the next slip.
+            entries.append(
+                {"account": settings_row.tds_payable_account, "credit": row.amount}
             )
         else:
             entries.append({"account": component.account, "credit": row.amount})

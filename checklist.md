@@ -520,7 +520,7 @@ question's recorded answer.
 - [x] T-3 GST Position service
 - [x] T-4 GST page
 - [x] T-5 Credit at risk
-- [ ] T-6 TDS on salary (BLOCKED Q5)
+- [x] T-6 TDS on salary
 - [ ] T-7 TDS register
 - [ ] T-8 Rule check (OWNER)
 

@@ -50,6 +50,7 @@ Admin has all three.
 | Notifications are by email, in the NGU style, plus an in-app bell | 2026-10-31 |
 | Expense tracking is a main goal; status is Paid or Due | 2026-10-31 |
 | Tax scope is only employee TDS, GST input credit and tax payable to the government | 2026-10-31 |
+| Salary TDS follows the government rules for salaried (Monthly) staff above the taxable limit: new regime by default, old regime as an opt-in per employee, rates kept in a dated table the accountant edits. Daily wagers get none | 2026-10-31 |
 | Opening balances for accounts and stock are required | 2026-10-31 |
 | Operators enter in the ERP; Tally stays the official books | 2026-10-28 |
 
@@ -133,7 +134,7 @@ Record each answer here, with the date, when it is given.
 | P-3, P-4, P-6 | Q2 answered (bulk then pack); unblocked |
 | P-7 | OWNER + BLOCKED Q3 |
 | E-9 | OWNER: category list |
-| T-6, T-7 | BLOCKED on Q5 (staff income tax) |
+| T-6, T-7 | Built 2026-10-31 under the owner's TDS decision. Q5 (which staff are above the limit) is still open for the accountant |
 | T-8 | OWNER: rule check |
 | N-10 | OWNER: turn on notifications |
 | H-7 | OWNER: evaluation sentences |
