@@ -1,5 +1,6 @@
 from hr.services import leave as leave_service
 from hr.services import reports as reports_service
+from hr.services import tds_register as tds_register_service
 """HR API: masters, employees, attendance / muster roll, payroll documents."""
 
 import datetime
@@ -676,6 +677,23 @@ def wage_register_view(request):
             department_id=department_id or None,
             branch_id=branch_id or None,
             employee_id=employee_id or None,
+        )
+    except DjangoValidationError as exc:
+        return _error_response(exc)
+    return Response(report)
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("hr.SalarySlip")]
+)
+def tds_register_view(request):
+    """TDS register for one financial-year quarter, ``?quarter=2026-27-Q1``."""
+    company_id = active_company_id(request)
+    try:
+        report = tds_register_service.tds_register(
+            company_id=company_id,
+            label=request.query_params.get("quarter", ""),
         )
     except DjangoValidationError as exc:
         return _error_response(exc)

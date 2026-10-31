@@ -521,7 +521,7 @@ question's recorded answer.
 - [x] T-4 GST page
 - [x] T-5 Credit at risk
 - [x] T-6 TDS on salary
-- [ ] T-7 TDS register
+- [x] T-7 TDS register
 - [ ] T-8 Rule check (OWNER)
 
 ### 7. Alerts and reminders

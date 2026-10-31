@@ -20,6 +20,7 @@ from hr.views import (
     LeaveApplicationViewSet,
     leave_balance_report_view,
     salary_register_view,
+    tds_register_view,
     wage_register_view,
 )
 
@@ -103,5 +104,6 @@ urlpatterns = [
     path("reports/leave-balance/", leave_balance_report_view, name="report-leave-balance"),
     path("reports/salary-register/", salary_register_view, name="report-salary-register"),
     path("reports/wage-register/", wage_register_view, name="report-wage-register"),
+    path("reports/tds-register/", tds_register_view, name="report-tds-register"),
     path("", include(router.urls)),
 ]
