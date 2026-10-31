@@ -124,3 +124,138 @@ class ItemCriticalStockTests(TestCase):
         )
         serializer = ItemSerializer(item)
         self.assertEqual(serializer.data["critical_stock"], "25.000")
+
+
+class OutboxSenderTests(TestCase):
+    def test_queue_email_and_deduplication(self):
+        from core.models import Outbox
+        from notifications.services.mail import queue_email
+
+        entry1 = queue_email(
+            to="sharma@example.com",
+            subject="Invoice Reminder",
+            body="Your bill is due.",
+            dedupe_key="bill_reminder_101",
+        )
+        self.assertIsNotNone(entry1.pk)
+        self.assertEqual(entry1.channel, "email")
+        self.assertEqual(entry1.recipient, "sharma@example.com")
+        self.assertEqual(entry1.payload["subject"], "Invoice Reminder")
+        self.assertEqual(entry1.status, "Pending")
+        self.assertEqual(Outbox.objects.count(), 1)
+
+        # Calling again with same dedupe_key returns the existing row and does not duplicate
+        entry2 = queue_email(
+            to="sharma@example.com",
+            subject="Invoice Reminder",
+            body="Different body",
+            dedupe_key="bill_reminder_101",
+        )
+        self.assertEqual(entry1.pk, entry2.pk)
+        self.assertEqual(Outbox.objects.count(), 1)
+
+    def test_send_outbox_successful_dispatch(self):
+        from django.core.management import call_command
+        from notifications.services.mail import queue_email
+
+        entry = queue_email(
+            to="test@example.com",
+            subject="Hello",
+            body="World",
+            dedupe_key="test_send_1",
+        )
+        call_command("send_outbox")
+        entry.refresh_from_db()
+        self.assertEqual(entry.status, "Sent")
+
+    def test_send_outbox_failure_retries_and_dead_after_four(self):
+        from datetime import timedelta
+        from unittest.mock import patch
+        from django.core.management import call_command
+        from django.utils import timezone
+        from notifications.services.mail import queue_email
+
+        entry = queue_email(
+            to="fail@example.com",
+            subject="Fail Test",
+            body="Body",
+            dedupe_key="fail_1",
+        )
+
+        with patch("notifications.management.commands.send_outbox.send_mail", side_effect=Exception("SMTP Connection timed out")):
+            # Attempt 1
+            call_command("send_outbox")
+            entry.refresh_from_db()
+            self.assertEqual(entry.attempts, 1)
+            self.assertEqual(entry.status, "Pending")
+            self.assertIn("SMTP Connection timed out", entry.last_error)
+            self.assertIsNotNone(entry.next_attempt_at)
+            # Should be ~5 mins from now
+            self.assertTrue(entry.next_attempt_at > timezone.now() + timedelta(minutes=4))
+
+            # Simulate next_attempt_at arrived
+            entry.next_attempt_at = timezone.now() - timedelta(seconds=1)
+            entry.save()
+
+            # Attempt 2
+            call_command("send_outbox")
+            entry.refresh_from_db()
+            self.assertEqual(entry.attempts, 2)
+            self.assertEqual(entry.status, "Pending")
+            # Should be ~15 mins from now
+            self.assertTrue(entry.next_attempt_at > timezone.now() + timedelta(minutes=14))
+
+            # Simulate next_attempt_at arrived
+            entry.next_attempt_at = timezone.now() - timedelta(seconds=1)
+            entry.save()
+
+            # Attempt 3
+            call_command("send_outbox")
+            entry.refresh_from_db()
+            self.assertEqual(entry.attempts, 3)
+            self.assertEqual(entry.status, "Pending")
+            # Should be ~60 mins from now
+            self.assertTrue(entry.next_attempt_at > timezone.now() + timedelta(minutes=58))
+
+            # Simulate next_attempt_at arrived
+            entry.next_attempt_at = timezone.now() - timedelta(seconds=1)
+            entry.save()
+
+            # Attempt 4: Should mark Dead
+            call_command("send_outbox")
+            entry.refresh_from_db()
+            self.assertEqual(entry.attempts, 4)
+            self.assertEqual(entry.status, "Dead")
+            self.assertIsNone(entry.next_attempt_at)
+
+    def test_one_bad_row_does_not_stop_the_rest(self):
+        from unittest.mock import patch
+        from django.core.management import call_command
+        from notifications.services.mail import queue_email
+
+        bad_entry = queue_email(
+            to="bad@example.com",
+            subject="Bad",
+            body="Bad body",
+            dedupe_key="bad_entry",
+        )
+        good_entry = queue_email(
+            to="good@example.com",
+            subject="Good",
+            body="Good body",
+            dedupe_key="good_entry",
+        )
+
+        def mock_send(subject, message, from_email, recipient_list, **kwargs):
+            if "bad@example.com" in recipient_list:
+                raise RuntimeError("Failed to send bad email")
+
+        with patch("notifications.management.commands.send_outbox.send_mail", side_effect=mock_send):
+            call_command("send_outbox")
+
+        bad_entry.refresh_from_db()
+        good_entry.refresh_from_db()
+        self.assertEqual(bad_entry.attempts, 1)
+        self.assertEqual(bad_entry.status, "Pending")
+        self.assertEqual(good_entry.status, "Sent")
+

@@ -734,6 +734,22 @@ class Outbox(models.Model):
     last_error = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __init__(self, *args, **kwargs):
+        recipient = kwargs.pop("recipient", None)
+        super().__init__(*args, **kwargs)
+        if recipient is not None:
+            if not isinstance(self.payload, dict):
+                self.payload = {}
+            self.payload["recipient"] = recipient
+            if "to" not in self.payload:
+                self.payload["to"] = recipient
+
+    @property
+    def recipient(self):
+        if isinstance(self.payload, dict):
+            return self.payload.get("recipient") or self.payload.get("to")
+        return None
+
     def __str__(self):
         return f"{self.dedupe_key} [{self.channel}] - {self.status}"
 
