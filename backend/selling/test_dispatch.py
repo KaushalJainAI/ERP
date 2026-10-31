@@ -358,6 +358,36 @@ class DispatchStatusTests(TestCase):
         self.assertEqual(res.data[0]["id"], order.pk)
         self.assertEqual(len(res.data[0]["lines"]), 2)
 
+    def test_sales_order_list_filters_by_transaction_date(self):
+        """Orders home: ?transaction_date= returns only orders dated that day."""
+        User = get_user_model()
+        user = User.objects.create_superuser(
+            username="so_date_admin",
+            email="so_date_admin@test.com",
+            password="pass",
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        SalesOrder.objects.create(
+            name="SO-DATE-TODAY",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date(2026, 10, 31),
+        )
+        SalesOrder.objects.create(
+            name="SO-DATE-YESTERDAY",
+            customer=self.customer,
+            company=self.company,
+            transaction_date=datetime.date(2026, 10, 30),
+        )
+        res = client.get(
+            f"/api/selling/sales-orders/?company={self.company.id}"
+            "&transaction_date=2026-10-31"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["name"], "SO-DATE-TODAY")
+
     def test_bill_numbering_financial_year_boundary(self):
         from accounts import mapping as account_mapping
         from core.models import NamingSeries

@@ -133,7 +133,13 @@ class SalesOrderViewSet(
     )
     serializer_class = SalesOrderSerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "customer", "docstatus", "dispatch_status"]
+    filterset_fields = [
+        "company",
+        "customer",
+        "docstatus",
+        "dispatch_status",
+        "transaction_date",
+    ]
     search_fields = ["name", "customer__name"]
     ordering_fields = ["transaction_date", "created_at"]
 

@@ -470,9 +470,9 @@ question's recorded answer.
 - [x] A-1 One all-access role
 - [x] A-2 Record the exception
 - [x] A-3 Landing workspace
-- [ ] A-4 Workspace home pages
+- [x] A-4 Workspace home pages
 - [x] A-5 Hide menus
-- [ ] A-6 Plain words
+- [x] A-6 Plain words
 - [ ] A-7 Remove demo company (OWNER)
 
 ### 2. Orders, dispatch and billing

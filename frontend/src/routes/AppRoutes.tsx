@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/context/CompanyContext";
 import { Login } from "@/pages/Login";
 import { Home } from "@/pages/Home";
+import { AllModules } from "@/pages/AllModules";
 import { Profile } from "@/pages/Profile";
 import { Roles } from "@/pages/Roles";
 import { useTranslation } from "react-i18next";
@@ -102,6 +103,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requireCompany={false}>
             <Home />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/all-modules"
+        element={
+          <ProtectedRoute requireCompany={false}>
+            <AllModules />
           </ProtectedRoute>
         }
       />
