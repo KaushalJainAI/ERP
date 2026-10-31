@@ -365,20 +365,26 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
 
     @staticmethod
     def _party_account(company, party_type, references):
-        """The party-side control account. An allocated invoice's own booked account
-        wins (the allocation check requires them to match); else the company
-        default for the party type."""
+        """The party-side control account. An allocated invoice's (or opening bill's)
+        own booked account wins (the allocation check requires them to match); else
+        the company default for the party type."""
         for row in references or ():
-            target = PaymentEntry.ALLOCATION_TARGETS.get(row.get("reference_doctype"))
-            if target is None or target[1] != party_type:
+            doctype = row.get("reference_doctype")
+            if doctype not in PaymentEntry.ALLOCATION_TARGETS:
                 continue
-            invoice = (
-                PaymentEntry.invoice_model(row["reference_doctype"])
+            document = (
+                PaymentEntry.invoice_model(doctype)
                 .objects.filter(name=row.get("reference_name"), company=company)
                 .first()
             )
-            if invoice is not None:
-                return getattr(invoice, target[2])
+            flow = (
+                PaymentEntry.target_flow(doctype, document)
+                if document is not None
+                else None
+            )
+            if flow is None or flow[1] != party_type:
+                continue
+            return getattr(document, flow[2])
         try:
             return party_account_for(company, party_type)
         except DjangoValidationError as exc:
@@ -848,7 +854,6 @@ class TaxCalculateSerializer(serializers.Serializer):
                 _("Each tax account may appear only once in the tax table.")
             )
         return rows
-
 
 
 class TaxPaymentSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):

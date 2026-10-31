@@ -53,7 +53,7 @@ every posting document is exportable, including types added later.
 Tally history* fills these in from the imported Tally years.
 
 Never exported: documents named `TLY-...` (the ten years already imported from
-Tally; the prefixes are a setting) and Opening Entry journals.
+Tally; the prefixes are a setting) Opening Entry journals, Opening Stock reconciliations and opening bills (planning 09, the balances Tally already holds). A receipt that settles an opening bill is exported On Account, since Tally has no bill of that name.
 
 Each voucher has: `VCHTYPE`, `ACTION="Create"`, `DATE` (YYYYMMDD), `VOUCHERNUMBER`
 (the ERP document number), `REFERENCE` (bill number / cheque / payment reference

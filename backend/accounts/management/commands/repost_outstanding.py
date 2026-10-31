@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
+from accounts.services import opening as opening_service
 from accounts.services import outstanding as outstanding_service
 from core.models import Company
 
@@ -6,7 +7,7 @@ from core.models import Company
 class Command(BaseCommand):
     help = (
         "Rebuilds the derived outstanding_amount / status of every Sales and Purchase "
-        "Invoice from the General Ledger."
+        "Invoice from the General Ledger, and of every Opening Bill from its allocations."
     )
 
     def add_arguments(self, parser):
@@ -27,5 +28,11 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 f"[OK] Invoice Outstanding Repost completed ({changed} corrected)."
+            )
+        )
+        bills_changed = opening_service.repost(company=company)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"[OK] Opening Bill Outstanding Repost completed ({bills_changed} corrected)."
             )
         )

@@ -332,6 +332,30 @@ class Command(BaseCommand):
         )
         errors.extend(order_errors)
 
+        # 17. Opening bills (planning 09): each stored outstanding equals its amount less
+        #     live allocations. A party whose opening bills differ from its ledger
+        #     balance on the as-on date is a warning only (balances may be retaken).
+        from accounts.services import opening as opening_service
+
+        opening_errors = opening_service.integrity_errors()
+        opening_warnings = opening_service.integrity_warnings()
+        SystemHealthCheck.objects.create(
+            check_name="opening_bill_integrity",
+            status="alert" if opening_errors else "ok",
+            details={
+                "errors": opening_errors,
+                "warnings": opening_warnings,
+                "message": (
+                    ""
+                    if opening_errors
+                    else "Opening bills agree with their allocations."
+                ),
+            },
+        )
+        errors.extend(opening_errors)
+        for warning in opening_warnings:
+            self.stdout.write(self.style.WARNING(f"[opening bill warning] {warning}"))
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
         details_payload = (
@@ -353,6 +377,7 @@ class Command(BaseCommand):
             for err in errors:
                 self.stderr.write(self.style.ERROR(f"  - {err}"))
             from notifications.services.instant import on_integrity_failed
+
             on_integrity_failed(errors)
             raise CommandError("ERP Integrity verification failed.")
 

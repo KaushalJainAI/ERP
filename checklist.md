@@ -552,11 +552,11 @@ question's recorded answer.
 - [x] L-6 Other languages
 
 ### 9. Go-live
-- [ ] G-1 Opening bills
-- [ ] G-2 Opening bills generator
+- [x] G-1 Opening bills
+- [x] G-2 Opening bills generator
 - [ ] G-3 Accountant corrections
-- [ ] G-4 Integrity check
-- [ ] G-5 Keep openings out of Tally
+- [x] G-4 Integrity check
+- [x] G-5 Keep openings out of Tally
 - [x] G-6 Opening stock template
 - [x] G-7 Backups
 - [ ] G-8 Cutover (OWNER)
