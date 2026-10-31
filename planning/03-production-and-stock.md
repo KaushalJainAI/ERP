@@ -23,9 +23,9 @@ them into the new warehouses. `Cold Storage` stays for physical storage if still
 
 | Stage | Factory manager enters | Stock posting |
 |---|---|---|
-| Grinding | Product, quantity; raw material suggested from the BOM | Material Transfer: Unprocessed to In Process |
-| Packing | Nothing extra | None |
-| Ready | Actual output | Manufacture: inputs consumed, finished goods into Ready, loss recorded |
+| Grinding | Product (bulk), quantity; raw material suggested from the BOM | Manufacture: raw spices consumed, bulk into In Process, grinding loss recorded |
+| Packing | Bulk kg used, then packet count per SKU | Manufacture per SKU: bulk and packing material consumed, SKU into Ready, packing loss recorded |
+| Ready | Nothing extra | None: the SKUs are already in Ready |
 
 Reuse `WorkOrder` and `StockEntry` underneath, so costing, repost, `verify_integrity`
 and Tally stock journals keep working. Add `WorkOrder.stage` as a fact set by the
@@ -34,19 +34,35 @@ stage actions, and keep Work Order wording away from this screen.
 Check during build whether `skip_transfer` and the BOM requirement in
 `manufacturing/services/production.py` fit this flow.
 
-## Depends on Q2: one run, several pack sizes?
+## Decided: Q2, grind to bulk, then pack into SKUs
 
-**If a run makes one product:** the table above stands.
+The owner confirmed that one grinding run is packed into several SKUs. So a batch has
+two production steps, and both reuse `Manufacture` stock entries.
 
-**If one grinding run feeds several sizes:** split it in two.
+1. **Grinding** (Manufacture): raw spices in, one bulk item out, for example
+   `Haldi Powder (Bulk)`, in kg. Process loss is recorded here, against the grinding
+   BOM's `process_loss_percentage`. Bulk goes to In Process until it is packed.
+2. **Packing** (Manufacture, one entry per SKU): bulk kg plus packing material in, one
+   SKU out, for example `Haldi 500gm` in packets. The code allows one finished row per
+   entry, so the screen posts one entry per SKU in the same batch.
 
-1. Grinding ends with a bulk powder item, such as Haldi Powder (Bulk), which needs new
-   item codes.
-2. Each Packing run consumes bulk powder and packing material, and produces one size.
-   The code allows one finished row per entry, so three sizes means three small runs,
-   presented as one screen.
+**One packing screen for all sizes.** The operator enters the bulk kg used once, then a
+packet count per SKU. Example: 60 kg bulk, 100 packets of 500gm (50 kg), 5 packets of 1kg
+(5 kg). Bulk used minus bulk packed is the **packing loss**, here 5 kg. The screen warns
+when packing loss is above the allowance set per item. Entries that would use more bulk
+than was ground are refused.
 
-The second shape is more common in spice packing, but only the owner can confirm it.
+**Bill of materials.** Each SKU has its own BOM once: bulk kg per pack, plus packing
+material per pack (pouch, label, carton).
+
+**Units.** Bulk is stored in kg. SKUs are stored in packets. The kg-stored items stay as
+they are until Q3 is settled.
+
+**Visibility.** Dispatch and billing see only SKUs. Bulk appears in the stock view and in
+the batch.
+
+Confirmed: bulk item names and codes (set in the item master); the packing loss
+allowance per item (starts at 1%).
 
 ## Depends on Q3: packets or kg
 
@@ -114,25 +130,27 @@ quantity.
   Writes after submit use `QuerySet.update()`.
 - **Test:** the CHECK; the field is read-only over the API.
 
-### P-3 Batch service (BLOCKED Q2)
+### P-3 Batch service (Q2 answered: bulk then pack)
 - **Depends:** P-1, P-2. **Files:** new `manufacturing/services/batches.py`,
   `manufacturing/views.py`.
 - **Read first:** `services/work_orders.py::make_stock_entry`, `_transfer_rows`,
   `_manufacture_rows`; `services/production.py::_validate_manufacture`, `_assert_finished_qty`;
   and how `manufacturing/tests.py` near line 191 runs a full cycle.
-- **Do:** write:
-  - `start_batch(company, item, qty, user)`: default BOM for the item (error if none), create a
-    Work Order with source Unprocessed, WIP In Process, finished Ready, submit it, then
-    `make_stock_entry(wo, MATERIAL_TRANSFER_FOR_MANUFACTURE)` and submit that. All one atomic
-    block. Insufficient stock rolls it all back.
-  - `move_to_packing(wo, user)`: requires stage `Grinding`.
-  - `finish_batch(wo, output_qty, user)`: requires stage `Packing`, output above 0; use
-    `make_stock_entry(wo, MANUFACTURE, qty=...)` with the loss recorded, then submit; set
-    `Ready`.
-  - `cancel_batch(wo, user)`: cancels entries newest first, then the Work Order.
-  Expose as `POST /api/manufacturing/batches/`, and `.../{id}/to-packing/`, `.../finish/`,
-  `.../cancel/`. If output above the planned quantity or loss handling does not fit
-  `_assert_finished_qty`, stop and report; do not weaken it.
+- **Do:** (Q2 design, see the section above.) Write:
+  - `start_grinding(company, bulk_item, bulk_qty, user)`: default BOM for the bulk item
+    (error if none). Create a Work Order for the bulk item with source Unprocessed and WIP
+    In Process, submit it, then `make_stock_entry(wo, MANUFACTURE)` and submit. Atomic;
+    insufficient stock rolls it all back.
+  - `finish_grinding(wo, bulk_qty, user)`: records the bulk actually produced and the
+    grinding loss; sets stage `Packing`.
+  - `pack(wo, lines, user)`: `lines` is `[(sku, packets), ...]` with the bulk kg used.
+    For each SKU, create a packing Work Order (source In Process, finished Ready) and a
+    Manufacture entry. Refuse when bulk used is above bulk produced, or a SKU has no BOM.
+    Packing loss = bulk used minus bulk packed; warn above the item's allowance.
+  - `cancel_batch(wo, user)`: cancels entries newest first, then the Work Orders.
+  Expose `POST /api/manufacturing/batches/` (grinding start), `.../{id}/finish-grinding/`,
+  `.../{id}/pack/`, `.../cancel/`. If the existing `_assert_finished_qty` does not fit
+  the loss handling, stop and report; do not weaken it.
 - **Test:** the design's Tests list, with `verify_integrity` logic run after a full cycle.
 
 ### P-4 Today's Batches page

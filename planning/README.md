@@ -75,7 +75,7 @@ OWNER cards: A-7, O-7, P-7, E-9, T-8, N-10, H-7, L-5, G-8.
 | # | Question | Who | Blocks |
 |---|---|---|---|
 | Q1 | Has turnover passed ₹5 crore in any year since 2017-18? Do consignments cross the e-way bill limit? | Accountant | O-7, may change O-3 |
-| Q2 | Is one grinding run packed into several sizes, or held as bulk powder? | Owner | P-3 onward |
+| Q2 | Is one grinding run packed into several sizes, or held as bulk powder? **Answered: grind to bulk, then pack per SKU (see doc 03).** | Owner | P-3 onward |
 | Q3 | Is ready stock counted in packets or kg? | Owner | P-7 |
 | Q4 | What is the standard supplier payment period? (Customers: 90 days, answered) | Owner | Default in M-1 |
 | Q5 | Which staff, if any, are above the income tax limit? | Accountant | T-6, T-7 |
@@ -130,7 +130,7 @@ Record each answer here, with the date, when it is given.
 |---|---|
 | A-7 | OWNER: remove demo company |
 | O-7 | OWNER: real Tally test |
-| P-3, P-4, P-6 | BLOCKED on Q2 (grinding run question) |
+| P-3, P-4, P-6 | Q2 answered (bulk then pack); unblocked |
 | P-7 | OWNER + BLOCKED Q3 |
 | E-9 | OWNER: category list |
 | T-6, T-7 | BLOCKED on Q5 (staff income tax) |
