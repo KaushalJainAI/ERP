@@ -15,6 +15,7 @@ No test here reaches a real LLM: every Agent gets a stubbed completion_fn.
 
 import datetime
 from decimal import Decimal
+import inspect
 import json
 from unittest import mock
 import uuid
@@ -28,10 +29,10 @@ import requests
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from accounts.models import Account, AccountRootType, AccountType
+from accounts.models import Account, AccountRootType, AccountType, PaymentEntry
 from core.models import AuditLog, Company
 from selling.models import Customer, CustomerGroup, SalesInvoice, SalesOrder
-from buying.models import Supplier, SupplierGroup
+from buying.models import ExpenseCategory, PurchaseInvoice, Supplier, SupplierGroup
 from stock.models import Item, ItemGroup, UOM, Warehouse, Bin
 from hr.models import Employee
 
@@ -50,13 +51,17 @@ from .tools import (
     expense_summary_tool,
     gst_position_tool,
     money_to_collect,
+    navigate,
     pending_orders,
     stock_stages,
     top_items,
     _stock_warehouse,
 )
 from .proposals import (
+    PROPOSAL_BUILDERS,
+    propose_expense,
     propose_payment_entry,
+    propose_receipt,
     propose_sales_order,
     propose_sales_invoice,
     propose_purchase_invoice,
@@ -795,6 +800,268 @@ class AssistantReportToolTests(TestCase):
 
         res = pending_orders(self.user, company=self.company.pk)
         self.assertEqual(len(res["orders"]), len(dispatch.pending_orders(self.company.pk)))
+
+
+class AssistantReceiptExpenseProposalTests(TestCase):
+    """propose_receipt (oldest-first allocation) and propose_expense: each makes a
+    valid proposal and writes no document; failures leave nothing behind."""
+
+    def setUp(self):
+        self.user = User.objects.create_superuser(
+            username="cashier", email="cashier@erp.local", password="password"
+        )
+        setup_test_masters(self)
+        self.bank = Account.objects.create(
+            name="Bank-" + str(uuid.uuid4())[:6],
+            company=self.company,
+            parent=self.asset_root,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+        )
+        expense_root = Account.objects.create(
+            name="Expenses-" + str(uuid.uuid4())[:6],
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+            is_group=True,
+        )
+        self.expense_account = Account.objects.create(
+            name="Electricity-" + str(uuid.uuid4())[:6],
+            company=self.company,
+            parent=expense_root,
+            root_type=AccountRootType.EXPENSE,
+        )
+        self.category = ExpenseCategory.objects.create(
+            company=self.company, name="Bijli", account=self.expense_account
+        )
+
+    def _open_invoice(self, name, posting, due, outstanding):
+        return SalesInvoice.objects.create(
+            name=name,
+            customer=self.customer,
+            company=self.company,
+            posting_date=posting,
+            due_date=due,
+            debit_to=self.debtors_acc,
+            income_account=self.sales_acc,
+            net_total=outstanding,
+            grand_total=outstanding,
+            rounded_total=outstanding,
+            outstanding_amount=outstanding,
+            docstatus=1,
+        )
+
+    def _assert_no_document_written(self, call):
+        """Run `call`; no INSERT/UPDATE/DELETE may touch a non-assistant table."""
+        with CaptureQueriesContext(connection) as ctx:
+            res = call()
+        for q in ctx.captured_queries:
+            sql_upper = q["sql"].strip().upper()
+            if "ASSISTANT_" in sql_upper:
+                continue
+            for verb in ("INSERT", "UPDATE", "DELETE"):
+                self.assertFalse(
+                    sql_upper.startswith(verb),
+                    f"Found forbidden non-assistant {verb}: {sql_upper}",
+                )
+        return res
+
+    def test_receipt_allocates_oldest_first(self):
+        # Created newest first, so creation order cannot explain the result.
+        self._open_invoice(
+            "SI-NEW",
+            datetime.date(2026, 10, 1),
+            datetime.date(2026, 10, 20),
+            Decimal("500.00"),
+        )
+        self._open_invoice(
+            "SI-OLD",
+            datetime.date(2026, 9, 1),
+            datetime.date(2026, 9, 15),
+            Decimal("300.00"),
+        )
+
+        res = self._assert_no_document_written(
+            lambda: propose_receipt(self.user, customer_query="Sharma", amount="400")
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["target"], "accounts.PaymentEntry")
+        self.assertEqual(res["route"], "/accounts/payment-entries/new")
+        self.assertEqual(
+            res["values"]["references"],
+            [
+                {
+                    "reference_doctype": "selling.SalesInvoice",
+                    "reference_name": "SI-OLD",
+                    "allocated_amount": "300.00",
+                },
+                {
+                    "reference_doctype": "selling.SalesInvoice",
+                    "reference_name": "SI-NEW",
+                    "allocated_amount": "100.00",
+                },
+            ],
+        )
+        self.assertEqual(res["values"]["payment_type"], "Receive")
+        self.assertEqual(res["values"]["party_name"], self.customer.name)
+        self.assertEqual(res["values"]["paid_to"], self.bank.pk)
+        self.assertFalse(any("unallocated" in w for w in res["warnings"]))
+
+    def test_receipt_above_open_bills_is_flagged(self):
+        self._open_invoice(
+            "SI-ONLY",
+            datetime.date(2026, 9, 1),
+            datetime.date(2026, 9, 15),
+            Decimal("800.00"),
+        )
+
+        res = propose_receipt(self.user, customer_query="Sharma", amount="1000")
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(
+            [r["allocated_amount"] for r in res["values"]["references"]], ["800.00"]
+        )
+        self.assertTrue(any("stays unallocated" in w for w in res["warnings"]))
+
+    def test_receipt_with_no_open_bills_is_still_a_proposal(self):
+        res = self._assert_no_document_written(
+            lambda: propose_receipt(self.user, customer_query="Sharma", amount="500")
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["values"]["references"], [])
+        self.assertIn("no open bills", res["summary"])
+        self.assertTrue(any("no open bills" in w for w in res["warnings"]))
+
+    def test_receipt_failure_paths_write_nothing(self):
+        pe_count = PaymentEntry.objects.count()
+        unknown = propose_receipt(self.user, customer_query="Nobody Here", amount="500")
+        self.assertEqual(unknown.get("error"), "customer_not_found")
+
+        zero = propose_receipt(self.user, customer_query="Sharma", amount="0")
+        self.assertEqual(zero.get("type"), "proposal")
+        self.assertTrue(any("greater than zero" in w for w in zero["warnings"]))
+        self.assertEqual(PaymentEntry.objects.count(), pe_count)
+
+    def test_expense_proposal_is_valid_and_writes_nothing(self):
+        pi_count = PurchaseInvoice.objects.count()
+        pe_count = PaymentEntry.objects.count()
+
+        res = self._assert_no_document_written(
+            lambda: propose_expense(
+                self.user,
+                category_query="Bijli",
+                amount="12400",
+                supplier_query="Gupta",
+                expense_date="2026-10-30",
+                bill_no="EB-1042",
+                paid_now=True,
+                mode_of_payment="bank",
+            )
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["target"], "buying.PurchaseInvoice")
+        self.assertEqual(res["route"], "/accounts/expenses/new")
+        self.assertEqual(res["values"]["category"], self.category.pk)
+        self.assertEqual(res["values"]["amount"], "12400.00")
+        self.assertEqual(res["values"]["date"], "2026-10-30")
+        self.assertEqual(res["values"]["paid_from"], self.bank.pk)
+        self.assertEqual(res["warnings"], [])
+        self.assertEqual(PurchaseInvoice.objects.count(), pi_count)
+        self.assertEqual(PaymentEntry.objects.count(), pe_count)
+
+    def test_expense_without_bill_no_warns_before_submit(self):
+        res = propose_expense(
+            self.user, category_query="Bijli", amount="500", supplier_query="Gupta"
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertTrue(any("Bill No" in w for w in res["warnings"]))
+
+    def test_expense_uses_cash_supplier_when_none_named(self):
+        cash = Supplier.objects.create(
+            name="Cash Expenses",
+            company=self.company,
+            supplier_group=self.supp_grp,
+            is_cash_expense=True,
+            is_active=True,
+        )
+
+        res = propose_expense(self.user, category_query="Bijli", amount="250")
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(res["values"]["supplier"], cash.pk)
+        self.assertFalse(any("Bill No" in w for w in res["warnings"]))
+        self.assertFalse(res["values"]["paid_now"])
+
+    def test_expense_without_any_supplier_is_refused(self):
+        res = propose_expense(self.user, category_query="Bijli", amount="250")
+        self.assertEqual(res.get("error"), "supplier_required")
+
+    def test_expense_unknown_category_is_refused(self):
+        pi_count = PurchaseInvoice.objects.count()
+        res = propose_expense(self.user, category_query="Nonsense Head", amount="250")
+        self.assertEqual(res.get("error"), "category_not_found")
+        self.assertEqual(PurchaseInvoice.objects.count(), pi_count)
+
+    def test_expense_paid_now_text_is_read_as_false(self):
+        res = propose_expense(
+            self.user,
+            category_query="Bijli",
+            amount="250",
+            supplier_query="Gupta",
+            bill_no="X-1",
+            paid_now="false",
+        )
+        self.assertEqual(res["values"]["paid_now"], False)
+        self.assertIsNone(res["values"]["paid_from"])
+        self.assertIn("to pay later", res["summary"])
+
+    def test_receipt_and_expense_need_create_permission(self):
+        plain = User.objects.create_user(
+            username="plain3", email="p3@erp.local", password="password"
+        )
+        self.assertEqual(
+            propose_receipt(plain, customer_query="Sharma", amount="100").get("error"),
+            "permission_denied",
+        )
+        self.assertEqual(
+            propose_expense(plain, category_query="Bijli", amount="100").get("error"),
+            "permission_denied",
+        )
+
+
+class AssistantToolRegistryTests(TestCase):
+    """Every proposal builder is offered to the model with exactly its declared arguments."""
+
+    HIDDEN = {"user", "company", "message"}
+
+    def test_every_proposal_builder_has_a_matching_tool_schema(self):
+        schemas = {
+            tool["function"]["name"]: tool["function"]["parameters"]
+            for tool in agent_module.TOOL_DEFINITIONS
+        }
+        for name, fn in PROPOSAL_BUILDERS.items():
+            self.assertIn(name, schemas, f"{name} has no tool schema")
+            params = set(inspect.signature(fn).parameters) - self.HIDDEN
+            declared = set(schemas[name]["properties"])
+            self.assertLessEqual(
+                declared, params, f"{name} declares an argument it does not take"
+            )
+            self.assertLessEqual(set(schemas[name].get("required", [])), declared, name)
+
+    def test_navigate_accepts_the_new_pages_and_refuses_unknown_routes(self):
+        for route in (
+            "/accounts/expenses/new",
+            "/accounts/expenses",
+            "/accounts/collections",
+            "/accounts/bills-to-pay",
+            "/accounts/gst-position",
+            "/selling/pending-orders",
+        ):
+            self.assertEqual(navigate(route)["type"], "navigate", route)
+        self.assertEqual(navigate("/accounts/not-a-page").get("error"), "invalid_route")
 
 
 def scripted(*turns):

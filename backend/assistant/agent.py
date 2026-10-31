@@ -393,7 +393,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "propose_payment_entry",
-            "description": "Prepare a Payment Entry form for user review. Never writes to DB.",
+            "description": "Prepare a Payment Entry form for user review. For money a customer paid us, use propose_receipt. Never writes to DB.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -404,6 +404,70 @@ TOOL_DEFINITIONS = [
                     "mode_of_payment": {"type": "string", "description": "Cash, Bank, Cheque"},
                 },
                 "required": ["party_type", "party_query", "amount"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_receipt",
+            "description": "Prepare a receipt for user review: a customer paid money. The amount is allocated to the customer's open bills, oldest due first. Use for 'diye', 'mile', 'jama'. Never writes to DB.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_query": {
+                        "type": "string",
+                        "description": "Customer name",
+                    },
+                    "amount": {"type": "number", "description": "Amount received"},
+                    "mode_of_payment": {
+                        "type": "string",
+                        "description": "Cash, Bank, Cheque, UPI",
+                    },
+                    "posting_date": {
+                        "type": "string",
+                        "description": "Optional date YYYY-MM-DD",
+                    },
+                },
+                "required": ["customer_query", "amount"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_expense",
+            "description": "Prepare an expense bill for user review, such as electricity, rent or hamali. Not for stock purchases. Use paid_now when it was already paid. Never writes to DB.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_query": {
+                        "type": "string",
+                        "description": "Expense category name, e.g. Bijli",
+                    },
+                    "amount": {"type": "number", "description": "Bill amount"},
+                    "supplier_query": {
+                        "type": "string",
+                        "description": "Optional supplier name",
+                    },
+                    "expense_date": {
+                        "type": "string",
+                        "description": "Optional bill date YYYY-MM-DD",
+                    },
+                    "bill_no": {
+                        "type": "string",
+                        "description": "Optional supplier bill number",
+                    },
+                    "paid_now": {
+                        "type": "boolean",
+                        "description": "True if the bill was paid now",
+                    },
+                    "mode_of_payment": {
+                        "type": "string",
+                        "description": "Cash, Bank, Cheque, UPI",
+                    },
+                },
+                "required": ["category_query", "amount"],
             },
         },
     },
