@@ -212,7 +212,7 @@ class BatchViewSet(
         """Body ``{"bulk_qty"}``: the bulk actually produced. Posts the grinding."""
         batch = self.get_object()
         try:
-            batch_service.finish_grinding(
+            result = batch_service.finish_grinding(
                 batch.grinding_work_order,
                 request.data.get("bulk_qty"),
                 user=request.user,
@@ -220,7 +220,13 @@ class BatchViewSet(
         except DjangoValidationError as exc:
             return Response({"error": exc.messages}, status=status.HTTP_400_BAD_REQUEST)
         batch.refresh_from_db()
-        return Response(self.get_serializer(batch).data)
+        return Response(
+            {
+                "batch": self.get_serializer(batch).data,
+                "grinding_loss": str(result["grinding_loss"]),
+                "warnings": result["warnings"],
+            }
+        )
 
     @action(detail=True, methods=["post"])
     def pack(self, request, pk=None):
@@ -253,7 +259,6 @@ class BatchViewSet(
                 "bulk_used": str(result["bulk_used"]),
                 "bulk_packed": str(result["bulk_packed"]),
                 "packing_loss": str(result["packing_loss"]),
-                "warnings": result["warnings"],
             }
         )
 
