@@ -552,7 +552,7 @@ question's recorded answer.
 - [x] L-6 Other languages
 
 ### 9. Go-live
-- [ ] G-1 Opening bills
+- [x] G-1 Opening bills
 - [ ] G-2 Opening bills generator
 - [ ] G-3 Accountant corrections
 - [ ] G-4 Integrity check

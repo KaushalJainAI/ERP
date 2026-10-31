@@ -5,9 +5,21 @@ from django.db.models import Q
 from django.db.models.functions import Coalesce
 from django.utils.translation import gettext as _
 
+from accounts.models import OpeningBill
 from core.models import Company, DocStatus
 
 ZERO = Decimal("0.00")
+
+
+def _party_name(party: Any, comp: Company, party_model: Any) -> str:
+    """The party's name from a model instance, an id or a name (as the caller passed it)."""
+    if isinstance(party, party_model):
+        return party.name
+    if isinstance(party, int) or (isinstance(party, str) and party.isdigit()):
+        found = party_model.objects.filter(pk=int(party), company=comp).first()
+        if found is not None:
+            return found.name
+    return str(party)
 
 
 class AllocationSuggestion:
@@ -79,6 +91,7 @@ def suggest_allocation(
         from selling.models import Customer, SalesInvoice
 
         model = SalesInvoice
+        party_model = Customer
         ref_doctype = "selling.SalesInvoice"
         qs = model.objects.filter(
             company=comp,
@@ -100,6 +113,7 @@ def suggest_allocation(
         from buying.models import PurchaseInvoice, Supplier
 
         model = PurchaseInvoice
+        party_model = Supplier
         ref_doctype = "buying.PurchaseInvoice"
         qs = model.objects.filter(
             company=comp,
@@ -123,10 +137,42 @@ def suggest_allocation(
             % {"ptype": party_type}
         )
 
-    # Order by oldest due_date first, fallback to posting_date, then tie-break by name
-    invoices = qs.annotate(
-        effective_due_date=Coalesce("due_date", "posting_date")
-    ).order_by("effective_due_date", "posting_date", "name")
+    # Oldest due date first (fallback: posting date), then name. Opening bills of the
+    # same party (planning 09) are open bills too, so they are merged in by due date.
+    candidates = [
+        {
+            "reference_doctype": ref_doctype,
+            "reference_name": inv.name,
+            "total_amount": inv.rounded_total,
+            "outstanding_amount": inv.outstanding_amount,
+            "due_date": inv.due_date,
+            "posting_date": inv.posting_date,
+            "sort_due": inv.due_date or inv.posting_date,
+        }
+        for inv in qs.annotate(effective_due_date=Coalesce("due_date", "posting_date"))
+    ]
+    bills = OpeningBill.objects.filter(
+        company=comp,
+        docstatus=DocStatus.SUBMITTED,
+        party_type=party_model.__name__,
+        party=_party_name(party, comp, party_model),
+        outstanding_amount__gt=ZERO,
+    )
+    candidates += [
+        {
+            "reference_doctype": OpeningBill.voucher_label(),
+            "reference_name": bill.name,
+            "total_amount": bill.amount,
+            "outstanding_amount": bill.outstanding_amount,
+            "due_date": bill.due_date,
+            "posting_date": bill.bill_date,
+            "sort_due": bill.due_date,
+        }
+        for bill in bills
+    ]
+    candidates.sort(
+        key=lambda c: (c["sort_due"], c["posting_date"], c["reference_name"])
+    )
 
     target_amount = Decimal(str(amount)) if amount is not None else ZERO
     if target_amount < ZERO:
@@ -135,20 +181,20 @@ def suggest_allocation(
     remaining = target_amount
     references = []
 
-    for inv in invoices:
+    for cand in candidates:
         if remaining <= ZERO:
             break
-        alloc = min(remaining, inv.outstanding_amount)
+        alloc = min(remaining, cand["outstanding_amount"])
         if alloc > ZERO:
             references.append(
                 {
-                    "reference_doctype": ref_doctype,
-                    "reference_name": inv.name,
-                    "total_amount": inv.rounded_total,
-                    "outstanding_amount": inv.outstanding_amount,
+                    "reference_doctype": cand["reference_doctype"],
+                    "reference_name": cand["reference_name"],
+                    "total_amount": cand["total_amount"],
+                    "outstanding_amount": cand["outstanding_amount"],
                     "allocated_amount": alloc,
-                    "due_date": inv.due_date,
-                    "posting_date": inv.posting_date,
+                    "due_date": cand["due_date"],
+                    "posting_date": cand["posting_date"],
                 }
             )
             remaining -= alloc

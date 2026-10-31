@@ -21,8 +21,10 @@ from django.db.models import Sum
 from accounts.models import (
     GLEntry,
     InvoiceStatus,
+    OpeningBill,
     PaymentEntryReference,
 )
+from accounts.services import opening as opening_service
 from core.models import DocStatus
 
 ZERO = Decimal("0.00")
@@ -96,19 +98,20 @@ def gl_outstanding(invoice):
     return (net * invoice.OUTSTANDING_SIGN).quantize(CENT)
 
 
-def party_balance(party_type, party_name, company_id):
+def party_balance(party_type, party_name, company_id, as_on=None):
     """A party's balance on its control accounts, from the live GL rows.
 
     Receivable rows (``Customer``) are debit minus credit; payable rows
     (``Supplier``) credit minus debit. Every row on those accounts counts --
     invoices, payments, advances, journal entries (e.g. imported opening
     balances) -- not only invoice-tagged rows. Filtering on the account type
-    matters: a payment's bank line also carries the party.
+    matters: a payment's bank line also carries the party. ``as_on`` (a date)
+    limits the rows to those posted on or before it.
     """
     from accounts.models import AccountType
 
     receivable = party_type == "Customer"
-    agg = GLEntry.objects.filter(
+    rows = GLEntry.objects.filter(
         company_id=company_id,
         party_type=party_type,
         party=party_name,
@@ -116,7 +119,10 @@ def party_balance(party_type, party_name, company_id):
             AccountType.RECEIVABLE if receivable else AccountType.PAYABLE
         ),
         is_cancelled=False,
-    ).aggregate(dr=Sum("debit"), cr=Sum("credit"))
+    )
+    if as_on is not None:
+        rows = rows.filter(posting_date__lte=as_on)
+    agg = rows.aggregate(dr=Sum("debit"), cr=Sum("credit"))
     net = (agg["dr"] or ZERO) - (agg["cr"] or ZERO)
     return net if receivable else -net
 
@@ -161,8 +167,16 @@ def derive(invoice):
     return outstanding, status_for(invoice, outstanding)
 
 
-def current_outstanding(invoice):
-    """Outstanding of a submitted invoice, from the ledger (callers hold the row lock)."""
+def current_outstanding(invoice, exclude_payment=None):
+    """Outstanding of a submitted invoice, from the ledger (callers hold the row lock).
+
+    An opening bill has no ledger rows: its outstanding is its allocations projection,
+    which ``exclude_payment`` (the payment being submitted) is left out of. An invoice
+    needs no exclusion: its ledger rows are posted after the allocation check."""
+    if isinstance(invoice, OpeningBill):
+        return opening_service.current_outstanding(
+            invoice, exclude_payment=exclude_payment
+        )
     return derive(invoice)[0]
 
 
@@ -277,30 +291,71 @@ def ageing_report(party_type, as_on=None, company_id=None, party=None):
     if party:
         qs = qs.filter(**{f"{party_field}__name": party})
 
+    items = [
+        {
+            "invoice": inv.name,
+            "is_return": inv.is_return,
+            "return_against": (
+                inv.return_against.name if inv.return_against_id else None
+            ),
+            "party": getattr(inv, party_field).name,
+            "posting_date": inv.posting_date,
+            "due_date": inv.due_date,
+            "rounded_total": inv.rounded_total,
+            "outstanding": inv.outstanding_amount,
+            "is_opening": False,
+        }
+        for inv in qs
+    ]
+    # Opening bills (planning 09) age alongside the invoices they stand for.
+    bills = OpeningBill.objects.filter(
+        docstatus=DocStatus.SUBMITTED,
+        party_type=party_type,
+        bill_date__lte=as_on,
+    ).exclude(outstanding_amount=0)
+    if company_id:
+        bills = bills.filter(company_id=company_id)
+    if party:
+        bills = bills.filter(party=party)
+    items += [
+        {
+            "invoice": bill.name,
+            "is_return": False,
+            "return_against": None,
+            "party": bill.party,
+            "posting_date": bill.bill_date,
+            "due_date": bill.due_date,
+            "rounded_total": bill.amount,
+            "outstanding": bill.outstanding_amount,
+            "is_opening": True,
+        }
+        for bill in bills
+    ]
+    items.sort(key=lambda i: (i["party"], i["posting_date"], i["invoice"]))
+
     rows = []
     parties = {}
     totals = {"rounded_total": ZERO, "outstanding": ZERO, "buckets": _empty_buckets()}
-    for inv in qs:
-        base = inv.due_date or inv.posting_date
+    for item in items:
+        base = item["due_date"] or item["posting_date"]
         days = max((as_on - base).days, 0)
         label = _bucket(days)
-        party_name = getattr(inv, party_field).name
+        party_name = item["party"]
         buckets = _empty_buckets()
-        buckets[label] = inv.outstanding_amount
+        buckets[label] = item["outstanding"]
         rows.append(
             {
-                "invoice": inv.name,
-                "is_return": inv.is_return,
-                "return_against": inv.return_against.name
-                if inv.return_against_id
-                else None,
+                "invoice": item["invoice"],
+                "is_return": item["is_return"],
+                "return_against": item["return_against"],
                 "party": party_name,
-                "posting_date": str(inv.posting_date),
-                "due_date": str(inv.due_date) if inv.due_date else None,
-                "rounded_total": str(inv.rounded_total),
-                "outstanding": str(inv.outstanding_amount),
+                "posting_date": str(item["posting_date"]),
+                "due_date": str(item["due_date"]) if item["due_date"] else None,
+                "rounded_total": str(item["rounded_total"]),
+                "outstanding": str(item["outstanding"]),
                 "days_overdue": days,
                 "buckets": {k: str(v) for k, v in buckets.items()},
+                "is_opening": item["is_opening"],
             }
         )
         entry = parties.setdefault(
@@ -313,9 +368,9 @@ def ageing_report(party_type, as_on=None, company_id=None, party=None):
             },
         )
         for agg in (entry, totals):
-            agg["rounded_total"] += inv.rounded_total
-            agg["outstanding"] += inv.outstanding_amount
-            agg["buckets"][label] += inv.outstanding_amount
+            agg["rounded_total"] += item["rounded_total"]
+            agg["outstanding"] += item["outstanding"]
+            agg["buckets"][label] += item["outstanding"]
 
     def money(agg):
         return {

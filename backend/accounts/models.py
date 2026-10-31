@@ -318,10 +318,14 @@ class PaymentEntry(SubmittableDocument):
 
     # ------------------------------------------------------------- allocation
 
-    #: ``reference_doctype`` -> (payment_type, party_type, invoice party-account field)
+    #: ``reference_doctype`` -> (payment_type, party_type, party-account field). An
+    #: opening bill has no fixed direction (a Customer's is a receipt, a Supplier's a
+    #: payment), so its entry is ``(None, None, ...)`` and :meth:`target_flow` reads it
+    #: from the bill.
     ALLOCATION_TARGETS = {
         "selling.SalesInvoice": (PaymentType.RECEIVE, "Customer", "debit_to"),
         "buying.PurchaseInvoice": (PaymentType.PAY, "Supplier", "credit_to"),
+        "accounts.OpeningBill": (None, None, "account"),
     }
 
     #: Settling a return (credit / debit note) is the opposite flow of an invoice.
@@ -329,6 +333,42 @@ class PaymentEntry(SubmittableDocument):
         PaymentType.RECEIVE: PaymentType.PAY,
         PaymentType.PAY: PaymentType.RECEIVE,
     }
+
+    #: Direction of a party type's bills (used by opening bills).
+    FLOW_BY_PARTY_TYPE = {
+        "Customer": (PaymentType.RECEIVE, "Customer"),
+        "Supplier": (PaymentType.PAY, "Supplier"),
+    }
+
+    @classmethod
+    def target_flow(cls, reference_doctype, document=None):
+        """``(payment_type, party_type, party-account field)`` of an allocation target,
+        or ``None`` for a doctype that is not one. An opening bill needs its ``document``
+        (its party type sets the direction)."""
+        target = cls.ALLOCATION_TARGETS.get(reference_doctype)
+        if target is None:
+            return None
+        payment_type, party_type, account_field = target
+        if payment_type is None:
+            if document is None:
+                return None
+            payment_type, party_type = cls.FLOW_BY_PARTY_TYPE[document.party_type]
+        return payment_type, party_type, account_field
+
+    @staticmethod
+    def _party_name_of(invoice):
+        return invoice.party if isinstance(invoice, OpeningBill) else invoice.party.name
+
+    @staticmethod
+    def _refresh_reference(invoice):
+        """Re-derive a referenced document's outstanding after a payment changed."""
+        from accounts.services import opening as opening_service
+        from accounts.services import outstanding as outstanding_service
+
+        if isinstance(invoice, OpeningBill):
+            opening_service.refresh(invoice)
+        else:
+            outstanding_service.refresh(invoice)
 
     @property
     def party_account(self):
@@ -376,8 +416,9 @@ class PaymentEntry(SubmittableDocument):
             payment_type, party_type, _account_field = target
             # A return (credit / debit note) is settled by the opposite flow -- a
             # refund -- so either direction passes here; the invoice-level check
-            # below picks the right one once the invoice is loaded.
-            if (
+            # below picks the right one once the invoice is loaded. An opening bill
+            # (no fixed flow) is checked against its own party type below.
+            if payment_type is not None and (
                 self.payment_type not in (payment_type, self.REFUND_FLOW[payment_type])
                 or self.party_type != party_type
             ):
@@ -416,7 +457,6 @@ class PaymentEntry(SubmittableDocument):
         allocations = []
         for ref in sorted(refs, key=lambda r: (r.reference_doctype, r.reference_name)):
             model = self.invoice_model(ref.reference_doctype)
-            account_field = self.ALLOCATION_TARGETS[ref.reference_doctype][2]
             invoice = (
                 model.objects.select_for_update()
                 .filter(name=ref.reference_name)
@@ -437,11 +477,14 @@ class PaymentEntry(SubmittableDocument):
                     _("Invoice '%(name)s' belongs to a different company.")
                     % {"name": ref.reference_name}
                 )
-            if invoice.party.name != self.party_name:
+            if self._party_name_of(invoice) != self.party_name:
                 raise ValidationError(
                     _("Invoice '%(name)s' belongs to a different party.")
                     % {"name": ref.reference_name}
                 )
+            payment_type, party_type, account_field = self.target_flow(
+                ref.reference_doctype, invoice
+            )
             if getattr(invoice, f"{account_field}_id") != party_account.pk:
                 raise ValidationError(
                     _(
@@ -450,11 +493,10 @@ class PaymentEntry(SubmittableDocument):
                     )
                     % {"name": ref.reference_name}
                 )
-            payment_type = self.ALLOCATION_TARGETS[ref.reference_doctype][0]
             expected_type = (
                 self.REFUND_FLOW[payment_type] if invoice.is_return else payment_type
             )
-            if self.payment_type != expected_type:
+            if self.payment_type != expected_type or self.party_type != party_type:
                 raise ValidationError(
                     _(
                         "A %(payment_type)s payment for a %(party_type)s cannot be "
@@ -469,7 +511,9 @@ class PaymentEntry(SubmittableDocument):
                 )
             # A return's own outstanding is negative (a credit / debit balance); the
             # refund may settle up to its absolute value.
-            open_amount = outstanding_service.current_outstanding(invoice)
+            open_amount = outstanding_service.current_outstanding(
+                invoice, exclude_payment=self
+            )
             if invoice.is_return:
                 open_amount = -open_amount
             if ref.allocated_amount > open_amount:
@@ -514,7 +558,6 @@ class PaymentEntry(SubmittableDocument):
 
     def on_submit(self):
         from accounts.services import gl as gl_service
-        from accounts.services import outstanding as outstanding_service
 
         zero = Decimal("0.00")
         allocations = self._locked_allocations()
@@ -560,11 +603,10 @@ class PaymentEntry(SubmittableDocument):
             remarks=f"Payment {self.payment_type}: {self.reference_no or ''}",
         )
         for _ref, invoice in allocations:
-            outstanding_service.refresh(invoice)
+            self._refresh_reference(invoice)
 
     def on_cancel(self):
         from accounts.services import gl as gl_service
-        from accounts.services import outstanding as outstanding_service
 
         gl_service.reverse(self)
         for ref in self.references.all().order_by(
@@ -578,7 +620,7 @@ class PaymentEntry(SubmittableDocument):
                 .first()
             )
             if invoice is not None:
-                outstanding_service.refresh(invoice)
+                self._refresh_reference(invoice)
 
     def __str__(self):
         return f"{self.name} [{self.payment_type}] - {self.paid_amount}"
@@ -616,6 +658,151 @@ class PaymentEntryReference(models.Model):
 
     def __str__(self):
         return f"{self.payment_entry.name} -> {self.reference_doctype}:{self.reference_name} ({self.allocated_amount})"
+
+
+class OpeningBill(SubmittableDocument):
+    """An outstanding bill carried over from the books before go-live (planning 09).
+
+    The party's balance is already in the ledger (carried in up to ``as_on``), so an
+    opening bill **posts no GL**. It tells the ageing report, Money to Collect and
+    Bills to Pay which bill a receipt or payment settles, so old debts show as old.
+
+    ``outstanding_amount`` is a derived projection: ``amount`` less the live
+    allocations of submitted payment entries. It is refreshed by
+    ``accounts.services.opening`` and checked by ``verify_integrity``.
+    """
+
+    PARTY_TYPES = (("Customer", "Customer"), ("Supplier", "Supplier"))
+
+    company = models.ForeignKey(
+        Company, on_delete=models.PROTECT, related_name="opening_bills"
+    )
+    party_type = models.CharField(max_length=20, choices=PARTY_TYPES)
+    party = models.CharField(max_length=200)
+    #: The party's control account: receivable for a Customer, payable for a Supplier.
+    account = models.ForeignKey(
+        Account, on_delete=models.PROTECT, related_name="opening_bills"
+    )
+    bill_date = models.DateField()
+    due_date = models.DateField()
+    #: The ledger date the bills reconcile to (the cutover date of the build).
+    as_on = models.DateField()
+    amount = models.DecimalField(max_digits=18, decimal_places=2)
+    outstanding_amount = models.DecimalField(
+        max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    #: Where the bill came from, e.g. the Tally voucher number. Free text.
+    reference = models.CharField(max_length=140, blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(party_type__in=("Customer", "Supplier")),
+                name="check_openingbill_party_type",
+            ),
+            models.CheckConstraint(
+                check=models.Q(amount__gt=0),
+                name="check_openingbill_amount_gt_0",
+            ),
+            models.CheckConstraint(
+                check=models.Q(outstanding_amount__gte=0)
+                & models.Q(outstanding_amount__lte=models.F("amount")),
+                name="check_openingbill_outstanding_range",
+            ),
+            models.CheckConstraint(
+                check=models.Q(due_date__gte=models.F("bill_date")),
+                name="check_openingbill_due_not_before_bill",
+            ),
+        ]
+
+    @classmethod
+    def voucher_label(cls):
+        """``accounts.OpeningBill``: the ``reference_doctype`` of a payment allocation."""
+        return f"{cls._meta.app_label}.{cls._meta.object_name}"
+
+    @property
+    def is_return(self):
+        """An opening bill is never a return; this lets payment allocation treat every
+        reference the same way."""
+        return False
+
+    def _party_model(self):
+        from django.apps import apps
+
+        if self.party_type == "Customer":
+            return apps.get_model("selling.Customer")
+        return apps.get_model("buying.Supplier")
+
+    def validate_before_submit(self):
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError(_("Opening bill amount must be greater than zero."))
+        if self.due_date < self.bill_date:
+            raise ValidationError(_("Due date cannot be before the bill date."))
+        if self.bill_date > self.as_on:
+            raise ValidationError(_("The bill date cannot be after the as-on date."))
+        if self.account.company_id != self.company_id or self.account.is_group:
+            raise ValidationError(
+                _("The party account must be a posting account of this company.")
+            )
+        wanted = (
+            AccountType.RECEIVABLE
+            if self.party_type == "Customer"
+            else AccountType.PAYABLE
+        )
+        if self.account.account_type != wanted:
+            raise ValidationError(
+                _("The party account must be a %(kind)s account.")
+                % {"kind": wanted.label}
+            )
+        if (
+            not self._party_model()
+            .objects.filter(company_id=self.company_id, name=self.party)
+            .exists()
+        ):
+            raise ValidationError(
+                _("'%(party)s' is not a %(party_type)s of this company.")
+                % {"party": self.party, "party_type": self.party_type}
+            )
+
+    def on_submit(self):
+        from accounts.services import opening as opening_service
+
+        opening_service.refresh(self)
+
+    def on_cancel(self):
+        from accounts.services import opening as opening_service
+
+        payments = sorted(
+            set(
+                PaymentEntryReference.objects.filter(
+                    payment_entry__docstatus=DocStatus.SUBMITTED,
+                    reference_doctype=self.voucher_label(),
+                    reference_name=self.name,
+                ).values_list("payment_entry__name", flat=True)
+            )
+        )
+        if payments:
+            raise ValidationError(
+                _(
+                    "Cannot cancel '%(name)s': cancel the linked payment entries "
+                    "first (%(payments)s)."
+                )
+                % {"name": self.name, "payments": ", ".join(payments)}
+            )
+        opening_service.refresh(self)
+
+    def amend(self, new_name=None):
+        """Amend, then reset the derived outstanding of the copy (it is a new draft)."""
+        with transaction.atomic():
+            amendment = super().amend(new_name=new_name)
+            type(self).objects.filter(pk=amendment.pk).update(
+                outstanding_amount=Decimal("0.00")
+            )
+            amendment.outstanding_amount = Decimal("0.00")
+        return amendment
+
+    def __str__(self):
+        return f"{self.name} [{self.party_type}: {self.party}] {self.amount}"
 
 
 # --------------------------------------------------------------------------- GST
