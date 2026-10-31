@@ -16,6 +16,7 @@ from accounts.views import (
     balance_sheet,
     ageing,
     collections_view,
+    bills_to_pay_view,
 )
 
 app_name = "accounts"
@@ -54,6 +55,7 @@ urlpatterns = [
     path("reports/balance-sheet/", balance_sheet, name="balance-sheet"),
     path("reports/ageing/", ageing, name="ageing"),
     path("collections/", collections_view, name="collections"),
+    path("bills-to-pay/", bills_to_pay_view, name="bills-to-pay"),
     path("reports/sales-register/", report_views.sales_register, name="sales-register"),
     path(
         "reports/purchase-register/",

@@ -498,7 +498,7 @@ question's recorded answer.
 - [x] M-2 Due dates on bills
 - [x] M-3 Paid or Due label
 - [x] M-4 Money to Collect
-- [ ] M-5 Bills to Pay
+- [x] M-5 Bills to Pay
 - [ ] M-6 Pages and short form
 - [x] M-7 Oldest-first allocation
 - [x] M-8 Proof required

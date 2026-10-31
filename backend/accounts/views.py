@@ -518,6 +518,28 @@ def collections_view(request):
     return Response(data)
 
 
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
+)
+def bills_to_pay_view(request):
+    """Bills to Pay endpoint (GET /api/accounts/bills-to-pay/)."""
+    company_id = active_company_id(request)
+    company_param = request.query_params.get("company")
+    company = company_param or company_id
+    as_on = _date_param(request, "as_on")
+    filter_type = request.query_params.get("filter") or request.query_params.get(
+        "filter_type"
+    )
+    from accounts.services.collections import bills_to_pay
+
+    try:
+        data = bills_to_pay(company, as_on=as_on, filter_type=filter_type)
+    except (ValueError, Company.DoesNotExist) as exc:
+        raise ValidationError({"detail": str(exc)})
+    return Response(data)
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def calculate_taxes(request):
