@@ -591,6 +591,20 @@ class PaymentEntryReference(models.Model):
             )
         ]
 
+    def clean(self):
+        super().clean()
+        if self.reference_doctype == "PurchaseInvoice":
+            self.reference_doctype = "buying.PurchaseInvoice"
+        elif self.reference_doctype == "SalesInvoice":
+            self.reference_doctype = "selling.SalesInvoice"
+
+    def save(self, *args, **kwargs):
+        if self.reference_doctype == "PurchaseInvoice":
+            self.reference_doctype = "buying.PurchaseInvoice"
+        elif self.reference_doctype == "SalesInvoice":
+            self.reference_doctype = "selling.SalesInvoice"
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.payment_entry.name} -> {self.reference_doctype}:{self.reference_name} ({self.allocated_amount})"
 

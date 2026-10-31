@@ -1,5 +1,6 @@
 import datetime
 from decimal import Decimal
+from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
@@ -7,7 +8,14 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Company, DocStatus
-from accounts.models import Account, AccountRootType, AccountType
+from accounts.models import (
+    Account,
+    AccountRootType,
+    AccountType,
+    PaymentEntry,
+    TaxTemplate,
+    TaxTemplateRow,
+)
 from stock.models import Item, ItemGroup, UOM
 from buying.models import (
     ExpenseCategory,
@@ -16,6 +24,7 @@ from buying.models import (
     PurchaseInvoice,
     PurchaseInvoiceItem,
 )
+from buying.services.expenses import create_expense
 from users.models import User, Role, UserRole, RolePermission
 
 
@@ -388,3 +397,225 @@ class ExpenseInvoiceModelTests(TestCase):
         )
         inv_cash.submit()
         self.assertEqual(inv_cash.docstatus, DocStatus.SUBMITTED)
+
+
+class ExpenseServiceTests(TestCase):
+    def setUp(self):
+        self.company = Company.objects.create(
+            name="Spices Ltd", abbr="SL", default_currency="INR"
+        )
+        self.expense_group = Account.objects.create(
+            name="Expenses",
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+            is_group=True,
+        )
+        self.rent_account = Account.objects.create(
+            name="Office Rent",
+            company=self.company,
+            parent=self.expense_group,
+            root_type=AccountRootType.EXPENSE,
+            is_group=False,
+        )
+        self.liability_group = Account.objects.create(
+            name="Current Liabilities",
+            company=self.company,
+            root_type=AccountRootType.LIABILITY,
+            is_group=True,
+        )
+        self.creditors_account = Account.objects.create(
+            name="Creditors",
+            company=self.company,
+            parent=self.liability_group,
+            root_type=AccountRootType.LIABILITY,
+            account_type=AccountType.PAYABLE,
+            is_group=False,
+        )
+        self.company.default_payable_account = self.creditors_account
+        self.company.save(update_fields=["default_payable_account"])
+
+        self.asset_group = Account.objects.create(
+            name="Current Assets",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            is_group=True,
+        )
+        self.bank_account = Account.objects.create(
+            name="Bank Account",
+            company=self.company,
+            parent=self.asset_group,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+            is_group=False,
+        )
+        self.uom = UOM.objects.create(name="Nos")
+        self.item_group = ItemGroup.objects.create(name="Services", is_group=False)
+        self.category = ExpenseCategory.objects.create(
+            company=self.company,
+            name="Rent",
+            account=self.rent_account,
+        )
+        self.supplier_group = SupplierGroup.objects.create(name="All Suppliers")
+        self.supplier = Supplier.objects.create(
+            name="Landlord Realty",
+            company=self.company,
+            supplier_group=self.supplier_group,
+        )
+        self.input_cgst = Account.objects.create(
+            name="Input CGST",
+            company=self.company,
+            parent=self.asset_group,
+            root_type=AccountRootType.ASSET,
+            is_group=False,
+        )
+        self.input_sgst = Account.objects.create(
+            name="Input SGST",
+            company=self.company,
+            parent=self.asset_group,
+            root_type=AccountRootType.ASSET,
+            is_group=False,
+        )
+        self.tax_template = TaxTemplate.objects.create(
+            company=self.company,
+            title="GST 18%",
+            template_type="Purchase",
+        )
+        TaxTemplateRow.objects.create(
+            template=self.tax_template,
+            idx=1,
+            account=self.input_cgst,
+            rate=Decimal("9.000"),
+        )
+        TaxTemplateRow.objects.create(
+            template=self.tax_template,
+            idx=2,
+            account=self.input_sgst,
+            rate=Decimal("9.000"),
+        )
+        self.today = datetime.date(2026, 4, 1)
+
+    def test_create_expense_with_gst_split(self):
+        """Amount is split into net base and taxes using tax calculation."""
+        from core.models import State, GSTCategory
+        from gst.tests.test_validators import make_gstin
+
+        state, _ = State.objects.get_or_create(name="Maharashtra", code="27")
+        self.company.gstin = make_gstin("27", "AABCT1234C")
+        self.company.gst_category = GSTCategory.REGISTERED_REGULAR
+        self.company.state = state
+        self.company.save()
+
+        self.supplier.gstin = make_gstin("27", "AABCT1234D")
+        self.supplier.gst_category = GSTCategory.REGISTERED_REGULAR
+        self.supplier.state = state
+        self.supplier.save()
+
+        self.input_cgst.account_type = AccountType.TAX
+        self.input_cgst.gst_direction = "Input"
+        self.input_cgst.gst_component = "CGST"
+        self.input_cgst.save()
+
+        self.input_sgst.account_type = AccountType.TAX
+        self.input_sgst.gst_direction = "Input"
+        self.input_sgst.gst_component = "SGST"
+        self.input_sgst.save()
+
+        invoice, pe = create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("1180.00"),
+            bill_no="BILL-GST-01",
+            has_gst=True,
+            tax_template=self.tax_template,
+            paid_now=False,
+        )
+        self.assertEqual(invoice.docstatus, DocStatus.SUBMITTED)
+        self.assertEqual(invoice.net_total, Decimal("1000.00"))
+        self.assertEqual(invoice.total_taxes_and_charges, Decimal("180.00"))
+        self.assertEqual(invoice.grand_total, Decimal("1180.00"))
+
+    def test_paid_now_creates_submitted_invoice_and_payment_entry(self):
+        """Paid now creates invoice (status=Submitted) and PaymentEntry (status=Submitted),
+        and invoice outstanding becomes 0 (status=Paid)."""
+        invoice, pe = create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("12000.00"),
+            bill_no="BILL-PAID-01",
+            paid_now=True,
+            paid_from=self.bank_account,
+        )
+        self.assertEqual(invoice.docstatus, DocStatus.SUBMITTED)
+        self.assertIsNotNone(pe)
+        self.assertEqual(pe.docstatus, DocStatus.SUBMITTED)
+        self.assertEqual(pe.paid_amount, Decimal("12000.00"))
+        self.assertEqual(invoice.outstanding_amount, Decimal("0.00"))
+        self.assertEqual(invoice.payment_label, "Paid")
+        self.assertEqual(invoice.payment_status, "Paid")
+
+    def test_pay_later_creates_invoice_with_outstanding(self):
+        """Pay later creates invoice with outstanding == amount (status=Due)."""
+        future_due = datetime.date.today() + datetime.timedelta(days=30)
+        invoice, pe = create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("5000.00"),
+            due_date=future_due,
+            bill_no="BILL-LATER-01",
+            paid_now=False,
+        )
+        self.assertEqual(invoice.docstatus, DocStatus.SUBMITTED)
+        self.assertIsNone(pe)
+        self.assertEqual(invoice.outstanding_amount, Decimal("5000.00"))
+        self.assertEqual(invoice.payment_label, "Due")
+        self.assertEqual(invoice.payment_status, "Due")
+
+    def test_failed_payment_rolls_back_invoice(self):
+        """Failed payment rolls back invoice (atomic)."""
+        with patch.object(
+            PaymentEntry, "submit", side_effect=ValidationError("Bank payment failed.")
+        ):
+            with self.assertRaises(ValidationError):
+                create_expense(
+                    company=self.company,
+                    category=self.category,
+                    supplier=self.supplier,
+                    amount=Decimal("8000.00"),
+                    date=self.today,
+                    bill_no="BILL-ROLLBACK",
+                    paid_now=True,
+                    paid_from=self.bank_account,
+                )
+        self.assertFalse(
+            PurchaseInvoice.objects.filter(bill_no="BILL-ROLLBACK").exists()
+        )
+
+    def test_missing_category_or_non_positive_amount_refused(self):
+        """Missing category or non-positive amount refused."""
+        with self.assertRaises(ValidationError):
+            create_expense(
+                company=self.company,
+                category=None,
+                supplier=self.supplier,
+                amount=Decimal("100.00"),
+                bill_no="BILL-NO-CAT",
+            )
+        with self.assertRaises(ValidationError):
+            create_expense(
+                company=self.company,
+                category=self.category,
+                supplier=self.supplier,
+                amount=Decimal("0.00"),
+                bill_no="BILL-ZERO",
+            )
+        with self.assertRaises(ValidationError):
+            create_expense(
+                company=self.company,
+                category=self.category,
+                supplier=self.supplier,
+                amount=Decimal("-500.00"),
+                bill_no="BILL-NEG",
+            )
