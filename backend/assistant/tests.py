@@ -46,6 +46,12 @@ from .tools import (
     get_rate,
     mask_phone,
     sales_summary,
+    bills_to_pay,
+    expense_summary_tool,
+    gst_position_tool,
+    money_to_collect,
+    pending_orders,
+    stock_stages,
     top_items,
     _stock_warehouse,
 )
@@ -767,6 +773,28 @@ class AssistantReportToolTests(TestCase):
         plain = User.objects.create_user(username="plain", email="p@erp.local", password="password")
         self.assertEqual(sales_summary(plain).get("error"), "permission_denied")
         self.assertEqual(top_items(plain).get("error"), "permission_denied")
+
+    def test_new_read_tools_need_read_permission(self):
+        plain = User.objects.create_user(username="plain2", email="p2@erp.local", password="password")
+        for tool in (pending_orders, money_to_collect, bills_to_pay, expense_summary_tool,
+                     gst_position_tool, stock_stages):
+            self.assertEqual(tool(plain).get("error"), "permission_denied", tool.__name__)
+
+    def test_money_to_collect_matches_screen_and_wraps_text(self):
+        from accounts.services import collections as collections_service
+
+        self._invoice(1)
+        res = money_to_collect(self.user, company=self.company.pk)
+        self.assertNotIn("error", res)
+        self.assertIn("<<DATA>>", json.dumps(res))
+        screen = collections_service.collections(self.company.pk)
+        self.assertEqual(len(res["customers"]), len(screen["customers"]))
+
+    def test_pending_orders_matches_screen(self):
+        from selling.services import dispatch
+
+        res = pending_orders(self.user, company=self.company.pk)
+        self.assertEqual(len(res["orders"]), len(dispatch.pending_orders(self.company.pk)))
 
 
 def scripted(*turns):

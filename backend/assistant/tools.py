@@ -7,6 +7,7 @@ Every read tool checks user RBAC permissions before querying.
 """
 
 from datetime import timedelta
+import json
 from decimal import Decimal
 from difflib import SequenceMatcher
 import logging
@@ -728,6 +729,116 @@ def navigate(route: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, 
 
 
 # Closed Registry of Read & Control Tools (No write tools allowed)
+def _wrap_text(obj: Any) -> Any:
+    """Recursively spotlight every text value; numbers and keys are left as they are."""
+    if isinstance(obj, dict):
+        return {k: _wrap_text(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_wrap_text(v) for v in obj]
+    if isinstance(obj, str):
+        return wrap_data(obj)
+    return obj
+
+
+def _read_result(user, model_label: str, message: str, build) -> Dict[str, Any]:
+    """Run a report service after the read check; return JSON-safe, text-wrapped data."""
+    if not user_has_model_permission(user, model_label, "can_read"):
+        return {"error": "permission_denied", "message": message}
+    result = json.loads(json.dumps(build(), default=str))
+    return _wrap_text(result)
+
+
+def pending_orders(user, company: Optional[str] = None) -> Dict[str, Any]:
+    """Sales orders not yet fully dispatched, oldest first (same as the Pending Orders page)."""
+    from selling.services import dispatch
+
+    return _read_result(
+        user,
+        "selling.SalesOrder",
+        "No permission to read sales orders.",
+        lambda: {"orders": dispatch.pending_orders(company)},
+    )
+
+
+def money_to_collect(
+    user, as_on: Optional[str] = None, company: Optional[str] = None
+) -> Dict[str, Any]:
+    """Open receivables by customer (same as the Money to Collect screen)."""
+    from accounts.services import collections as collections_service
+
+    return _read_result(
+        user,
+        "selling.SalesInvoice",
+        "No permission to read sales invoices.",
+        lambda: collections_service.collections(company, as_on=as_on),
+    )
+
+
+def bills_to_pay(
+    user,
+    as_on: Optional[str] = None,
+    filter_type: Optional[str] = None,
+    company: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Open supplier bills with due dates (same as the Bills to Pay screen)."""
+    from accounts.services import collections as collections_service
+
+    return _read_result(
+        user,
+        "buying.PurchaseInvoice",
+        "No permission to read purchase invoices.",
+        lambda: collections_service.bills_to_pay(
+            company, as_on=as_on, filter_type=filter_type
+        ),
+    )
+
+
+EXPENSE_PERIOD_DAYS = {"7d": 6, "30d": 29, "90d": 89, "365d": 364}
+
+
+def expense_summary_tool(
+    user, period: str = "30d", company: Optional[str] = None
+) -> Dict[str, Any]:
+    """Expenses and wages by category over a named period (same as the Expenses report)."""
+    from accounts.reports.expenses import expense_summary
+
+    today = timezone.localdate()
+    start = today - timedelta(days=EXPENSE_PERIOD_DAYS.get(period, 29))
+    return _read_result(
+        user,
+        "accounts.GLEntry",
+        "No permission to read accounting entries.",
+        lambda: expense_summary(company, start, today),
+    )
+
+
+def gst_position_tool(
+    user, month: Optional[str] = None, company: Optional[str] = None
+) -> Dict[str, Any]:
+    """GST output, input credit and net payable for a month, YYYY-MM (default: this month)."""
+    from accounts.services.gst_position import gst_position
+
+    month = month or timezone.localdate().strftime("%Y-%m")
+    return _read_result(
+        user,
+        "accounts.GLEntry",
+        "No permission to read accounting entries.",
+        lambda: gst_position(company, month),
+    )
+
+
+def stock_stages(user, company: Optional[str] = None) -> Dict[str, Any]:
+    """Stock per item by stage: unprocessed, in process, ready (same as the Stock view)."""
+    from stock.reports.stages import stock_stages_report
+
+    return _read_result(
+        user,
+        "stock.Bin",
+        "No permission to read stock.",
+        lambda: {"items": stock_stages_report(company)},
+    )
+
+
 READ_TOOLS = {
     "search_customers": search_customers,
     "search_suppliers": search_suppliers,
@@ -740,6 +851,12 @@ READ_TOOLS = {
     "get_document": get_document,
     "sales_summary": sales_summary,
     "top_items": top_items,
+    "pending_orders": pending_orders,
+    "money_to_collect": money_to_collect,
+    "bills_to_pay": bills_to_pay,
+    "expense_summary": expense_summary_tool,
+    "gst_position": gst_position_tool,
+    "stock_stages": stock_stages,
 }
 
 CONTROL_TOOLS = {

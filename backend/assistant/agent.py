@@ -203,6 +203,73 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "pending_orders",
+            "description": "Sales orders not yet fully dispatched, oldest first.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "money_to_collect",
+            "description": "Open customer receivables grouped by customer, with overdue amounts.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "as_on": {"type": "string", "description": "Date YYYY-MM-DD (default today)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "bills_to_pay",
+            "description": "Open supplier bills with due dates.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "as_on": {"type": "string", "description": "Date YYYY-MM-DD (default today)"},
+                    "filter_type": {"type": "string", "enum": ["overdue", "week", "month"]},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "expense_summary",
+            "description": "Expenses and wages by category for a period.",
+            "parameters": {
+                "type": "object",
+                "properties": {"period": {"type": "string", "enum": ["7d", "30d", "90d", "365d"]}},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "gst_position",
+            "description": "GST output, input credit and net payable for one month.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "string", "description": "Month YYYY-MM (default this month)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "stock_stages",
+            "description": "Stock per item by stage: unprocessed, in process, ready, and critical level.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "ask_user",
             "description": "Ask the user to clarify an ambiguity with clickable options.",
             "parameters": {
