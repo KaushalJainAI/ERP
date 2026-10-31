@@ -518,7 +518,7 @@ question's recorded answer.
 - [x] T-1 Input credit flag
 - [x] T-2 Tax Payment document
 - [x] T-3 GST Position service
-- [ ] T-4 GST page
+- [x] T-4 GST page
 - [x] T-5 Credit at risk
 - [ ] T-6 TDS on salary (BLOCKED Q5)
 - [ ] T-7 TDS register

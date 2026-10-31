@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { BarChart3, BookOpen, FileSpreadsheet, FileText, Landmark, Library, Receipt, Scale, ScrollText, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, FileCheck, FileSpreadsheet, FileText, Landmark, Library, Receipt, Scale, ScrollText, TrendingUp, Wallet } from "lucide-react";
 import i18n from "i18next";
 import { apiClient } from "@/api/client";
 import { JournalBalanceBanner, negDec, totalsOf } from "@/components/accounts/BalanceBanner";
@@ -355,6 +355,7 @@ export const accountsLinks: NavLink[] = [
   { path: "/accounts/collections", labelKey: "acc.nav.collections", icon: Wallet, group: "transactions" },
   { path: "/accounts/bills-to-pay", labelKey: "acc.nav.bills_to_pay", icon: FileSpreadsheet, group: "transactions" },
   { path: "/accounts/expenses", labelKey: "acc.nav.expenses", icon: Receipt, group: "transactions" },
+  { path: "/accounts/gst-position", labelKey: "acc.nav.gst_position", icon: FileCheck, group: "transactions" },
   { path: "/accounts/gl-entries", labelKey: "acc.nav.gl_entries", icon: Library, group: "reports" },
   { path: "/accounts/reports/trial-balance", labelKey: "acc.nav.trial_balance", icon: Scale },
   { path: "/accounts/reports/general-ledger", labelKey: "acc.nav.general_ledger", icon: BarChart3 },

@@ -40,6 +40,7 @@ import { CollectionsPage } from "@/pages/accounts/CollectionsPage";
 import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
 import { NewExpensePage } from "@/pages/accounts/NewExpensePage";
+import { GstPositionPage } from "@/pages/accounts/GstPositionPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { t } = useTranslation();
@@ -206,6 +207,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <NewExpensePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/gst-position"
+        element={
+          <ProtectedRoute>
+            <GstPositionPage />
           </ProtectedRoute>
         }
       />
