@@ -12,11 +12,14 @@ with :func:`repost` (``repost_outstanding``).
 
 from decimal import Decimal
 
+from django.apps import apps
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
+from django.utils.translation import gettext as _
 
-from accounts.models import OpeningBill, PaymentEntryReference
-from core.models import DocStatus
+from accounts.models import AccountType, GLEntry, OpeningBill, PaymentEntryReference
+from core.models import DocStatus, NamingSeries
 
 ZERO = Decimal("0.00")
 
@@ -85,3 +88,210 @@ def repost(company=None):
             if before != refresh(locked):
                 changed += 1
     return changed
+
+
+# --------------------------------------------------------------- build (G-2)
+
+PARTY_TYPES = ("Customer", "Supplier")
+KIND_BILL = "bill"
+KIND_ADVANCE = "advance"
+KIND_REVIEW = "review"
+
+
+def _party_model(party_type):
+    if party_type == "Customer":
+        return apps.get_model("selling.Customer")
+    return apps.get_model("buying.Supplier")
+
+
+def _ledger_by_party(company, as_on):
+    """Live GL rows on the parties' control accounts up to ``as_on``, grouped by
+    ``(party_type, party)``, newest first (the order the walk needs)."""
+    rows = (
+        GLEntry.objects.filter(
+            company=company,
+            is_cancelled=False,
+            posting_date__lte=as_on,
+            party_type__in=PARTY_TYPES,
+            account__account_type__in=(AccountType.RECEIVABLE, AccountType.PAYABLE),
+        )
+        .select_related("account")
+        .order_by("-posting_date", "-id")
+    )
+    grouped = {}
+    for row in rows:
+        if row.party:
+            grouped.setdefault((row.party_type, row.party), []).append(row)
+    return grouped
+
+
+def _walk_bills(party_type, lines, balance):
+    """Newest-first walk: the bills are the newest debit (customer) or credit
+    (supplier) entries that add up to the balance, the last one part of its amount.
+    Anything the entries do not cover is one bill at the oldest date.
+
+    Returns ``[(bill_date, amount, reference)]``.
+    """
+    side = "debit" if party_type == "Customer" else "credit"
+    entries = [ln for ln in lines if getattr(ln, side) > 0]
+    remaining = balance
+    picked = []
+    for ln in entries:
+        if remaining <= 0:
+            break
+        take = min(getattr(ln, side), remaining)
+        picked.append((ln.posting_date, take, ln.voucher_no))
+        remaining -= take
+    if remaining > 0:
+        oldest = entries[-1].posting_date if entries else lines[-1].posting_date
+        picked.append((oldest, remaining, _("Balance carried forward")))
+    return picked
+
+
+def plan_opening_bills(company, as_on):
+    """The opening bills that would carry each party's ledger balance up to ``as_on``.
+
+    Read-only. Returns ``{"rows", "totals", "problems"}``. ``rows`` are dicts with a
+    ``kind`` (bill, advance or review), the party, dates and amount. ``problems`` are
+    messages that stop a commit: a party to review, or a total that does not tie.
+    """
+    from accounts.services import outstanding as outstanding_service
+    from accounts.services.terms import calculate_due_date
+
+    rows, problems = [], []
+    bill_total = advance_total = expected_total = Decimal("0.00")
+    counts = {KIND_BILL: 0, KIND_ADVANCE: 0, KIND_REVIEW: 0}
+
+    for (party_type, party), lines in sorted(_ledger_by_party(company, as_on).items()):
+        balance = outstanding_service.party_balance(
+            party_type, party, company.pk, as_on=as_on
+        )
+        if balance == 0:
+            continue
+        accounts = {ln.account_id for ln in lines}
+        master = (
+            _party_model(party_type).objects.filter(company=company, name=party).first()
+        )
+
+        if len(accounts) > 1 or master is None:
+            reason = (
+                _("balances on more than one control account")
+                if len(accounts) > 1
+                else _("not a %(party_type)s of this company")
+                % {"party_type": party_type}
+            )
+            problems.append(
+                _("%(party)s: %(reason)s. Review by hand.")
+                % {"party": party, "reason": reason}
+            )
+            rows.append(
+                {
+                    "kind": KIND_REVIEW,
+                    "party_type": party_type,
+                    "party": party,
+                    "amount": abs(balance),
+                    "method": reason,
+                }
+            )
+            counts[KIND_REVIEW] += 1
+            continue
+
+        if balance < 0:
+            rows.append(
+                {
+                    "kind": KIND_ADVANCE,
+                    "party_type": party_type,
+                    "party": party,
+                    "amount": -balance,
+                    "method": _(
+                        "Credit balance: an advance, not a bill. Nothing is created."
+                    ),
+                }
+            )
+            counts[KIND_ADVANCE] += 1
+            advance_total += -balance
+            continue
+
+        account_id = accounts.pop()
+        expected_total += balance
+        covered = Decimal("0.00")
+        for bill_date, amount, reference in _walk_bills(party_type, lines, balance):
+            rows.append(
+                {
+                    "kind": KIND_BILL,
+                    "party_type": party_type,
+                    "party": party,
+                    "account_id": account_id,
+                    "bill_date": bill_date,
+                    "due_date": calculate_due_date(party_type, master, bill_date),
+                    "amount": amount,
+                    "reference": reference,
+                    "method": _("Estimate: newest entries that add up to the balance"),
+                }
+            )
+            counts[KIND_BILL] += 1
+            bill_total += amount
+            covered += amount
+        if covered != balance:
+            problems.append(
+                _(
+                    "%(party)s: bills of %(bills)s do not add up to the balance of %(balance)s."
+                )
+                % {"party": party, "bills": covered, "balance": balance}
+            )
+
+    if bill_total != expected_total:
+        problems.append(
+            _(
+                "Total of the bills (%(bills)s) does not equal the ledger balances (%(balance)s)."
+            )
+            % {"bills": bill_total, "balance": expected_total}
+        )
+    totals = {
+        "bill_count": counts[KIND_BILL],
+        "bills_total": bill_total,
+        "advance_count": counts[KIND_ADVANCE],
+        "advances_total": advance_total,
+        "review_count": counts[KIND_REVIEW],
+        "balance_total": expected_total,
+    }
+    return {"rows": rows, "totals": totals, "problems": problems}
+
+
+def commit_opening_bills(company, as_on):
+    """Re-plan and create the submitted opening bills in one transaction. Refused,
+    creating nothing, when the plan has problems or bills already exist for ``as_on``.
+    """
+    with transaction.atomic():
+        plan = plan_opening_bills(company, as_on)
+        if plan["problems"]:
+            raise ValidationError(plan["problems"])
+        if (
+            OpeningBill.objects.filter(company=company, as_on=as_on)
+            .exclude(docstatus=DocStatus.CANCELLED)
+            .exists()
+        ):
+            raise ValidationError(
+                _("Opening bills as on %(as_on)s already exist for this company.")
+                % {"as_on": as_on}
+            )
+        created = []
+        for row in plan["rows"]:
+            if row["kind"] != KIND_BILL:
+                continue
+            bill = OpeningBill(
+                name=NamingSeries.next(f"OB-{as_on.year}-"),
+                company=company,
+                party_type=row["party_type"],
+                party=row["party"],
+                account_id=row["account_id"],
+                bill_date=row["bill_date"],
+                due_date=row["due_date"],
+                as_on=as_on,
+                amount=row["amount"],
+                reference=str(row["reference"])[:140],
+            )
+            bill.save()
+            bill.submit()
+            created.append(bill)
+    return created

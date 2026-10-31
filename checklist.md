@@ -553,7 +553,7 @@ question's recorded answer.
 
 ### 9. Go-live
 - [x] G-1 Opening bills
-- [ ] G-2 Opening bills generator
+- [x] G-2 Opening bills generator
 - [ ] G-3 Accountant corrections
 - [ ] G-4 Integrity check
 - [ ] G-5 Keep openings out of Tally
