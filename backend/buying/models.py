@@ -69,6 +69,7 @@ class Supplier(TimeStampedModel):
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=30, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+    is_cash_expense = models.BooleanField(default=False)
     credit_days = models.PositiveIntegerField(null=True, blank=True)
     default_price_list = models.ForeignKey(
         "stock.PriceList",
@@ -291,6 +292,11 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 | models.Q(due_date__gte=models.F("posting_date")),
                 name="check_purchase_invoice_due_date_gte_posting",
             ),
+            models.CheckConstraint(
+                check=models.Q(is_expense=False)
+                | models.Q(expense_category__isnull=False),
+                name="check_expense_requires_category",
+            ),
         ]
 
     supplier = models.ForeignKey(
@@ -312,6 +318,14 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
         on_delete=models.SET_NULL,
         related_name="invoices",
     )
+    is_expense = models.BooleanField(default=False)
+    expense_category = models.ForeignKey(
+        "buying.ExpenseCategory",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="purchase_invoices",
+    )
     update_stock = models.BooleanField(default=True)
     credit_to = models.ForeignKey(
         Account, on_delete=models.PROTECT, related_name="creditor_invoices"
@@ -332,6 +346,12 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
 
     def save(self, *args, **kwargs):
         self.bill_no = (self.bill_no or "").strip()
+        if (
+            self.is_expense
+            and self.expense_category_id
+            and not getattr(self, "expense_account_id", None)
+        ):
+            self.expense_account = self.expense_category.account
         if not self.due_date and self.supplier_id:
             from accounts.services import terms as terms_service
 
@@ -386,10 +406,33 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             raise ValidationError(
                 _("Purchase Invoice must have at least one line item.")
             )
+        if self.is_expense:
+            if self.update_stock:
+                raise ValidationError(_("Expenses cannot update stock."))
+            if (
+                self.expense_category
+                and self.expense_account != self.expense_category.account
+            ):
+                raise ValidationError(
+                    _("Expense line account must match category account.")
+                )
+            for line in items:
+                line_acc = getattr(line, "expense_account", None)
+                if (
+                    line_acc
+                    and self.expense_category
+                    and line_acc != self.expense_category.account
+                ):
+                    raise ValidationError(
+                        _("Expense line account must match category account.")
+                    )
         if not self.is_return and not (self.bill_no or "").strip():
-            raise ValidationError(
-                _("Enter the supplier's invoice number (Bill No) before submitting.")
-            )
+            if not getattr(self.supplier, "is_cash_expense", False):
+                raise ValidationError(
+                    _(
+                        "Enter the supplier's invoice number (Bill No) before submitting."
+                    )
+                )
         if self.bill_date and self.bill_date > self.posting_date:
             raise ValidationError(_("Bill Date cannot be after the posting date."))
         if self.credit_to.is_group or self.expense_account.is_group:
@@ -692,6 +735,28 @@ class PurchaseInvoiceItem(TaxableLine):
                 name="check_purchaseinvoiceitem_expiry_after_manufacturing",
             ),
         ]
+
+    def __init__(self, *args, **kwargs):
+        expense_acc = kwargs.pop("expense_account", None)
+        invoice = kwargs.pop("invoice", None)
+        if invoice is not None and "purchase_invoice" not in kwargs:
+            kwargs["purchase_invoice"] = invoice
+        kwargs.pop("uom", None)
+        super().__init__(*args, **kwargs)
+        if expense_acc is not None:
+            self._expense_account = expense_acc
+
+    @property
+    def expense_account(self):
+        if hasattr(self, "_expense_account"):
+            return self._expense_account
+        if hasattr(self, "purchase_invoice") and self.purchase_invoice:
+            return self.purchase_invoice.expense_account
+        return None
+
+    @expense_account.setter
+    def expense_account(self, val):
+        self._expense_account = val
 
     def save(self, *args, **kwargs):
         self.amount = self.compute_amount()

@@ -84,6 +84,7 @@ class SupplierSerializer(
             "email",
             "phone",
             "is_active",
+            "is_cash_expense",
             "default_price_list",
             "default_price_list_name",
             "credit_days",
@@ -93,12 +94,12 @@ class SupplierSerializer(
         translatable_fields = ["name"]
 
 
-class ExpenseCategorySerializer(
-    TranslatedSerializerMixin, serializers.ModelSerializer
-):
+class ExpenseCategorySerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     company_name = serializers.CharField(source="company.name", read_only=True)
     account_name = serializers.CharField(source="account.name", read_only=True)
-    item_name = serializers.CharField(source="item.name", read_only=True, allow_null=True)
+    item_name = serializers.CharField(
+        source="item.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = ExpenseCategory
@@ -392,6 +393,9 @@ class PurchaseInvoiceSerializer(
     expense_account_name = serializers.CharField(
         source="expense_account.name", read_only=True
     )
+    expense_category_name = serializers.CharField(
+        source="expense_category.name", read_only=True, allow_null=True
+    )
     price_list_name = serializers.CharField(
         source="price_list.name", read_only=True, allow_null=True
     )
@@ -419,6 +423,9 @@ class PurchaseInvoiceSerializer(
             "credit_to_name",
             "expense_account",
             "expense_account_name",
+            "is_expense",
+            "expense_category",
+            "expense_category_name",
             "grand_total",
             *TAX_HEADER_READ_ONLY,
             *TAX_HEADER_WRITABLE,
@@ -458,7 +465,9 @@ class PurchaseInvoiceSerializer(
             company
         ),
         "expense_account": lambda company, attrs: (
-            account_mapping.default_expense_account(
+            attrs["expense_category"].account
+            if attrs.get("expense_category")
+            else account_mapping.default_expense_account(
                 company, attrs.get("update_stock", True)
             )
         ),
@@ -504,6 +513,27 @@ class PurchaseInvoiceSerializer(
                 calc = terms_service.calculate_due_date("Supplier", supplier, base_date)
                 attrs["due_date"] = max(calc, posting_date)
         attrs = super().validate(attrs)
+        is_expense = attrs.get(
+            "is_expense", getattr(self.instance, "is_expense", False)
+        )
+        expense_category = attrs.get(
+            "expense_category", getattr(self.instance, "expense_category", None)
+        )
+        if is_expense and not expense_category:
+            raise serializers.ValidationError(
+                {
+                    "expense_category": _(
+                        "Expense category is required for expense bills."
+                    )
+                }
+            )
+        update_stock = attrs.get(
+            "update_stock", getattr(self.instance, "update_stock", True)
+        )
+        if is_expense and update_stock:
+            raise serializers.ValidationError(
+                {"update_stock": _("Expenses cannot update stock.")}
+            )
         self._validate_bill(attrs)
         self._validate_charges(attrs)
         return pricing_service.apply_line_rates(

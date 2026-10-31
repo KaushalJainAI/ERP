@@ -505,7 +505,7 @@ question's recorded answer.
 
 ### 5. Expenses
 - [x] E-1 Category master
-- [ ] E-2 Mark bills as expenses
+- [x] E-2 Mark bills as expenses
 - [ ] E-3 Expense service
 - [ ] E-4 Expense API
 - [ ] E-5 Expense page
