@@ -530,7 +530,7 @@ question's recorded answer.
 - [x] N-3 Outbox sender
 - [x] N-4 Rules engine
 - [x] N-5 Raw material shortage
-- [ ] N-6 Digest and weekly emails
+- [x] N-6 Digest and weekly emails
 - [x] N-7 Instant alerts
 - [ ] N-8 Scheduler
 - [ ] N-9 Bell and alert settings

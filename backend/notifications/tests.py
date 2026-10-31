@@ -508,5 +508,78 @@ class InstantAlertsTests(TestCase):
         self.assertEqual(Notification.objects.filter(rule_key="large_order").count(), 1)
 
 
+class DigestTests(TestCase):
+    def setUp(self):
+        from core.models import Company
+
+        self.user = User.objects.create_user(
+            username="digest_admin",
+            email="admin@nidhimasala.com",
+            password="pass",
+        )
+        self.company = Company.objects.create(name="Nidhi Spices Pvt Ltd")
+
+        self.r1 = AlertRule.objects.create(key="overdue_bills_digest", is_active=True)
+        self.r1.recipients.add(self.user)
+
+        self.r2 = AlertRule.objects.create(key="daily_summary", is_active=True)
+        self.r2.recipients.add(self.user)
+
+        self.r3 = AlertRule.objects.create(key="weekly_digest", is_active=True)
+        self.r3.recipients.add(self.user)
+
+    def test_overdue_bills_digest(self):
+        from notifications.services.digests import send_overdue_bills_digest
+
+        send_overdue_bills_digest(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="overdue_bills_digest").count(), 1
+        )
+        notif = Notification.objects.filter(rule_key="overdue_bills_digest").first()
+        self.assertEqual(notif.params["count"], "0")
+        self.assertEqual(notif.params["total_amount"], "0.00")
+
+        # Running again today does not duplicate
+        send_overdue_bills_digest(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="overdue_bills_digest").count(), 1
+        )
+
+    def test_daily_summary(self):
+        from notifications.services.digests import send_daily_summary
+
+        send_daily_summary(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="daily_summary").count(), 1
+        )
+        notif = Notification.objects.filter(rule_key="daily_summary").first()
+        self.assertEqual(notif.params["money_in"], "0.00")
+        self.assertEqual(notif.params["bills_count"], "0")
+
+        # Running again today does not duplicate
+        send_daily_summary(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="daily_summary").count(), 1
+        )
+
+    def test_weekly_digest(self):
+        from notifications.services.digests import send_weekly_digest
+
+        send_weekly_digest(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="weekly_digest").count(), 1
+        )
+        notif = Notification.objects.filter(rule_key="weekly_digest").first()
+        self.assertEqual(notif.params["collections_needed"], "0.00")
+        self.assertIn("GST", notif.params["tax_due_info"])
+
+        # Running again today does not duplicate
+        send_weekly_digest(self.company)
+        self.assertEqual(
+            Notification.objects.filter(rule_key="weekly_digest").count(), 1
+        )
+
+
+
 
 
