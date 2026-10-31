@@ -7,12 +7,16 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from accounts.models import (
+    Account,
+    AccountRootType,
+    AccountType,
     GLEntry,
     OpeningBill,
     PaymentEntry,
     PaymentEntryReference,
     PaymentType,
 )
+from accounts.serializers import PaymentEntrySerializer
 from accounts.services import outstanding as outstanding_service
 from accounts.services.allocation import suggest_allocation
 from accounts.services.collections import bills_to_pay, collections
@@ -226,6 +230,39 @@ class OpeningBillSettlementTests(OpeningBillBase):
         self.assertEqual(ob.docstatus, DocStatus.CANCELLED)
         self.assertEqual(ob.outstanding_amount, D("0.00"))
         self.integrity_ok()
+
+    def _other_receivable(self):
+        return Account.objects.create(
+            name="Old Debtors",
+            company=self.company,
+            parent=Account.objects.get(company=self.company, name="Assets"),
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.RECEIVABLE,
+        )
+
+    def test_receipt_must_use_the_bills_own_control_account(self):
+        other = self._other_receivable()
+        ob = self.bill(amount="100.00", account=other)
+        with self.assertRaises(ValidationError):
+            self.settle(ob, "10.00")  # posted to Debtors, the bill is on Old Debtors
+        self.assertEqual(self.fresh(ob).outstanding_amount, D("100.00"))
+        self.assertFalse(
+            PaymentEntry.objects.filter(
+                docstatus=DocStatus.SUBMITTED,
+                party_name=ob.party,
+                paid_amount=D("10.00"),
+            ).exists()
+        )
+
+    def test_payment_defaults_its_party_account_to_the_bills_account(self):
+        other = self._other_receivable()
+        ob = self.bill(amount="100.00", account=other)
+        account = PaymentEntrySerializer._party_account(
+            self.company,
+            "Customer",
+            [{"reference_doctype": BILL_LABEL, "reference_name": ob.name}],
+        )
+        self.assertEqual(account.pk, other.pk)
 
     def test_supplier_payment_settles_a_supplier_bill(self):
         ob = self.bill(party_type="Supplier", amount="200.00")
