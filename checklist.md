@@ -488,7 +488,7 @@ question's recorded answer.
 - [x] P-1 Warehouses and stock constraints
 - [x] P-2 Batch stage
 - [x] P-3 Batch service (Q2 answered: bulk then pack)
-- [ ] P-4 Today's Batches page
+- [x] P-4 Today's Batches page
 - [x] P-5 Stock view
 - [ ] P-6 Loss report
 - [ ] P-7 Item and recipe clean-up (OWNER, BLOCKED Q3)

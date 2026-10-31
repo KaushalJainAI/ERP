@@ -8,6 +8,7 @@ import { Profile } from "@/pages/Profile";
 import { Roles } from "@/pages/Roles";
 import { useTranslation } from "react-i18next";
 import { MusterRollPage } from "@/pages/hr/MusterRollPage";
+import { BatchesPage } from "@/pages/manufacturing/BatchesPage";
 import { GLEntriesPage } from "@/pages/GLEntriesPage";
 import { TallyExportPage } from "@/pages/TallyExportPage";
 import { PaymentReconciliationPage } from "@/pages/PaymentReconciliationPage";
@@ -404,6 +405,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <MusterRollPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manufacturing/batches"
+        element={
+          <ProtectedRoute>
+            <BatchesPage />
           </ProtectedRoute>
         }
       />

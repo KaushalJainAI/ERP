@@ -1,8 +1,9 @@
-import { BarChart3, ClipboardList, Factory, Pause, Play, Wrench } from "lucide-react";
-import type { LinkDef, ResourceConfig, SelectOption } from "@/types";
+import { BarChart3, ClipboardList, Factory, LayoutGrid, Pause, Play, Wrench } from "lucide-react";
+import type { LinkDef, NavLink, ResourceConfig, SelectOption } from "@/types";
 import type { ReportConfig } from "@/types/report";
 import { companyField, companyLink, docNoField, itemLink, warehouseLink } from "./selling";
 import { bomLink, workOrderLink } from "./manufacturingLinks";
+import { hasReadAccess } from "./workspaces";
 
 /* ---- reusable links ---- */
 
@@ -257,3 +258,14 @@ const bomCost: ReportConfig = {
 };
 
 export const manufacturingReports: ReportConfig[] = [productionYield, bomCost];
+
+/** Hand-written pages of the manufacturing sidebar section. */
+export const manufacturingLinks: NavLink[] = [
+  {
+    path: "/manufacturing/batches",
+    labelKey: "batches.nav_title",
+    icon: LayoutGrid,
+    group: "transactions",
+    visible: (u) => hasReadAccess(u.readable_models, ["manufacturing.WorkOrder"]),
+  },
+];

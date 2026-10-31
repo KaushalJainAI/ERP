@@ -20,7 +20,7 @@ import { buyingResources } from "./buying";
 import { gstResources } from "./gstMasters";
 import { gstReportLinks } from "./gstReports";
 import { stockReports, stockResources } from "./stock";
-import { manufacturingReports, manufacturingResources } from "./manufacturing";
+import { manufacturingLinks, manufacturingReports, manufacturingResources } from "./manufacturing";
 import { ageingReports } from "./ageing";
 import { usersLinks, usersResources } from "./users";
 import { contactsResources } from "./contacts";
@@ -69,7 +69,7 @@ export const MODULES: ModuleDef[] = [
   },
   { key: "selling", titleKey: "selling", icon: ShoppingCart, extraLinks: sellingLinks },
   { key: "buying", titleKey: "buying", icon: ShoppingBag },
-  { key: "manufacturing", titleKey: "manufacturing", icon: Factory },
+  { key: "manufacturing", titleKey: "manufacturing", icon: Factory, extraLinks: manufacturingLinks },
   { key: "contacts", titleKey: "contacts", icon: Contact },
   {
     key: "organisation",
