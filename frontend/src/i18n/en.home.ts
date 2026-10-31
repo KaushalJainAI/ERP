@@ -58,4 +58,11 @@ export const enHome = {
       open_orders_hint_other: "{{count}} orders not fully invoiced",
     },
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };

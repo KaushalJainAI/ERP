@@ -335,7 +335,7 @@ const purchaseInvoices: ResourceConfig = {
   actions: [
     {
       key: "make_payment_entry",
-      labelKey: "res.make_payment_entry",
+      labelKey: "plain.paid",
       icon: Wallet,
       kind: "request",
       showWhen: (d) => d.docstatus === DocStatus.SUBMITTED,

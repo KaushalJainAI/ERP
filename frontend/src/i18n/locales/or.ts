@@ -2358,6 +2358,13 @@ const or: Record<string, unknown> = {
       "navigate": "ନେଭିଗେଟ୍ କରୁଛି"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default or;

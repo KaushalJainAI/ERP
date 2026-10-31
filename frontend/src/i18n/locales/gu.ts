@@ -2358,6 +2358,13 @@ const gu: Record<string, unknown> = {
       "navigate": "નેવિગેટ કરી રહ્યું છે"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default gu;

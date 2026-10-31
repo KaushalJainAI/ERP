@@ -2358,6 +2358,13 @@ const ur: Record<string, unknown> = {
       "navigate": "نیویگیٹ کر رہا ہے"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default ur;

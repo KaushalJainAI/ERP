@@ -2358,6 +2358,13 @@ const bn: Record<string, unknown> = {
       "navigate": "নেভিগেট করা হচ্ছে"
     }
   },
+  plain: {
+    approve: "Approve",
+    bill: "Bill",
+    dispatch: "Dispatch",
+    paid: "Paid",
+    due: "Due",
+  },
 };
 
 export default bn;
