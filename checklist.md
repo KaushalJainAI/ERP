@@ -537,7 +537,7 @@ question's recorded answer.
 - [ ] N-10 Turn it on (OWNER)
 
 ### 8. Hindi agent and translation
-- [ ] H-1 Order proposals
+- [x] H-1 Order proposals
 - [ ] H-2 Correct warehouses
 - [ ] H-3 Hindi and Latin matching
 - [ ] H-4 Rank by habit

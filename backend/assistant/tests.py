@@ -30,7 +30,7 @@ from rest_framework.test import APITestCase
 
 from accounts.models import Account, AccountRootType, AccountType
 from core.models import AuditLog, Company
-from selling.models import Customer, CustomerGroup, SalesInvoice
+from selling.models import Customer, CustomerGroup, SalesInvoice, SalesOrder
 from buying.models import Supplier, SupplierGroup
 from stock.models import Item, ItemGroup, UOM, Warehouse, Bin
 from hr.models import Employee
@@ -50,6 +50,7 @@ from .tools import (
 )
 from .proposals import (
     propose_payment_entry,
+    propose_sales_order,
     propose_sales_invoice,
     propose_purchase_invoice,
 )
@@ -234,6 +235,25 @@ class AssistantNoWriteGuaranteeTests(TestCase):
                     self.assertFalse(sql_upper.startswith("UPDATE"), f"Found forbidden UPDATE query: {sql_upper}")
                     self.assertFalse(sql_upper.startswith("DELETE"), f"Found forbidden DELETE query: {sql_upper}")
 
+    def test_proposals_no_target_document_writes(self):
+        """Proposals create AssistantProposal rows but zero target ERP document rows."""
+        so_count = SalesOrder.objects.count()
+        with CaptureQueriesContext(connection) as ctx:
+            res = propose_sales_order(
+                self.user,
+                customer_query="Sharma",
+                items=[{"item": "Haldi Powder", "qty": 10}],
+            )
+            self.assertEqual(res.get("type"), "proposal")
+            for q in ctx.captured_queries:
+                sql_upper = q["sql"].strip().upper()
+                if "ASSISTANT_" in sql_upper:
+                    continue
+                self.assertFalse(sql_upper.startswith("INSERT"), f"Found forbidden non-assistant INSERT: {sql_upper}")
+                self.assertFalse(sql_upper.startswith("UPDATE"), f"Found forbidden non-assistant UPDATE: {sql_upper}")
+                self.assertFalse(sql_upper.startswith("DELETE"), f"Found forbidden non-assistant DELETE: {sql_upper}")
+        self.assertEqual(SalesOrder.objects.count(), so_count)
+
     def test_prompt_injection_spotlighting(self):
         """All user and record strings are enclosed in <<DATA>>."""
         res = search_customers(self.user, "Sharma")
@@ -264,6 +284,15 @@ class AssistantRBACTests(TestCase):
         res = search_employees(self.user, "Sita")
         self.assertEqual(res.get("error"), "permission_denied")
 
+    def test_propose_sales_order_denied_without_create_permission(self):
+        """User without can_create on selling.SalesOrder gets permission_denied."""
+        res = propose_sales_order(
+            self.user,
+            customer_query="Sharma",
+            items=[{"item": "Haldi", "qty": 1}],
+        )
+        self.assertEqual(res.get("error"), "permission_denied")
+
     def test_propose_sales_invoice_denied_without_create_permission(self):
         """User without can_create on selling.SalesInvoice gets permission_denied."""
         res = propose_sales_invoice(
@@ -284,6 +313,58 @@ class AssistantProposalBuilderTests(TestCase):
             password="adminpassword",
         )
         setup_test_masters(self)
+
+    def test_sales_order_proposal_two_line_order(self):
+        """A two-line order gives a valid SalesOrder proposal with transaction_date and delivery_date."""
+        Item.objects.create(
+            code="MIRCHI-" + str(uuid.uuid4())[:4],
+            name="Mirchi Powder",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_active=True,
+            standard_rate=Decimal("200.00"),
+        )
+        initial_count = SalesOrder.objects.count()
+
+        res = propose_sales_order(
+            self.user,
+            customer_query="Sharma",
+            items=[
+                {"item": "Haldi Powder", "qty": 10, "rate": 150},
+                {"item": "Mirchi Powder", "qty": 5, "rate": 200},
+            ],
+            transaction_date="2026-10-31",
+            delivery_date="2026-11-02",
+        )
+
+        self.assertEqual(res.get("type"), "proposal")
+        self.assertEqual(SalesOrder.objects.count(), initial_count)
+        self.assertEqual(res["target"], "selling.SalesOrder")
+        self.assertEqual(res["route"], "/selling/sales-orders/new")
+        self.assertEqual(res["values"]["customer"], self.customer.pk)
+        self.assertEqual(res["values"]["transaction_date"], "2026-10-31")
+        self.assertEqual(res["values"]["delivery_date"], "2026-11-02")
+        self.assertEqual(len(res["values"]["items"]), 2)
+        self.assertIn("Haldi Powder", res["summary"])
+        self.assertIn("Mirchi Powder", res["summary"])
+
+    def test_sales_order_ambiguous_item_asks(self):
+        """When an item query matches multiple items, ask user with options."""
+        Item.objects.create(
+            code="HALDI-WHOLE-" + str(uuid.uuid4())[:4],
+            name="Haldi Whole",
+            item_group=self.item_grp,
+            stock_uom=self.uom,
+            is_active=True,
+        )
+        res = propose_sales_order(
+            self.user,
+            customer_query="Sharma",
+            items=[{"item": "Haldi", "qty": 5}],
+        )
+        self.assertEqual(res.get("type"), "question")
+        self.assertIn("item", res.get("question", "").lower())
+        self.assertTrue(len(res.get("options", [])) >= 2)
 
     def test_sales_invoice_proposal_dry_run_success(self):
         """Proposal builds without creating SalesInvoice row in DB."""

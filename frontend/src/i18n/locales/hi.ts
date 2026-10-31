@@ -2589,6 +2589,7 @@ const hi: Record<string, unknown> = {
       "get_document": "दस्तावेज़ विवरण प्राप्त कर रहे हैं",
       "sales_summary": "बिक्री जोड़ रहे हैं",
       "top_items": "सबसे ज़्यादा बिकने वाले आइटम देख रहे हैं",
+      "propose_sales_order": "बिक्री आर्डर तैयार कर रहे हैं",
       "propose_sales_invoice": "बिक्री बिल तैयार कर रहे हैं",
       "propose_purchase_invoice": "खरीद बिल तैयार कर रहे हैं",
       "propose_payment_entry": "भुगतान प्रविष्टि तैयार कर रहे हैं",

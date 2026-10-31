@@ -34,6 +34,7 @@ export const enAssistant = {
   "assistant.steps.get_document": "Fetching document details",
   "assistant.steps.sales_summary": "Adding up sales",
   "assistant.steps.top_items": "Finding best-selling items",
+  "assistant.steps.propose_sales_order": "Preparing Sales Order",
   "assistant.steps.propose_sales_invoice": "Preparing Sales Invoice",
   "assistant.steps.propose_purchase_invoice": "Preparing Purchase Invoice",
   "assistant.steps.propose_payment_entry": "Preparing Payment Entry",

@@ -236,8 +236,37 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "propose_sales_order",
+            "description": "Prepare a Sales Order form for user review. Use when customer places an order, or user says 'order', 'sold', 'becha', 'likho'. Never writes to DB.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "customer_query": {"type": "string", "description": "Customer name or ID"},
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "item": {"type": "string", "description": "Item name or code"},
+                                "qty": {"type": "number", "description": "Quantity ordered"},
+                                "rate": {"type": "number", "description": "Optional explicit rate per unit"},
+                            },
+                            "required": ["item", "qty"],
+                        },
+                        "description": "Line items ordered",
+                    },
+                    "transaction_date": {"type": "string", "description": "Optional transaction date YYYY-MM-DD"},
+                    "delivery_date": {"type": "string", "description": "Optional delivery date YYYY-MM-DD"},
+                },
+                "required": ["customer_query", "items"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_sales_invoice",
-            "description": "Prepare a Sales Invoice form for user review. Never writes to DB.",
+            "description": "Prepare a Sales Invoice form for user review. Only for explicit invoice or bill requests. Never writes to DB.",
             "parameters": {
                 "type": "object",
                 "properties": {

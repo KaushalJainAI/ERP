@@ -77,6 +77,202 @@ def _stock_warehouse(company) -> Any:
     )
 
 
+def propose_sales_order(
+    user,
+    customer_query: str,
+    items: List[Dict[str, Any]],
+    transaction_date: Optional[str] = None,
+    delivery_date: Optional[str] = None,
+    company: Optional[Any] = None,
+    message: Optional[AssistantMessage] = None,
+) -> Dict[str, Any]:
+    """Build a proposal for a New Sales Order.
+
+    Never saves a SalesOrder row. Dry-runs SalesOrderSerializer.is_valid().
+    """
+    if not user_has_model_permission(user, "selling.SalesOrder", "can_create"):
+        return {
+            "error": "permission_denied",
+            "message": _("You do not have permission to create Sales Orders."),
+        }
+
+    # 1. Resolve Customer
+    picked = _pick_one(
+        find_party("selling.Customer", customer_query, company),
+        "customer",
+        customer_query,
+        lambda c: c.name,
+    )
+    if "record" not in picked:
+        return picked
+    customer = picked["record"]
+    co = _company_of(company, customer)
+
+    warnings: List[str] = []
+    resolved_items = []
+    preview_total = Decimal("0.00")
+    ai_filled_keys = ["customer", "company", "transaction_date", "delivery_date", "items"]
+
+    default_wh = _stock_warehouse(co)
+
+    # 2. Resolve Items
+    for line in items:
+        raw_item = str(line.get("item", "")).strip()
+        picked = _pick_one(find_item(raw_item), "item", raw_item, lambda it: it.name)
+        if "record" not in picked:
+            return picked
+        item = picked["record"]
+        qty = _q3(line.get("qty", 1))
+        if qty <= 0:
+            warnings.append(
+                _("Quantity for %(item)s is zero or negative.") % {"item": item.name}
+            )
+
+        # Rate resolution
+        from stock.services import pricing
+
+        price_info = pricing.fetch_rate(
+            item=item,
+            selling=True,
+            company=co,
+            customer=customer,
+            transaction_date=transaction_date,
+        )
+        server_rate = Decimal(price_info.get("rate") or "0.00")
+
+        user_rate = line.get("rate")
+        if user_rate is not None and str(user_rate).strip() != "":
+            rate = _q2(user_rate)
+            if server_rate > 0 and rate != server_rate:
+                warnings.append(
+                    _(
+                        "Rate you specified for %(item)s: ₹%(rate)s, price list rate: ₹%(server_rate)s"
+                    )
+                    % {"item": item.name, "rate": rate, "server_rate": server_rate}
+                )
+        else:
+            rate = server_rate
+            if rate <= 0:
+                warnings.append(
+                    _("No rate found for %(item)s. Please enter it in the form.")
+                    % {"item": item.name}
+                )
+
+        line_amount = _q2(qty * rate)
+        preview_total += line_amount
+
+        resolved_items.append(
+            {
+                "item": item.pk,
+                "item_name": item.name,
+                "item_code": item.code,
+                "warehouse": line.get("warehouse")
+                or (default_wh.pk if default_wh else None),
+                "qty": str(qty),
+                "rate": str(rate) if rate > 0 else None,
+                "amount": str(line_amount),
+            }
+        )
+
+    # Check credit limit
+    if (
+        hasattr(customer, "credit_limit")
+        and customer.credit_limit
+        and customer.credit_limit > 0
+    ):
+        from accounts.services import outstanding as outstanding_service
+
+        try:
+            curr_out = outstanding_service.party_balance("Customer", customer.pk, co.pk)
+            if curr_out + preview_total > customer.credit_limit:
+                warnings.append(
+                    _(
+                        "Customer credit limit is ₹%(limit)s; current outstanding is ₹%(outstanding)s."
+                    )
+                    % {"limit": customer.credit_limit, "outstanding": curr_out}
+                )
+        except Exception:
+            pass
+
+    today_str = str(date.today())
+    tx_date = transaction_date or today_str
+    del_date = delivery_date or tx_date
+    initial_values = {
+        "customer": customer.pk,
+        "customer_name": customer.name,
+        "company": co.pk if co else None,
+        "transaction_date": tx_date,
+        "delivery_date": del_date,
+        "items": resolved_items,
+    }
+
+    # 3. Dry-run Serializer
+    from selling.serializers import SalesOrderSerializer
+
+    serializer_payload = {
+        "customer": customer.pk,
+        "company": co.pk if co else None,
+        "transaction_date": tx_date,
+        "delivery_date": del_date,
+        "items": [
+            {
+                "item": ri["item"],
+                "qty": ri["qty"],
+                "rate": ri["rate"] or "0.00",
+                "warehouse": ri["warehouse"],
+            }
+            for ri in resolved_items
+        ],
+    }
+
+    factory = APIRequestFactory()
+    req = factory.post("/api/selling/sales-orders/")
+    req.user = user
+    drf_req = Request(req)
+
+    serializer = SalesOrderSerializer(
+        data=serializer_payload, context={"request": drf_req}
+    )
+    if not serializer.is_valid():
+        for field, errs in serializer.errors.items():
+            warnings.append(f"{field}: {errs}")
+
+    # Build summary
+    item_parts = [
+        f"{ri['item_name']} {ri['qty']} {item.stock_uom or 'unit'}"
+        for ri in resolved_items
+    ]
+    summary = _(
+        "Sales Order for %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+    ) % {
+        "customer": customer.name,
+        "items": ", ".join(item_parts),
+        "total": preview_total,
+    }
+
+    proposal = AssistantProposal.objects.create(
+        message=message,
+        target="selling.SalesOrder",
+        route="/selling/sales-orders/new",
+        values=initial_values,
+        summary=summary,
+        ai_filled_keys=ai_filled_keys,
+        warnings=warnings,
+        status="proposed",
+    )
+
+    return {
+        "type": "proposal",
+        "proposal_id": str(proposal.id),
+        "target": proposal.target,
+        "route": proposal.route,
+        "values": initial_values,
+        "summary": summary,
+        "ai_filled_keys": ai_filled_keys,
+        "warnings": warnings,
+    }
+
+
 def propose_sales_invoice(
     user,
     customer_query: str,
@@ -627,6 +823,7 @@ def propose_payment_entry(
 
 
 PROPOSAL_BUILDERS = {
+    "propose_sales_order": propose_sales_order,
     "propose_sales_invoice": propose_sales_invoice,
     "propose_purchase_invoice": propose_purchase_invoice,
     "propose_payment_entry": propose_payment_entry,

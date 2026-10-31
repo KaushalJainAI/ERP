@@ -33,6 +33,7 @@ interface AssistantPanelProps {
 }
 
 const PROPOSAL_LABEL_KEYS: Record<string, string> = {
+  "selling.SalesOrder": "assistant.steps.propose_sales_order",
   "selling.SalesInvoice": "assistant.steps.propose_sales_invoice",
   "buying.PurchaseInvoice": "assistant.steps.propose_purchase_invoice",
   "accounts.PaymentEntry": "assistant.steps.propose_payment_entry",

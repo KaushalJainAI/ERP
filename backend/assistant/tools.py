@@ -658,6 +658,7 @@ SAFE_ROUTES = {
     "/selling/sales-invoices",
     "/selling/sales-invoices/new",
     "/selling/sales-orders",
+    "/selling/sales-orders/new",
     "/buying/purchase-invoices",
     "/buying/purchase-invoices/new",
     "/buying/purchase-orders",
@@ -665,7 +666,7 @@ SAFE_ROUTES = {
     "/accounts/payment-entries/new",
     "/stock/items",
     "/stock/stock-entries",
-    "/reports/general-ledger",
+    "/accounts/reports/general-ledger",
 }
 
 
