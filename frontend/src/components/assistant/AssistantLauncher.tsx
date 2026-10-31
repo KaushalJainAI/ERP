@@ -1,11 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Sparkles } from "lucide-react";
 import { AssistantPanel } from "./AssistantPanel";
 
+/** Window event that opens the assistant sheet from anywhere (see openAssistant). */
+export const ASSISTANT_OPEN_EVENT = "assistant:open";
+
+/** Open the assistant sheet, e.g. from the Orders home mic button. */
+export function openAssistant(): void {
+  window.dispatchEvent(new Event(ASSISTANT_OPEN_EVENT));
+}
+
 export const AssistantLauncher: React.FC = () => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener(ASSISTANT_OPEN_EVENT, open);
+    return () => window.removeEventListener(ASSISTANT_OPEN_EVENT, open);
+  }, []);
 
   return (
     <>
