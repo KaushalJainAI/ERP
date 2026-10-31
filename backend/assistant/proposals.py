@@ -155,6 +155,19 @@ def _company_of(company: Optional[Any], party) -> Any:
     return co or party.company or Company.objects.first()
 
 
+def _cash_or_bank_account(co, mode_of_payment: Optional[str]):
+    """(account, usual_found) for a payment. "cash" must land on a cash account;
+    anything else (cheque, UPI) goes through the bank. When the usual kind is
+    missing, any cash or bank account is returned with usual_found False.
+    """
+    Account = apps.get_model("accounts.Account")
+    is_cash = "cash" in (mode_of_payment or "").lower()
+    accounts = Account.objects.filter(company=co, is_group=False).order_by("id")
+    usual = accounts.filter(account_type="Cash" if is_cash else "Bank").first()
+    if usual is not None:
+        return usual, True
+    return accounts.filter(account_type__in=["Bank", "Cash"]).first(), False
+
 
 def propose_sales_order(
     user,
@@ -786,15 +799,12 @@ def propose_payment_entry(
     if parsed_amount <= 0:
         warnings.append(_("Payment amount must be greater than zero."))
 
-    # "cash" must land on a cash account; anything else (cheque, UPI) goes through the bank.
-    is_cash = "cash" in (mode_of_payment or "").lower()
-    accounts = Account.objects.filter(company=co, is_group=False).order_by("id")
-    cash_or_bank = accounts.filter(account_type="Cash" if is_cash else "Bank").first()
-    if cash_or_bank is None:
-        cash_or_bank = accounts.filter(account_type__in=["Bank", "Cash"]).first()
+    cash_or_bank, usual_found = _cash_or_bank_account(co, mode_of_payment)
+    if not usual_found:
         warnings.append(
             _("Please check the cash/bank account: the usual one was not found.")
         )
+    accounts = Account.objects.filter(company=co, is_group=False).order_by("id")
 
     if pt == "Customer":
         party_account = (
@@ -901,9 +911,319 @@ def propose_payment_entry(
     }
 
 
+def propose_receipt(
+    user,
+    customer_query: str,
+    amount: Any,
+    mode_of_payment: Optional[str] = None,
+    posting_date: Optional[str] = None,
+    company: Optional[Any] = None,
+    message: Optional[AssistantMessage] = None,
+) -> Dict[str, Any]:
+    """Build a proposal for a receipt: a customer paid money (Payment Entry, Receive).
+
+    The amount is allocated to the customer's open sales invoices, oldest due date
+    first (the same rule as the Money to Collect screen). Anything above the open
+    bills stays unallocated, and the proposal says so.
+
+    Never saves a PaymentEntry row. Dry-runs PaymentEntrySerializer.is_valid().
+    """
+    if not user_has_model_permission(user, "accounts.PaymentEntry", "can_create"):
+        return {
+            "error": "permission_denied",
+            "message": _("You do not have permission to create Payment Entries."),
+        }
+
+    picked = _pick_one(
+        find_party("selling.Customer", customer_query, company),
+        "customer",
+        customer_query,
+        _customer_choice_label,
+    )
+    if "record" not in picked:
+        return picked
+    customer = picked["record"]
+    co = _company_of(company, customer)
+
+    warnings: List[str] = []
+    parsed_amount = _q2(amount)
+    if parsed_amount <= 0:
+        warnings.append(_("Payment amount must be greater than zero."))
+
+    cash_or_bank, usual_found = _cash_or_bank_account(co, mode_of_payment)
+    if not usual_found:
+        warnings.append(
+            _("Please check the cash/bank account: the usual one was not found.")
+        )
+
+    references: List[Dict[str, str]] = []
+    if parsed_amount > 0:
+        from accounts.services.allocation import suggest_allocation
+
+        allocation = suggest_allocation("Customer", customer, co, parsed_amount)
+        references = [
+            {
+                "reference_doctype": ref["reference_doctype"],
+                "reference_name": ref["reference_name"],
+                "allocated_amount": str(ref["allocated_amount"]),
+            }
+            for ref in allocation.references
+        ]
+        unallocated = _q2(allocation.unallocated)
+        if not references:
+            warnings.append(
+                _("%(customer)s has no open bills; the receipt stays unallocated.")
+                % {"customer": customer.name}
+            )
+        elif unallocated > 0:
+            warnings.append(
+                _("₹%(amount)s is more than the open bills and stays unallocated.")
+                % {"amount": unallocated}
+            )
+
+    if co is not None and co.require_proof:
+        warnings.append(_("Proof attachment is required before submission."))
+
+    posting = posting_date or str(date.today())
+    paid_to = cash_or_bank.pk if cash_or_bank else None
+    initial_values = {
+        "payment_type": "Receive",
+        "party_type": "Customer",
+        "party_name": customer.name,
+        "company": co.pk if co else None,
+        "paid_amount": str(parsed_amount),
+        "received_amount": str(parsed_amount),
+        "posting_date": posting,
+        "paid_to": paid_to,
+        "references": references,
+    }
+    ai_filled_keys = [
+        "payment_type",
+        "party_type",
+        "party_name",
+        "paid_amount",
+        "received_amount",
+        "posting_date",
+        "references",
+    ]
+
+    # Dry-run Serializer
+    from accounts.serializers import PaymentEntrySerializer
+
+    serializer_payload = {
+        "payment_type": "Receive",
+        "party_type": "Customer",
+        "party_name": customer.name,
+        "company": co.pk if co else None,
+        "paid_amount": str(parsed_amount),
+        "received_amount": str(parsed_amount),
+        "posting_date": posting,
+        "paid_to": paid_to,
+        "references": references,
+    }
+
+    factory = APIRequestFactory()
+    req = factory.post("/api/accounts/payment-entries/")
+    req.user = user
+    drf_req = Request(req)
+
+    serializer = PaymentEntrySerializer(
+        data=serializer_payload, context={"request": drf_req}
+    )
+    if not serializer.is_valid():
+        for field, errs in serializer.errors.items():
+            warnings.append(f"{field}: {errs}")
+
+    if references:
+        summary = _("Receipt from %(customer)s: ₹%(amount)s against %(bills)s") % {
+            "customer": customer.name,
+            "amount": parsed_amount,
+            "bills": ", ".join(r["reference_name"] for r in references),
+        }
+    else:
+        summary = _("Receipt from %(customer)s: ₹%(amount)s (no open bills)") % {
+            "customer": customer.name,
+            "amount": parsed_amount,
+        }
+
+    proposal = AssistantProposal.objects.create(
+        message=message,
+        target="accounts.PaymentEntry",
+        route="/accounts/payment-entries/new",
+        values=initial_values,
+        summary=summary,
+        ai_filled_keys=ai_filled_keys,
+        warnings=warnings,
+        status="proposed",
+    )
+
+    return {
+        "type": "proposal",
+        "proposal_id": str(proposal.id),
+        "target": proposal.target,
+        "route": proposal.route,
+        "values": initial_values,
+        "summary": summary,
+        "ai_filled_keys": ai_filled_keys,
+        "warnings": warnings,
+    }
+
+
+def propose_expense(
+    user,
+    category_query: str,
+    amount: Any,
+    supplier_query: Optional[str] = None,
+    expense_date: Optional[str] = None,
+    bill_no: Optional[str] = None,
+    paid_now: Any = False,
+    mode_of_payment: Optional[str] = None,
+    company: Optional[Any] = None,
+    message: Optional[AssistantMessage] = None,
+) -> Dict[str, Any]:
+    """Build a proposal for an expense bill (electricity, rent, hamali...).
+
+    An expense is a Purchase Invoice with is_expense set, saved by the expense
+    endpoint (ExpenseViewSet.create), which takes its own fields rather than the
+    invoice serializer. So this checks the rules that endpoint applies (category,
+    supplier, amount, date) and reports the submit-time rules (bill number, proof)
+    as warnings. Never saves a PurchaseInvoice or PaymentEntry row.
+    """
+    if not user_has_model_permission(user, "buying.PurchaseInvoice", "can_create"):
+        return {
+            "error": "permission_denied",
+            "message": _("You do not have permission to create Expenses."),
+        }
+
+    picked = _pick_one(
+        find_party("buying.ExpenseCategory", category_query, company),
+        "category",
+        category_query,
+        lambda c: c.name,
+    )
+    if "record" not in picked:
+        return picked
+    category = picked["record"]
+    co = _company_of(company, category)
+
+    warnings: List[str] = []
+    Supplier = apps.get_model("buying.Supplier")
+    if supplier_query and str(supplier_query).strip():
+        picked = _pick_one(
+            find_party("buying.Supplier", supplier_query, co.pk),
+            "supplier",
+            supplier_query,
+            lambda p: p.name,
+        )
+        if "record" not in picked:
+            return picked
+        supplier = picked["record"]
+    else:
+        supplier = Supplier.objects.filter(
+            company=co, is_cash_expense=True, is_active=True
+        ).first()
+        if supplier is None:
+            return {
+                "error": "supplier_required",
+                "message": _("Supplier is required."),
+            }
+
+    parsed_amount = _q2(amount)
+    if parsed_amount <= 0:
+        warnings.append(_("Expense amount must be greater than zero."))
+
+    expense_day = str(date.today())
+    if expense_date:
+        try:
+            expense_day = str(date.fromisoformat(str(expense_date)))
+        except ValueError:
+            warnings.append(_("Invalid date format."))
+
+    is_paid_now = paid_now is True or str(paid_now).strip().lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+    paid_from = None
+    if is_paid_now:
+        paid_from, usual_found = _cash_or_bank_account(co, mode_of_payment)
+        if not usual_found:
+            warnings.append(
+                _("Please check the cash/bank account: the usual one was not found.")
+            )
+        if paid_from is None:
+            warnings.append(
+                _("Paid from account is required when paid now is selected.")
+            )
+
+    bill_no_clean = (bill_no or "").strip()
+    if not bill_no_clean and not supplier.is_cash_expense:
+        warnings.append(
+            _("Enter the supplier's invoice number (Bill No) before submitting.")
+        )
+    if co.require_proof:
+        warnings.append(_("Proof attachment is required before submission."))
+
+    initial_values = {
+        "category": category.pk,
+        "category_name": category.name,
+        "supplier": supplier.pk,
+        "supplier_name": supplier.name,
+        "company": co.pk,
+        "amount": str(parsed_amount),
+        "date": expense_day,
+        "due_date": expense_day,
+        "bill_no": bill_no_clean,
+        "paid_now": is_paid_now,
+        "paid_from": paid_from.pk if paid_from else None,
+    }
+    ai_filled_keys = ["category", "supplier", "amount", "date", "paid_now"]
+    if bill_no_clean:
+        ai_filled_keys.append("bill_no")
+
+    if is_paid_now:
+        summary = _("Expense %(category)s from %(supplier)s: ₹%(amount)s, paid now") % {
+            "category": category.name,
+            "supplier": supplier.name,
+            "amount": parsed_amount,
+        }
+    else:
+        summary = _(
+            "Expense %(category)s from %(supplier)s: ₹%(amount)s, to pay later"
+        ) % {
+            "category": category.name,
+            "supplier": supplier.name,
+            "amount": parsed_amount,
+        }
+
+    proposal = AssistantProposal.objects.create(
+        message=message,
+        target="buying.PurchaseInvoice",
+        route="/accounts/expenses/new",
+        values=initial_values,
+        summary=summary,
+        ai_filled_keys=ai_filled_keys,
+        warnings=warnings,
+        status="proposed",
+    )
+
+    return {
+        "type": "proposal",
+        "proposal_id": str(proposal.id),
+        "target": proposal.target,
+        "route": proposal.route,
+        "values": initial_values,
+        "summary": summary,
+        "ai_filled_keys": ai_filled_keys,
+        "warnings": warnings,
+    }
+
+
 PROPOSAL_BUILDERS = {
     "propose_sales_order": propose_sales_order,
     "propose_sales_invoice": propose_sales_invoice,
     "propose_purchase_invoice": propose_purchase_invoice,
     "propose_payment_entry": propose_payment_entry,
+    "propose_receipt": propose_receipt,
+    "propose_expense": propose_expense,
 }
