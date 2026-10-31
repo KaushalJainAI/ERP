@@ -499,6 +499,25 @@ def ageing(request):
     )
 
 
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
+)
+def collections_view(request):
+    """Money to Collect endpoint (GET /api/accounts/collections/)."""
+    company_id = active_company_id(request)
+    company_param = request.query_params.get("company")
+    company = company_param or company_id
+    as_on = _date_param(request, "as_on")
+    from accounts.services.collections import collections
+
+    try:
+        data = collections(company, as_on=as_on)
+    except (ValueError, Company.DoesNotExist) as exc:
+        raise ValidationError({"detail": str(exc)})
+    return Response(data)
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def calculate_taxes(request):

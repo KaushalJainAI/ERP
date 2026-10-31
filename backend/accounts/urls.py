@@ -15,6 +15,7 @@ from accounts.views import (
     profit_and_loss,
     balance_sheet,
     ageing,
+    collections_view,
 )
 
 app_name = "accounts"
@@ -52,6 +53,7 @@ urlpatterns = [
     path("reports/profit-and-loss/", profit_and_loss, name="profit-and-loss"),
     path("reports/balance-sheet/", balance_sheet, name="balance-sheet"),
     path("reports/ageing/", ageing, name="ageing"),
+    path("collections/", collections_view, name="collections"),
     path("reports/sales-register/", report_views.sales_register, name="sales-register"),
     path(
         "reports/purchase-register/",
@@ -66,10 +68,14 @@ urlpatterns = [
         name="party-statement",
     ),
     path(
-        "bank-reconciliation/", bank_views.bank_reconciliation, name="bank-reconciliation"
+        "bank-reconciliation/",
+        bank_views.bank_reconciliation,
+        name="bank-reconciliation",
     ),
     path(
-        "bank-reconciliation/match/", bank_views.bank_match, name="bank-reconciliation-match"
+        "bank-reconciliation/match/",
+        bank_views.bank_match,
+        name="bank-reconciliation-match",
     ),
     path(
         "bank-reconciliation/unmatch/",
@@ -77,7 +83,9 @@ urlpatterns = [
         name="bank-reconciliation-unmatch",
     ),
     path(
-        "bank-reconciliation/clear/", bank_views.bank_clear, name="bank-reconciliation-clear"
+        "bank-reconciliation/clear/",
+        bank_views.bank_clear,
+        name="bank-reconciliation-clear",
     ),
     path(
         "reports/bank-reconciliation-statement/",
