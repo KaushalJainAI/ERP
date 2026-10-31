@@ -1,0 +1,4870 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: ERP 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-31 09:44+0530\n"
+"PO-Revision-Date: 2026-10-31 09:44+0530\n"
+"Last-Translator: ERP Dev <dev@example.com>\n"
+"Language-Team: Marathi <mr@example.com>\n"
+"Language: mr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: .\accounts\bank_views.py:54 .\accounts\bank_views.py:73
+#: .\core\mixins.py:129 .\users\serializers.py:207
+#, fuzzy
+msgid "This field is required."
+msgstr "This field is required."
+
+#: .\accounts\bank_views.py:65 .\accounts\reports\__init__.py:54
+#: .\accounts\views.py:72 .\gst\reports\__init__.py:52
+#, fuzzy
+msgid "Enter a valid date (YYYY-MM-DD)."
+msgstr "Enter a valid date (YYYY-MM-DD)."
+
+#: .\accounts\bank_views.py:79
+#, fuzzy
+msgid "Must be a bank account id."
+msgstr "Must be a bank account id."
+
+#: .\accounts\bank_views.py:81
+#, fuzzy
+msgid "Bank account not found."
+msgstr "Bank account not found."
+
+#: .\accounts\bank_views.py:86 .\accounts\services\bank.py:268
+#: .\accounts\services\bank.py:313
+#, fuzzy
+msgid "Choose at least one voucher."
+msgstr "Choose at least one voucher."
+
+#: .\accounts\bank_views.py:95
+#, fuzzy
+msgid "Each voucher needs a voucher_type and voucher_no."
+msgstr "Each voucher needs a voucher_type and voucher_no."
+
+#: .\accounts\bank_views.py:193
+#, fuzzy
+msgid ""
+"This bank account has statement or reconciliation history; deactivate it "
+"instead."
+msgstr ""
+"This bank account has statement or reconciliation history; deactivate it "
+"instead."
+
+#: .\accounts\bank_views.py:304
+#, fuzzy
+msgid "Choose the account to book the amount to."
+msgstr "Choose the account to book the amount to."
+
+#: .\accounts\bank_views.py:306
+#, fuzzy
+msgid "Choose an active, non-group account."
+msgstr "Choose an active, non-group account."
+
+#: .\accounts\bank_views.py:308
+#, fuzzy
+msgid "The counter account must differ from the bank."
+msgstr "The counter account must differ from the bank."
+
+#: .\accounts\bank_views.py:312 .\accounts\services\bank.py:275
+#, fuzzy
+msgid "This bank transaction is already reconciled."
+msgstr "This bank transaction is already reconciled."
+
+#: .\accounts\bank_views.py:417
+#, fuzzy
+msgid "Choose a CSV file."
+msgstr "Choose a CSV file."
+
+#: .\accounts\bank_views.py:419 .\accounts\services\bank_import.py:125
+#, fuzzy
+msgid "The file is too large (limit 5 MB)."
+msgstr "The file is too large (limit 5 MB)."
+
+#: .\accounts\bank_views.py:449 .\accounts\bank_views.py:451
+#, fuzzy
+msgid "Invalid column mapping."
+msgstr "Invalid column mapping."
+
+#: .\accounts\bank_views.py:456
+#, fuzzy
+msgid "Must be a number."
+msgstr "Must be a number."
+
+#: .\accounts\bank_views.py:531
+#, fuzzy
+msgid "Must be a number of days."
+msgstr "Must be a number of days."
+
+#: .\accounts\bank_views.py:588 .\accounts\bank_views.py:615
+#, fuzzy
+msgid "Bank transaction not found."
+msgstr "Bank transaction not found."
+
+#: .\accounts\closing_views.py:64
+#, fuzzy
+msgid "Choose the closing account (Retained Earnings / Reserves)."
+msgstr "Choose the closing account (Retained Earnings / Reserves)."
+
+#: .\accounts\closing_views.py:84 .\accounts\services\closing.py:188
+#, fuzzy
+msgid "The closing account must belong to the company."
+msgstr "The closing account must belong to the company."
+
+#: .\accounts\closing_views.py:92
+#, fuzzy
+msgid "The closing account must be a non-group Liability / Equity account."
+msgstr "The closing account must be a non-group Liability / Equity account."
+
+#: .\accounts\closing_views.py:105
+#, fuzzy
+msgid "The period end date must fall within the fiscal year."
+msgstr "The period end date must fall within the fiscal year."
+
+#: .\accounts\mapping.py:52
+#, fuzzy, python-format
+msgid "Series '%(series)s' with 4-digit padding exceeds 16 characters."
+msgstr "Series '%(series)s' with 4-digit padding exceeds 16 characters."
+
+#: .\accounts\mapping.py:99
+#, fuzzy, python-format
+msgid "No %(what)s account is configured for company '%(company)s'."
+msgstr "No %(what)s account is configured for company '%(company)s'."
+
+#: .\accounts\mapping.py:180
+#, fuzzy, python-format
+msgid "No Bank or Cash account is configured for company '%(company)s'."
+msgstr "No Bank or Cash account is configured for company '%(company)s'."
+
+#: .\accounts\mapping.py:300
+#, fuzzy, python-format
+msgid "'%(name)s' has already been returned in full."
+msgstr "'%(name)s' has already been returned in full."
+
+#: .\accounts\mapping.py:307
+#, fuzzy
+msgid "A return can only be made from a submitted invoice."
+msgstr "A return can only be made from a submitted invoice."
+
+#: .\accounts\mapping.py:309
+#, fuzzy
+msgid "A return cannot be made from another return."
+msgstr "A return cannot be made from another return."
+
+#: .\accounts\mapping.py:356
+#, fuzzy
+msgid "Payment can only be requested for a submitted invoice."
+msgstr "Payment can only be requested for a submitted invoice."
+
+#: .\accounts\mapping.py:370
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' has no outstanding amount."
+msgstr "Invoice '%(name)s' has no outstanding amount."
+
+#: .\accounts\models.py:148
+#, fuzzy
+msgid "GLEntry rows are immutable and cannot be updated."
+msgstr "GLEntry rows are immutable and cannot be updated."
+
+#: .\accounts\models.py:153
+#, fuzzy
+msgid "GLEntry rows are immutable and cannot be deleted."
+msgstr "GLEntry rows are immutable and cannot be deleted."
+
+#: .\accounts\models.py:218 .\accounts\models.py:496 .\accounts\models.py:1800
+#: .\buying\models.py:470
+#, fuzzy
+msgid "Proof attachment is required before submission."
+msgstr "Proof attachment is required before submission."
+
+#: .\accounts\models.py:222
+#, fuzzy
+msgid "Journal Entry must have at least one line."
+msgstr "Journal Entry must have at least one line."
+
+#: .\accounts\models.py:228
+#, fuzzy, python-format
+msgid "Account '%(account)s' does not belong to the entry's company."
+msgstr "Account '%(account)s' does not belong to the entry's company."
+
+#: .\accounts\models.py:236
+#, fuzzy, python-format
+msgid ""
+"Journal Entry is unbalanced: Total Debit (%(debit)s) != Total Credit "
+"(%(credit)s)."
+msgstr ""
+"Journal Entry is unbalanced: Total Debit (%(debit)s) != Total Credit "
+"(%(credit)s)."
+
+#: .\accounts\models.py:362
+#, fuzzy
+msgid "An internal transfer cannot be allocated against invoices."
+msgstr "An internal transfer cannot be allocated against invoices."
+
+#: .\accounts\models.py:371
+#, fuzzy, python-format
+msgid ""
+"Payments can only be allocated against a Sales Invoice or a Purchase "
+"Invoice, not '%(doctype)s'."
+msgstr ""
+"Payments can only be allocated against a Sales Invoice or a Purchase "
+"Invoice, not '%(doctype)s'."
+
+#: .\accounts\models.py:386 .\accounts\models.py:460
+#, fuzzy, python-format
+msgid ""
+"A %(payment_type)s payment for a %(party_type)s cannot be allocated against "
+"%(doctype)s '%(name)s'."
+msgstr ""
+"A %(payment_type)s payment for a %(party_type)s cannot be allocated against "
+"%(doctype)s '%(name)s'."
+
+#: .\accounts\models.py:399
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' is referenced more than once."
+msgstr "Invoice '%(name)s' is referenced more than once."
+
+#: .\accounts\models.py:405
+#, fuzzy, python-format
+msgid "The amount allocated to '%(name)s' must be greater than zero."
+msgstr "The amount allocated to '%(name)s' must be greater than zero."
+
+#: .\accounts\models.py:411 .\accounts\serializers.py:359
+#, fuzzy, python-format
+msgid "Total allocated (%(allocated)s) exceeds the paid amount (%(paid)s)."
+msgstr "Total allocated (%(allocated)s) exceeds the paid amount (%(paid)s)."
+
+#: .\accounts\models.py:427 .\payment_reconciliation\services.py:676
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' does not exist."
+msgstr "Invoice '%(name)s' does not exist."
+
+#: .\accounts\models.py:432
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' is not submitted."
+msgstr "Invoice '%(name)s' is not submitted."
+
+#: .\accounts\models.py:437
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' belongs to a different company."
+msgstr "Invoice '%(name)s' belongs to a different company."
+
+#: .\accounts\models.py:442
+#, fuzzy, python-format
+msgid "Invoice '%(name)s' belongs to a different party."
+msgstr "Invoice '%(name)s' belongs to a different party."
+
+#: .\accounts\models.py:448
+#, fuzzy, python-format
+msgid ""
+"Invoice '%(name)s' is booked to a different account than this payment's "
+"party account."
+msgstr ""
+"Invoice '%(name)s' is booked to a different account than this payment's "
+"party account."
+
+#: .\accounts\models.py:478 .\accounts\serializers.py:344
+#, fuzzy, python-format
+msgid ""
+"Allocated amount (%(allocated)s) exceeds the outstanding amount "
+"(%(outstanding)s) of '%(name)s'."
+msgstr ""
+"Allocated amount (%(allocated)s) exceeds the outstanding amount "
+"(%(outstanding)s) of '%(name)s'."
+
+#: .\accounts\models.py:499
+#, fuzzy
+msgid "Paid amount must be greater than zero."
+msgstr "Paid amount must be greater than zero."
+
+#: .\accounts\models.py:501 .\buying\models.py:513 .\selling\models.py:310
+#, fuzzy
+msgid "Posting to group accounts is not allowed."
+msgstr "Posting to group accounts is not allowed."
+
+#: .\accounts\models.py:504
+#, fuzzy
+msgid "Paid From and Paid To accounts must be different."
+msgstr "Paid From and Paid To accounts must be different."
+
+#: .\accounts\models.py:511
+#, fuzzy
+msgid "Payment accounts must belong to the payment's company."
+msgstr "Payment accounts must belong to the payment's company."
+
+#: .\accounts\models.py:1069
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel '%(name)s': cancel the linked returns first (%(returns)s)."
+msgstr ""
+"Cannot cancel '%(name)s': cancel the linked returns first (%(returns)s)."
+
+#: .\accounts\models.py:1147
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel '%(name)s': cancel the linked payment entries first "
+"(%(payments)s)."
+msgstr ""
+"Cannot cancel '%(name)s': cancel the linked payment entries first "
+"(%(payments)s)."
+
+#: .\accounts\models.py:1406
+#, fuzzy
+msgid "The GL account must be of type Bank."
+msgstr "The GL account must be of type Bank."
+
+#: .\accounts\models.py:1408 .\buying\models.py:130
+#, fuzzy
+msgid "The GL account must not be a group."
+msgstr "The GL account must not be a group."
+
+#: .\accounts\models.py:1410 .\buying\models.py:132
+#, fuzzy
+msgid "The GL account must belong to the company."
+msgstr "The GL account must belong to the company."
+
+#: .\accounts\models.py:1412
+#, fuzzy
+msgid "Enter a valid IFSC code (e.g. HDFC0001234)."
+msgstr "Enter a valid IFSC code (e.g. HDFC0001234)."
+
+#: .\accounts\models.py:1455
+#, fuzzy
+msgid "Bank statement imports are immutable."
+msgstr "Bank statement imports are immutable."
+
+#: .\accounts\models.py:1459
+#, fuzzy
+msgid "Bank statement imports cannot be deleted."
+msgstr "Bank statement imports cannot be deleted."
+
+#: .\accounts\models.py:1519
+#, fuzzy
+msgid "Bank transactions are immutable."
+msgstr "Bank transactions are immutable."
+
+#: .\accounts\models.py:1523
+#, fuzzy
+msgid "Bank transactions cannot be deleted."
+msgstr "Bank transactions cannot be deleted."
+
+#: .\accounts\models.py:1575
+#, fuzzy
+msgid "Bank clearances are immutable; add a new record."
+msgstr "Bank clearances are immutable; add a new record."
+
+#: .\accounts\models.py:1579
+#, fuzzy
+msgid "Bank clearances cannot be deleted."
+msgstr "Bank clearances cannot be deleted."
+
+#: .\accounts\models.py:1637
+#, fuzzy, python-format
+msgid "Period closing %(fy)s"
+msgstr "Period closing %(fy)s"
+
+#: .\accounts\models.py:1753
+#, fuzzy
+msgid "GST tax payments cannot have TDS amount."
+msgstr "GST tax payments cannot have TDS amount."
+
+#: .\accounts\models.py:1763
+#, fuzzy
+msgid "Tax payment must have at least one non-zero amount."
+msgstr "Tax payment must have at least one non-zero amount."
+
+#: .\accounts\models.py:1767
+#, fuzzy
+msgid "Paid From account is required when paying tax in cash."
+msgstr "Paid From account is required when paying tax in cash."
+
+#: .\accounts\models.py:1778
+#, fuzzy
+msgid "TDS tax payments cannot have GST amounts."
+msgstr "TDS tax payments cannot have GST amounts."
+
+#: .\accounts\models.py:1780
+#, fuzzy
+msgid "TDS amount must be greater than zero."
+msgstr "TDS amount must be greater than zero."
+
+#: .\accounts\models.py:1783
+#, fuzzy
+msgid "Paid From account is required for TDS payment."
+msgstr "Paid From account is required for TDS payment."
+
+#: .\accounts\models.py:1788
+#, fuzzy, python-format
+msgid "Paid From account does not belong to company '%(company)s'."
+msgstr "Paid From account does not belong to company '%(company)s'."
+
+#: .\accounts\models.py:1792 .\accounts\services\tax_payment.py:84
+#, fuzzy
+msgid "Paid From account cannot be a group account."
+msgstr "Paid From account cannot be a group account."
+
+#: .\accounts\reports\__init__.py:47 .\accounts\reports\__init__.py:71
+#: .\gst\reports\__init__.py:93 .\gst\views.py:24 .\hr\views.py:86
+#: .\stock\views.py:200
+#, fuzzy
+msgid "This query parameter is required."
+msgstr "This query parameter is required."
+
+#: .\accounts\reports\__init__.py:63 .\gst\reports\__init__.py:83
+#, fuzzy
+msgid "'from_date' is after 'to_date'."
+msgstr "'from_date' is after 'to_date'."
+
+#: .\accounts\reports\__init__.py:76
+#, fuzzy
+msgid "Enter a valid id."
+msgstr "Enter a valid id."
+
+#: .\accounts\reports\__init__.py:85 .\gst\reports\__init__.py:99
+#, fuzzy
+msgid "A valid company is required."
+msgstr "A valid company is required."
+
+#: .\accounts\reports\__init__.py:97
+#, fuzzy, python-format
+msgid "'page' must be >= 1 and 'page_size' between 1 and %(max)d."
+msgstr "'page' must be >= 1 and 'page_size' between 1 and %(max)d."
+
+#: .\accounts\reports\cashbook.py:37
+#, fuzzy
+msgid "A valid account of this company is required."
+msgstr "A valid account of this company is required."
+
+#: .\accounts\reports\cashbook.py:41
+#, fuzzy
+msgid "The account must be a Cash or Bank account."
+msgstr "The account must be a Cash or Bank account."
+
+#: .\accounts\reports\registers.py:80 .\accounts\reports\statement.py:58
+#, fuzzy
+msgid "A valid party of this company is required."
+msgstr "A valid party of this company is required."
+
+#: .\accounts\reports\registers.py:210
+#, fuzzy
+msgid "A valid item group is required."
+msgstr "A valid item group is required."
+
+#: .\accounts\reports\statement.py:52 .\accounts\views.py:497
+#, fuzzy
+msgid "party_type must be 'Customer' or 'Supplier'."
+msgstr "party_type must be 'Customer' or 'Supplier'."
+
+#: .\accounts\serializers.py:88
+#, fuzzy
+msgid "GST direction and GST component must be set together."
+msgstr "GST direction and GST component must be set together."
+
+#: .\accounts\serializers.py:92
+#, fuzzy
+msgid "A GST-tagged account must have type 'Tax'."
+msgstr "A GST-tagged account must have type 'Tax'."
+
+#: .\accounts\serializers.py:106
+#, fuzzy, python-format
+msgid "This company already has a %(direction)s %(component)s account."
+msgstr "This company already has a %(direction)s %(component)s account."
+
+#: .\accounts\serializers.py:276
+#, fuzzy
+msgid "This field is required for an internal transfer."
+msgstr "This field is required for an internal transfer."
+
+#: .\accounts\serializers.py:280
+#, fuzzy
+msgid "Select the party, or choose the paid from and paid to accounts."
+msgstr "Select the party, or choose the paid from and paid to accounts."
+
+#: .\accounts\serializers.py:288
+#, fuzzy, python-format
+msgid "Choose the paid from and paid to accounts for a %(party_type)s payment."
+msgstr "Choose the paid from and paid to accounts for a %(party_type)s payment."
+
+#: .\accounts\serializers.py:290
+#, fuzzy
+msgid "this"
+msgstr "this"
+
+#: .\accounts\serializers.py:424
+#, fuzzy
+msgid "Each GST component may appear only once per template."
+msgstr "Each GST component may appear only once per template."
+
+#: .\accounts\serializers.py:503
+#, fuzzy
+msgid "Reverse charge applies to purchase templates only."
+msgstr "Reverse charge applies to purchase templates only."
+
+#: .\accounts\serializers.py:527
+#, fuzzy
+msgid "Account must belong to the template's company."
+msgstr "Account must belong to the template's company."
+
+#: .\accounts\serializers.py:529 .\gst\services\supply.py:355
+#: .\hr\serializers.py:485 .\hr\services\advances.py:81
+#, fuzzy
+msgid "Account must not be a group account."
+msgstr "Account must not be a group account."
+
+#: .\accounts\serializers.py:531 .\gst\services\supply.py:357
+#, fuzzy
+msgid "Account must be of type 'Tax'."
+msgstr "Account must be of type 'Tax'."
+
+#: .\accounts\serializers.py:534
+#, fuzzy, python-format
+msgid "A %(type)s template needs %(direction)s GST accounts."
+msgstr "A %(type)s template needs %(direction)s GST accounts."
+
+#: .\accounts\serializers.py:538
+#, fuzzy
+msgid "Account is used twice in this template."
+msgstr "Account is used twice in this template."
+
+#: .\accounts\serializers.py:559
+#, fuzzy
+msgid ""
+"Another default template already exists for this company, type, supply type "
+"and reverse-charge setting."
+msgstr ""
+"Another default template already exists for this company, type, supply type "
+"and reverse-charge setting."
+
+#: .\accounts\serializers.py:668 .\accounts\serializers.py:848
+#, fuzzy
+msgid "Each tax account may appear only once in the tax table."
+msgstr "Each tax account may appear only once in the tax table."
+
+#: .\accounts\serializers.py:690
+#, fuzzy
+msgid "Quantity must not be zero."
+msgstr "Quantity must not be zero."
+
+#: .\accounts\serializers.py:727
+#, fuzzy
+msgid "A document cannot be converted to or from a return."
+msgstr "A document cannot be converted to or from a return."
+
+#: .\accounts\serializers.py:735
+#, fuzzy
+msgid "Only a return can point at an original."
+msgstr "Only a return can point at an original."
+
+#: .\accounts\serializers.py:741 .\accounts\services\returns.py:123
+#, fuzzy
+msgid "A document cannot be returned against itself."
+msgstr "A document cannot be returned against itself."
+
+#: .\accounts\serializers.py:752
+#, fuzzy, python-format
+msgid ""
+"Row %(n)s: the quantity must be negative in a return and positive otherwise."
+msgstr ""
+"Row %(n)s: the quantity must be negative in a return and positive otherwise."
+
+#: .\accounts\serializers.py:766
+#, fuzzy, python-format
+msgid "Row %(n)s: the original row is not on %(name)s."
+msgstr "Row %(n)s: the original row is not on %(name)s."
+
+#: .\accounts\serializers.py:794 .\core\mixins.py:27
+#: .\manufacturing\services\work_orders.py:325
+#, fuzzy
+msgid "Quantity must be greater than zero."
+msgstr "Quantity must be greater than zero."
+
+#: .\accounts\services\allocation.py:122
+#, fuzzy, python-format
+msgid "party_type must be 'Customer' or 'Supplier', got '%(ptype)s'"
+msgstr "party_type must be 'Customer' or 'Supplier', got '%(ptype)s'"
+
+#: .\accounts\services\bank.py:229
+#, fuzzy, python-format
+msgid "%(type)s %(no)s has no live posting on this bank account."
+msgstr "%(type)s %(no)s has no live posting on this bank account."
+
+#: .\accounts\services\bank.py:270 .\accounts\services\bank.py:322
+#, fuzzy
+msgid "A voucher is listed more than once."
+msgstr "A voucher is listed more than once."
+
+#: .\accounts\services\bank.py:282 .\accounts\services\bank.py:344
+#, fuzzy, python-format
+msgid "%(type)s %(no)s is already cleared."
+msgstr "%(type)s %(no)s is already cleared."
+
+#: .\accounts\services\bank.py:289
+#, fuzzy, python-format
+msgid ""
+"The selected vouchers total %(total)s but the bank transaction is %(amount)s."
+msgstr ""
+"The selected vouchers total %(total)s but the bank transaction is %(amount)s."
+
+#: .\accounts\services\bank.py:305
+#, fuzzy
+msgid "This bank transaction is not reconciled."
+msgstr "This bank transaction is not reconciled."
+
+#: .\accounts\services\bank.py:330
+#, fuzzy, python-format
+msgid "%(type)s %(no)s is not cleared."
+msgstr "%(type)s %(no)s is not cleared."
+
+#: .\accounts\services\bank.py:336
+#, fuzzy, python-format
+msgid ""
+"%(no)s was matched to a bank transaction; unmatch that transaction instead."
+msgstr ""
+"%(no)s was matched to a bank transaction; unmatch that transaction instead."
+
+#: .\accounts\services\bank.py:350
+#, fuzzy, python-format
+msgid "The clearance date of %(no)s cannot be before its posting date."
+msgstr "The clearance date of %(no)s cannot be before its posting date."
+
+#: .\accounts\services\bank.py:369
+#, fuzzy, python-format
+msgid ""
+"%(no)s has cleared the bank. Un-clear it in the bank reconciliation before "
+"cancelling."
+msgstr ""
+"%(no)s has cleared the bank. Un-clear it in the bank reconciliation before "
+"cancelling."
+
+#: .\accounts\services\bank_import.py:133
+#, fuzzy
+msgid "Could not read the file as text."
+msgstr "Could not read the file as text."
+
+#: .\accounts\services\bank_import.py:135
+#, fuzzy
+msgid "This looks like a binary file; upload a CSV file."
+msgstr "This looks like a binary file; upload a CSV file."
+
+#: .\accounts\services\bank_import.py:146 .\core\attachments.py:307
+#: .\drive\uploads.py:146
+#, fuzzy
+msgid "The file is empty."
+msgstr "The file is empty."
+
+#: .\accounts\services\bank_import.py:148
+#, fuzzy
+msgid "The file has too many rows (limit 20,000)."
+msgstr "The file has too many rows (limit 20,000)."
+
+#: .\accounts\services\bank_import.py:257
+#, fuzzy, python-format
+msgid "Mapped column(s) not found in the file: %(cols)s"
+msgstr "Mapped column(s) not found in the file: %(cols)s"
+
+#: .\accounts\services\bank_import.py:262
+#, fuzzy
+msgid "Map the date column."
+msgstr "Map the date column."
+
+#: .\accounts\services\bank_import.py:265
+#, fuzzy
+msgid "Map the withdrawal and deposit columns (or a single amount column)."
+msgstr "Map the withdrawal and deposit columns (or a single amount column)."
+
+#: .\accounts\services\bank_import.py:284
+#, fuzzy, python-format
+msgid "Invalid amount: %(v)s"
+msgstr "Invalid amount: %(v)s"
+
+#: .\accounts\services\bank_import.py:302
+#, fuzzy, python-format
+msgid "Invalid date: %(v)s"
+msgstr "Invalid date: %(v)s"
+
+#: .\accounts\services\bank_import.py:310
+#, fuzzy
+msgid "A line cannot have both a withdrawal and a deposit."
+msgstr "A line cannot have both a withdrawal and a deposit."
+
+#: .\accounts\services\bank_import.py:339
+#, fuzzy
+msgid "Could not find the header row; choose it."
+msgstr "Could not find the header row; choose it."
+
+#: .\accounts\services\bank_import.py:347
+#, fuzzy
+msgid "No transaction lines were found in the file."
+msgstr "No transaction lines were found in the file."
+
+#: .\accounts\services\closing.py:104
+#, fuzzy, python-format
+msgid ""
+"The books are closed up to %(date)s by a Period Closing Voucher. Cancel the "
+"closing voucher before posting or cancelling entries dated on or before that "
+"day."
+msgstr ""
+"The books are closed up to %(date)s by a Period Closing Voucher. Cancel the "
+"closing voucher before posting or cancelling entries dated on or before that "
+"day."
+
+#: .\accounts\services\closing.py:190
+#, fuzzy
+msgid "The closing account cannot be a group."
+msgstr "The closing account cannot be a group."
+
+#: .\accounts\services\closing.py:193
+#, fuzzy, python-format
+msgid "Closing Account %(name)s must be of type Liability / Equity."
+msgstr "Closing Account %(name)s must be of type Liability / Equity."
+
+#: .\accounts\services\closing.py:198
+#, fuzzy, python-format
+msgid "The period end date must fall within the fiscal year %(fy)s."
+msgstr "The period end date must fall within the fiscal year %(fy)s."
+
+#: .\accounts\services\closing.py:204
+#, fuzzy, python-format
+msgid ""
+"Fiscal year %(fy)s is closed. Post the Period Closing Voucher before closing "
+"the fiscal year."
+msgstr ""
+"Fiscal year %(fy)s is closed. Post the Period Closing Voucher before closing "
+"the fiscal year."
+
+#: .\accounts\services\closing.py:213
+#, fuzzy
+msgid "The period end date belongs to a different fiscal year definition."
+msgstr "The period end date belongs to a different fiscal year definition."
+
+#: .\accounts\services\closing.py:220
+#, fuzzy, python-format
+msgid "Fiscal year %(fy)s is already closed by a Period Closing Voucher."
+msgstr "Fiscal year %(fy)s is already closed by a Period Closing Voucher."
+
+#: .\accounts\services\closing.py:226
+#, fuzzy, python-format
+msgid "You cannot close this period because %(name)s closes a later period."
+msgstr "You cannot close this period because %(name)s closes a later period."
+
+#: .\accounts\services\closing.py:232
+#, fuzzy
+msgid "There are no income or expense balances to close in this period."
+msgstr "There are no income or expense balances to close in this period."
+
+#: .\accounts\services\closing.py:258
+#, fuzzy, python-format
+msgid "The previous fiscal year (%(fy)s) is not closed, please close it first."
+msgstr "The previous fiscal year (%(fy)s) is not closed, please close it first."
+
+#: .\accounts\services\closing.py:278
+#, fuzzy, python-format
+msgid ""
+"You cannot cancel this document because another Period Closing Voucher "
+"(%(name)s) exists after %(date)s."
+msgstr ""
+"You cannot cancel this document because another Period Closing Voucher "
+"(%(name)s) exists after %(date)s."
+
+#: .\accounts\services\gl.py:58
+#, fuzzy
+msgid "Cannot post empty GL entries."
+msgstr "Cannot post empty GL entries."
+
+#: .\accounts\services\gl.py:62
+#, fuzzy
+msgid "Posting date is required for GL entry."
+msgstr "Posting date is required for GL entry."
+
+#: .\accounts\services\gl.py:81
+#, fuzzy, python-format
+msgid "Posting to group account '%(account)s' is not allowed."
+msgstr "Posting to group account '%(account)s' is not allowed."
+
+#: .\accounts\services\gl.py:90
+#, fuzzy
+msgid "Debit and credit amounts must be non-negative."
+msgstr "Debit and credit amounts must be non-negative."
+
+#: .\accounts\services\gl.py:94
+#, fuzzy
+msgid "A single GL entry line cannot have both debit and credit > 0."
+msgstr "A single GL entry line cannot have both debit and credit > 0."
+
+#: .\accounts\services\gl.py:123
+#, fuzzy, python-format
+msgid ""
+"Unbalanced GL entry: Total Debit (%(debit)s) != Total Credit (%(credit)s)."
+msgstr ""
+"Unbalanced GL entry: Total Debit (%(debit)s) != Total Credit (%(credit)s)."
+
+#: .\accounts\services\gl.py:233
+#, fuzzy, python-format
+msgid "Imbalance detected during GL repost for %(voucher_type)s:%(voucher_no)s"
+msgstr "Imbalance detected during GL repost for %(voucher_type)s:%(voucher_no)s"
+
+#: .\accounts\services\gst_position.py:37
+#, fuzzy
+msgid "Company does not exist."
+msgstr "Company does not exist."
+
+#: .\accounts\services\gst_position.py:48
+#: .\accounts\services\gst_position.py:55
+#, fuzzy
+msgid "Invalid month format. Expected YYYY-MM."
+msgstr "Invalid month format. Expected YYYY-MM."
+
+#: .\accounts\services\gst_position.py:57
+#, fuzzy
+msgid "Invalid month format."
+msgstr "Invalid month format."
+
+#: .\accounts\services\gst_position.py:182
+#, fuzzy
+msgid "Invalid as_on date format. Expected YYYY-MM-DD."
+msgstr "Invalid as_on date format. Expected YYYY-MM-DD."
+
+#: .\accounts\services\returns.py:104
+#, fuzzy, python-format
+msgid "Row %(n)s: quantity must be negative in a return."
+msgstr "Row %(n)s: quantity must be negative in a return."
+
+#: .\accounts\services\returns.py:126
+#, fuzzy, python-format
+msgid "'%(name)s' is not submitted; only a submitted document can be returned."
+msgstr "'%(name)s' is not submitted; only a submitted document can be returned."
+
+#: .\accounts\services\returns.py:131
+#, fuzzy, python-format
+msgid "'%(name)s' is itself a return and cannot be returned."
+msgstr "'%(name)s' is itself a return and cannot be returned."
+
+#: .\accounts\services\returns.py:135
+#, fuzzy, python-format
+msgid "'%(name)s' belongs to a different company."
+msgstr "'%(name)s' belongs to a different company."
+
+#: .\accounts\services\returns.py:139
+#, fuzzy, python-format
+msgid "The party does not match '%(name)s' (%(party)s)."
+msgstr "The party does not match '%(name)s' (%(party)s)."
+
+#: .\accounts\services\returns.py:144
+#, fuzzy, python-format
+msgid "The party account must be the same as in '%(name)s' (%(account)s)."
+msgstr "The party account must be the same as in '%(name)s' (%(account)s)."
+
+#: .\accounts\services\returns.py:149
+#, fuzzy, python-format
+msgid "The posting date cannot be before that of '%(name)s' (%(date)s)."
+msgstr "The posting date cannot be before that of '%(name)s' (%(date)s)."
+
+#: .\accounts\services\returns.py:157
+#, fuzzy, python-format
+msgid ""
+"'Update Stock' cannot be set: the items were not delivered through "
+"'%(name)s'."
+msgstr ""
+"'Update Stock' cannot be set: the items were not delivered through "
+"'%(name)s'."
+
+#: .\accounts\services\returns.py:208
+#, fuzzy, python-format
+msgid "Row %(n)s: item %(code)s is not on the row it returns in %(name)s."
+msgstr "Row %(n)s: item %(code)s is not on the row it returns in %(name)s."
+
+#: .\accounts\services\returns.py:221
+#, fuzzy, python-format
+msgid "Row %(n)s: item %(code)s does not exist in %(name)s."
+msgstr "Row %(n)s: item %(code)s does not exist in %(name)s."
+
+#: .\accounts\services\returns.py:230
+#, fuzzy, python-format
+msgid ""
+"Row %(n)s: the rate cannot be greater than the rate used in %(name)s "
+"(%(rate)s)."
+msgstr ""
+"Row %(n)s: the rate cannot be greater than the rate used in %(name)s "
+"(%(rate)s)."
+
+#: .\accounts\services\returns.py:243
+#, fuzzy, python-format
+msgid ""
+"Row %(n)s: a batch-tracked item must be returned from the batch of %(name)s."
+msgstr ""
+"Row %(n)s: a batch-tracked item must be returned from the batch of %(name)s."
+
+#: .\accounts\services\returns.py:254
+#, fuzzy, python-format
+msgid ""
+"Cannot return more than %(max)s of item %(code)s from this row of %(name)s."
+msgstr ""
+"Cannot return more than %(max)s of item %(code)s from this row of %(name)s."
+
+#: .\accounts\services\returns.py:286
+#, fuzzy, python-format
+msgid "Cannot return more than %(max)s of item %(code)s from %(name)s."
+msgstr "Cannot return more than %(max)s of item %(code)s from %(name)s."
+
+#: .\accounts\services\returns.py:311
+#, fuzzy, python-format
+msgid ""
+"The outstanding amount %(open)s in %(name)s is less than %(total)s: this "
+"return keeps its own outstanding amount instead."
+msgstr ""
+"The outstanding amount %(open)s in %(name)s is less than %(total)s: this "
+"return keeps its own outstanding amount instead."
+
+#: .\accounts\services\tax_payment.py:26
+#, fuzzy, python-format
+msgid "No Output GST account found for %(component)s in company '%(company)s'."
+msgstr "No Output GST account found for %(component)s in company '%(company)s'."
+
+#: .\accounts\services\tax_payment.py:40
+#, fuzzy, python-format
+msgid "No Input GST account found for %(component)s in company '%(company)s'."
+msgstr "No Input GST account found for %(component)s in company '%(company)s'."
+
+#: .\accounts\services\tax_payment.py:60
+#, fuzzy, python-format
+msgid "No TDS Payable account found for company '%(company)s'."
+msgstr "No TDS Payable account found for company '%(company)s'."
+
+#: .\accounts\services\tax_payment.py:74
+#, fuzzy
+msgid "Paid From account is required when cash is paid."
+msgstr "Paid From account is required when cash is paid."
+
+#: .\accounts\services\tax_payment.py:77
+#, fuzzy, python-format
+msgid ""
+"Paid From account '%(account)s' does not belong to company '%(company)s'."
+msgstr ""
+"Paid From account '%(account)s' does not belong to company '%(company)s'."
+
+#: .\accounts\services\taxes.py:168
+#, fuzzy, python-format
+msgid ""
+"Tax rounding drift: row total and line amounts disagree by %(residual)s."
+msgstr ""
+"Tax rounding drift: row total and line amounts disagree by %(residual)s."
+
+#: .\accounts\services\taxes.py:201
+#, fuzzy
+msgid "The combined GST rate of a line cannot exceed 100%."
+msgstr "The combined GST rate of a line cannot exceed 100%."
+
+#: .\accounts\views.py:229
+#, fuzzy
+msgid "party_type, party, and amount query parameters are required."
+msgstr "party_type, party, and amount query parameters are required."
+
+#: .\accounts\views.py:237
+#, fuzzy, python-format
+msgid "Invalid amount '%(amount)s'."
+msgstr "Invalid amount '%(amount)s'."
+
+#: .\accounts\views.py:588
+#, fuzzy
+msgid "Party not found."
+msgstr "Party not found."
+
+#: .\accounts\views.py:590 .\gst\views.py:77
+#, fuzzy
+msgid "Party must belong to the company."
+msgstr "Party must belong to the company."
+
+#: .\accounts\views.py:658
+#, fuzzy
+msgid "Charge amounts must be numbers."
+msgstr "Charge amounts must be numbers."
+
+#: .\accounts\views.py:742 .\buying\views.py:300 .\core\company_context.py:69
+#: .\stock\views.py:663
+#, fuzzy
+msgid "Company not found."
+msgstr "Company not found."
+
+#: .\accounts\views.py:784
+#, fuzzy
+msgid "month query parameter is required (YYYY-MM)."
+msgstr "month query parameter is required (YYYY-MM)."
+
+#: .\assistant\proposals.py:55
+#, fuzzy, python-format
+msgid "Which %(kind)s did you mean for '%(query)s'?"
+msgstr "Which %(kind)s did you mean for '%(query)s'?"
+
+#: .\assistant\proposals.py:61
+#, fuzzy, python-format
+msgid "%(kind)s '%(query)s' not found."
+msgstr "%(kind)s '%(query)s' not found."
+
+#: .\assistant\proposals.py:96
+#, fuzzy
+msgid "You do not have permission to create Sales Orders."
+msgstr "You do not have permission to create Sales Orders."
+
+#: .\assistant\proposals.py:128 .\assistant\proposals.py:325
+#: .\assistant\proposals.py:521
+#, fuzzy, python-format
+msgid "Quantity for %(item)s is zero or negative."
+msgstr "Quantity for %(item)s is zero or negative."
+
+#: .\assistant\proposals.py:149 .\assistant\proposals.py:346
+#, fuzzy, python-format
+msgid ""
+"Rate you specified for %(item)s: ₹%(rate)s, price list rate: ₹%(server_rate)s"
+msgstr ""
+"Rate you specified for %(item)s: ₹%(rate)s, price list rate: ₹%(server_rate)s"
+
+#: .\assistant\proposals.py:157 .\assistant\proposals.py:354
+#: .\assistant\proposals.py:549
+#, fuzzy, python-format
+msgid "No rate found for %(item)s. Please enter it in the form."
+msgstr "No rate found for %(item)s. Please enter it in the form."
+
+#: .\assistant\proposals.py:190 .\assistant\proposals.py:387
+#, fuzzy, python-format
+msgid ""
+"Customer credit limit is ₹%(limit)s; current outstanding is ₹%(outstanding)s."
+msgstr ""
+"Customer credit limit is ₹%(limit)s; current outstanding is ₹%(outstanding)s."
+
+#: .\assistant\proposals.py:246
+#, fuzzy, python-format
+msgid "Sales Order for %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+msgstr "Sales Order for %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+
+#: .\assistant\proposals.py:293
+#, fuzzy
+msgid "You do not have permission to create Sales Invoices."
+msgstr "You do not have permission to create Sales Invoices."
+
+#: .\assistant\proposals.py:442
+#, fuzzy, python-format
+msgid "Sales Invoice to %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+msgstr "Sales Invoice to %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+
+#: .\assistant\proposals.py:491
+#, fuzzy
+msgid "You do not have permission to create Purchase Invoices."
+msgstr "You do not have permission to create Purchase Invoices."
+
+#: .\assistant\proposals.py:541
+#, fuzzy, python-format
+msgid ""
+"Rate you specified for %(item)s: ₹%(rate)s, purchase rate: ₹%(server_rate)s"
+msgstr ""
+"Rate you specified for %(item)s: ₹%(rate)s, purchase rate: ₹%(server_rate)s"
+
+#: .\assistant\proposals.py:575
+#, fuzzy, python-format
+msgid ""
+"Bill total mismatch: stated ₹%(stated)s, computed items total is ₹%(total)s"
+msgstr ""
+"Bill total mismatch: stated ₹%(stated)s, computed items total is ₹%(total)s"
+
+#: .\assistant\proposals.py:631
+#, fuzzy, python-format
+msgid ""
+"Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s (Bill #"
+"%(bill_no)s)"
+msgstr ""
+"Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s (Bill #"
+"%(bill_no)s)"
+
+#: .\assistant\proposals.py:639
+#, fuzzy, python-format
+msgid "Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s"
+msgstr "Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s"
+
+#: .\assistant\proposals.py:687
+#, fuzzy
+msgid "You do not have permission to create Payment Entries."
+msgstr "You do not have permission to create Payment Entries."
+
+#: .\assistant\proposals.py:708
+#, fuzzy
+msgid "Payment amount must be greater than zero."
+msgstr "Payment amount must be greater than zero."
+
+#: .\assistant\proposals.py:717
+#, fuzzy
+msgid "Please check the cash/bank account: the usual one was not found."
+msgstr "Please check the cash/bank account: the usual one was not found."
+
+#: .\assistant\proposals.py:794
+#, fuzzy, python-format
+msgid ""
+"Payment Entry (%(payment_type)s) for %(party_type)s %(party)s: ₹%(amount)s"
+msgstr ""
+"Payment Entry (%(payment_type)s) for %(party_type)s %(party)s: ₹%(amount)s"
+
+#: .\assistant\views.py:162
+#, fuzzy
+msgid "No audio file uploaded."
+msgstr "No audio file uploaded."
+
+#: .\assistant\views.py:178
+#, fuzzy
+msgid "Voice input is not available right now."
+msgstr "Voice input is not available right now."
+
+#: .\buying\mapping.py:19
+#, fuzzy
+msgid "Purchase Invoice can only be made from a submitted Purchase Order."
+msgstr "Purchase Invoice can only be made from a submitted Purchase Order."
+
+#: .\buying\mapping.py:31
+#, fuzzy, python-format
+msgid "Purchase Order '%(name)s' is already fully invoiced."
+msgstr "Purchase Order '%(name)s' is already fully invoiced."
+
+#: .\buying\models.py:128
+#, fuzzy
+msgid "The GL account must be of root type Expense."
+msgstr "The GL account must be of root type Expense."
+
+#: .\buying\models.py:161
+#, fuzzy
+msgid "Day of month when this expense is due (1-31)."
+msgstr "Day of month when this expense is due (1-31)."
+
+#: .\buying\models.py:184 .\hr\serializers.py:925 .\hr\serializers.py:988
+#: .\hr\services\portal_requests.py:40 .\hr\services\portal_requests.py:108
+#, fuzzy
+msgid "Amount must be greater than zero."
+msgstr "Amount must be greater than zero."
+
+#: .\buying\models.py:186
+#, fuzzy
+msgid "Day of month must be between 1 and 31."
+msgstr "Day of month must be between 1 and 31."
+
+#: .\buying\models.py:190
+#, fuzzy
+msgid "Expense category must belong to the same company."
+msgstr "Expense category must belong to the same company."
+
+#: .\buying\models.py:194
+#, fuzzy
+msgid "Supplier must belong to the same company."
+msgstr "Supplier must belong to the same company."
+
+#: .\buying\models.py:241
+#, fuzzy
+msgid "Purchase Order must have at least one line item."
+msgstr "Purchase Order must have at least one line item."
+
+#: .\buying\models.py:285
+#, fuzzy
+msgid "Amount"
+msgstr "Amount"
+
+#: .\buying\models.py:286
+#, fuzzy
+msgid "Qty"
+msgstr "Qty"
+
+#: .\buying\models.py:473 .\selling\models.py:303
+#, fuzzy
+msgid "Due date is required at submit."
+msgstr "Due date is required at submit."
+
+#: .\buying\models.py:475 .\selling\models.py:305
+#, fuzzy
+msgid "Due date cannot be before posting date."
+msgstr "Due date cannot be before posting date."
+
+#: .\buying\models.py:477
+#, fuzzy
+msgid "Due date cannot be before the bill date."
+msgstr "Due date cannot be before the bill date."
+
+#: .\buying\models.py:481
+#, fuzzy
+msgid "Purchase Invoice must have at least one line item."
+msgstr "Purchase Invoice must have at least one line item."
+
+#: .\buying\models.py:485 .\buying\serializers.py:568
+#, fuzzy
+msgid "Expenses cannot update stock."
+msgstr "Expenses cannot update stock."
+
+#: .\buying\models.py:491 .\buying\models.py:501
+#, fuzzy
+msgid "Expense line account must match category account."
+msgstr "Expense line account must match category account."
+
+#: .\buying\models.py:507
+#, fuzzy
+msgid "Enter the supplier's invoice number (Bill No) before submitting."
+msgstr "Enter the supplier's invoice number (Bill No) before submitting."
+
+#: .\buying\models.py:511 .\buying\serializers.py:590
+#, fuzzy
+msgid "Bill Date cannot be after the posting date."
+msgstr "Bill Date cannot be after the posting date."
+
+#: .\buying\models.py:521
+#, fuzzy
+msgid "Credit-to and expense accounts must belong to the invoice's company."
+msgstr "Credit-to and expense accounts must belong to the invoice's company."
+
+#: .\buying\models.py:525
+#, fuzzy
+msgid "Supplier must belong to the invoice's company."
+msgstr "Supplier must belong to the invoice's company."
+
+#: .\buying\models.py:552
+#, fuzzy, python-format
+msgid ""
+"Purchase Invoice '%(name)s' does not update stock: remove the batch details "
+"from item '%(code)s'."
+msgstr ""
+"Purchase Invoice '%(name)s' does not update stock: remove the batch details "
+"from item '%(code)s'."
+
+#: .\buying\models.py:564 .\stock\models.py:678
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not batch-tracked; remove the batch details."
+msgstr "Item '%(code)s' is not batch-tracked; remove the batch details."
+
+#: .\buying\models.py:576
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s': a return must use the batch of the purchase (pick the "
+"existing batch)."
+msgstr ""
+"Item '%(code)s': a return must use the batch of the purchase (pick the "
+"existing batch)."
+
+#: .\buying\models.py:585 .\stock\models.py:686
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s': pick an existing batch or enter new-batch details, not both."
+msgstr ""
+"Item '%(code)s': pick an existing batch or enter new-batch details, not both."
+
+#: .\buying\models.py:593 .\selling\models.py:163 .\selling\models.py:377
+#, fuzzy, python-format
+msgid "Item '%(code)s': batch '%(batch)s' belongs to a different item."
+msgstr "Item '%(code)s': batch '%(batch)s' belongs to a different item."
+
+#: .\buying\models.py:631 .\selling\models.py:407
+#, fuzzy, python-format
+msgid "Warehouse required for item '%(code)s' when update_stock is enabled."
+msgstr "Warehouse required for item '%(code)s' when update_stock is enabled."
+
+#: .\buying\serializers.py:325 .\buying\serializers.py:362
+#, fuzzy
+msgid "Choose the expense account of a charge on the bill."
+msgstr "Choose the expense account of a charge on the bill."
+
+#: .\buying\serializers.py:370
+#, fuzzy
+msgid "The account must belong to the template's company."
+msgstr "The account must belong to the template's company."
+
+#: .\buying\serializers.py:379
+#, fuzzy
+msgid "A charge template with this name already exists."
+msgstr "A charge template with this name already exists."
+
+#: .\buying\serializers.py:559
+#, fuzzy
+msgid "Expense category is required for expense bills."
+msgstr "Expense category is required for expense bills."
+
+#: .\buying\serializers.py:605
+#, fuzzy, python-format
+msgid "Supplier invoice no '%(bill_no)s' is already booked on %(name)s."
+msgstr "Supplier invoice no '%(bill_no)s' is already booked on %(name)s."
+
+#: .\buying\serializers.py:619 .\buying\services\charges.py:150
+#, fuzzy
+msgid "A return (debit note) cannot carry extra charges."
+msgstr "A return (debit note) cannot carry extra charges."
+
+#: .\buying\serializers.py:629
+#, fuzzy, python-format
+msgid "Row %(n)s: the account must be a ledger of the invoice's company."
+msgstr "Row %(n)s: the account must be a ledger of the invoice's company."
+
+#: .\buying\services\charges.py:154
+#, fuzzy
+msgid ""
+"Extra charges are added to the stock value: turn on 'Update Stock' or remove "
+"the charges."
+msgstr ""
+"Extra charges are added to the stock value: turn on 'Update Stock' or remove "
+"the charges."
+
+#: .\buying\services\charges.py:161
+#, fuzzy
+msgid "Extra charges need at least one stock item line to be spread over."
+msgstr "Extra charges need at least one stock item line to be spread over."
+
+#: .\buying\services\charges.py:166
+#, fuzzy, python-format
+msgid "Charge row %(n)s: the amount must be greater than zero."
+msgstr "Charge row %(n)s: the amount must be greater than zero."
+
+#: .\buying\services\charges.py:171
+#, fuzzy, python-format
+msgid ""
+"Charge row %(n)s: the stock lines have no value to spread an amount-based "
+"charge over; spread it by quantity."
+msgstr ""
+"Charge row %(n)s: the stock lines have no value to spread an amount-based "
+"charge over; spread it by quantity."
+
+#: .\buying\services\charges.py:181
+#, fuzzy, python-format
+msgid "Charge row %(n)s: choose the expense account of a charge on the bill."
+msgstr "Charge row %(n)s: choose the expense account of a charge on the bill."
+
+#: .\buying\services\charges.py:189
+#, fuzzy, python-format
+msgid ""
+"Charge row %(n)s: the account must be a ledger of the invoice's company."
+msgstr ""
+"Charge row %(n)s: the account must be a ledger of the invoice's company."
+
+#: .\buying\services\charges.py:196
+#, fuzzy, python-format
+msgid "Charge row %(n)s: the account must be an expense account."
+msgstr "Charge row %(n)s: the account must be an expense account."
+
+#: .\buying\services\charges.py:205
+#, fuzzy, python-format
+msgid ""
+"Perpetual inventory needs the '%(name)s' account for company "
+"'%(company)s' (run seed_defaults)."
+msgstr ""
+"Perpetual inventory needs the '%(name)s' account for company "
+"'%(company)s' (run seed_defaults)."
+
+#: .\buying\services\expenses.py:56 .\buying\views.py:309
+#, fuzzy
+msgid "Expense category is required."
+msgstr "Expense category is required."
+
+#: .\buying\services\expenses.py:59
+#, fuzzy
+msgid "Expense amount is required."
+msgstr "Expense amount is required."
+
+#: .\buying\services\expenses.py:65
+#, fuzzy
+msgid "Invalid expense amount."
+msgstr "Invalid expense amount."
+
+#: .\buying\services\expenses.py:68 .\buying\views.py:342
+#, fuzzy
+msgid "Expense amount must be greater than zero."
+msgstr "Expense amount must be greater than zero."
+
+#: .\buying\services\expenses.py:72
+#, fuzzy
+msgid "Paid from account is required when paid now is selected."
+msgstr "Paid from account is required when paid now is selected."
+
+#: .\buying\services\expenses.py:79
+#, fuzzy
+msgid "Invalid date format."
+msgstr "Invalid date format."
+
+#: .\buying\services\expenses.py:86
+#, fuzzy
+msgid "Invalid due date format."
+msgstr "Invalid due date format."
+
+#: .\buying\views.py:147 .\buying\views.py:193 .\selling\views.py:219
+#: .\selling\views.py:266
+#, fuzzy
+msgid "Rates can only be refreshed on a draft."
+msgstr "Rates can only be refreshed on a draft."
+
+#: .\buying\views.py:197 .\selling\views.py:271
+#, fuzzy
+msgid "A return keeps the rates of the original invoice."
+msgstr "A return keeps the rates of the original invoice."
+
+#: .\buying\views.py:304
+#, fuzzy
+msgid "Company is required."
+msgstr "Company is required."
+
+#: .\buying\views.py:315
+#, fuzzy
+msgid "Expense category not found."
+msgstr "Expense category not found."
+
+#: .\buying\views.py:324 .\stock\views.py:628
+#, fuzzy
+msgid "Supplier not found."
+msgstr "Supplier not found."
+
+#: .\buying\views.py:330
+#, fuzzy
+msgid "Supplier is required."
+msgstr "Supplier is required."
+
+#: .\buying\views.py:334
+#, fuzzy
+msgid "Amount is required."
+msgstr "Amount is required."
+
+#: .\buying\views.py:338 .\payment_reconciliation\services.py:696
+#, fuzzy
+msgid "Invalid amount."
+msgstr "Invalid amount."
+
+#: .\buying\views.py:353
+#, fuzzy
+msgid "Tax template not found."
+msgstr "Tax template not found."
+
+#: .\buying\views.py:363
+#, fuzzy
+msgid "Paid from account not found."
+msgstr "Paid from account not found."
+
+#: .\contacts\models.py:19
+#, fuzzy
+msgid "Enter a 6-digit PIN code."
+msgstr "Enter a 6-digit PIN code."
+
+#: .\contacts\models.py:23
+#, fuzzy
+msgid "Billing"
+msgstr "Billing"
+
+#: .\contacts\models.py:24
+#, fuzzy
+msgid "Shipping"
+msgstr "Shipping"
+
+#: .\contacts\models.py:25
+#, fuzzy
+msgid "Office"
+msgstr "Office"
+
+#: .\contacts\models.py:26
+#, fuzzy
+msgid "Personal"
+msgstr "Personal"
+
+#: .\contacts\models.py:27
+#, fuzzy
+msgid "Plant"
+msgstr "Plant"
+
+#: .\contacts\models.py:28
+#, fuzzy
+msgid "Postal"
+msgstr "Postal"
+
+#: .\contacts\models.py:29
+#, fuzzy
+msgid "Shop"
+msgstr "Shop"
+
+#: .\contacts\models.py:30
+#, fuzzy
+msgid "Subsidiary"
+msgstr "Subsidiary"
+
+#: .\contacts\models.py:31
+#, fuzzy
+msgid "Warehouse"
+msgstr "Warehouse"
+
+#: .\contacts\models.py:32
+#, fuzzy
+msgid "Current"
+msgstr "Current"
+
+#: .\contacts\models.py:33
+#, fuzzy
+msgid "Permanent"
+msgstr "Permanent"
+
+#: .\contacts\models.py:34 .\hr\models.py:37 .\hr\models.py:83
+#, fuzzy
+msgid "Other"
+msgstr "Other"
+
+#: .\contacts\serializers.py:58
+#, fuzzy
+msgid "Link the address to exactly one customer or one supplier."
+msgstr "Link the address to exactly one customer or one supplier."
+
+#: .\contacts\serializers.py:71
+#, fuzzy
+msgid "This party already has a primary address."
+msgstr "This party already has a primary address."
+
+#: .\contacts\views.py:41
+#, fuzzy
+msgid "The party must belong to the active company."
+msgstr "The party must belong to the active company."
+
+#: .\core\attachments.py:112
+#, fuzzy
+msgid "Files cannot be attached to this kind of record."
+msgstr "Files cannot be attached to this kind of record."
+
+#: .\core\attachments.py:166 .\core\views.py:460
+#, fuzzy
+msgid "You do not have permission to do that."
+msgstr "You do not have permission to do that."
+
+#: .\core\attachments.py:171 .\core\models.py:895
+#, fuzzy
+msgid "Proof attached to a submitted or cancelled document cannot be deleted."
+msgstr "Proof attached to a submitted or cancelled document cannot be deleted."
+
+#: .\core\attachments.py:180
+#, fuzzy
+msgid "Only the uploader or a manager can delete this attachment."
+msgstr "Only the uploader or a manager can delete this attachment."
+
+#: .\core\attachments.py:292 .\drive\uploads.py:131
+#, fuzzy
+msgid "No file was uploaded."
+msgstr "No file was uploaded."
+
+#: .\core\attachments.py:300 .\drive\uploads.py:139
+#, fuzzy, python-format
+msgid "This file type is not allowed. Allowed: %(types)s."
+msgstr "This file type is not allowed. Allowed: %(types)s."
+
+#: .\core\attachments.py:312 .\drive\uploads.py:151
+#, fuzzy, python-format
+msgid "The file is too large. The maximum size is %(mb)s MB."
+msgstr "The file is too large. The maximum size is %(mb)s MB."
+
+#: .\core\attachments.py:321 .\drive\uploads.py:161 .\drive\uploads.py:168
+#, fuzzy
+msgid "The file content does not match its type, so it was rejected."
+msgstr "The file content does not match its type, so it was rejected."
+
+#: .\core\company_context.py:65
+#, fuzzy
+msgid "Must be a company id."
+msgstr "Must be a company id."
+
+#: .\core\company_context.py:70
+#, fuzzy
+msgid "You do not have access to this company."
+msgstr "You do not have access to this company."
+
+#: .\core\company_context.py:83
+#, fuzzy
+msgid "No company is assigned to your user."
+msgstr "No company is assigned to your user."
+
+#: .\core\company_context.py:129 .\hr\serializers.py:518
+#: .\hr\serializers.py:563
+#, fuzzy
+msgid "The company cannot be changed."
+msgstr "The company cannot be changed."
+
+#: .\core\mixins.py:36
+#, fuzzy
+msgid "Rate cannot be negative."
+msgstr "Rate cannot be negative."
+
+#: .\core\mixins.py:103 .\stock\services\variants.py:41
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s' is a template with variants: select one of its variants "
+"instead."
+msgstr ""
+"Item '%(code)s' is a template with variants: select one of its variants "
+"instead."
+
+#: .\core\mixins.py:271 .\core\models.py:230 .\core\models.py:234
+#, fuzzy
+msgid "Submitted or cancelled documents cannot be modified."
+msgstr "Submitted or cancelled documents cannot be modified."
+
+#: .\core\mixins.py:478
+#, fuzzy
+msgid "Only draft documents can be deleted; cancel and amend instead."
+msgstr "Only draft documents can be deleted; cancel and amend instead."
+
+#: .\core\mixins.py:559
+#, fuzzy, python-format
+msgid "You do not have permission to create %(target)s."
+msgstr "You do not have permission to create %(target)s."
+
+#: .\core\models.py:91 .\core\models.py:114
+#, fuzzy
+msgid "Document no longer exists."
+msgstr "Document no longer exists."
+
+#: .\core\models.py:93
+#, fuzzy
+msgid "Only draft documents can be submitted."
+msgstr "Only draft documents can be submitted."
+
+#: .\core\models.py:116
+#, fuzzy
+msgid "Only submitted documents can be cancelled."
+msgstr "Only submitted documents can be cancelled."
+
+#: .\core\models.py:132
+#, fuzzy
+msgid "Only cancelled documents can be amended."
+msgstr "Only cancelled documents can be amended."
+
+#: .\core\models.py:240
+#, fuzzy
+msgid "Only draft documents can be deleted."
+msgstr "Only draft documents can be deleted."
+
+#: .\core\models.py:307
+#, fuzzy
+msgid "Enter a valid 6-digit PIN code."
+msgstr "Enter a valid 6-digit PIN code."
+
+#: .\core\models.py:319
+#, fuzzy
+msgid "Enter a valid 10-character PAN."
+msgstr "Enter a valid 10-character PAN."
+
+#: .\core\models.py:331
+#, fuzzy
+msgid "Enter a valid 21-character CIN."
+msgstr "Enter a valid 21-character CIN."
+
+#: .\core\models.py:484
+#, fuzzy
+msgid "State is required when a GSTIN is set."
+msgstr "State is required when a GSTIN is set."
+
+#: .\core\models.py:487
+#, fuzzy, python-format
+msgid "GSTIN prefix %(code)s does not match the selected state."
+msgstr "GSTIN prefix %(code)s does not match the selected state."
+
+#: .\core\models.py:491
+#, fuzzy
+msgid "A company with a GSTIN must be 'Registered Regular'."
+msgstr "A company with a GSTIN must be 'Registered Regular'."
+
+#: .\core\models.py:497
+#, fuzzy
+msgid "Round-off account must belong to this company."
+msgstr "Round-off account must belong to this company."
+
+#: .\core\models.py:501
+#, fuzzy
+msgid "Round-off account must not be a group account."
+msgstr "Round-off account must not be a group account."
+
+#: .\core\models.py:512
+#, fuzzy
+msgid "Pick a non-group account of this company."
+msgstr "Pick a non-group account of this company."
+
+#: .\core\models.py:514
+#, fuzzy, python-format
+msgid "Pick an account of type %(type)s."
+msgstr "Pick an account of type %(type)s."
+
+#: .\core\models.py:518
+#, fuzzy
+msgid "Pick an Income account."
+msgstr "Pick an Income account."
+
+#: .\core\models.py:528
+#, fuzzy
+msgid "Pick a non-group warehouse of this company."
+msgstr "Pick a non-group warehouse of this company."
+
+#: .\core\models.py:551
+#, fuzzy, python-format
+msgid ""
+"Perpetual inventory is enabled for company '%(company)s' but Company."
+"%(field)s is not set."
+msgstr ""
+"Perpetual inventory is enabled for company '%(company)s' but Company."
+"%(field)s is not set."
+
+#: .\core\models.py:558
+#, fuzzy, python-format
+msgid "Company.%(field)s ('%(account)s') must not be a group account."
+msgstr "Company.%(field)s ('%(account)s') must not be a group account."
+
+#: .\core\models.py:564
+#, fuzzy, python-format
+msgid "Company.%(field)s ('%(account)s') must belong to company '%(company)s'."
+msgstr "Company.%(field)s ('%(account)s') must belong to company '%(company)s'."
+
+#: .\core\models.py:641
+#, fuzzy, python-format
+msgid "No fiscal year found for posting date %(date)s."
+msgstr "No fiscal year found for posting date %(date)s."
+
+#: .\core\models.py:645
+#, fuzzy, python-format
+msgid "Fiscal year %(name)s is closed; posting on %(date)s is not allowed."
+msgstr "Fiscal year %(name)s is closed; posting on %(date)s is not allowed."
+
+#: .\core\models.py:652
+#, fuzzy
+msgid "End date must be after start date."
+msgstr "End date must be after start date."
+
+#: .\core\models.py:700
+#, fuzzy
+msgid "AuditLog rows are immutable and cannot be updated."
+msgstr "AuditLog rows are immutable and cannot be updated."
+
+#: .\core\models.py:705
+#, fuzzy
+msgid "AuditLog rows are immutable and cannot be deleted."
+msgstr "AuditLog rows are immutable and cannot be deleted."
+
+#: .\core\models.py:814 .\core\models.py:817 .\core\models.py:882
+#, fuzzy
+msgid "Attachments are immutable and cannot be updated."
+msgstr "Attachments are immutable and cannot be updated."
+
+#: .\core\views.py:466
+#, fuzzy
+msgid "Attachment not found."
+msgstr "Attachment not found."
+
+#: .\core\views.py:477
+#, fuzzy
+msgid "The record to attach to is missing."
+msgstr "The record to attach to is missing."
+
+#: .\core\views.py:588
+#, fuzzy
+msgid "This file is already attached to this record."
+msgstr "This file is already attached to this record."
+
+#: .\core\views.py:631 .\drive\views.py:317
+#, fuzzy
+msgid "The stored file is missing."
+msgstr "The stored file is missing."
+
+#: .\drive\models.py:87
+#, fuzzy
+msgid "A folder cannot be moved across companies."
+msgstr "A folder cannot be moved across companies."
+
+#: .\drive\models.py:89
+#, fuzzy
+msgid "A folder cannot be its own parent."
+msgstr "A folder cannot be its own parent."
+
+#: .\drive\models.py:91
+#, fuzzy
+msgid "A system folder requires a system key."
+msgstr "A system folder requires a system key."
+
+#: .\drive\models.py:96
+#, fuzzy
+msgid "A folder cannot be inside itself."
+msgstr "A folder cannot be inside itself."
+
+#: .\drive\models.py:150
+#, fuzzy
+msgid "The folder belongs to another company."
+msgstr "The folder belongs to another company."
+
+#: .\drive\models.py:152 .\drive\views.py:217 .\drive\views.py:280
+#, fuzzy
+msgid "Invalid visibility."
+msgstr "Invalid visibility."
+
+#: .\drive\serializers.py:64
+#, fuzzy
+msgid "A folder name is required."
+msgstr "A folder name is required."
+
+#: .\drive\serializers.py:79 .\drive\views.py:107
+#, fuzzy
+msgid "A folder with this name already exists here."
+msgstr "A folder with this name already exists here."
+
+#: .\drive\serializers.py:88
+#, fuzzy
+msgid "That folder is not in this company."
+msgstr "That folder is not in this company."
+
+#: .\drive\serializers.py:95
+#, fuzzy
+msgid "A folder cannot be moved into itself."
+msgstr "A folder cannot be moved into itself."
+
+#: .\drive\services.py:94
+#, fuzzy
+msgid "That user is not active."
+msgstr "That user is not active."
+
+#: .\drive\services.py:96
+#, fuzzy
+msgid "That user is not a member of this company."
+msgstr "That user is not a member of this company."
+
+#: .\drive\services.py:98
+#, fuzzy
+msgid "You already have access to your own file."
+msgstr "You already have access to your own file."
+
+#: .\drive\views.py:57
+#, fuzzy
+msgid "A folder is required."
+msgstr "A folder is required."
+
+#: .\drive\views.py:61
+#, fuzzy
+msgid "Must be a folder id."
+msgstr "Must be a folder id."
+
+#: .\drive\views.py:66
+#, fuzzy
+msgid "That folder was not found."
+msgstr "That folder was not found."
+
+#: .\drive\views.py:95 .\drive\views.py:195
+#, fuzzy
+msgid "Must be a folder id or 'root'."
+msgstr "Must be a folder id or 'root'."
+
+#: .\drive\views.py:120
+#, fuzzy
+msgid "Only the folder creator can change it."
+msgstr "Only the folder creator can change it."
+
+#: .\drive\views.py:122
+#, fuzzy
+msgid "System folders cannot be renamed or moved."
+msgstr "System folders cannot be renamed or moved."
+
+#: .\drive\views.py:134
+#, fuzzy
+msgid "System folders cannot be deleted."
+msgstr "System folders cannot be deleted."
+
+#: .\drive\views.py:136
+#, fuzzy
+msgid "Only the folder creator can delete it."
+msgstr "Only the folder creator can delete it."
+
+#: .\drive\views.py:139
+#, fuzzy
+msgid "Move or delete the folder's contents before deleting it."
+msgstr "Move or delete the folder's contents before deleting it."
+
+#: .\drive\views.py:258
+#, fuzzy
+msgid "You do not have permission to edit this file."
+msgstr "You do not have permission to edit this file."
+
+#: .\drive\views.py:266
+#, fuzzy
+msgid "A file name is required."
+msgstr "A file name is required."
+
+#: .\drive\views.py:276 .\drive\views.py:374
+#, fuzzy
+msgid "Only the uploader can change sharing."
+msgstr "Only the uploader can change sharing."
+
+#: .\drive\views.py:298
+#, fuzzy
+msgid "Only the uploader can delete this file."
+msgstr "Only the uploader can delete this file."
+
+#: .\drive\views.py:329
+#, fuzzy
+msgid "Only the uploader can share this file."
+msgstr "Only the uploader can share this file."
+
+#: .\drive\views.py:335
+#, fuzzy
+msgid "Select at least one person."
+msgstr "Select at least one person."
+
+#: .\drive\views.py:347
+#, fuzzy
+msgid "Every recipient must be a user id."
+msgstr "Every recipient must be a user id."
+
+#: .\drive\views.py:378
+#, fuzzy
+msgid "A user id is required."
+msgstr "A user id is required."
+
+#: .\gst\constants.py:44
+#, fuzzy
+msgid "Input"
+msgstr "Input"
+
+#: .\gst\constants.py:45
+#, fuzzy
+msgid "Output"
+msgstr "Output"
+
+#: .\gst\constants.py:46
+#, fuzzy
+msgid "Reverse Charge"
+msgstr "Reverse Charge"
+
+#: .\gst\constants.py:50
+#, fuzzy
+msgid "Taxable"
+msgstr "Taxable"
+
+#: .\gst\constants.py:51
+#, fuzzy
+msgid "Nil-Rated"
+msgstr "Nil-Rated"
+
+#: .\gst\constants.py:52
+#, fuzzy
+msgid "Exempted"
+msgstr "Exempted"
+
+#: .\gst\constants.py:53
+#, fuzzy
+msgid "Non-GST"
+msgstr "Non-GST"
+
+#: .\gst\constants.py:57
+#, fuzzy
+msgid "Sales"
+msgstr "Sales"
+
+#: .\gst\constants.py:58
+#, fuzzy
+msgid "Purchase"
+msgstr "Purchase"
+
+#: .\gst\constants.py:62
+#, fuzzy
+msgid "Intra-State"
+msgstr "Intra-State"
+
+#: .\gst\constants.py:63
+#, fuzzy
+msgid "Inter-State"
+msgstr "Inter-State"
+
+#: .\gst\constants.py:68
+#, fuzzy
+msgid "On Net Total"
+msgstr "On Net Total"
+
+#: .\gst\constants.py:72
+#, fuzzy
+msgid "Add"
+msgstr "Add"
+
+#: .\gst\constants.py:73
+#, fuzzy
+msgid "Deduct"
+msgstr "Deduct"
+
+#: .\gst\constants.py:78
+#, fuzzy
+msgid "Total"
+msgstr "Total"
+
+#: .\gst\reports\__init__.py:67
+#, fuzzy
+msgid "Use either 'month' or 'from_date'/'to_date', not both."
+msgstr "Use either 'month' or 'from_date'/'to_date', not both."
+
+#: .\gst\reports\__init__.py:71
+#, fuzzy
+msgid "Enter a valid month (YYYY-MM)."
+msgstr "Enter a valid month (YYYY-MM)."
+
+#: .\gst\reports\__init__.py:80
+#, fuzzy
+msgid "Give a 'month' (YYYY-MM) or both 'from_date' and 'to_date'."
+msgstr "Give a 'month' (YYYY-MM) or both 'from_date' and 'to_date'."
+
+#: .\gst\reports\__init__.py:102 .\gst\views.py:140
+#, fuzzy
+msgid "The company has no GSTIN; GST reports are unavailable."
+msgstr "The company has no GSTIN; GST reports are unavailable."
+
+#: .\gst\reports\tax_ledger.py:39
+#, fuzzy, python-format
+msgid "Must be one of: %(values)s."
+msgstr "Must be one of: %(values)s."
+
+#: .\gst\services\go_live.py:102
+#, fuzzy, python-format
+msgid ""
+"%(company)s has no chart of accounts (no Liability root); nothing set up."
+msgstr ""
+"%(company)s has no chart of accounts (no Liability root); nothing set up."
+
+#: .\gst\services\go_live.py:136
+#, fuzzy, python-format
+msgid ""
+"Account '%(name)s' exists but cannot be tagged as %(direction)s "
+"%(component)s; skipped."
+msgstr ""
+"Account '%(name)s' exists but cannot be tagged as %(direction)s "
+"%(component)s; skipped."
+
+#: .\gst\services\go_live.py:253
+#, fuzzy, python-format
+msgid "Accounts for %(title)s are missing; template skipped."
+msgstr "Accounts for %(title)s are missing; template skipped."
+
+#: .\gst\services\go_live.py:271
+#, fuzzy, python-format
+msgid ""
+"Template '%(title)s' exists with different rows; left unchanged and not "
+"created again."
+msgstr ""
+"Template '%(title)s' exists with different rows; left unchanged and not "
+"created again."
+
+#: .\gst\services\go_live.py:353
+#, fuzzy, python-format
+msgid ""
+"Company '%(company)s' has no GSTIN: GST invoices and the GSTR-1 / GSTR-3B "
+"reports need it. Set GSTIN, State (Madhya Pradesh = 23) and GST category "
+"'Registered Regular' on the company."
+msgstr ""
+"Company '%(company)s' has no GSTIN: GST invoices and the GSTR-1 / GSTR-3B "
+"reports need it. Set GSTIN, State (Madhya Pradesh = 23) and GST category "
+"'Registered Regular' on the company."
+
+#: .\gst\services\go_live.py:363
+#, fuzzy, python-format
+msgid "Company '%(company)s': GSTIN %(gstin)s is invalid (%(reason)s)."
+msgstr "Company '%(company)s': GSTIN %(gstin)s is invalid (%(reason)s)."
+
+#: .\gst\services\go_live.py:368
+#, fuzzy, python-format
+msgid "Company '%(company)s' has a GSTIN but no State set."
+msgstr "Company '%(company)s' has a GSTIN but no State set."
+
+#: .\gst\services\go_live.py:374
+#, fuzzy, python-format
+msgid ""
+"Company '%(company)s': GSTIN prefix %(prefix)s does not match State "
+"%(state)s."
+msgstr ""
+"Company '%(company)s': GSTIN prefix %(prefix)s does not match State "
+"%(state)s."
+
+#: .\gst\services\go_live.py:385
+#, fuzzy, python-format
+msgid "Company '%(company)s' has a GSTIN but GST category is '%(category)s'."
+msgstr "Company '%(company)s' has a GSTIN but GST category is '%(category)s'."
+
+#: .\gst\services\go_live.py:408
+#, fuzzy, python-format
+msgid ""
+"Company '%(company)s' has no tagged GST account for: %(accounts)s. Run: "
+"manage.py setup_gst_accounts --company \"%(company)s\"."
+msgstr ""
+"Company '%(company)s' has no tagged GST account for: %(accounts)s. Run: "
+"manage.py setup_gst_accounts --company \"%(company)s\"."
+
+#: .\gst\services\posting.py:73
+#, fuzzy, python-format
+msgid ""
+"No 'Reverse Charge' GST account is set up for %(components)s in company "
+"'%(company)s'."
+msgstr ""
+"No 'Reverse Charge' GST account is set up for %(components)s in company "
+"'%(company)s'."
+
+#: .\gst\services\posting.py:88
+#, fuzzy, python-format
+msgid ""
+"The invoice has a rounding adjustment but company '%(company)s' has no round-"
+"off account."
+msgstr ""
+"The invoice has a rounding adjustment but company '%(company)s' has no round-"
+"off account."
+
+#: .\gst\services\posting.py:95
+#, fuzzy
+msgid "The company's round-off account must be a ledger of that company."
+msgstr "The company's round-off account must be a ledger of that company."
+
+#: .\gst\services\supply.py:169
+#, fuzzy
+msgid ""
+"The company is not a regular GST registrant, so GST cannot be charged or "
+"claimed on this document."
+msgstr ""
+"The company is not a regular GST registrant, so GST cannot be charged or "
+"claimed on this document."
+
+#: .\gst\services\supply.py:178
+#, fuzzy
+msgid ""
+"A supply to an SEZ or overseas customer without payment of tax (LUT / bond) "
+"carries no GST."
+msgstr ""
+"A supply to an SEZ or overseas customer without payment of tax (LUT / bond) "
+"carries no GST."
+
+#: .\gst\services\supply.py:185
+#, fuzzy
+msgid "Purchases from a composition supplier carry no GST."
+msgstr "Purchases from a composition supplier carry no GST."
+
+#: .\gst\services\supply.py:191
+#, fuzzy
+msgid ""
+"GST on a purchase from an unregistered or overseas supplier applies only "
+"under reverse charge."
+msgstr ""
+"GST on a purchase from an unregistered or overseas supplier applies only "
+"under reverse charge."
+
+#: .\gst\services\supply.py:280
+#, fuzzy
+msgid "The tax template belongs to a different company."
+msgstr "The tax template belongs to a different company."
+
+#: .\gst\services\supply.py:284
+#, fuzzy, python-format
+msgid "A %(type)s document needs a %(type)s tax template."
+msgstr "A %(type)s document needs a %(type)s tax template."
+
+#: .\gst\services\supply.py:287
+#, fuzzy
+msgid "The tax template is disabled."
+msgstr "The tax template is disabled."
+
+#: .\gst\services\supply.py:313
+#, fuzzy, python-format
+msgid "Row %(n)s"
+msgstr "Row %(n)s"
+
+#: .\gst\services\supply.py:326
+#, fuzzy
+msgid "Reverse charge is not supported on sales documents."
+msgstr "Reverse charge is not supported on sales documents."
+
+#: .\gst\services\supply.py:330
+#, fuzzy
+msgid "'Export with GST' applies to sales documents only."
+msgstr "'Export with GST' applies to sales documents only."
+
+#: .\gst\services\supply.py:338
+#, fuzzy
+msgid "'Export with GST' applies only to SEZ and overseas customers."
+msgstr "'Export with GST' applies only to SEZ and overseas customers."
+
+#: .\gst\services\supply.py:353
+#, fuzzy
+msgid "Account must belong to the document's company."
+msgstr "Account must belong to the document's company."
+
+#: .\gst\services\supply.py:359
+#, fuzzy
+msgid "Only the 'On Net Total' charge type is supported."
+msgstr "Only the 'On Net Total' charge type is supported."
+
+#: .\gst\services\supply.py:361
+#, fuzzy
+msgid "Only the 'Total' tax category is supported."
+msgstr "Only the 'Total' tax category is supported."
+
+#: .\gst\services\supply.py:363
+#, fuzzy
+msgid "Add / Deduct must be 'Add' or 'Deduct'."
+msgstr "Add / Deduct must be 'Add' or 'Deduct'."
+
+#: .\gst\services\supply.py:366
+#, fuzzy
+msgid "Rate must be between 0 and 100."
+msgstr "Rate must be between 0 and 100."
+
+#: .\gst\services\supply.py:368
+#, fuzzy
+msgid "Account is used twice in the tax table."
+msgstr "Account is used twice in the tax table."
+
+#: .\gst\services\supply.py:373
+#, fuzzy, python-format
+msgid "A %(type)s document needs %(direction)s GST accounts."
+msgstr "A %(type)s document needs %(direction)s GST accounts."
+
+#: .\gst\services\supply.py:379
+#, fuzzy
+msgid "A GST row cannot be a deduction."
+msgstr "A GST row cannot be a deduction."
+
+#: .\gst\services\supply.py:385
+#, fuzzy, python-format
+msgid ""
+"%(comp)s is not applicable to this %(kind)s supply (place of supply "
+"%(pos)s). Re-apply the tax template."
+msgstr ""
+"%(comp)s is not applicable to this %(kind)s supply (place of supply "
+"%(pos)s). Re-apply the tax template."
+
+#: .\gst\services\supply.py:391
+#, fuzzy
+msgid "intra-state"
+msgstr "intra-state"
+
+#: .\gst\services\supply.py:391
+#, fuzzy
+msgid "inter-state"
+msgstr "inter-state"
+
+#: .\gst\services\supply.py:401
+#, fuzzy
+msgid "Tax table"
+msgstr "Tax table"
+
+#: .\gst\services\supply.py:401
+#, fuzzy
+msgid "IGST cannot be combined with CGST / SGST."
+msgstr "IGST cannot be combined with CGST / SGST."
+
+#: .\gst\services\supply.py:419
+#, fuzzy
+msgid "The company's GSTIN is invalid."
+msgstr "The company's GSTIN is invalid."
+
+#: .\gst\services\supply.py:421
+#, fuzzy
+msgid "Place of supply is required."
+msgstr "Place of supply is required."
+
+#: .\gst\services\supply.py:427
+#, fuzzy, python-format
+msgid "Item %(code)s (line %(n)s)"
+msgstr "Item %(code)s (line %(n)s)"
+
+#: .\gst\services\supply.py:432
+#, fuzzy, python-format
+msgid "%(label)s needs an HSN/SAC code."
+msgstr "%(label)s needs an HSN/SAC code."
+
+#: .\gst\services\supply.py:435
+#, fuzzy, python-format
+msgid "%(label)s: HSN/SAC code must be 4, 6 or 8 digits."
+msgstr "%(label)s: HSN/SAC code must be 4, 6 or 8 digits."
+
+#: .\gst\services\supply.py:440
+#, fuzzy, python-format
+msgid "%(label)s: HSN/SAC code needs at least %(n)s digits."
+msgstr "%(label)s: HSN/SAC code needs at least %(n)s digits."
+
+#: .\gst\services\supply.py:448
+#, fuzzy, python-format
+msgid "%(party)s: %(reason)s"
+msgstr "%(party)s: %(reason)s"
+
+#: .\gst\services\supply.py:453
+#, fuzzy, python-format
+msgid "%(party)s: GSTIN prefix %(code)s does not match the party's state."
+msgstr "%(party)s: GSTIN prefix %(code)s does not match the party's state."
+
+#: .\gst\services\supply.py:463
+#, fuzzy, python-format
+msgid ""
+"Invoice number '%(name)s' is longer than %(max)s characters, which GST does "
+"not allow."
+msgstr ""
+"Invoice number '%(name)s' is longer than %(max)s characters, which GST does "
+"not allow."
+
+#: .\gst\services\supply.py:556
+#, fuzzy
+msgid "A return can only have negative quantities."
+msgstr "A return can only have negative quantities."
+
+#: .\gst\validators.py:74
+#, fuzzy
+msgid "GSTIN is required."
+msgstr "GSTIN is required."
+
+#: .\gst\validators.py:76
+#, fuzzy
+msgid "GSTIN must be exactly 15 characters."
+msgstr "GSTIN must be exactly 15 characters."
+
+#: .\gst\validators.py:78
+#, fuzzy
+msgid "GSTIN format is invalid."
+msgstr "GSTIN format is invalid."
+
+#: .\gst\validators.py:81
+#, fuzzy, python-format
+msgid "GSTIN has an unknown state code (%(code)s)."
+msgstr "GSTIN has an unknown state code (%(code)s)."
+
+#: .\gst\validators.py:84
+#, fuzzy
+msgid "GSTIN checksum is invalid."
+msgstr "GSTIN checksum is invalid."
+
+#: .\gst\validators.py:107
+#, fuzzy
+msgid "HSN/SAC code must contain digits only."
+msgstr "HSN/SAC code must contain digits only."
+
+#: .\gst\validators.py:111
+#, fuzzy
+msgid "HSN/SAC code must be 4, 6 or 8 digits long."
+msgstr "HSN/SAC code must be 4, 6 or 8 digits long."
+
+#: .\gst\validators.py:133
+#, fuzzy, python-format
+msgid "A GSTIN is required for a %(category)s party."
+msgstr "A GSTIN is required for a %(category)s party."
+
+#: .\gst\validators.py:140
+#, fuzzy, python-format
+msgid "A %(category)s party must not have a GSTIN."
+msgstr "A %(category)s party must not have a GSTIN."
+
+#: .\gst\validators.py:155
+#, fuzzy, python-format
+msgid "GSTIN prefix %(code)s is %(name)s."
+msgstr "GSTIN prefix %(code)s is %(name)s."
+
+#: .\gst\validators.py:157
+#, fuzzy, python-format
+msgid "GSTIN prefix %(code)s is not a valid state code."
+msgstr "GSTIN prefix %(code)s is not a valid state code."
+
+#: .\gst\views.py:65
+#, fuzzy
+msgid "Must be 'Sales' or 'Purchase'."
+msgstr "Must be 'Sales' or 'Purchase'."
+
+#: .\gst\views.py:75
+#, fuzzy
+msgid "A valid party is required."
+msgstr "A valid party is required."
+
+#: .\gst\views.py:80
+#, fuzzy
+msgid "Unknown state code."
+msgstr "Unknown state code."
+
+#: .\hr\models.py:35
+#, fuzzy
+msgid "Male"
+msgstr "Male"
+
+#: .\hr\models.py:36
+#, fuzzy
+msgid "Female"
+msgstr "Female"
+
+#: .\hr\models.py:41
+#, fuzzy
+msgid "Active"
+msgstr "Active"
+
+#: .\hr\models.py:42
+#, fuzzy
+msgid "Inactive"
+msgstr "Inactive"
+
+#: .\hr\models.py:43
+#, fuzzy
+msgid "Left"
+msgstr "Left"
+
+#: .\hr\models.py:47
+#, fuzzy
+msgid "Daily"
+msgstr "Daily"
+
+#: .\hr\models.py:48
+#, fuzzy
+msgid "Monthly"
+msgstr "Monthly"
+
+#: .\hr\models.py:52
+#, fuzzy
+msgid "Present"
+msgstr "Present"
+
+#: .\hr\models.py:53
+#, fuzzy
+msgid "Absent"
+msgstr "Absent"
+
+#: .\hr\models.py:54
+#, fuzzy
+msgid "Half Day"
+msgstr "Half Day"
+
+#: .\hr\models.py:55
+#, fuzzy
+msgid "Paid Leave"
+msgstr "Paid Leave"
+
+#: .\hr\models.py:59
+#, fuzzy
+msgid "Earning"
+msgstr "Earning"
+
+#: .\hr\models.py:60
+#, fuzzy
+msgid "Deduction"
+msgstr "Deduction"
+
+#: .\hr\models.py:66
+#, fuzzy
+msgid "Wages"
+msgstr "Wages"
+
+#: .\hr\models.py:67
+#, fuzzy
+msgid "Overtime"
+msgstr "Overtime"
+
+#: .\hr\models.py:68
+#, fuzzy
+msgid "Advance Recovery"
+msgstr "Advance Recovery"
+
+#: .\hr\models.py:72
+#, fuzzy
+msgid "Pending"
+msgstr "Pending"
+
+#: .\hr\models.py:73
+#, fuzzy
+msgid "Approved"
+msgstr "Approved"
+
+#: .\hr\models.py:74 .\hr\models.py:89
+#, fuzzy
+msgid "Rejected"
+msgstr "Rejected"
+
+#: .\hr\models.py:75
+#, fuzzy
+msgid "Withdrawn"
+msgstr "Withdrawn"
+
+#: .\hr\models.py:79
+#, fuzzy
+msgid "Attendance"
+msgstr "Attendance"
+
+#: .\hr\models.py:80
+#, fuzzy
+msgid "Payment"
+msgstr "Payment"
+
+#: .\hr\models.py:81
+#, fuzzy
+msgid "Advance"
+msgstr "Advance"
+
+#: .\hr\models.py:82
+#, fuzzy
+msgid "Salary Slip"
+msgstr "Salary Slip"
+
+#: .\hr\models.py:87
+#, fuzzy
+msgid "Open"
+msgstr "Open"
+
+#: .\hr\models.py:88
+#, fuzzy
+msgid "Resolved"
+msgstr "Resolved"
+
+#: .\hr\models.py:93
+#, fuzzy
+msgid "Cash"
+msgstr "Cash"
+
+#: .\hr\models.py:94
+#, fuzzy
+msgid "Bank"
+msgstr "Bank"
+
+#: .\hr\models.py:95
+#, fuzzy
+msgid "UPI"
+msgstr "UPI"
+
+#: .\hr\models.py:100 .\hr\models.py:111 .\hr\models.py:122 .\hr\models.py:134
+#: .\hr\models.py:479
+#, fuzzy
+msgid "name"
+msgstr "name"
+
+#: .\hr\models.py:101 .\hr\models.py:112 .\hr\models.py:123
+#, fuzzy
+msgid "active"
+msgstr "active"
+
+#: .\hr\models.py:135 .\hr\models.py:1110 .\hr\models.py:1163
+#, fuzzy
+msgid "from date"
+msgstr "from date"
+
+#: .\hr\models.py:136 .\hr\models.py:1111 .\hr\models.py:1164
+#, fuzzy
+msgid "to date"
+msgstr "to date"
+
+#: .\hr\models.py:155 .\hr\models.py:394
+#, fuzzy
+msgid "date"
+msgstr "date"
+
+#: .\hr\models.py:156
+#, fuzzy
+msgid "description"
+msgstr "description"
+
+#: .\hr\models.py:157
+#, fuzzy
+msgid "weekly off"
+msgstr "weekly off"
+
+#: .\hr\models.py:180
+#, fuzzy
+msgid "first name"
+msgstr "first name"
+
+#: .\hr\models.py:181
+#, fuzzy
+msgid "last name"
+msgstr "last name"
+
+#: .\hr\models.py:183
+#, fuzzy
+msgid "employee name"
+msgstr "employee name"
+
+#: .\hr\models.py:186
+#, fuzzy
+msgid "gender"
+msgstr "gender"
+
+#: .\hr\models.py:188
+#, fuzzy
+msgid "date of birth"
+msgstr "date of birth"
+
+#: .\hr\models.py:191
+#, fuzzy
+msgid "mobile number"
+msgstr "mobile number"
+
+#: .\hr\models.py:227 .\hr\models.py:396 .\hr\models.py:956
+#: .\hr\models.py:1031
+#, fuzzy
+msgid "status"
+msgstr "status"
+
+#: .\hr\models.py:233
+#, fuzzy
+msgid "date of joining"
+msgstr "date of joining"
+
+#: .\hr\models.py:234
+#, fuzzy
+msgid "relieving date"
+msgstr "relieving date"
+
+#: .\hr\models.py:236
+#, fuzzy
+msgid "pay type"
+msgstr "pay type"
+
+#: .\hr\models.py:239
+#, fuzzy
+msgid "standard hours per day"
+msgstr "standard hours per day"
+
+#: .\hr\models.py:245
+#, fuzzy
+msgid "bank name"
+msgstr "bank name"
+
+#: .\hr\models.py:247
+#, fuzzy
+msgid "bank account number"
+msgstr "bank account number"
+
+#: .\hr\models.py:249
+#, fuzzy
+msgid "IFSC code"
+msgstr "IFSC code"
+
+#: .\hr\models.py:250
+#, fuzzy
+msgid "PAN"
+msgstr "PAN"
+
+#: .\hr\models.py:251
+#, fuzzy
+msgid "Aadhaar"
+msgstr "Aadhaar"
+
+#: .\hr\models.py:252
+#, fuzzy
+msgid "UAN"
+msgstr "UAN"
+
+#: .\hr\models.py:253
+#, fuzzy
+msgid "ESIC number"
+msgstr "ESIC number"
+
+#: .\hr\models.py:319
+#, fuzzy
+msgid "effective from"
+msgstr "effective from"
+
+#: .\hr\models.py:321
+#, fuzzy
+msgid "daily rate"
+msgstr "daily rate"
+
+#: .\hr\models.py:324
+#, fuzzy
+msgid "monthly salary"
+msgstr "monthly salary"
+
+#: .\hr\models.py:327
+#, fuzzy
+msgid "overtime hourly rate"
+msgstr "overtime hourly rate"
+
+#: .\hr\models.py:355
+#, fuzzy, python-format
+msgid ""
+"A submitted salary slip already covers dates from %(date)s; add a new wage "
+"rate effective after it instead of changing this one."
+msgstr ""
+"A submitted salary slip already covers dates from %(date)s; add a new wage "
+"rate effective after it instead of changing this one."
+
+#: .\hr\models.py:399 .\hr\models.py:804
+#, fuzzy
+msgid "overtime hours"
+msgstr "overtime hours"
+
+#: .\hr\models.py:401 .\hr\models.py:656 .\hr\models.py:815 .\hr\models.py:877
+#, fuzzy
+msgid "remarks"
+msgstr "remarks"
+
+#: .\hr\models.py:434
+#, fuzzy, python-format
+msgid "Attendance on %(date)s is locked by submitted salary slip %(slip)s."
+msgstr "Attendance on %(date)s is locked by submitted salary slip %(slip)s."
+
+#: .\hr\models.py:481
+#, fuzzy
+msgid "type"
+msgstr "type"
+
+#: .\hr\models.py:486
+#, fuzzy
+msgid "system component"
+msgstr "system component"
+
+#: .\hr\models.py:566
+#, fuzzy
+msgid ""
+"The payroll payable and employee advance accounts cannot be changed once "
+"salary slips, advances or payments are submitted."
+msgstr ""
+"The payroll payable and employee advance accounts cannot be changed once "
+"salary slips, advances or payments are submitted."
+
+#: .\hr\models.py:590 .\hr\models.py:645 .\hr\models.py:699 .\hr\models.py:797
+#: .\hr\models.py:1162
+#, fuzzy
+msgid "posting date"
+msgstr "posting date"
+
+#: .\hr\models.py:591 .\hr\models.py:646 .\hr\models.py:868 .\hr\models.py:953
+#, fuzzy
+msgid "amount"
+msgstr "amount"
+
+#: .\hr\models.py:592
+#, fuzzy
+msgid "purpose"
+msgstr "purpose"
+
+#: .\hr\models.py:594
+#, fuzzy
+msgid "instalment amount"
+msgstr "instalment amount"
+
+#: .\hr\models.py:651
+#, fuzzy
+msgid "mode"
+msgstr "mode"
+
+#: .\hr\models.py:654
+#, fuzzy
+msgid "reference number"
+msgstr "reference number"
+
+#: .\hr\models.py:700 .\hr\models.py:798
+#, fuzzy
+msgid "start date"
+msgstr "start date"
+
+#: .\hr\models.py:701 .\hr\models.py:799
+#, fuzzy
+msgid "end date"
+msgstr "end date"
+
+#: .\hr\models.py:801
+#, fuzzy
+msgid "payment days"
+msgstr "payment days"
+
+#: .\hr\models.py:807
+#, fuzzy
+msgid "gross pay"
+msgstr "gross pay"
+
+#: .\hr\models.py:810
+#, fuzzy
+msgid "total deduction"
+msgstr "total deduction"
+
+#: .\hr\models.py:813
+#, fuzzy
+msgid "net pay"
+msgstr "net pay"
+
+#: .\hr\models.py:869
+#, fuzzy
+msgid "manual"
+msgstr "manual"
+
+#: .\hr\models.py:910
+#, fuzzy
+msgid "portal enabled"
+msgstr "portal enabled"
+
+#: .\hr\models.py:912
+#, fuzzy
+msgid "PIN must be changed"
+msgstr "PIN must be changed"
+
+#: .\hr\models.py:954 .\hr\models.py:1171
+#, fuzzy
+msgid "reason"
+msgstr "reason"
+
+#: .\hr\models.py:962 .\hr\models.py:1037
+#, fuzzy
+msgid "response"
+msgstr "response"
+
+#: .\hr\models.py:1023
+#, fuzzy
+msgid "category"
+msgstr "category"
+
+#: .\hr\models.py:1025
+#, fuzzy
+msgid "reference date"
+msgstr "reference date"
+
+#: .\hr\models.py:1027
+#, fuzzy
+msgid "reference document"
+msgstr "reference document"
+
+#: .\hr\models.py:1029
+#, fuzzy
+msgid "message"
+msgstr "message"
+
+#: .\hr\models.py:1072
+#, fuzzy
+msgid "leave type name"
+msgstr "leave type name"
+
+#: .\hr\models.py:1074
+#, fuzzy
+msgid "max days allowed per year"
+msgstr "max days allowed per year"
+
+#: .\hr\models.py:1079
+#, fuzzy
+msgid "is carry forward"
+msgstr "is carry forward"
+
+#: .\hr\models.py:1080
+#, fuzzy
+msgid "is active"
+msgstr "is active"
+
+#: .\hr\models.py:1113
+#, fuzzy
+msgid "total leaves allocated"
+msgstr "total leaves allocated"
+
+#: .\hr\models.py:1118
+#, fuzzy
+msgid "notes"
+msgstr "notes"
+
+#: .\hr\models.py:1166
+#, fuzzy
+msgid "total leave days"
+msgstr "total leave days"
+
+#: .\hr\permissions.py:26
+#, fuzzy
+msgid "Portal access is not available for this account."
+msgstr "Portal access is not available for this account."
+
+#: .\hr\permissions.py:51
+#, fuzzy
+msgid "You must change your PIN before continuing."
+msgstr "You must change your PIN before continuing."
+
+#: .\hr\portal_views.py:56
+#, fuzzy
+msgid "Invalid mobile number or PIN."
+msgstr "Invalid mobile number or PIN."
+
+#: .\hr\portal_views.py:57
+#, fuzzy
+msgid "Too many failed attempts. Please try again later."
+msgstr "Too many failed attempts. Please try again later."
+
+#: .\hr\portal_views.py:82 .\hr\services\attendance.py:139 .\hr\views.py:238
+#, fuzzy
+msgid "'to' cannot be before 'from'."
+msgstr "'to' cannot be before 'from'."
+
+#: .\hr\portal_views.py:166
+#, fuzzy
+msgid "The current PIN is incorrect."
+msgstr "The current PIN is incorrect."
+
+#: .\hr\portal_views.py:169
+#, fuzzy
+msgid "PIN changed."
+msgstr "PIN changed."
+
+#: .\hr\portal_views.py:216
+#, fuzzy
+msgid "The range is too long."
+msgstr "The range is too long."
+
+#: .\hr\serializers.py:151
+#, fuzzy
+msgid "To date cannot be before from date."
+msgstr "To date cannot be before from date."
+
+#: .\hr\serializers.py:158
+#, fuzzy, python-format
+msgid "%(d)s is listed twice."
+msgstr "%(d)s is listed twice."
+
+#: .\hr\serializers.py:164
+#, fuzzy, python-format
+msgid "%(d)s is outside the list's date range."
+msgstr "%(d)s is outside the list's date range."
+
+#: .\hr\serializers.py:285
+#, fuzzy
+msgid "Enter a valid mobile number."
+msgstr "Enter a valid mobile number."
+
+#: .\hr\serializers.py:291
+#, fuzzy
+msgid "Another employee already uses this mobile number."
+msgstr "Another employee already uses this mobile number."
+
+#: .\hr\serializers.py:298
+#, fuzzy
+msgid "Enter a valid PAN."
+msgstr "Enter a valid PAN."
+
+#: .\hr\serializers.py:304
+#, fuzzy
+msgid "Enter a valid IFSC code."
+msgstr "Enter a valid IFSC code."
+
+#: .\hr\serializers.py:310
+#, fuzzy
+msgid "Aadhaar must be 12 digits."
+msgstr "Aadhaar must be 12 digits."
+
+#: .\hr\serializers.py:324
+#, fuzzy
+msgid "Relieving date cannot be before the joining date."
+msgstr "Relieving date cannot be before the joining date."
+
+#: .\hr\serializers.py:332
+#, fuzzy
+msgid "A relieving date is required when the employee has left."
+msgstr "A relieving date is required when the employee has left."
+
+#: .\hr\serializers.py:338
+#, fuzzy
+msgid "The company of an employee cannot be changed."
+msgstr "The company of an employee cannot be changed."
+
+#: .\hr\serializers.py:375
+#, fuzzy
+msgid "The employee cannot be changed."
+msgstr "The employee cannot be changed."
+
+#: .\hr\serializers.py:378
+#, fuzzy
+msgid "A daily rate is required for a Daily employee."
+msgstr "A daily rate is required for a Daily employee."
+
+#: .\hr\serializers.py:384
+#, fuzzy
+msgid "A monthly salary is required for a Monthly employee."
+msgstr "A monthly salary is required for a Monthly employee."
+
+#: .\hr\serializers.py:391
+#, fuzzy
+msgid "Cannot be negative."
+msgstr "Cannot be negative."
+
+#: .\hr\serializers.py:399
+#, fuzzy
+msgid "A wage rate already starts on this date."
+msgstr "A wage rate already starts on this date."
+
+#: .\hr\serializers.py:432
+#, fuzzy
+msgid "Overtime must be between 0 and 24 hours."
+msgstr "Overtime must be between 0 and 24 hours."
+
+#: .\hr\serializers.py:436
+#, fuzzy
+msgid "An absent employee cannot have overtime."
+msgstr "An absent employee cannot have overtime."
+
+#: .\hr\serializers.py:442
+#, fuzzy
+msgid "The date is outside the employee's period of employment."
+msgstr "The date is outside the employee's period of employment."
+
+#: .\hr\serializers.py:451
+#, fuzzy
+msgid "Attendance is already recorded for this employee and date."
+msgstr "Attendance is already recorded for this employee and date."
+
+#: .\hr\serializers.py:483 .\hr\services\advances.py:79
+#, fuzzy
+msgid "Account must belong to the company."
+msgstr "Account must belong to the company."
+
+#: .\hr\serializers.py:488
+#, fuzzy, python-format
+msgid "Account must be of type %(t)s."
+msgstr "Account must be of type %(t)s."
+
+#: .\hr\serializers.py:529
+#, fuzzy
+msgid "The type of a component in use cannot be changed."
+msgstr "The type of a component in use cannot be changed."
+
+#: .\hr\serializers.py:537
+#, fuzzy
+msgid "A component with this name exists."
+msgstr "A component with this name exists."
+
+#: .\hr\serializers.py:566
+#, fuzzy
+msgid "HR Settings already exist for this company."
+msgstr "HR Settings already exist for this company."
+
+#: .\hr\serializers.py:683
+#, fuzzy
+msgid "The employee of a slip cannot be changed."
+msgstr "The employee of a slip cannot be changed."
+
+#: .\hr\serializers.py:687 .\hr\serializers.py:922 .\hr\serializers.py:985
+#: .\hr\serializers.py:1056 .\hr\serializers.py:1120
+#: .\hr\services\advances.py:88 .\hr\services\leave.py:32
+#: .\hr\services\leave.py:113 .\hr\services\payments.py:16
+#: .\hr\services\payroll.py:211 .\hr\services\payroll.py:409
+#, fuzzy
+msgid "The employee belongs to a different company."
+msgstr "The employee belongs to a different company."
+
+#: .\hr\serializers.py:692 .\hr\serializers.py:835 .\hr\serializers.py:1066
+#: .\hr\serializers.py:1130 .\hr\services\leave.py:30
+#: .\hr\services\leave.py:111 .\hr\services\wages.py:83
+#, fuzzy
+msgid "End date cannot be before start date."
+msgstr "End date cannot be before start date."
+
+#: .\hr\serializers.py:697
+#, fuzzy, python-format
+msgid "A salary slip cannot cover more than %(n)s days."
+msgstr "A salary slip cannot cover more than %(n)s days."
+
+#: .\hr\serializers.py:717
+#, fuzzy, python-format
+msgid "Component %(c)s belongs to another company."
+msgstr "Component %(c)s belongs to another company."
+
+#: .\hr\serializers.py:723
+#, fuzzy
+msgid "Amounts must be greater than zero."
+msgstr "Amounts must be greater than zero."
+
+#: .\hr\serializers.py:729
+#, fuzzy
+msgid "Advance recovery rows must name an advance."
+msgstr "Advance recovery rows must name an advance."
+
+#: .\hr\serializers.py:739
+#, fuzzy, python-format
+msgid "Advance %(a)s cannot be recovered on this slip."
+msgstr "Advance %(a)s cannot be recovered on this slip."
+
+#: .\hr\serializers.py:747
+#, fuzzy, python-format
+msgid "Advance %(a)s appears twice."
+msgstr "Advance %(a)s appears twice."
+
+#: .\hr\serializers.py:754
+#, fuzzy
+msgid "Only advance recovery rows may name an advance."
+msgstr "Only advance recovery rows may name an advance."
+
+#: .\hr\serializers.py:844
+#, fuzzy, python-format
+msgid "%(e)s belongs to a different company."
+msgstr "%(e)s belongs to a different company."
+
+#: .\hr\serializers.py:850
+#, fuzzy, python-format
+msgid "%(e)s is listed twice."
+msgstr "%(e)s is listed twice."
+
+#: .\hr\serializers.py:931
+#, fuzzy
+msgid "The instalment must be between zero and the advance amount."
+msgstr "The instalment must be between zero and the advance amount."
+
+#: .\hr\serializers.py:1060 .\hr\serializers.py:1124 .\hr\services\leave.py:34
+#: .\hr\services\leave.py:115
+#, fuzzy
+msgid "The leave type belongs to a different company."
+msgstr "The leave type belongs to a different company."
+
+#: .\hr\serializers.py:1071 .\hr\services\leave.py:36
+#, fuzzy
+msgid "Allocated leaves cannot be negative."
+msgstr "Allocated leaves cannot be negative."
+
+#: .\hr\serializers.py:1135 .\hr\services\leave.py:117
+#, fuzzy
+msgid "Total leave days must be greater than zero."
+msgstr "Total leave days must be greater than zero."
+
+#: .\hr\serializers.py:1143 .\hr\services\leave.py:122
+#, fuzzy, python-format
+msgid ""
+"Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
+msgstr ""
+"Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
+
+#: .\hr\services\advances.py:83
+#, fuzzy
+msgid "Account must be an asset (cash or bank)."
+msgstr "Account must be an asset (cash or bank)."
+
+#: .\hr\services\advances.py:119
+#, fuzzy
+msgid ""
+"This advance has recoveries in submitted salary slips; cancel those slips "
+"first."
+msgstr ""
+"This advance has recoveries in submitted salary slips; cancel those slips "
+"first."
+
+#: .\hr\services\attendance.py:103
+#, fuzzy, python-format
+msgid "%(employee)s appears more than once."
+msgstr "%(employee)s appears more than once."
+
+#: .\hr\services\attendance.py:114
+#, fuzzy, python-format
+msgid "%(employee)s is not on the active roll on %(date)s."
+msgstr "%(employee)s is not on the active roll on %(date)s."
+
+#: .\hr\services\attendance.py:120
+#, fuzzy, python-format
+msgid "%(employee)s is absent and cannot have overtime hours."
+msgstr "%(employee)s is absent and cannot have overtime hours."
+
+#: .\hr\services\attendance.py:142
+#, fuzzy, python-format
+msgid "The range cannot exceed %(n)s days."
+msgstr "The range cannot exceed %(n)s days."
+
+#: .\hr\services\leave.py:66
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel leave allocation: %(taken)s days of leave have already been "
+"taken against it."
+msgstr ""
+"Cannot cancel leave allocation: %(taken)s days of leave have already been "
+"taken against it."
+
+#: .\hr\services\leave.py:140
+#, fuzzy, python-format
+msgid ""
+"Leave dates overlap with submitted leave application %(name)s (%(from)s to "
+"%(to)s)."
+msgstr ""
+"Leave dates overlap with submitted leave application %(name)s (%(from)s to "
+"%(to)s)."
+
+#: .\hr\services\leave.py:165
+#, fuzzy, python-format
+msgid ""
+"Insufficient leave balance for %(leave_type)s. Available: %(avail)s, "
+"Requested: %(req)s."
+msgstr ""
+"Insufficient leave balance for %(leave_type)s. Available: %(avail)s, "
+"Requested: %(req)s."
+
+#: .\hr\services\payments.py:22
+#, fuzzy, python-format
+msgid ""
+"Payment of %(amount)s exceeds the wages payable to %(employee)s "
+"(%(balance)s)."
+msgstr ""
+"Payment of %(amount)s exceeds the wages payable to %(employee)s "
+"(%(balance)s)."
+
+#: .\hr\services\payroll.py:120 .\hr\services\payroll.py:162
+#, fuzzy
+msgid "Only draft salary slips can be recomputed."
+msgstr "Only draft salary slips can be recomputed."
+
+#: .\hr\services\payroll.py:217
+#, fuzzy, python-format
+msgid ""
+"Salary slip %(slip)s (%(start)s to %(end)s) already covers part of this "
+"period for %(employee)s."
+msgstr ""
+"Salary slip %(slip)s (%(start)s to %(end)s) already covers part of this "
+"period for %(employee)s."
+
+#: .\hr\services\payroll.py:236
+#, fuzzy
+msgid ""
+"Attendance or wage rates changed since this slip was calculated; recompute "
+"it before submitting."
+msgstr ""
+"Attendance or wage rates changed since this slip was calculated; recompute "
+"it before submitting."
+
+#: .\hr\services\payroll.py:248
+#, fuzzy, python-format
+msgid "Component %(c)s belongs to a different company."
+msgstr "Component %(c)s belongs to a different company."
+
+#: .\hr\services\payroll.py:256
+#, fuzzy, python-format
+msgid "The account of component %(c)s is not postable for this company."
+msgstr "The account of component %(c)s is not postable for this company."
+
+#: .\hr\services\payroll.py:263
+#, fuzzy
+msgid ""
+"Advance recovery rows must reference an employee advance, and only they may."
+msgstr ""
+"Advance recovery rows must reference an employee advance, and only they may."
+
+#: .\hr\services\payroll.py:270
+#, fuzzy
+msgid "A salary slip with no earnings cannot be submitted."
+msgstr "A salary slip with no earnings cannot be submitted."
+
+#: .\hr\services\payroll.py:272
+#, fuzzy
+msgid "Net pay cannot be negative."
+msgstr "Net pay cannot be negative."
+
+#: .\hr\services\payroll.py:292
+#, fuzzy, python-format
+msgid "Advance %(a)s cannot be recovered on this salary slip."
+msgstr "Advance %(a)s cannot be recovered on this salary slip."
+
+#: .\hr\services\payroll.py:299
+#, fuzzy, python-format
+msgid ""
+"Recovery of %(amount)s exceeds the outstanding %(left)s of advance %(a)s."
+msgstr ""
+"Recovery of %(amount)s exceeds the outstanding %(left)s of advance %(a)s."
+
+#: .\hr\services\payroll.py:351
+#, fuzzy, python-format
+msgid ""
+"Wages of %(net)s from this slip have already been paid out; cancel the "
+"payments first."
+msgstr ""
+"Wages of %(net)s from this slip have already been paid out; cancel the "
+"payments first."
+
+#: .\hr\services\payroll.py:376
+#, fuzzy
+msgid "Only a draft payroll entry can be changed."
+msgstr "Only a draft payroll entry can be changed."
+
+#: .\hr\services\payroll.py:392
+#, fuzzy
+msgid "Only a draft payroll entry can create slips."
+msgstr "Only a draft payroll entry can create slips."
+
+#: .\hr\services\payroll.py:413
+#, fuzzy, python-format
+msgid "Overlaps submitted salary slip %(slip)s."
+msgstr "Overlaps submitted salary slip %(slip)s."
+
+#: .\hr\services\payroll.py:447
+#, fuzzy
+msgid "Create salary slips for this payroll entry before submitting it."
+msgstr "Create salary slips for this payroll entry before submitting it."
+
+#: .\hr\services\payroll.py:453
+#, fuzzy, python-format
+msgid "Salary slip %(slip)s (%(employee)s): %(error)s"
+msgstr "Salary slip %(slip)s (%(employee)s): %(error)s"
+
+#: .\hr\services\payroll.py:486
+#, fuzzy
+msgid "Submit the payroll entry before paying it."
+msgstr "Submit the payroll entry before paying it."
+
+#: .\hr\services\payroll.py:512
+#, fuzzy, python-format
+msgid "Payment for %(employee)s: %(error)s"
+msgstr "Payment for %(employee)s: %(error)s"
+
+#: .\hr\services\portal.py:48
+#, fuzzy
+msgid "The PIN must be 4 to 6 digits."
+msgstr "The PIN must be 4 to 6 digits."
+
+#: .\hr\services\portal.py:50 .\hr\services\portal.py:53
+#: .\hr\services\portal.py:56
+#, fuzzy
+msgid "This PIN is too easy to guess."
+msgstr "This PIN is too easy to guess."
+
+#: .\hr\services\portal.py:59
+#, fuzzy
+msgid "The PIN must not be the end of the mobile number."
+msgstr "The PIN must not be the end of the mobile number."
+
+#: .\hr\services\portal.py:83
+#, fuzzy
+msgid "This employee is linked to a regular user account."
+msgstr "This employee is linked to a regular user account."
+
+#: .\hr\services\portal.py:92
+#, fuzzy
+msgid "A login user for this employee already exists."
+msgstr "A login user for this employee already exists."
+
+#: .\hr\services\portal.py:125
+#, fuzzy
+msgid "Set the employee's mobile number before enabling the portal."
+msgstr "Set the employee's mobile number before enabling the portal."
+
+#: .\hr\services\portal.py:128
+#, fuzzy
+msgid "Only an active employee can use the portal."
+msgstr "Only an active employee can use the portal."
+
+#: .\hr\services\portal.py:290
+#, fuzzy
+msgid "The new PIN must differ from the current PIN."
+msgstr "The new PIN must differ from the current PIN."
+
+#: .\hr\services\portal_requests.py:50 .\hr\services\portal_requests.py:66
+#, fuzzy
+msgid "You already have a pending advance request."
+msgstr "You already have a pending advance request."
+
+#: .\hr\services\portal_requests.py:74
+#, fuzzy
+msgid "Only a pending request can be withdrawn."
+msgstr "Only a pending request can be withdrawn."
+
+#: .\hr\services\portal_requests.py:96
+#, fuzzy
+msgid "Only a pending request can be approved."
+msgstr "Only a pending request can be approved."
+
+#: .\hr\services\portal_requests.py:101
+#, fuzzy
+msgid "The employee is not active."
+msgstr "The employee is not active."
+
+#: .\hr\services\portal_requests.py:113
+#, fuzzy
+msgid "Instalment must be greater than zero and at most the amount."
+msgstr "Instalment must be greater than zero and at most the amount."
+
+#: .\hr\services\portal_requests.py:152
+#, fuzzy
+msgid "Give the employee a reason."
+msgstr "Give the employee a reason."
+
+#: .\hr\services\portal_requests.py:156
+#, fuzzy
+msgid "Only a pending request can be rejected."
+msgstr "Only a pending request can be rejected."
+
+#: .\hr\services\portal_requests.py:173
+#, fuzzy
+msgid "Describe the problem."
+msgstr "Describe the problem."
+
+#: .\hr\services\portal_requests.py:183
+#, fuzzy
+msgid "You have too many open issues; wait for a reply first."
+msgstr "You have too many open issues; wait for a reply first."
+
+#: .\hr\services\portal_requests.py:203
+#, fuzzy
+msgid "Choose Resolved or Rejected."
+msgstr "Choose Resolved or Rejected."
+
+#: .\hr\services\portal_requests.py:206
+#, fuzzy
+msgid "Write a reply to the employee."
+msgstr "Write a reply to the employee."
+
+#: .\hr\services\portal_requests.py:210
+#, fuzzy
+msgid "This issue is already closed."
+msgstr "This issue is already closed."
+
+#: .\hr\services\reports.py:30 .\hr\services\reports.py:110
+#, fuzzy
+msgid "Both 'from' and 'to' dates are required."
+msgstr "Both 'from' and 'to' dates are required."
+
+#: .\hr\services\reports.py:32 .\hr\services\reports.py:112
+#, fuzzy
+msgid "'to' date cannot be before 'from' date."
+msgstr "'to' date cannot be before 'from' date."
+
+#: .\hr\services\setup.py:120
+#, fuzzy, python-format
+msgid ""
+"HR Settings are not configured for company %(company)s. Run seed_defaults or "
+"POST hr/settings/ensure-setup/ first."
+msgstr ""
+"HR Settings are not configured for company %(company)s. Run seed_defaults or "
+"POST hr/settings/ensure-setup/ first."
+
+#: .\hr\services\setup.py:140
+#, fuzzy, python-format
+msgid ""
+"System salary components are missing for company %(company)s. Run "
+"seed_defaults or POST hr/settings/ensure-setup/ first."
+msgstr ""
+"System salary components are missing for company %(company)s. Run "
+"seed_defaults or POST hr/settings/ensure-setup/ first."
+
+#: .\hr\services\wages.py:86
+#, fuzzy, python-format
+msgid "A salary slip cannot cover more than %(days)s days."
+msgstr "A salary slip cannot cover more than %(days)s days."
+
+#: .\hr\services\wages.py:133
+#, fuzzy, python-format
+msgid "%(employee)s has no wage rate effective on %(date)s."
+msgstr "%(employee)s has no wage rate effective on %(date)s."
+
+#: .\hr\services\wages.py:142
+#, fuzzy, python-format
+msgid "The wage rate of %(employee)s effective %(date)s has no monthly salary."
+msgstr "The wage rate of %(employee)s effective %(date)s has no monthly salary."
+
+#: .\hr\services\wages.py:153
+#, fuzzy, python-format
+msgid "The wage rate of %(employee)s effective %(date)s has no daily rate."
+msgstr "The wage rate of %(employee)s effective %(date)s has no daily rate."
+
+#: .\hr\views.py:91 .\hr\views.py:463 .\stock\views.py:194
+#, fuzzy
+msgid "Use YYYY-MM-DD."
+msgstr "Use YYYY-MM-DD."
+
+#: .\hr\views.py:101 .\stock\views.py:205
+#, fuzzy
+msgid "Must be an integer."
+msgstr "Must be an integer."
+
+#: .\hr\views.py:107
+#, fuzzy, python-format
+msgid "You do not have %(flag)s permission on %(label)s."
+msgstr "You do not have %(flag)s permission on %(label)s."
+
+#: .\hr\views.py:129
+#, fuzzy
+msgid "This record is in use and cannot be deleted."
+msgstr "This record is in use and cannot be deleted."
+
+#: .\hr\views.py:327
+#, fuzzy
+msgid "System components cannot be deleted."
+msgstr "System components cannot be deleted."
+
+#: .\hr\views.py:450
+#, fuzzy
+msgid "Unknown account."
+msgstr "Unknown account."
+
+#: .\hr\views.py:455
+#, fuzzy
+msgid "Invalid payment mode."
+msgstr "Invalid payment mode."
+
+#: .\hr\views.py:615 .\hr\views.py:658
+#, fuzzy
+msgid "Both from_date and to_date are required."
+msgstr "Both from_date and to_date are required."
+
+#: .\hr\views.py:624 .\hr\views.py:667
+#, fuzzy
+msgid "Invalid date format. Use YYYY-MM-DD."
+msgstr "Invalid date format. Use YYYY-MM-DD."
+
+#: .\manufacturing\serializers.py:164
+#, fuzzy
+msgid "A BOM needs a company and a product item."
+msgstr "A BOM needs a company and a product item."
+
+#: .\manufacturing\serializers.py:168
+#, fuzzy
+msgid "The BOM product must be a stock item."
+msgstr "The BOM product must be a stock item."
+
+#: .\manufacturing\serializers.py:339
+#, fuzzy
+msgid "The BOM belongs to a different company."
+msgstr "The BOM belongs to a different company."
+
+#: .\manufacturing\serializers.py:343
+#, fuzzy
+msgid "The BOM makes a different item than the production item."
+msgstr "The BOM makes a different item than the production item."
+
+#: .\manufacturing\services\boms.py:25
+#, fuzzy
+msgid "This BOM is used by a submitted document."
+msgstr "This BOM is used by a submitted document."
+
+#: .\manufacturing\services\boms.py:49
+#, fuzzy, python-format
+msgid "BOM item '%(code)s' must be a stock item."
+msgstr "BOM item '%(code)s' must be a stock item."
+
+#: .\manufacturing\services\boms.py:59
+#, fuzzy, python-format
+msgid "BOM row item '%(code)s' must be a stock item."
+msgstr "BOM row item '%(code)s' must be a stock item."
+
+#: .\manufacturing\services\boms.py:63
+#, fuzzy, python-format
+msgid "The product '%(code)s' cannot also be a BOM component."
+msgstr "The product '%(code)s' cannot also be a BOM component."
+
+#: .\manufacturing\services\boms.py:68
+#, fuzzy, python-format
+msgid "Item '%(code)s' appears twice in the BOM."
+msgstr "Item '%(code)s' appears twice in the BOM."
+
+#: .\manufacturing\services\boms.py:77 .\manufacturing\services\boms.py:138
+#, fuzzy
+msgid "A BOM cannot use itself as a sub-assembly."
+msgstr "A BOM cannot use itself as a sub-assembly."
+
+#: .\manufacturing\services\boms.py:84
+#, fuzzy
+msgid "The sub-assembly BOM does not exist."
+msgstr "The sub-assembly BOM does not exist."
+
+#: .\manufacturing\services\boms.py:88
+#, fuzzy, python-format
+msgid "Sub-BOM '%(bom)s' makes '%(sub)s', not the row item '%(item)s'."
+msgstr "Sub-BOM '%(bom)s' makes '%(sub)s', not the row item '%(item)s'."
+
+#: .\manufacturing\services\boms.py:98
+#, fuzzy, python-format
+msgid "Sub-BOM '%(bom)s' belongs to a different company."
+msgstr "Sub-BOM '%(bom)s' belongs to a different company."
+
+#: .\manufacturing\services\boms.py:102
+#, fuzzy, python-format
+msgid "Sub-BOM '%(bom)s' is inactive."
+msgstr "Sub-BOM '%(bom)s' is inactive."
+
+#: .\manufacturing\services\boms.py:112
+#, fuzzy, python-format
+msgid "Scrap item '%(code)s' must be a stock item."
+msgstr "Scrap item '%(code)s' must be a stock item."
+
+#: .\manufacturing\services\boms.py:116
+#, fuzzy, python-format
+msgid "Scrap item '%(code)s' appears twice in the BOM."
+msgstr "Scrap item '%(code)s' appears twice in the BOM."
+
+#: .\manufacturing\services\boms.py:128
+#, fuzzy
+msgid "The sub-BOM graph contains a cycle; a BOM cannot contain itself."
+msgstr "The sub-BOM graph contains a cycle; a BOM cannot contain itself."
+
+#: .\manufacturing\services\boms.py:184
+#, fuzzy, python-format
+msgid ""
+"BOM '%(bom)s' is used by a submitted document; create a new BOM version "
+"instead of changing its quantity, loss or components."
+msgstr ""
+"BOM '%(bom)s' is used by a submitted document; create a new BOM version "
+"instead of changing its quantity, loss or components."
+
+#: .\manufacturing\services\costing.py:71
+#: .\manufacturing\services\costing.py:156
+#, fuzzy, python-format
+msgid "The BOM graph for '%(bom)s' contains a cycle."
+msgstr "The BOM graph for '%(bom)s' contains a cycle."
+
+#: .\manufacturing\services\production.py:119
+#: .\manufacturing\services\production.py:173
+#: .\manufacturing\services\production.py:196
+#: .\manufacturing\services\work_orders.py:139
+#, fuzzy
+msgid "Source Warehouse"
+msgstr "Source Warehouse"
+
+#: .\manufacturing\services\production.py:120
+#: .\manufacturing\services\production.py:176
+#: .\manufacturing\services\production.py:199
+#, fuzzy
+msgid "Target Warehouse"
+msgstr "Target Warehouse"
+
+#: .\manufacturing\services\work_orders.py:42
+#, fuzzy, python-format
+msgid "BOM '%(bom)s' has no positive good output."
+msgstr "BOM '%(bom)s' has no positive good output."
+
+#: .\manufacturing\services\work_orders.py:107
+#, fuzzy, python-format
+msgid "%(field)s is required."
+msgstr "%(field)s is required."
+
+#: .\manufacturing\services\work_orders.py:110
+#, fuzzy, python-format
+msgid "%(field)s '%(name)s' is a group warehouse."
+msgstr "%(field)s '%(name)s' is a group warehouse."
+
+#: .\manufacturing\services\work_orders.py:115
+#, fuzzy, python-format
+msgid "%(field)s '%(name)s' belongs to a different company."
+msgstr "%(field)s '%(name)s' belongs to a different company."
+
+#: .\manufacturing\services\work_orders.py:123
+#, fuzzy
+msgid "Work Order quantity must be greater than zero."
+msgstr "Work Order quantity must be greater than zero."
+
+#: .\manufacturing\services\work_orders.py:126
+#, fuzzy, python-format
+msgid "BOM '%(bom)s' is inactive."
+msgstr "BOM '%(bom)s' is inactive."
+
+#: .\manufacturing\services\work_orders.py:129
+#, fuzzy, python-format
+msgid "BOM '%(bom)s' belongs to a different company."
+msgstr "BOM '%(bom)s' belongs to a different company."
+
+#: .\manufacturing\services\work_orders.py:133
+#, fuzzy, python-format
+msgid "BOM '%(bom)s' makes a different item than the production item."
+msgstr "BOM '%(bom)s' makes a different item than the production item."
+
+#: .\manufacturing\services\work_orders.py:137
+#, fuzzy
+msgid "The production item must be a stock item."
+msgstr "The production item must be a stock item."
+
+#: .\manufacturing\services\work_orders.py:140
+#, fuzzy
+msgid "Finished Goods Warehouse"
+msgstr "Finished Goods Warehouse"
+
+#: .\manufacturing\services\work_orders.py:142
+#, fuzzy
+msgid "WIP Warehouse"
+msgstr "WIP Warehouse"
+
+#: .\manufacturing\services\work_orders.py:145
+#, fuzzy
+msgid "The WIP Warehouse and the Finished Goods Warehouse must differ."
+msgstr "The WIP Warehouse and the Finished Goods Warehouse must differ."
+
+#: .\manufacturing\services\work_orders.py:148
+#, fuzzy
+msgid "Scrap Warehouse"
+msgstr "Scrap Warehouse"
+
+#: .\manufacturing\services\work_orders.py:152
+#, fuzzy
+msgid "The Work Order has no required items; check the BOM components."
+msgstr "The Work Order has no required items; check the BOM components."
+
+#: .\manufacturing\services\work_orders.py:155
+#, fuzzy
+msgid "A stopped Work Order cannot be submitted."
+msgstr "A stopped Work Order cannot be submitted."
+
+#: .\manufacturing\services\work_orders.py:248
+#, fuzzy
+msgid "Cancel the stock entries of this Work Order first."
+msgstr "Cancel the stock entries of this Work Order first."
+
+#: .\manufacturing\services\work_orders.py:262
+#, fuzzy, python-format
+msgid "Only a submitted Work Order can be %(action)s."
+msgstr "Only a submitted Work Order can be %(action)s."
+
+#: .\manufacturing\services\work_orders.py:263
+#, fuzzy
+msgid "stopped"
+msgstr "stopped"
+
+#: .\manufacturing\services\work_orders.py:263
+#, fuzzy
+msgid "resumed"
+msgstr "resumed"
+
+#: .\manufacturing\services\work_orders.py:318
+#, fuzzy
+msgid "Quantity is required."
+msgstr "Quantity is required."
+
+#: .\manufacturing\services\work_orders.py:323
+#, fuzzy
+msgid "Quantity must be a number."
+msgstr "Quantity must be a number."
+
+#: .\manufacturing\services\work_orders.py:342
+#, fuzzy
+msgid "Only a submitted Work Order can be mapped."
+msgstr "Only a submitted Work Order can be mapped."
+
+#: .\manufacturing\services\work_orders.py:344
+#, fuzzy
+msgid "A stopped Work Order cannot create stock entries."
+msgstr "A stopped Work Order cannot create stock entries."
+
+#: .\manufacturing\services\work_orders.py:351
+#, fuzzy
+msgid ""
+"A Work Order can create a Material Transfer for Manufacture or a Manufacture "
+"entry."
+msgstr ""
+"A Work Order can create a Material Transfer for Manufacture or a Manufacture "
+"entry."
+
+#: .\manufacturing\services\work_orders.py:361
+#, fuzzy, python-format
+msgid "Only %(qty)s of the Work Order basis remains to be produced."
+msgstr "Only %(qty)s of the Work Order basis remains to be produced."
+
+#: .\manufacturing\services\work_orders.py:384
+#, fuzzy
+msgid "There is nothing left to transfer or consume for this Work Order."
+msgstr "There is nothing left to transfer or consume for this Work Order."
+
+#: .\manufacturing\services\work_orders.py:392
+#, fuzzy
+msgid ""
+"This Work Order consumes directly from the source warehouse; no material "
+"transfer is needed."
+msgstr ""
+"This Work Order consumes directly from the source warehouse; no material "
+"transfer is needed."
+
+#: .\manufacturing\services\work_orders.py:396
+#, fuzzy
+msgid "The Work Order has no WIP Warehouse."
+msgstr "The Work Order has no WIP Warehouse."
+
+#: .\manufacturing\services\work_orders.py:445
+#, fuzzy
+msgid "No transferred material is available to consume for this Work Order."
+msgstr "No transferred material is available to consume for this Work Order."
+
+#: .\manufacturing\services\work_orders.py:452
+#, fuzzy
+msgid "The BOM has scrap items but the Work Order has no Scrap Warehouse."
+msgstr "The BOM has scrap items but the Work Order has no Scrap Warehouse."
+
+#: .\manufacturing\services\work_orders.py:471
+#, fuzzy
+msgid "The expected good output is zero."
+msgstr "The expected good output is zero."
+
+#: .\manufacturing\views.py:75
+#, fuzzy
+msgid "Only a submitted Work Order can be changed."
+msgstr "Only a submitted Work Order can be changed."
+
+#: .\manufacturing\views.py:88
+#, fuzzy
+msgid "This Work Order is already stopped."
+msgstr "This Work Order is already stopped."
+
+#: .\manufacturing\views.py:93
+#, fuzzy
+msgid "This Work Order is already fully produced."
+msgstr "This Work Order is already fully produced."
+
+#: .\manufacturing\views.py:108
+#, fuzzy
+msgid "A completed Work Order cannot be resumed."
+msgstr "A completed Work Order cannot be resumed."
+
+#: .\manufacturing\views.py:125
+#, fuzzy
+msgid "Submit the Work Order before making stock entries."
+msgstr "Submit the Work Order before making stock entries."
+
+#: .\ngu\serializers.py:40
+#, fuzzy
+msgid "Only variants can be linked to an item."
+msgstr "Only variants can be linked to an item."
+
+#: .\ngu\serializers.py:50
+#, fuzzy
+msgid "This item is already linked to another NGU variant."
+msgstr "This item is already linked to another NGU variant."
+
+#: .\payment_reconciliation\models.py:139
+#, fuzzy
+msgid "The allocations of a submitted reconciliation cannot be changed."
+msgstr "The allocations of a submitted reconciliation cannot be changed."
+
+#: .\payment_reconciliation\services.py:57
+#: .\payment_reconciliation\services.py:96
+#, fuzzy
+msgid "Party type must be Customer or Supplier."
+msgstr "Party type must be Customer or Supplier."
+
+#: .\payment_reconciliation\services.py:100
+#, fuzzy, python-format
+msgid "%(type)s '%(party)s' does not exist in this company."
+msgstr "%(type)s '%(party)s' does not exist in this company."
+
+#: .\payment_reconciliation\services.py:381
+#, fuzzy, python-format
+msgid "%(what)s '%(name)s' has nothing left to reconcile for this party."
+msgstr "%(what)s '%(name)s' has nothing left to reconcile for this party."
+
+#: .\payment_reconciliation\services.py:396
+#, fuzzy
+msgid "Payment / note"
+msgstr "Payment / note"
+
+#: .\payment_reconciliation\services.py:397
+#, fuzzy
+msgid "Invoice"
+msgstr "Invoice"
+
+#: .\payment_reconciliation\services.py:402
+#, fuzzy
+msgid ""
+"The selected rows are booked to different party accounts; reconcile them "
+"separately."
+msgstr ""
+"The selected rows are booked to different party accounts; reconcile them "
+"separately."
+
+#: .\payment_reconciliation\services.py:440
+#: .\payment_reconciliation\services.py:665
+#, fuzzy
+msgid "Allocate at least one payment against an invoice."
+msgstr "Allocate at least one payment against an invoice."
+
+#: .\payment_reconciliation\services.py:449
+#, fuzzy, python-format
+msgid "The party account must be a %(type)s account of this company."
+msgstr "The party account must be a %(type)s account of this company."
+
+#: .\payment_reconciliation\services.py:458
+#, fuzzy, python-format
+msgid "Invoices of a %(type)s are '%(label)s', not '%(got)s'."
+msgstr "Invoices of a %(type)s are '%(label)s', not '%(got)s'."
+
+#: .\payment_reconciliation\services.py:463
+#, fuzzy, python-format
+msgid "'%(doctype)s' cannot be reconciled against an invoice."
+msgstr "'%(doctype)s' cannot be reconciled against an invoice."
+
+#: .\payment_reconciliation\services.py:467
+#, fuzzy
+msgid "A document cannot be reconciled against itself."
+msgstr "A document cannot be reconciled against itself."
+
+#: .\payment_reconciliation\services.py:470
+#, fuzzy
+msgid "Every allocated amount must be greater than zero."
+msgstr "Every allocated amount must be greater than zero."
+
+#: .\payment_reconciliation\services.py:486
+#, fuzzy, python-format
+msgid "%(what)s does not exist."
+msgstr "%(what)s does not exist."
+
+#: .\payment_reconciliation\services.py:488
+#, fuzzy, python-format
+msgid "%(what)s is not submitted."
+msgstr "%(what)s is not submitted."
+
+#: .\payment_reconciliation\services.py:491
+#, fuzzy, python-format
+msgid "%(what)s belongs to a different company."
+msgstr "%(what)s belongs to a different company."
+
+#: .\payment_reconciliation\services.py:495
+#, fuzzy, python-format
+msgid "%(what)s belongs to a different party."
+msgstr "%(what)s belongs to a different party."
+
+#: .\payment_reconciliation\services.py:499
+#, fuzzy, python-format
+msgid "%(what)s is booked to a different party account."
+msgstr "%(what)s is booked to a different party account."
+
+#: .\payment_reconciliation\services.py:503
+#, fuzzy, python-format
+msgid "%(what)s is %(kind)s."
+msgstr "%(what)s is %(kind)s."
+
+#: .\payment_reconciliation\services.py:507
+#, fuzzy
+msgid "a return, not an invoice"
+msgstr "a return, not an invoice"
+
+#: .\payment_reconciliation\services.py:509
+#, fuzzy
+msgid "not a credit / debit note"
+msgstr "not a credit / debit note"
+
+#: .\payment_reconciliation\services.py:516
+#, fuzzy, python-format
+msgid ""
+"%(what)s was posted before bill-wise tracking and cannot be reconciled; "
+"allocate a payment entry against it instead."
+msgstr ""
+"%(what)s was posted before bill-wise tracking and cannot be reconciled; "
+"allocate a payment entry against it instead."
+
+#: .\payment_reconciliation\services.py:525
+#, fuzzy, python-format
+msgid "Invoice '%(name)s'"
+msgstr "Invoice '%(name)s'"
+
+#: .\payment_reconciliation\services.py:532
+#, fuzzy, python-format
+msgid "Note '%(name)s'"
+msgstr "Note '%(name)s'"
+
+#: .\payment_reconciliation\services.py:536
+#, fuzzy, python-format
+msgid "Note '%(name)s' reduces its original invoice, not its own balance."
+msgstr "Note '%(name)s' reduces its original invoice, not its own balance."
+
+#: .\payment_reconciliation\services.py:546
+#, fuzzy, python-format
+msgid "'%(name)s' does not exist or is not submitted."
+msgstr "'%(name)s' does not exist or is not submitted."
+
+#: .\payment_reconciliation\services.py:554
+#, fuzzy, python-format
+msgid "'%(name)s' has no entry for %(party)s on account '%(account)s'."
+msgstr "'%(name)s' has no entry for %(party)s on account '%(account)s'."
+
+#: .\payment_reconciliation\services.py:569
+#, fuzzy, python-format
+msgid ""
+"Allocated %(used)s exceeds the outstanding amount %(open)s of invoice "
+"'%(name)s'."
+msgstr ""
+"Allocated %(used)s exceeds the outstanding amount %(open)s of invoice "
+"'%(name)s'."
+
+#: .\payment_reconciliation\services.py:579
+#, fuzzy, python-format
+msgid ""
+"Allocated %(used)s exceeds the unallocated amount %(open)s of '%(name)s'."
+msgstr ""
+"Allocated %(used)s exceeds the unallocated amount %(open)s of '%(name)s'."
+
+#: .\payment_reconciliation\signals.py:57
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel '%(name)s': unreconcile the payment reconciliation entries "
+"first (%(entries)s)."
+msgstr ""
+"Cannot cancel '%(name)s': unreconcile the payment reconciliation entries "
+"first (%(entries)s)."
+
+#: .\printing\views.py:34
+#, fuzzy, python-format
+msgid "Must be one of: %(options)s."
+msgstr "Must be one of: %(options)s."
+
+#: .\selling\mapping.py:23
+#, fuzzy
+msgid "Sales Invoice can only be made from a submitted Sales Order."
+msgstr "Sales Invoice can only be made from a submitted Sales Order."
+
+#: .\selling\mapping.py:35 .\selling\services\dispatch.py:262
+#, fuzzy, python-format
+msgid "Sales Order '%(name)s' is already fully invoiced."
+msgstr "Sales Order '%(name)s' is already fully invoiced."
+
+#: .\selling\mapping.py:51 .\selling\services\dispatch.py:281
+#, fuzzy, python-format
+msgid "Dispatch quantity must be greater than zero for item '%(code)s'."
+msgstr "Dispatch quantity must be greater than zero for item '%(code)s'."
+
+#: .\selling\mapping.py:58 .\selling\services\dispatch.py:288
+#, fuzzy, python-format
+msgid "Cannot dispatch %(qty)s for '%(code)s'; only %(remaining)s remaining."
+msgstr "Cannot dispatch %(qty)s for '%(code)s'; only %(remaining)s remaining."
+
+#: .\selling\mapping.py:70
+#, fuzzy
+msgid "No lines to invoice."
+msgstr "No lines to invoice."
+
+#: .\selling\models.py:159
+#, fuzzy
+msgid "Sales Order must have at least one line item."
+msgstr "Sales Order must have at least one line item."
+
+#: .\selling\models.py:308
+#, fuzzy
+msgid "Sales Invoice must have at least one line item."
+msgstr "Sales Invoice must have at least one line item."
+
+#: .\selling\models.py:319
+#, fuzzy
+msgid "Debit-to and income accounts must belong to the invoice's company."
+msgstr "Debit-to and income accounts must belong to the invoice's company."
+
+#: .\selling\models.py:322
+#, fuzzy
+msgid "Customer must belong to the invoice's company."
+msgstr "Customer must belong to the invoice's company."
+
+#: .\selling\models.py:350
+#, fuzzy, python-format
+msgid ""
+"Sales Invoice '%(name)s' does not update stock: remove the batch from item "
+"'%(code)s'."
+msgstr ""
+"Sales Invoice '%(name)s' does not update stock: remove the batch from item "
+"'%(code)s'."
+
+#: .\selling\models.py:361
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not batch-tracked; remove the batch."
+msgstr "Item '%(code)s' is not batch-tracked; remove the batch."
+
+#: .\selling\reports\kpis.py:100 .\selling\reports\kpis.py:102
+#, fuzzy
+msgid "Enter valid dates (YYYY-MM-DD)."
+msgstr "Enter valid dates (YYYY-MM-DD)."
+
+#: .\selling\reports\kpis.py:104
+#, fuzzy
+msgid "'from_date' cannot be after 'to_date'."
+msgstr "'from_date' cannot be after 'to_date'."
+
+#: .\selling\services\credit.py:136
+#, fuzzy, python-format
+msgid ""
+"Credit limit crossed for %(customer)s: exposure %(total)s (existing "
+"%(existing)s + this document %(document)s) exceeds limit %(limit)s."
+msgstr ""
+"Credit limit crossed for %(customer)s: exposure %(total)s (existing "
+"%(existing)s + this document %(document)s) exceeds limit %(limit)s."
+
+#: .\selling\services\dispatch.py:250
+#, fuzzy
+msgid "Only submitted Sales Orders can be dispatched."
+msgstr "Only submitted Sales Orders can be dispatched."
+
+#: .\selling\services\dispatch.py:273
+#, fuzzy, python-format
+msgid "Order item %(id)s is not available for dispatch."
+msgstr "Order item %(id)s is not available for dispatch."
+
+#: .\selling\services\dispatch.py:304
+#, fuzzy, python-format
+msgid "Warehouse is required for item '%(code)s'."
+msgstr "Warehouse is required for item '%(code)s'."
+
+#: .\selling\views.py:67
+#, fuzzy
+msgid "Expected a list of customer updates."
+msgstr "Expected a list of customer updates."
+
+#: .\selling\views.py:169 .\selling\views.py:170
+#, fuzzy
+msgid "'lines' must be a list."
+msgstr "'lines' must be a list."
+
+#: .\selling\views.py:183 .\selling\views.py:186
+#, fuzzy
+msgid "Each line must include 'order_item_id' and 'qty'."
+msgstr "Each line must include 'order_item_id' and 'qty'."
+
+#: .\stock\models.py:161
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s' already has stock ledger entries and cannot become a "
+"template."
+msgstr ""
+"Item '%(code)s' already has stock ledger entries and cannot become a "
+"template."
+
+#: .\stock\models.py:182
+#, fuzzy, python-format
+msgid ""
+"Batch tracking cannot be changed for item '%(code)s': it already has stock "
+"ledger entries."
+msgstr ""
+"Batch tracking cannot be changed for item '%(code)s': it already has stock "
+"ledger entries."
+
+#: .\stock\models.py:264
+#, fuzzy, python-format
+msgid "Value '%(value)s' does not belong to attribute '%(attribute)s'."
+msgstr "Value '%(value)s' does not belong to attribute '%(attribute)s'."
+
+#: .\stock\models.py:315
+#, fuzzy, python-format
+msgid "Warehouse account '%(account)s' belongs to a different company."
+msgstr "Warehouse account '%(account)s' belongs to a different company."
+
+#: .\stock\models.py:320
+#, fuzzy, python-format
+msgid "Warehouse account '%(account)s' must not be a group account."
+msgstr "Warehouse account '%(account)s' must not be a group account."
+
+#: .\stock\models.py:325
+#, fuzzy, python-format
+msgid "Warehouse account '%(account)s' must be a Stock account."
+msgstr "Warehouse account '%(account)s' must be a Stock account."
+
+#: .\stock\models.py:436 .\stock\services\batches.py:173
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s' is a template with variants: create the batch for one of its "
+"variants."
+msgstr ""
+"Item '%(code)s' is a template with variants: create the batch for one of its "
+"variants."
+
+#: .\stock\models.py:449
+#, fuzzy, python-format
+msgid "The item of batch '%(batch)s' cannot change once it has stock."
+msgstr "The item of batch '%(batch)s' cannot change once it has stock."
+
+#: .\stock\models.py:507
+#, fuzzy
+msgid "StockLedgerEntry rows are immutable and cannot be updated."
+msgstr "StockLedgerEntry rows are immutable and cannot be updated."
+
+#: .\stock\models.py:513
+#, fuzzy
+msgid "StockLedgerEntry rows are immutable and cannot be deleted."
+msgstr "StockLedgerEntry rows are immutable and cannot be deleted."
+
+#: .\stock\models.py:624
+#, fuzzy
+msgid "Stock Entry must have at least one item."
+msgstr "Stock Entry must have at least one item."
+
+#: .\stock\models.py:640
+#, fuzzy
+msgid "Material Receipt requires a Target Warehouse."
+msgstr "Material Receipt requires a Target Warehouse."
+
+#: .\stock\models.py:646
+#, fuzzy
+msgid "Material Issue requires a Source Warehouse."
+msgstr "Material Issue requires a Source Warehouse."
+
+#: .\stock\models.py:651
+#, fuzzy
+msgid "Material Transfer requires both Source and Target Warehouses."
+msgstr "Material Transfer requires both Source and Target Warehouses."
+
+#: .\stock\serializers.py:159
+#, fuzzy
+msgid "An item cannot be both nil-rated/exempt and non-GST."
+msgstr "An item cannot be both nil-rated/exempt and non-GST."
+
+#: .\stock\serializers.py:167
+#, fuzzy
+msgid "A variant cannot itself have variants."
+msgstr "A variant cannot itself have variants."
+
+#: .\stock\serializers.py:173
+#, fuzzy
+msgid "This template has variants."
+msgstr "This template has variants."
+
+#: .\stock\serializers.py:179
+#, fuzzy
+msgid "Only a template item (has variants) declares attributes."
+msgstr "Only a template item (has variants) declares attributes."
+
+#: .\stock\serializers.py:195
+#, fuzzy
+msgid "An item that tracks expiry must also be batch-tracked."
+msgstr "An item that tracks expiry must also be batch-tracked."
+
+#: .\stock\serializers.py:203
+#, fuzzy
+msgid "Shelf life must be positive and needs 'has expiry date'."
+msgstr "Shelf life must be positive and needs 'has expiry date'."
+
+#: .\stock\serializers.py:215
+#, fuzzy
+msgid ""
+"Batch tracking cannot be changed once the item has stock ledger entries."
+msgstr ""
+"Batch tracking cannot be changed once the item has stock ledger entries."
+
+#: .\stock\serializers.py:270
+#, fuzzy
+msgid "Values and abbreviations must be unique within an attribute."
+msgstr "Values and abbreviations must be unique within an attribute."
+
+#: .\stock\serializers.py:284
+#, fuzzy
+msgid "Unknown attribute value."
+msgstr "Unknown attribute value."
+
+#: .\stock\serializers.py:294
+#, fuzzy, python-format
+msgid "The abbreviation of '%(value)s' cannot change: variants already use it."
+msgstr "The abbreviation of '%(value)s' cannot change: variants already use it."
+
+#: .\stock\serializers.py:311
+#, fuzzy, python-format
+msgid "Value '%(value)s' is used by items."
+msgstr "Value '%(value)s' is used by items."
+
+#: .\stock\serializers.py:392
+#, fuzzy, python-format
+msgid "Item '%(code)s' is a template with variants: pick one of its variants."
+msgstr "Item '%(code)s' is a template with variants: pick one of its variants."
+
+#: .\stock\serializers.py:401 .\stock\serializers.py:617
+#: .\stock\serializers.py:744 .\stock\services\batches.py:180
+#: .\stock\services\reconciliation.py:225
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not batch-tracked."
+msgstr "Item '%(code)s' is not batch-tracked."
+
+#: .\stock\serializers.py:408
+#, fuzzy
+msgid "The item of a batch cannot change once it has stock."
+msgstr "The item of a batch cannot change once it has stock."
+
+#: .\stock\serializers.py:421
+#, fuzzy
+msgid "Item does not track expiry."
+msgstr "Item does not track expiry."
+
+#: .\stock\serializers.py:425
+#, fuzzy
+msgid "This item tracks expiry; a date is required."
+msgstr "This item tracks expiry; a date is required."
+
+#: .\stock\serializers.py:429 .\stock\serializers.py:633
+#, fuzzy
+msgid "Expiry cannot be before manufacturing."
+msgstr "Expiry cannot be before manufacturing."
+
+#: .\stock\serializers.py:455
+#, fuzzy
+msgid "The batch number cannot be changed."
+msgstr "The batch number cannot be changed."
+
+#: .\stock\serializers.py:602
+#, fuzzy
+msgid "Valuation rate cannot be negative."
+msgstr "Valuation rate cannot be negative."
+
+#: .\stock\serializers.py:612 .\stock\serializers.py:750
+#: .\stock\services\reconciliation.py:229
+#, fuzzy
+msgid "Batch does not belong to this item."
+msgstr "Batch does not belong to this item."
+
+#: .\stock\serializers.py:628
+#, fuzzy
+msgid "Pick an existing batch or enter new-batch details, not both."
+msgstr "Pick an existing batch or enter new-batch details, not both."
+
+#: .\stock\serializers.py:712 .\stock\services\reconciliation.py:233
+#, fuzzy
+msgid "Please specify either Quantity or Valuation Rate or both."
+msgstr "Please specify either Quantity or Valuation Rate or both."
+
+#: .\stock\serializers.py:715 .\stock\services\ledger.py:314
+#, fuzzy
+msgid "Negative Quantity is not allowed."
+msgstr "Negative Quantity is not allowed."
+
+#: .\stock\serializers.py:718 .\stock\services\ledger.py:316
+#, fuzzy
+msgid "Negative Valuation Rate is not allowed."
+msgstr "Negative Valuation Rate is not allowed."
+
+#: .\stock\serializers.py:722
+#, fuzzy
+msgid "Select a leaf warehouse, not a group warehouse."
+msgstr "Select a leaf warehouse, not a group warehouse."
+
+#: .\stock\serializers.py:728 .\stock\services\reconciliation.py:190
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not a stock item."
+msgstr "Item '%(code)s' is not a stock item."
+
+#: .\stock\serializers.py:736 .\stock\services\ledger.py:409
+#: .\stock\services\reconciliation.py:217
+#, fuzzy, python-format
+msgid "Item '%(code)s' is batch-tracked: enter the batch counted."
+msgstr "Item '%(code)s' is batch-tracked: enter the batch counted."
+
+#: .\stock\serializers.py:837
+#, fuzzy, python-format
+msgid "Row #%(row)s: Same item and warehouse combination already entered."
+msgstr "Row #%(row)s: Same item and warehouse combination already entered."
+
+#: .\stock\serializers.py:848
+#, fuzzy, python-format
+msgid "Row #%(row)s: Warehouse '%(name)s' belongs to a different company."
+msgstr "Row #%(row)s: Warehouse '%(name)s' belongs to a different company."
+
+#: .\stock\services\batches.py:111
+#, fuzzy, python-format
+msgid "Item '%(code)s' does not track expiry; remove the expiry date."
+msgstr "Item '%(code)s' does not track expiry; remove the expiry date."
+
+#: .\stock\services\batches.py:118
+#, fuzzy, python-format
+msgid ""
+"Item '%(code)s' tracks expiry: enter an expiry date, or a manufacturing date "
+"and set the item's shelf life."
+msgstr ""
+"Item '%(code)s' tracks expiry: enter an expiry date, or a manufacturing date "
+"and set the item's shelf life."
+
+#: .\stock\services\batches.py:127
+#, fuzzy
+msgid "Expiry date cannot be before the manufacturing date."
+msgstr "Expiry date cannot be before the manufacturing date."
+
+#: .\stock\services\batches.py:138
+#, fuzzy, python-format
+msgid ""
+"Item code '%(code)s' is too long for automatic batch numbering; enter the "
+"batch number manually."
+msgstr ""
+"Item code '%(code)s' is too long for automatic batch numbering; enter the "
+"batch number manually."
+
+#: .\stock\services\batches.py:147
+#, fuzzy, python-format
+msgid "Generated batch number '%(no)s' is too long."
+msgstr "Generated batch number '%(no)s' is too long."
+
+#: .\stock\services\batches.py:188
+#, fuzzy, python-format
+msgid "Batch '%(no)s' already exists."
+msgstr "Batch '%(no)s' already exists."
+
+#: .\stock\services\batches.py:367
+#, fuzzy, python-format
+msgid ""
+"Insufficient usable batch stock for item '%(code)s': required %(req)s, "
+"available %(avail)s (expired, disabled and empty batches are skipped)."
+msgstr ""
+"Insufficient usable batch stock for item '%(code)s': required %(req)s, "
+"available %(avail)s (expired, disabled and empty batches are skipped)."
+
+#: .\stock\services\batches.py:428
+#, fuzzy, python-format
+msgid "Batch required for Item '%(code)s'."
+msgstr "Batch required for Item '%(code)s'."
+
+#: .\stock\services\batches.py:435
+#, fuzzy, python-format
+msgid "FEFO suggests %(picks)s."
+msgstr "FEFO suggests %(picks)s."
+
+#: .\stock\services\batches.py:463 .\stock\services\ledger.py:414
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not batch-tracked but a batch was given."
+msgstr "Item '%(code)s' is not batch-tracked but a batch was given."
+
+#: .\stock\services\batches.py:470
+#, fuzzy, python-format
+msgid "Batch '%(batch)s' belongs to a different item than '%(code)s'."
+msgstr "Batch '%(batch)s' belongs to a different item than '%(code)s'."
+
+#: .\stock\services\batches.py:475
+#, fuzzy, python-format
+msgid "Batch '%(batch)s' is disabled."
+msgstr "Batch '%(batch)s' is disabled."
+
+#: .\stock\services\batches.py:481
+#, fuzzy, python-format
+msgid "Batch '%(batch)s' expired on %(date)s."
+msgstr "Batch '%(batch)s' expired on %(date)s."
+
+#: .\stock\services\batches.py:488
+#, fuzzy, python-format
+msgid ""
+"Insufficient stock in batch '%(batch)s' of item '%(code)s': available "
+"%(avail)s, required %(req)s."
+msgstr ""
+"Insufficient stock in batch '%(batch)s' of item '%(code)s': available "
+"%(avail)s, required %(req)s."
+
+#: .\stock\services\ledger.py:62
+#, fuzzy
+msgid "Cannot post empty stock ledger entries."
+msgstr "Cannot post empty stock ledger entries."
+
+#: .\stock\services\ledger.py:101 .\stock\services\ledger.py:401
+#, fuzzy, python-format
+msgid "Stock transaction not allowed on group warehouse '%(name)s'."
+msgstr "Stock transaction not allowed on group warehouse '%(name)s'."
+
+#: .\stock\services\ledger.py:154
+#, fuzzy, python-format
+msgid ""
+"Transfer of '%(code)s': incoming quantity does not match the quantity taken "
+"out."
+msgstr ""
+"Transfer of '%(code)s': incoming quantity does not match the quantity taken "
+"out."
+
+#: .\stock\services\ledger.py:212
+#, fuzzy, python-format
+msgid ""
+"Insufficient stock for Item '%(code)s' in Warehouse '%(warehouse)s'. "
+"Available: %(available)s, Required: %(required)s"
+msgstr ""
+"Insufficient stock for Item '%(code)s' in Warehouse '%(warehouse)s'. "
+"Available: %(available)s, Required: %(required)s"
+
+#: .\stock\services\ledger.py:308
+#, fuzzy
+msgid "Current stock is negative; enter the counted quantity."
+msgstr "Current stock is negative; enter the counted quantity."
+
+#: .\stock\services\ledger.py:325
+#, fuzzy
+msgid ""
+"A valuation rate is required to count stock into a position that has no "
+"current rate."
+msgstr ""
+"A valuation rate is required to count stock into a position that has no "
+"current rate."
+
+#: .\stock\services\ledger.py:420
+#, fuzzy, python-format
+msgid "Batch '%(batch_no)s' belongs to a different item than '%(code)s'."
+msgstr "Batch '%(batch_no)s' belongs to a different item than '%(code)s'."
+
+#: .\stock\services\ledger.py:448
+#, fuzzy, python-format
+msgid ""
+"Cannot reconcile '%(code)s' in '%(warehouse)s' as of %(date)s %(time)s: "
+"stock moved later (%(latest_date)s %(latest_time)s). Reconcile at or after "
+"the latest movement."
+msgstr ""
+"Cannot reconcile '%(code)s' in '%(warehouse)s' as of %(date)s %(time)s: "
+"stock moved later (%(latest_date)s %(latest_time)s). Reconcile at or after "
+"the latest movement."
+
+#: .\stock\services\ledger.py:547
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel: reversing this entry would leave negative stock for Item "
+"'%(code)s' in Warehouse '%(warehouse)s' (available %(available)s, reversal "
+"%(reversal)s). Cancel the later transactions that consumed this stock first."
+msgstr ""
+"Cannot cancel: reversing this entry would leave negative stock for Item "
+"'%(code)s' in Warehouse '%(warehouse)s' (available %(available)s, reversal "
+"%(reversal)s). Cancel the later transactions that consumed this stock first."
+
+#: .\stock\services\ledger.py:569
+#, fuzzy, python-format
+msgid ""
+"Cannot cancel: reversing this entry would leave negative stock in batch "
+"'%(batch_no)s' of Item '%(code)s' in Warehouse '%(warehouse)s' (short by "
+"%(short)s). Cancel the later transactions that consumed this batch first."
+msgstr ""
+"Cannot cancel: reversing this entry would leave negative stock in batch "
+"'%(batch_no)s' of Item '%(code)s' in Warehouse '%(warehouse)s' (short by "
+"%(short)s). Cancel the later transactions that consumed this batch first."
+
+#: .\stock\services\pricing.py:67
+#, fuzzy, python-format
+msgid "Price List '%(name)s' is disabled."
+msgstr "Price List '%(name)s' is disabled."
+
+#: .\stock\services\pricing.py:71
+#, fuzzy, python-format
+msgid "Price List '%(name)s' is not a selling list."
+msgstr "Price List '%(name)s' is not a selling list."
+
+#: .\stock\services\pricing.py:76
+#, fuzzy, python-format
+msgid "Price List '%(name)s' is not a buying list."
+msgstr "Price List '%(name)s' is not a buying list."
+
+#: .\stock\services\pricing.py:82
+#, fuzzy, python-format
+msgid ""
+"Price List '%(name)s' is in %(currency)s but the company uses "
+"%(company_currency)s; v1 has no currency conversion."
+msgstr ""
+"Price List '%(name)s' is in %(currency)s but the company uses "
+"%(company_currency)s; v1 has no currency conversion."
+
+#: .\stock\services\pricing.py:288 .\stock\services\pricing.py:341
+#, fuzzy, python-format
+msgid ""
+"No price for Item %(code)s in Price List %(list)s, and the item has no "
+"standard rate."
+msgstr ""
+"No price for Item %(code)s in Price List %(list)s, and the item has no "
+"standard rate."
+
+#: .\stock\services\reconciliation.py:29
+#, fuzzy, python-format
+msgid "Row #%(row)s: %(msg)s"
+msgstr "Row #%(row)s: %(msg)s"
+
+#: .\stock\services\reconciliation.py:62
+#, fuzzy
+msgid "Please enter the Difference (Expense) Account."
+msgstr "Please enter the Difference (Expense) Account."
+
+#: .\stock\services\reconciliation.py:68
+#, fuzzy, python-format
+msgid "Account '%(account)s' belongs to a different company."
+msgstr "Account '%(account)s' belongs to a different company."
+
+#: .\stock\services\reconciliation.py:77
+#, fuzzy, python-format
+msgid "Account '%(account)s' must not be a group account."
+msgstr "Account '%(account)s' must not be a group account."
+
+#: .\stock\services\reconciliation.py:86
+#, fuzzy
+msgid ""
+"The Difference Account must be an Asset / Liability / Equity account (e.g. "
+"Temporary Opening), since this Stock Reconciliation is an opening entry."
+msgstr ""
+"The Difference Account must be an Asset / Liability / Equity account (e.g. "
+"Temporary Opening), since this Stock Reconciliation is an opening entry."
+
+#: .\stock\services\reconciliation.py:183
+#, fuzzy
+msgid "Same item and warehouse combination already entered."
+msgstr "Same item and warehouse combination already entered."
+
+#: .\stock\services\reconciliation.py:195
+#, fuzzy, python-format
+msgid "Item '%(code)s' is inactive."
+msgstr "Item '%(code)s' is inactive."
+
+#: .\stock\services\reconciliation.py:201
+#, fuzzy, python-format
+msgid "Warehouse '%(name)s' is a group warehouse."
+msgstr "Warehouse '%(name)s' is a group warehouse."
+
+#: .\stock\services\reconciliation.py:209
+#, fuzzy, python-format
+msgid "Warehouse '%(name)s' belongs to a different company."
+msgstr "Warehouse '%(name)s' belongs to a different company."
+
+#: .\stock\services\reconciliation.py:240
+#, fuzzy
+msgid "Negative Quantity or Valuation Rate is not allowed."
+msgstr "Negative Quantity or Valuation Rate is not allowed."
+
+#: .\stock\services\reconciliation.py:252
+#, fuzzy
+msgid "Stock Reconciliation must have at least one item."
+msgstr "Stock Reconciliation must have at least one item."
+
+#: .\stock\services\reconciliation.py:278
+#: .\stock\services\reconciliation.py:309
+#, fuzzy
+msgid "Nothing to reconcile: no row changes the quantity or valuation rate."
+msgstr "Nothing to reconcile: no row changes the quantity or valuation rate."
+
+#: .\stock\services\variants.py:72
+#, fuzzy, python-format
+msgid "Item '%(code)s' is not a template item."
+msgstr "Item '%(code)s' is not a template item."
+
+#: .\stock\services\variants.py:77
+#, fuzzy, python-format
+msgid "Template '%(code)s' has no attributes; add them first."
+msgstr "Template '%(code)s' has no attributes; add them first."
+
+#: .\stock\services\variants.py:81 .\stock\views.py:114
+#, fuzzy
+msgid "Select at least one attribute value."
+msgstr "Select at least one attribute value."
+
+#: .\stock\services\variants.py:87
+#, fuzzy
+msgid "Attribute and value must be ids."
+msgstr "Attribute and value must be ids."
+
+#: .\stock\services\variants.py:91
+#, fuzzy, python-format
+msgid "Attribute #%(id)s is not used by template '%(code)s'."
+msgstr "Attribute #%(id)s is not used by template '%(code)s'."
+
+#: .\stock\services\variants.py:96
+#, fuzzy, python-format
+msgid "Attribute '%(name)s' is disabled."
+msgstr "Attribute '%(name)s' is disabled."
+
+#: .\stock\services\variants.py:103
+#, fuzzy, python-format
+msgid "Value #%(id)s is not a value of attribute '%(name)s'."
+msgstr "Value #%(id)s is not a value of attribute '%(name)s'."
+
+#: .\stock\services\variants.py:123
+#, fuzzy, python-format
+msgid "A variant with these attributes already exists: '%(code)s'."
+msgstr "A variant with these attributes already exists: '%(code)s'."
+
+#: .\stock\services\variants.py:133
+#, fuzzy, python-format
+msgid "Variant code '%(code)s' is too long."
+msgstr "Variant code '%(code)s' is too long."
+
+#: .\stock\services\variants.py:135
+#, fuzzy
+msgid "Variant name is too long."
+msgstr "Variant name is too long."
+
+#: .\stock\services\variants.py:137
+#, fuzzy, python-format
+msgid "Item '%(code)s' already exists."
+msgstr "Item '%(code)s' already exists."
+
+#: .\stock\services\variants.py:160
+#, fuzzy
+msgid "A variant with these attributes already exists."
+msgstr "A variant with these attributes already exists."
+
+#: .\stock\services\variants.py:177
+#, fuzzy, python-format
+msgid "Template '%(code)s' already has variants; its attributes cannot change."
+msgstr "Template '%(code)s' already has variants; its attributes cannot change."
+
+#: .\stock\services\variants.py:182
+#, fuzzy
+msgid "Unknown attribute."
+msgstr "Unknown attribute."
+
+#: .\stock\views.py:109
+#, fuzzy
+msgid "Each row needs an attribute and a value."
+msgstr "Each row needs an attribute and a value."
+
+#: .\stock\views.py:146
+#, fuzzy
+msgid "This attribute is used by items; disable it instead."
+msgstr "This attribute is used by items; disable it instead."
+
+#: .\stock\views.py:282
+#, fuzzy
+msgid "This batch is used by stock movements; disable it instead."
+msgstr "This batch is used by stock movements; disable it instead."
+
+#: .\stock\views.py:305 .\stock\views.py:336
+#, fuzzy
+msgid "A positive quantity is required."
+msgstr "A positive quantity is required."
+
+#: .\stock\views.py:309 .\stock\views.py:340
+#, fuzzy
+msgid "Unknown item."
+msgstr "Unknown item."
+
+#: .\stock\views.py:311 .\stock\views.py:342
+#, fuzzy
+msgid "Unknown warehouse."
+msgstr "Unknown warehouse."
+
+#: .\stock\views.py:356
+#, fuzzy
+msgid "voucher_type and voucher_no are required."
+msgstr "voucher_type and voucher_no are required."
+
+#: .\stock\views.py:447
+#, fuzzy
+msgid "'company' and 'warehouse' are required integers."
+msgstr "'company' and 'warehouse' are required integers."
+
+#: .\stock\views.py:456
+#, fuzzy
+msgid "Unknown company, warehouse, item or item group."
+msgstr "Unknown company, warehouse, item or item group."
+
+#: .\stock\views.py:461
+#, fuzzy
+msgid "Warehouse belongs to a different company."
+msgstr "Warehouse belongs to a different company."
+
+#: .\stock\views.py:520
+#, fuzzy
+msgid "Must not be negative."
+msgstr "Must not be negative."
+
+#: .\stock\views.py:604
+#, fuzzy
+msgid "Item not found."
+msgstr "Item not found."
+
+#: .\stock\views.py:611
+#, fuzzy
+msgid "Price List not found."
+msgstr "Price List not found."
+
+#: .\stock\views.py:620
+#, fuzzy
+msgid "Customer not found."
+msgstr "Customer not found."
+
+#: .\tally_export\models.py:24
+#, fuzzy
+msgid "Export log rows are immutable and cannot be updated."
+msgstr "Export log rows are immutable and cannot be updated."
+
+#: .\tally_export\models.py:27
+#, fuzzy
+msgid "Export log rows are immutable and cannot be deleted."
+msgstr "Export log rows are immutable and cannot be deleted."
+
+#: .\tally_export\models.py:41
+#, fuzzy, python-format
+msgid "%(model)s rows are immutable and cannot be updated."
+msgstr "%(model)s rows are immutable and cannot be updated."
+
+#: .\tally_export\models.py:48
+#, fuzzy, python-format
+msgid "%(model)s rows are immutable and cannot be deleted."
+msgstr "%(model)s rows are immutable and cannot be deleted."
+
+#: .\tally_export\models.py:126
+#, fuzzy
+msgid "The account belongs to a different company."
+msgstr "The account belongs to a different company."
+
+#: .\tally_export\models.py:129
+#, fuzzy
+msgid "Group accounts are not posted to."
+msgstr "Group accounts are not posted to."
+
+#: .\tally_export\serializers.py:33
+#, fuzzy
+msgid "Expected an object of voucher key -> Tally voucher type name."
+msgstr "Expected an object of voucher key -> Tally voucher type name."
+
+#: .\tally_export\serializers.py:39
+#, fuzzy
+msgid "Expected a list of strings."
+msgstr "Expected a list of strings."
+
+#: .\tally_export\serializers.py:68
+#, fuzzy
+msgid "Tally ledger name is required."
+msgstr "Tally ledger name is required."
+
+#: .\tally_export\serializers.py:79
+#, fuzzy
+msgid "Party type and party are set together or not at all."
+msgstr "Party type and party are set together or not at all."
+
+#: .\tally_export\serializers.py:112
+#, fuzzy
+msgid "Tally stock item name is required."
+msgstr "Tally stock item name is required."
+
+#: .\tally_export\views.py:173
+#, fuzzy
+msgid "vouchers, masters or zip."
+msgstr "vouchers, masters or zip."
+
+#: .\tally_export\views.py:200
+#, fuzzy
+msgid "Pick at least one voucher."
+msgstr "Pick at least one voucher."
+
+#: .\tally_export\views.py:206
+#, fuzzy
+msgid "Each needs doctype and name."
+msgstr "Each needs doctype and name."
+
+#: .\users\models.py:7
+#, fuzzy
+msgid "Orders"
+msgstr "Orders"
+
+#: .\users\models.py:8
+#, fuzzy
+msgid "Factory"
+msgstr "Factory"
+
+#: .\users\models.py:9
+#, fuzzy
+msgid "Accounts"
+msgstr "Accounts"
+
+#: .\users\models.py:10
+#, fuzzy
+msgid "Admin"
+msgstr "Admin"
+
+#: .\users\serializers.py:90
+#, fuzzy, python-format
+msgid "'%(label)s' is not an installed model (use app_label.ModelName)."
+msgstr "'%(label)s' is not an installed model (use app_label.ModelName)."
+
+#: .\users\serializers.py:175
+#, fuzzy
+msgid "The username cannot be changed."
+msgstr "The username cannot be changed."
+
+#: .\users\serializers.py:181
+#, fuzzy
+msgid "This field may not be blank."
+msgstr "This field may not be blank."
+
+#: .\users\serializers.py:190
+#, fuzzy
+msgid "A user with that email already exists."
+msgstr "A user with that email already exists."
+
+#: .\users\serializers.py:196
+#, fuzzy
+msgid "Unsupported language."
+msgstr "Unsupported language."
+
+#: .\users\serializers.py:220
+#, fuzzy
+msgid "Use the set-password action to change a password."
+msgstr "Use the set-password action to change a password."
+
+#: .\users\serializers.py:226 .\users\views.py:146
+#, fuzzy
+msgid "You cannot deactivate yourself."
+msgstr "You cannot deactivate yourself."
+
+#: .\users\serializers.py:239
+#, fuzzy
+msgid "You cannot change your own roles."
+msgstr "You cannot change your own roles."
+
+#: .\users\serializers.py:245
+#, fuzzy
+msgid "You do not have permission to assign roles."
+msgstr "You do not have permission to assign roles."
+
+#: .\users\serializers.py:297
+#, fuzzy
+msgid "The old password is incorrect."
+msgstr "The old password is incorrect."
+
+#: .\users\serializers.py:306
+#, fuzzy
+msgid "The new password must differ from the old one."
+msgstr "The new password must differ from the old one."
+
+#: .\users\views.py:67
+#, fuzzy
+msgid "Password changed."
+msgstr "Password changed."
+
+#: .\users\views.py:106
+#, fuzzy
+msgid "Only a superuser can modify a superuser account."
+msgstr "Only a superuser can modify a superuser account."
+
+#: .\users\views.py:172
+#, fuzzy
+msgid "Use change-password to change your own password."
+msgstr "Use change-password to change your own password."
+
+#: .\users\views.py:182
+#, fuzzy
+msgid "Password updated."
+msgstr "Password updated."

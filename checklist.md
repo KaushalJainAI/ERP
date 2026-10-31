@@ -549,7 +549,7 @@ question's recorded answer.
 - [x] L-3 Build setup
 - [ ] L-4 Hindi
 - [ ] L-5 Hindi review (OWNER)
-- [ ] L-6 Other languages
+- [x] L-6 Other languages
 
 ### 9. Go-live
 - [ ] G-1 Opening bills
