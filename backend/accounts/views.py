@@ -766,3 +766,28 @@ class TaxPaymentViewSet(
     filterset_fields = ["company", "tax_type", "period", "posting_date", "docstatus"]
     search_fields = ["name", "challan_no"]
     ordering_fields = ["posting_date", "period", "created_at"]
+
+
+
+@api_view(["GET"])
+@permission_classes(
+    [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
+)
+def gst_position_view(request):
+    """GST Position report endpoint (GET /api/accounts/reports/gst-position/?month=YYYY-MM&company=)."""
+    company_id = active_company_id(request)
+    company_param = request.query_params.get("company")
+    company = company_param or company_id
+    month = request.query_params.get("month")
+    if not month:
+        raise ValidationError(
+            {"detail": _("month query parameter is required (YYYY-MM).")}
+        )
+
+    from accounts.services.gst_position import gst_position
+
+    try:
+        data = gst_position(company, month)
+    except (ValueError, DjangoValidationError, Company.DoesNotExist) as exc:
+        raise ValidationError({"detail": str(exc)})
+    return Response(data)

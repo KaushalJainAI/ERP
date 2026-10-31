@@ -517,7 +517,7 @@ question's recorded answer.
 ### 6. Taxes
 - [x] T-1 Input credit flag
 - [x] T-2 Tax Payment document
-- [ ] T-3 GST Position service
+- [x] T-3 GST Position service
 - [ ] T-4 GST page
 - [ ] T-5 Credit at risk
 - [ ] T-6 TDS on salary (BLOCKED Q5)
