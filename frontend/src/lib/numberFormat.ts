@@ -23,3 +23,17 @@ export function formatIndianNumber(val: number | string | null | undefined): str
   const num = Number(val);
   return new Intl.NumberFormat("en-IN").format(num);
 }
+
+/** Short rupee figure for charts and headlines, in lakh / crore: "₹1.5L", "₹2.3Cr". */
+export function formatIndianCompact(amount: number | string | null | undefined): string {
+  const num = Number(amount);
+  if (amount === null || amount === undefined || isNaN(num)) {
+    return "₹0";
+  }
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(num);
+}

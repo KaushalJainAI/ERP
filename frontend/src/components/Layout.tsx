@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { TopBar, MobileDrawer } from "./TopBar";
+import { SearchBar } from "./SearchBar";
 import { Sidebar } from "./Sidebar";
 import { BottomBar } from "./BottomBar";
 import { useSyncUserLanguage } from "@/hooks/useSyncUserLanguage";
@@ -35,7 +36,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-200">
-      <TopBar onOpenMenu={() => setMobileMenuOpen(true)} />
+      {/* The top bar and the search row under it stay pinned together. */}
+      <div className="sticky top-0 z-40">
+        <TopBar onOpenMenu={() => setMobileMenuOpen(true)} />
+        <SearchBar />
+      </div>
       <div className="flex-1 flex min-w-0">
         {active && <Sidebar active={active} />}
         <main className="mx-auto w-full min-w-0 max-w-[1440px] flex-1 px-3 pt-4 pb-[calc(8rem_+_env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 md:pb-6">

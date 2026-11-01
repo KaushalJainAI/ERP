@@ -4,52 +4,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Bell, Check, Settings, ExternalLink } from "lucide-react";
 import { apiClient } from "@/api/client";
-
-interface NotificationItem {
-  id: number;
-  rule_key: string;
-  message_key: string;
-  params: Record<string, any>;
-  link: string;
-  read_at: string | null;
-  created_at: string;
-  dedupe_key: string;
-}
-
-function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (diffSec < 60) return "Just now";
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
-  const diffDays = Math.floor(diffHour / 24);
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString();
-}
-
-function formatNotificationTitle(notif: NotificationItem): string {
-  const key = notif.rule_key;
-  if (key === "raw_material_shortage") return "Raw Material Shortage";
-  if (key === "ready_low") return "Low Ready Stock";
-  if (key === "large_order") return "Large Sales Order";
-  if (key === "large_payment") return "Large Payment Received";
-  if (key === "payment_delay") return "Payment Delayed";
-  if (key === "expense_unpaid") return "Expense Unpaid";
-  if (key === "gst_credit_at_risk") return "GST Credit At Risk";
-  if (key === "integrity_failed") return "System Integrity Alert";
-  if (key === "overdue_bills_digest") return "Overdue Bills Digest";
-  if (key === "daily_summary") return "Daily Operations Summary";
-  if (key === "weekly_digest") return "Weekly Digest";
-  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import {
+  formatRelativeTime,
+  notificationBody,
+  notificationTitle,
+  useMarkNotificationRead,
+  useNotificationList,
+  type NotificationItem,
+} from "./useNotifications";
 
 export const NotificationBell: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -78,24 +43,9 @@ export const NotificationBell: React.FC = () => {
   });
 
   // Fetch recent notifications when popover is open
-  const { data: notifData } = useQuery({
-    queryKey: ["notifications", "list"],
-    queryFn: async () => {
-      const res = await apiClient.get<any>("/notifications/");
-      const items = Array.isArray(res.data) ? res.data : (res.data.results || []);
-      return items as NotificationItem[];
-    },
-    enabled: open,
-  });
+  const { data: notifData } = useNotificationList(open);
 
-  const markReadMutation = useMutation({
-    mutationFn: async (id: number) => {
-      await apiClient.post(`/notifications/${id}/read/`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    },
-  });
+  const markReadMutation = useMarkNotificationRead();
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
@@ -188,19 +138,15 @@ export const NotificationBell: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-slate-200 truncate">
-                          {formatNotificationTitle(notif)}
+                          {notificationTitle(t, notif)}
                         </p>
                         <span className="text-[10px] text-slate-500 shrink-0">
-                          {formatRelativeTime(notif.created_at)}
+                          {formatRelativeTime(notif.created_at, i18n.language)}
                         </span>
                       </div>
-                      <div className="text-xs text-slate-400 mt-0.5 line-clamp-2">
-                        {Object.entries(notif.params || {}).map(([k, v]) => (
-                          <span key={k} className="me-2">
-                            <span className="text-slate-500">{k}:</span> {String(v)}
-                          </span>
-                        ))}
-                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
+                        {notificationBody(t, notif)}
+                      </p>
                       {notif.link && (
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-brand-400 hover:underline">
                           <span>{t("common.view", "View")}</span>

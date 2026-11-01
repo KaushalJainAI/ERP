@@ -1,5 +1,6 @@
 from decimal import Decimal
 import django_filters
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, Sum
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -774,10 +775,8 @@ class TaxPaymentViewSet(
     [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
 )
 def gst_position_view(request):
-    """GST Position report endpoint (GET /api/accounts/reports/gst-position/?month=YYYY-MM&company=)."""
-    company_id = active_company_id(request)
-    company_param = request.query_params.get("company")
-    company = company_param or company_id
+    """GST Position report endpoint (GET /api/accounts/reports/gst-position/?month=YYYY-MM)."""
+    company = active_company_id(request)
     month = request.query_params.get("month")
     if not month:
         raise ValidationError(
@@ -799,10 +798,8 @@ def gst_position_view(request):
     [permissions.IsAuthenticated, require_model_permission("accounts.GLEntry")]
 )
 def gst_credit_at_risk_view(request):
-    """Credit at risk report (GET /api/accounts/reports/gst-credit-at-risk/?company=&as_on=)."""
-    company_id = active_company_id(request)
-    company_param = request.query_params.get("company")
-    company = company_param or company_id
+    """Credit at risk report (GET /api/accounts/reports/gst-credit-at-risk/?as_on=)."""
+    company = active_company_id(request)
     as_on = request.query_params.get("as_on")
 
     from accounts.services.gst_position import gst_credit_at_risk

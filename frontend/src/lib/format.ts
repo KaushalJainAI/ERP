@@ -1,4 +1,4 @@
-import { formatIndianCurrency, formatIndianNumber } from "./numberFormat";
+import { formatIndianCompact, formatIndianCurrency, formatIndianNumber } from "./numberFormat";
 
 /** "2026-10-27" -> "27/10/2026" (no timezone conversion). */
 export function formatDate(value: string | null | undefined): string {
@@ -15,4 +15,4 @@ export function todayISO(): string {
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-export { formatIndianCurrency, formatIndianNumber };
+export { formatIndianCompact, formatIndianCurrency, formatIndianNumber };

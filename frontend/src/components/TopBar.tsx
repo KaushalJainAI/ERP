@@ -21,7 +21,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { useActiveModule, useModuleNav, type ModuleNav } from "@/resources/nav";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { NotificationBell } from "./notifications/NotificationBell";
-import { GlobalSearch } from "./GlobalSearch";
 import { badgeClass, useNavBadges } from "@/resources/navBadges";
 
 /** Daily operational modules kept in the main top bar. Everything else moves into "More ▾". */
@@ -347,7 +346,7 @@ export interface TopBarProps {
   onOpenMenu?: () => void;
 }
 
-/** App chrome: brand, core tabs, NGU-style searchbar, "More ▾" dropdown, language / theme / user. */
+/** App chrome: brand, core tabs, "More ▾" dropdown, language / theme / user. */
 export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
   const { t } = useTranslation();
   const { pathname } = useLocation();
@@ -402,7 +401,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+    <header className="border-b border-slate-800 bg-slate-900/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto max-w-[1440px] px-3 sm:px-6 h-12 flex items-center gap-2 sm:gap-4">
         {/* Mobile menu button */}
         <button
@@ -468,13 +467,8 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
           )}
         </nav>
 
-        {/* NGU Admin Panel Style Global Searchbar with Ctrl+K */}
-        <div className="hidden sm:flex items-center flex-1 min-w-[9rem] max-w-sm ms-auto">
-          <GlobalSearch />
-        </div>
-
         {/* Right side controls */}
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0 ms-auto sm:ms-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0 ms-auto">
           <div className="hidden sm:block">
             <LanguageSwitcher compact />
           </div>

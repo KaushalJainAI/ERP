@@ -12,7 +12,6 @@ import {
   List,
   Loader2,
   Plus,
-  Search,
   ShieldAlert,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
@@ -34,10 +33,11 @@ const DOCSTATUS_FILTERS = [
 export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  // The status filter lives in the URL (?docstatus=0|1|2) so home cards can deep-link to it;
-  // ?search= pre-fills the search box (the GST reports link invoices by document number).
+  // The status filter lives in the URL (?docstatus=0|1|2) so home cards can deep-link to it.
+  // ?search= is the list filter: the search bar under the top bar writes it, and the GST
+  // reports link invoices here by document number.
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
+  const search = searchParams.get("search") ?? "";
   const rawStatus = searchParams.get("docstatus") ?? "";
   const docstatus = DOCSTATUS_FILTERS.some((f) => f.value === rawStatus) ? rawStatus : "";
   const setDocstatus = (value: string) =>
@@ -309,16 +309,6 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                 </button>
               </div>
             )}
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute start-3 top-3 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder={t("search")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-slate-800 bg-slate-950 py-2 pe-4 ps-9 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
             {!config.listOnly && (
               <button
                 type="button"

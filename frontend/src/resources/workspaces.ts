@@ -47,6 +47,8 @@ export interface WorkspaceDef {
   icon: ComponentType<{ className?: string }>;
   /** Tailwind classes for the icon tile. */
   color: string;
+  /** Solid fill for the home-screen app icon. */
+  appColor: string;
   links: WorkspaceLink[];
 }
 
@@ -57,6 +59,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.selling_desc",
     icon: ShoppingCart,
     color: "bg-sky-950/60 text-sky-300 border-sky-800/50",
+    appColor: "bg-sky-600",
     links: [
       { path: "/selling/sales-orders", labelKey: "res.sales_orders", access: ["selling.SalesOrder"], icon: FileText },
       { path: "/selling/sales-invoices", labelKey: "res.sales_invoices", access: ["selling.SalesInvoice"], icon: Receipt },
@@ -70,6 +73,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.buying_desc",
     icon: ShoppingBag,
     color: "bg-amber-950/60 text-amber-300 border-amber-800/50",
+    appColor: "bg-amber-600",
     links: [
       { path: "/buying/purchase-orders", labelKey: "bs.res.purchase_orders", access: ["buying.PurchaseOrder"], icon: FileText },
       { path: "/buying/purchase-invoices", labelKey: "bs.res.purchase_invoices", access: ["buying.PurchaseInvoice"], icon: Receipt },
@@ -82,6 +86,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.stock_desc",
     icon: Boxes,
     color: "bg-emerald-950/60 text-emerald-300 border-emerald-800/50",
+    appColor: "bg-emerald-600",
     links: [
       { path: "/stock/stock-entries", labelKey: "bs.res.stock_entries", access: ["stock.StockEntry"], icon: Package },
       { path: "/stock/bins", labelKey: "bs.res.bins", access: ["stock.Bin"], icon: Warehouse },
@@ -94,6 +99,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.manufacturing_desc",
     icon: Factory,
     color: "bg-violet-950/60 text-violet-300 border-violet-800/50",
+    appColor: "bg-violet-600",
     links: [
       { path: "/manufacturing/boms", labelKey: "mf.res.boms", access: ["manufacturing.BOM"], icon: ClipboardList },
       { path: "/manufacturing/work-orders", labelKey: "mf.res.work_orders", access: ["manufacturing.WorkOrder"], icon: Factory },
@@ -106,6 +112,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.accounts_desc",
     icon: BookOpen,
     color: "bg-indigo-950/60 text-indigo-300 border-indigo-800/50",
+    appColor: "bg-indigo-600",
     links: [
       { path: "/accounts/journal-entries", labelKey: "acc.res.journal_entries", access: ["accounts.JournalEntry"], icon: FileText },
       { path: "/accounts/payment-entries", labelKey: "acc.res.payment_entries", access: ["accounts.PaymentEntry"], icon: Wallet },
@@ -120,6 +127,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.hr_desc",
     icon: UserRound,
     color: "bg-rose-950/60 text-rose-300 border-rose-800/50",
+    appColor: "bg-rose-600",
     links: [
       { path: "/hr/employees", labelKey: "hrm.res.employees", access: ["hr.Employee"], icon: Users },
       { path: "/hr/attendance", labelKey: "hrm.res.attendance", access: ["hr.Attendance"], icon: ClipboardList },
@@ -132,6 +140,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "org.workspace_desc",
     icon: Building2,
     color: "bg-teal-950/60 text-teal-300 border-teal-800/50",
+    appColor: "bg-teal-600",
     links: [
       { path: "/organisation/company", labelKey: "organisation.company", access: ["core.Company"], icon: Building2 },
       { path: "/organisation/drive", labelKey: "organisation.drive", access: ["core.Company"], icon: HardDrive },
@@ -143,6 +152,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     descriptionKey: "home.workspace.admin_desc",
     icon: ShieldCheck,
     color: "bg-slate-800 text-slate-200 border-slate-700",
+    appColor: "bg-blue-600",
     links: [
       { path: "/users/users", labelKey: "usermgmt.nav", access: ["users.User"], icon: Users },
       { path: "/users/roles", labelKey: "roles.nav", access: ["users.Role"], icon: ShieldCheck },

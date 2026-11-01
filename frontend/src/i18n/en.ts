@@ -129,5 +129,18 @@ export const enExtra = {
     rules_subtitle: "Configure automated alert thresholds, email schedules, and staff recipients.",
     threshold_days: "Threshold (days)",
     recipients: "Recipients:",
+    rule: {
+      raw_material_shortage: { title: "Raw material shortage", body: "{{item}}: {{qty}} left, minimum {{critical}}" },
+      ready_low: { title: "Low ready stock", body: "{{item}}: {{qty}} left, minimum {{critical}}" },
+      large_order: { title: "Large sales order", body: "{{order}}, {{customer}}: {{grand_total}}" },
+      large_payment: { title: "Large payment received", body: "{{payment}}, {{party}}: {{amount}}" },
+      payment_delay: { title: "Payment delayed", body: "{{invoice}}, {{customer}}: {{outstanding}} unpaid for {{days_unpaid}} days" },
+      expense_unpaid: { title: "Expense unpaid", body: "{{invoice}}, {{supplier}}: {{outstanding}} unpaid for {{days_unpaid}} days" },
+      gst_credit_at_risk: { title: "GST credit at risk", body: "{{invoice}}: {{gst_amount}} GST credit, unpaid for {{days_unpaid}} days" },
+      integrity_failed: { title: "Books check failed", body: "{{error_count}} problems found in the books" },
+      overdue_bills_digest: { title: "Overdue bills", body: "{{count}} overdue bills, {{total_amount}} in total" },
+      daily_summary: { title: "Daily summary", body: "{{money_in}} received, {{bills_count}} bills worth {{bills_total}}, {{pending_dispatches}} orders to dispatch" },
+      weekly_digest: { title: "Weekly summary", body: "To collect this week: {{collections_needed}}. Bills due: {{bills_due}}" },
+    },
   },
 };

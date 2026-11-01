@@ -593,7 +593,9 @@ class StatusPropertyTests(OutstandingBase):
         inv = self.make(due_date=future)
         self.assertFalse(inv.is_overdue)
         self.assertEqual(inv.display_status, "Unpaid")
-        no_due = self.make()
+        # No explicit due date: it defaults from the posting date, so post today
+        # to keep it not-yet-due regardless of when the suite runs.
+        no_due = self.make(posting_date=datetime.date.today().isoformat())
         self.assertFalse(no_due.is_overdue)
 
     def test_draft_and_cancelled_are_not_overdue(self):

@@ -399,7 +399,7 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
 
       <div
         dir={isRTL ? "rtl" : "ltr"}
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-700/80 bg-slate-900 pb-[env(safe-area-inset-bottom)] shadow-2xl animate-fade-up sm:inset-x-auto sm:bottom-6 sm:end-6 sm:h-[620px] sm:max-w-md sm:rounded-2xl sm:pb-0"
+        className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-slate-700/80 bg-slate-900 pb-[env(safe-area-inset-bottom)] shadow-2xl animate-fade-up sm:inset-x-auto sm:bottom-6 sm:end-6 sm:h-[min(620px,calc(100dvh-3rem))] sm:max-w-md sm:rounded-2xl sm:pb-0"
       >
         {/* Mobile Drag Indicator */}
         <div className="w-12 h-1 bg-slate-700 rounded-full mx-auto mt-2 sm:hidden shrink-0" />

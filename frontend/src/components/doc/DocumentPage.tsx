@@ -592,7 +592,7 @@ const DocumentForm: React.FC<{
   return (
     <div className="max-w-6xl mx-auto space-y-5 animate-fade-up">
       {/* header */}
-      <div className="sticky top-[calc(2.75rem_+_env(safe-area-inset-top))] z-30 -mt-3 flex flex-wrap items-center justify-between gap-3 bg-slate-950/90 py-2.5 backdrop-blur">
+      <div className="sticky top-[calc(6rem_+_env(safe-area-inset-top))] z-30 -mt-3 flex flex-wrap items-center justify-between gap-3 bg-slate-950/90 py-2.5 backdrop-blur">
         <div className="flex items-center gap-3 min-w-0">
           <Link to={base} className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800" aria-label={t("common.back_to_list")}>
             <ArrowLeft className="w-4 h-4" />

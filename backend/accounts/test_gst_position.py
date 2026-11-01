@@ -6,7 +6,8 @@ from rest_framework.test import APIClient
 from accounts.models import TaxPayment
 from accounts.services.gst_position import gst_position
 from accounts.test_outstanding import OutstandingBase
-from core.models import DocStatus
+from core.models import Company, DocStatus, UserCompany
+from users.models import Role, RolePermission, User, UserRole
 
 D = Decimal
 GST_POSITION_URL = "/api/accounts/reports/gst-position/"
@@ -102,6 +103,33 @@ class GstPositionTests(OutstandingBase):
         # Missing month param -> 400
         res = client.get(GST_POSITION_URL, {"company": self.company.id})
         self.assertEqual(res.status_code, 400)
+
+    def test_gst_reports_use_the_active_company_not_the_query_param(self):
+        """The GST Position page sends the company name; a stranger's id must not leak."""
+        other = Company.objects.create(name="Other GST Co", abbr="OGC")
+        user = User.objects.create_user("gst-reader", "gst@x.com", "x")
+        role = Role.objects.create(name="GST reader")
+        RolePermission.objects.create(
+            role=role, model_label="accounts.GLEntry", can_read=True
+        )
+        UserRole.objects.create(user=user, role=role)
+        UserCompany.objects.update_or_create(
+            user=user, defaults={"company": self.company, "is_default": True}
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        self.sale(self.cust_intra, (self.item18, 1, 1000), **OCT)
+
+        for company in (self.company.name, other.id):
+            res = client.get(GST_POSITION_URL, {"month": "2026-10", "company": company})
+            self.assertEqual(res.status_code, 200, res.content)
+            self.assertEqual(res.data["company"], self.company.id)
+            self.assertEqual(res.data["output_tax"], "180.00")
+
+        res = client.get(
+            "/api/accounts/reports/gst-credit-at-risk/", {"company": self.company.name}
+        )
+        self.assertEqual(res.status_code, 200, res.content)
 
     def test_gst_credit_at_risk(self):
         as_on = datetime.date(2026, 10, 1)
