@@ -1807,6 +1807,43 @@ const pa: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ਖ਼ਰਚੇ ਦੇ ਦਾਅਵੇ",
+      "claim": "ਖ਼ਰਚੇ ਦਾ ਦਾਅਵਾ",
+      "reimbursements": "ਭਰਪਾਈ",
+      "reimbursement": "ਭਰਪਾਈ",
+      "owed_nav": "ਮੁਲਾਜ਼ਮਾਂ ਦੀ ਬਕਾਇਆ ਰਕਮ",
+      "owed_title": "ਮੁਲਾਜ਼ਮਾਂ ਦੀ ਬਕਾਇਆ ਰਕਮ",
+      "owed_subtitle": "ਭਰਪਾਈ ਤੋਂ ਬਾਅਦ, ਕੰਪਨੀ ਵੱਲੋਂ ਹਰੇਕ ਮੁਲਾਜ਼ਮ ਨੂੰ ਦਿੱਤੇ ਜਾਣ ਬਾਕੀ ਖ਼ਰਚੇ।",
+      "owed_empty": "ਮੁਲਾਜ਼ਮਾਂ ਦਾ ਕੋਈ ਬਕਾਇਆ ਨਹੀਂ ਹੈ।",
+      "owed_total": "ਕੁੱਲ",
+      "owed_view": "ਦਾਅਵੇ ਵੇਖੋ",
+      "lines": "ਖ਼ਰਚੇ ਦੀਆਂ ਸਤਰਾਂ",
+      "col": {
+        "claimed": "ਦਾਅਵਾ ਕੀਤੀ ਰਕਮ",
+        "reimbursed": "ਭਰਪਾਈ ਹੋਈ ਰਕਮ"
+      },
+      "fields": {
+        "expense_date": "ਖ਼ਰਚੇ ਦੀ ਮਿਤੀ",
+        "expense_category": "ਖ਼ਰਚੇ ਦੀ ਸ਼੍ਰੇਣੀ",
+        "sanctioned": "ਮਨਜ਼ੂਰ ਰਕਮ",
+        "total_sanctioned": "ਕੁੱਲ ਮਨਜ਼ੂਰ",
+        "payable_account": "ਅਦਾਇਗੀ ਯੋਗ ਖਾਤਾ"
+      },
+      "status": {
+        "draft": "ਡਰਾਫ਼ਟ",
+        "unpaid": "ਅਦਾ ਨਹੀਂ ਹੋਇਆ",
+        "partly_paid": "ਅੰਸ਼ਕ ਅਦਾਇਗੀ",
+        "paid": "ਅਦਾ ਹੋਇਆ",
+        "cancelled": "ਰੱਦ"
+      },
+      "help": {
+        "proof": "ਹੇਠਾਂ ਰਸੀਦ ਦੀ ਫ਼ੋਟੋ ਲਗਾਓ। ਰਸੀਦ ਤੋਂ ਬਿਨਾਂ ਦਾਅਵਾ ਜਮ੍ਹਾਂ ਨਹੀਂ ਹੋ ਸਕਦਾ।",
+        "payable_account": "ਖਾਲੀ ਛੱਡੋ ਤਾਂ ਐੱਚਆਰ ਸੈਟਿੰਗਾਂ ਵਾਲਾ ਖ਼ਰਚਾ ਦਾਅਵਾ ਅਦਾਇਗੀ ਖਾਤਾ ਵਰਤਿਆ ਜਾਵੇਗਾ।",
+        "sanctioned_default": "ਪੂਰੀ ਰਕਮ ਦੇ ਬਰਾਬਰ",
+        "claim_filter": "ਇਸ ਮੁਲਾਜ਼ਮ ਦੇ ਜਮ੍ਹਾਂ ਕੀਤੇ ਦਾਅਵੇ ਹੀ ਦਿਖਾਏ ਜਾਣਗੇ।"
+      }
+    },
     title: "ਮਨੁੱਖੀ ਸਰੋਤ",
     res: {
       employees: "ਕਰਮਚਾਰੀ",

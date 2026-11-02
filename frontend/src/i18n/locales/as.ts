@@ -1807,6 +1807,43 @@ const as: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "খৰচৰ দাবী",
+      "claim": "খৰচৰ দাবী",
+      "reimbursements": "ঘূৰাই দিয়া",
+      "reimbursement": "ঘূৰাই দিয়া",
+      "owed_nav": "কৰ্মচাৰীক দিবলগীয়া",
+      "owed_title": "কৰ্মচাৰীক দিবলগীয়া",
+      "owed_subtitle": "ঘূৰাই দিয়াৰ পিছত, কৰ্মচাৰীসকলে দিয়া খৰচৰ বাবদ কোম্পানীয়ে এতিয়াও দিবলগীয়া টকা।",
+      "owed_empty": "কৰ্মচাৰীক দিবলগীয়া কোনো টকা নাই।",
+      "owed_total": "মুঠ",
+      "owed_view": "দাবীসমূহ চাওক",
+      "lines": "খৰচৰ বিৱৰণ",
+      "col": {
+        "claimed": "দাবী কৰা টকা",
+        "reimbursed": "ঘূৰাই দিয়া টকা"
+      },
+      "fields": {
+        "expense_date": "খৰচৰ তাৰিখ",
+        "expense_category": "খৰচৰ শ্ৰেণী",
+        "sanctioned": "অনুমোদিত টকা",
+        "total_sanctioned": "মুঠ অনুমোদিত",
+        "payable_account": "দিবলগীয়া একাউণ্ট"
+      },
+      "status": {
+        "draft": "ড্ৰাফ্ট",
+        "unpaid": "দিয়া নহ'ল",
+        "partly_paid": "আংশিক দিয়া",
+        "paid": "দিয়া হ'ল",
+        "cancelled": "বাতিল"
+      },
+      "help": {
+        "proof": "তলত ৰচীদৰ ফটো দিয়ক। ৰচীদ নোহোৱাকৈ দাবী দাখিল কৰিব নোৱাৰি।",
+        "payable_account": "খালী এৰিলে এইচআৰ ছেটিঙৰ খৰচৰ দাবী দিবলগীয়া একাউণ্ট ব্যৱহাৰ হ'ব।",
+        "sanctioned_default": "সম্পূৰ্ণ টকাৰ সমান",
+        "claim_filter": "এই কৰ্মচাৰীৰ দাখিল কৰা দাবীসমূহহে দেখুৱাব।"
+      }
+    },
     title: "এইচআৰ",
     res: {
       employees: "কৰ্মচাৰী",

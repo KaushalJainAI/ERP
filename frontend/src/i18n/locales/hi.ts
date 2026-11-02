@@ -1807,6 +1807,43 @@ const hi: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "खर्च के दावे",
+      "claim": "खर्च का दावा",
+      "reimbursements": "भरपाई",
+      "reimbursement": "भरपाई",
+      "owed_nav": "कर्मचारियों की बाकी रकम",
+      "owed_title": "कर्मचारियों की बाकी रकम",
+      "owed_subtitle": "भरपाई के बाद, कर्मचारियों के चुकाए खर्च में से कंपनी पर अभी बाकी रकम।",
+      "owed_empty": "कर्मचारियों की कोई बाकी रकम नहीं है।",
+      "owed_total": "कुल",
+      "owed_view": "दावे देखें",
+      "lines": "खर्च की प्रविष्टियाँ",
+      "col": {
+        "claimed": "दावा की गई रकम",
+        "reimbursed": "चुकाई गई रकम"
+      },
+      "fields": {
+        "expense_date": "खर्च की तारीख",
+        "expense_category": "खर्च की श्रेणी",
+        "sanctioned": "स्वीकृत रकम",
+        "total_sanctioned": "कुल स्वीकृत",
+        "payable_account": "देय खाता"
+      },
+      "status": {
+        "draft": "ड्राफ्ट",
+        "unpaid": "बाकी",
+        "partly_paid": "आंशिक भुगतान",
+        "paid": "भुगतान हुआ",
+        "cancelled": "रद्द"
+      },
+      "help": {
+        "proof": "नीचे खर्च की रसीद की फोटो जोड़ें। रसीद के बिना दावा जमा नहीं हो सकता।",
+        "payable_account": "खाली छोड़ें तो एचआर सेटिंग्स का खर्च दावा देय खाता इस्तेमाल होगा।",
+        "sanctioned_default": "पूरी रकम के बराबर",
+        "claim_filter": "इस कर्मचारी के जमा किए गए दावे ही दिखेंगे।"
+      }
+    },
     title: "मानव संसाधन",
     res: {
       employees: "कर्मचारी",

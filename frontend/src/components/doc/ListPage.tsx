@@ -53,9 +53,16 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
   const [page, setPage] = useState(1);
   const debounced = useDebounced(search, 300);
   const base = `/${config.module}/${config.key}`;
+  // Exact filters named by the resource (ResourceConfig.urlFilters), e.g. ?employee=12.
+  const urlFilterValues: Record<string, string> = {};
+  (config.urlFilters ?? []).forEach((k) => {
+    const v = searchParams.get(k);
+    if (v) urlFilterValues[k] = v;
+  });
+  const urlFilterKey = JSON.stringify(urlFilterValues);
 
   // Back to page 1 whenever the query changes.
-  useEffect(() => setPage(1), [debounced, docstatus, config.endpoint]);
+  useEffect(() => setPage(1), [debounced, docstatus, config.endpoint, urlFilterKey]);
   // A different resource starts from the default tree state.
   useEffect(() => {
     setExpanded(null);
@@ -80,7 +87,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
   });
 
   const flatQuery = useQuery({
-    queryKey: ["list", config.endpoint, { page, search: debounced, docstatus }],
+    queryKey: ["list", config.endpoint, { page, search: debounced, docstatus, urlFilterKey }],
     enabled: !treeOn,
     queryFn: () =>
       listRecords(config.endpoint, {
@@ -88,6 +95,7 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
         search: debounced,
         ordering: config.ordering ?? "-created_at",
         docstatus: config.submittable ? docstatus : undefined,
+        ...urlFilterValues,
       }),
     placeholderData: keepPreviousData,
   });
