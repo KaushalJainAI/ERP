@@ -1,5 +1,7 @@
 import { createElement } from "react";
+import i18n from "i18next";
 import {
+  Banknote,
   Layers,
   Briefcase,
   Building2,
@@ -10,6 +12,7 @@ import {
   HandCoins,
   IndianRupee,
   Network,
+  Receipt,
   RefreshCw,
   Settings,
   UserRound,
@@ -19,7 +22,8 @@ import type { LinkDef, NavLink, ResourceConfig, SelectOption } from "@/types";
 import { todayISO } from "@/lib/format";
 import type { ReportConfig } from "@/types/report";
 import { companyField, companyLink } from "./selling";
-import { optCell, optKey } from "./hrOptions";
+import { expenseCategoryLink } from "./buying";
+import { claimStatusCell, optCell, optKey } from "./hrOptions";
 import { EmployeePanels } from "@/components/hr/EmployeePanels";
 import { HrSettingsPanel, PayrollEntryPanel, SalarySlipPanel } from "@/components/hr/PayrollPanels";
 
@@ -501,6 +505,110 @@ const payments: ResourceConfig = {
   ],
 };
 
+/* ---- expense claims and reimbursements (E-10) ---- */
+
+/** Submitted claims of the reimbursement's employee; picking one suggests its outstanding amount. */
+const expenseClaimLink: LinkDef = {
+  endpoint: "/hr/expense-claims/",
+  labelField: "name",
+  subLabel: (r) => `${i18n.t("hrm.fields.outstanding")}: ${r.outstanding_amount}`,
+  display: (v) => v.expense_claim_name || undefined,
+  filters: (_row, form) => ({ company: form.company, employee: form.employee, docstatus: 1 }),
+  fill: (r) => ({ amount: r.outstanding_amount }),
+};
+
+const CLAIM_STATUSES: SelectOption[] = [
+  { value: "Draft", labelKey: "hrm.exp.status.draft" },
+  { value: "Unpaid", labelKey: "hrm.exp.status.unpaid" },
+  { value: "Partly Paid", labelKey: "hrm.exp.status.partly_paid" },
+  { value: "Paid", labelKey: "hrm.exp.status.paid" },
+  { value: "Cancelled", labelKey: "hrm.exp.status.cancelled" },
+];
+
+const expenseClaims: ResourceConfig = {
+  key: "expense-claims",
+  module: "hr",
+  endpoint: "/hr/expense-claims/",
+  titleKey: "hrm.exp.claims",
+  singularKey: "hrm.exp.claim",
+  icon: Receipt,
+  submittable: true,
+  titleField: "name",
+  ordering: "-posting_date",
+  // ?employee=<id> from the "Owed to Staff" page.
+  urlFilters: ["employee"],
+  columns: [
+    { key: "name", labelKey: "fields.docno" },
+    { key: "employee_name", labelKey: "hrm.fields.employee" },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+    { key: "total_claimed", labelKey: "hrm.exp.col.claimed", type: "money" },
+    { key: "outstanding_amount", labelKey: "hrm.fields.outstanding", type: "money" },
+    { key: "status", labelKey: "hrm.fields.status", render: claimStatusCell },
+    { key: "docstatus", labelKey: "status", type: "status" },
+  ],
+  fields: [
+    { key: "name", labelKey: "fields.docno", type: "text", readOnlyAfterCreate: true, helpKey: "fields.docno_help" },
+    { ...companyField, clears: ["employee", "payable_account"] },
+    { key: "employee", labelKey: "hrm.fields.employee", type: "link", required: true, link: employeeLink },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "payable_account", labelKey: "hrm.exp.fields.payable_account", type: "link", link: hrAccountLink("Liability"), advanced: true, helpKey: "hrm.exp.help.payable_account" },
+    { key: "remarks", labelKey: "hrm.fields.remarks", type: "textarea" },
+    { key: "total_claimed", labelKey: "hrm.exp.col.claimed", type: "decimal", money: true, readOnly: true, hidden: (_v, isNew) => isNew },
+    { key: "total_sanctioned", labelKey: "hrm.exp.fields.total_sanctioned", type: "decimal", money: true, readOnly: true, hidden: (_v, isNew) => isNew },
+    { key: "outstanding_amount", labelKey: "hrm.fields.outstanding", type: "decimal", money: true, readOnly: true, hidden: (_v, isNew) => isNew },
+    { key: "status", labelKey: "hrm.fields.status", type: "select", options: CLAIM_STATUSES, readOnly: true, hidden: (_v, isNew) => isNew },
+  ],
+  childTables: [
+    {
+      key: "lines",
+      titleKey: "hrm.exp.lines",
+      newRow: () => ({}),
+      columns: [
+        { key: "expense_date", labelKey: "hrm.exp.fields.expense_date", type: "date", required: true, widthClass: "w-44" },
+        { key: "expense_category", labelKey: "hrm.exp.fields.expense_category", type: "link", required: true, link: expenseCategoryLink, widthClass: "min-w-[14rem]" },
+        { key: "description", labelKey: "hrm.fields.description", type: "text", widthClass: "min-w-[14rem]" },
+        { key: "amount", labelKey: "hrm.exp.col.claimed", type: "decimal", money: true, required: true, widthClass: "w-36" },
+        { key: "sanctioned_amount", labelKey: "hrm.exp.fields.sanctioned", type: "decimal", money: true, widthClass: "w-36", placeholderKey: "hrm.exp.help.sanctioned_default" },
+      ],
+    },
+  ],
+  // The receipt photo is a required proof: the attachment panel below takes it.
+  renderSummary: ({ editable }) => (editable ? createElement("p", { className: "text-xs text-slate-500" }, i18n.t("hrm.exp.help.proof")) : null),
+};
+
+const expenseReimbursements: ResourceConfig = {
+  key: "expense-reimbursements",
+  module: "hr",
+  endpoint: "/hr/expense-reimbursements/",
+  titleKey: "hrm.exp.reimbursements",
+  singularKey: "hrm.exp.reimbursement",
+  icon: Banknote,
+  submittable: true,
+  titleField: "name",
+  ordering: "-posting_date",
+  columns: [
+    { key: "name", labelKey: "fields.docno" },
+    { key: "employee_name", labelKey: "hrm.fields.employee" },
+    { key: "expense_claim_name", labelKey: "hrm.exp.claim" },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date" },
+    { key: "amount", labelKey: "hrm.fields.amount", type: "money" },
+    { key: "mode", labelKey: "hrm.fields.mode", render: optCell },
+    { key: "reference_no", labelKey: "hrm.fields.reference_no" },
+    { key: "docstatus", labelKey: "status", type: "status" },
+  ],
+  fields: [
+    { key: "name", labelKey: "fields.docno", type: "text", readOnlyAfterCreate: true, helpKey: "fields.docno_help" },
+    { ...companyField, clears: ["employee", "expense_claim", "paid_from"] },
+    { key: "employee", labelKey: "hrm.fields.employee", type: "link", required: true, link: employeeLink, clears: ["expense_claim"] },
+    { key: "expense_claim", labelKey: "hrm.exp.claim", type: "link", required: true, link: expenseClaimLink, helpKey: "hrm.exp.help.claim_filter" },
+    { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: dateToday },
+    { key: "amount", labelKey: "hrm.fields.amount", type: "decimal", money: true, required: true },
+    { key: "mode", labelKey: "hrm.fields.mode", type: "select", options: PAYMENT_MODES, required: true, defaultValue: "Cash" },
+    { key: "paid_from", labelKey: "hrm.fields.paid_from", type: "link", required: true, link: hrAccountLink("Asset") },
+    { key: "reference_no", labelKey: "hrm.fields.reference_no", type: "text" },
+  ],
+};
+
 /* ---- leave management ---- */
 
 const leaveTypes: ResourceConfig = {
@@ -602,6 +710,8 @@ export const hrResources: ResourceConfig[] = [
   payrollEntries,
   advances,
   payments,
+  expenseClaims,
+  expenseReimbursements,
   wageRates,
   leaveTypes,
   departments,
@@ -615,6 +725,7 @@ export const hrResources: ResourceConfig[] = [
 /** Hand-written pages of the HR sidebar section (shown above the resources). */
 export const hrLinks: NavLink[] = [
   { path: "/hr/muster-roll", labelKey: "hrm.res.muster_roll", icon: ClipboardCheck, group: "transactions" },
+  { path: "/hr/owed-to-staff", labelKey: "hrm.exp.owed_nav", icon: HandCoins, group: "transactions" },
 ];
 
 export const hrReports: ReportConfig[] = [

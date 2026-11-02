@@ -1807,6 +1807,43 @@ const or: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ଖର୍ଚ୍ଚ ଦାବି",
+      "claim": "ଖର୍ଚ୍ଚ ଦାବି",
+      "reimbursements": "ପରିଶୋଧ",
+      "reimbursement": "ପରିଶୋଧ",
+      "owed_nav": "କର୍ମଚାରୀଙ୍କ ବକେୟା",
+      "owed_title": "କର୍ମଚାରୀଙ୍କ ବକେୟା",
+      "owed_subtitle": "ପରିଶୋଧ ପରେ, କର୍ମଚାରୀମାନେ ଦେଇଥିବା ଖର୍ଚ୍ଚ ପାଇଁ କମ୍ପାନୀ ଏବେ ବି ଦେବାକୁ ଥିବା ରାଶି।",
+      "owed_empty": "କର୍ମଚାରୀଙ୍କ କୌଣସି ବକେୟା ନାହିଁ।",
+      "owed_total": "ମୋଟ",
+      "owed_view": "ଦାବି ଦେଖନ୍ତୁ",
+      "lines": "ଖର୍ଚ୍ଚ ବିବରଣୀ",
+      "col": {
+        "claimed": "ଦାବି କରାଯାଇଥିବା ରାଶି",
+        "reimbursed": "ପରିଶୋଧିତ ରାଶି"
+      },
+      "fields": {
+        "expense_date": "ଖର୍ଚ୍ଚ ତାରିଖ",
+        "expense_category": "ଖର୍ଚ୍ଚ ଶ୍ରେଣୀ",
+        "sanctioned": "ଅନୁମୋଦିତ ରାଶି",
+        "total_sanctioned": "ମୋଟ ଅନୁମୋଦିତ",
+        "payable_account": "ଦେୟ ଆକାଉଣ୍ଟ"
+      },
+      "status": {
+        "draft": "ଡ୍ରାଫ୍ଟ",
+        "unpaid": "ବକେୟା",
+        "partly_paid": "ଆଂଶିକ ପରିଶୋଧ",
+        "paid": "ପରିଶୋଧିତ",
+        "cancelled": "ବାତିଲ"
+      },
+      "help": {
+        "proof": "ତଳେ ରସିଦର ଫଟୋ ଯୋଡ଼ନ୍ତୁ। ରସିଦ ବିନା ଦାବି ଦାଖଲ ହୋଇପାରିବ ନାହିଁ।",
+        "payable_account": "ଖାଲି ଛାଡ଼ିଲେ ଏଚଆର ସେଟିଙ୍ଗସର ଖର୍ଚ୍ଚ ଦାବି ଦେୟ ଆକାଉଣ୍ଟ ବ୍ୟବହୃତ ହେବ।",
+        "sanctioned_default": "ପୂର୍ଣ୍ଣ ରାଶି ସହିତ ସମାନ",
+        "claim_filter": "ଏହି କର୍ମଚାରୀଙ୍କ ଦାଖଲ ଦାବିଗୁଡ଼ିକ ହିଁ ଦେଖାଯିବ।"
+      }
+    },
     title: "ମାନବ ସମ୍ବଳ",
     res: {
       employees: "କର୍ମଚାରୀ",

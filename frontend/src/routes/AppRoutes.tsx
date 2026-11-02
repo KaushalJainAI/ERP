@@ -9,6 +9,7 @@ import { Profile } from "@/pages/Profile";
 import { Roles } from "@/pages/Roles";
 import { useTranslation } from "react-i18next";
 import { MusterRollPage } from "@/pages/hr/MusterRollPage";
+import { ExpenseClaimsOwedPage } from "@/pages/hr/ExpenseClaimsOwedPage";
 import { BatchesPage } from "@/pages/manufacturing/BatchesPage";
 import { GLEntriesPage } from "@/pages/GLEntriesPage";
 import { TallyExportPage } from "@/pages/TallyExportPage";
@@ -414,6 +415,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <MusterRollPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/hr/owed-to-staff"
+        element={
+          <ProtectedRoute>
+            <ExpenseClaimsOwedPage />
           </ProtectedRoute>
         }
       />

@@ -364,6 +364,11 @@ export interface ResourceConfig {
   noDelete?: boolean;
   /** Never show the Attachments panel (default: shown wherever the API allows attachments). */
   noAttachments?: boolean;
+  /**
+   * Query-string params of the list URL forwarded as exact API filters (e.g.
+   * `?employee=12` -> `employee=12`). Lets other pages link to a filtered list.
+   */
+  urlFilters?: string[];
   /** Hide from the sidebar (still routable). */
   hideInSidebar?: boolean;
   /** Sidebar group override. Default: submittable → transactions, listOnly → reports, else masters. */

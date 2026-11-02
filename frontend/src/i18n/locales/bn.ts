@@ -1807,6 +1807,43 @@ const bn: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "খরচের দাবি",
+      "claim": "খরচের দাবি",
+      "reimbursements": "ফেরত প্রদান",
+      "reimbursement": "ফেরত প্রদান",
+      "owed_nav": "কর্মচারীদের বকেয়া",
+      "owed_title": "কর্মচারীদের বকেয়া",
+      "owed_subtitle": "ফেরতের পরে, কর্মচারীরা নিজের পকেট থেকে দেওয়া খরচের জন্য কোম্পানির এখনও দেওয়ার বাকি টাকা।",
+      "owed_empty": "কর্মচারীদের কোনো বকেয়া নেই।",
+      "owed_total": "মোট",
+      "owed_view": "দাবি দেখুন",
+      "lines": "খরচের বিবরণ",
+      "col": {
+        "claimed": "দাবিকৃত অর্থ",
+        "reimbursed": "ফেরত দেওয়া অর্থ"
+      },
+      "fields": {
+        "expense_date": "খরচের তারিখ",
+        "expense_category": "খরচের ধরন",
+        "sanctioned": "অনুমোদিত অর্থ",
+        "total_sanctioned": "মোট অনুমোদিত",
+        "payable_account": "প্রদেয় হিসাব"
+      },
+      "status": {
+        "draft": "খসড়া",
+        "unpaid": "বকেয়া",
+        "partly_paid": "আংশিক পরিশোধিত",
+        "paid": "পরিশোধিত",
+        "cancelled": "বাতিল"
+      },
+      "help": {
+        "proof": "নিচে রসিদের ছবি যুক্ত করুন। রসিদ ছাড়া দাবি জমা দেওয়া যাবে না।",
+        "payable_account": "ফাঁকা রাখলে এইচআর সেটিংসের খরচের দাবির প্রদেয় হিসাব ব্যবহার হবে।",
+        "sanctioned_default": "পুরো অর্থের সমান",
+        "claim_filter": "এই কর্মচারীর জমা দেওয়া দাবিগুলোই দেখানো হবে।"
+      }
+    },
     title: "এইচআর",
     res: {
       employees: "কর্মচারী",

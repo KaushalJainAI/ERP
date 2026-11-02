@@ -5,6 +5,43 @@
  */
 export const enHr = {
   hrm: {
+    exp: {
+      "claims": "Expense Claims",
+      "claim": "Expense Claim",
+      "reimbursements": "Reimbursements",
+      "reimbursement": "Reimbursement",
+      "owed_nav": "Owed to Staff",
+      "owed_title": "Owed to Staff",
+      "owed_subtitle": "What the company still owes staff for expenses they paid, after reimbursements.",
+      "owed_empty": "No expenses are owed to staff.",
+      "owed_total": "Total",
+      "owed_view": "View claims",
+      "lines": "Expense Lines",
+      "col": {
+        "claimed": "Claimed",
+        "reimbursed": "Reimbursed"
+      },
+      "fields": {
+        "expense_date": "Expense Date",
+        "expense_category": "Expense Category",
+        "sanctioned": "Sanctioned",
+        "total_sanctioned": "Total Sanctioned",
+        "payable_account": "Payable Account"
+      },
+      "status": {
+        "draft": "Draft",
+        "unpaid": "Unpaid",
+        "partly_paid": "Partly Paid",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      },
+      "help": {
+        "proof": "Attach a photo of the receipt below. A claim cannot be submitted without it.",
+        "payable_account": "Leave empty to use the expense claim payable account from HR Settings.",
+        "sanctioned_default": "Same as amount",
+        "claim_filter": "Only submitted claims of this employee are listed."
+      }
+    },
     title: "HR",
     res: {
       employees: "Employees",

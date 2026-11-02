@@ -1807,6 +1807,43 @@ const gu: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ખર્ચના દાવા",
+      "claim": "ખર્ચનો દાવો",
+      "reimbursements": "ભરપાઈ",
+      "reimbursement": "ભરપાઈ",
+      "owed_nav": "કર્મચારીઓને બાકી",
+      "owed_title": "કર્મચારીઓને બાકી",
+      "owed_subtitle": "ભરપાઈ પછી, કર્મચારીઓએ ચૂકવેલા ખર્ચ માટે કંપનીએ હજી ચૂકવવાના બાકી.",
+      "owed_empty": "કર્મચારીઓને કોઈ બાકી નથી.",
+      "owed_total": "કુલ",
+      "owed_view": "દાવા જુઓ",
+      "lines": "ખર્ચની વિગતો",
+      "col": {
+        "claimed": "દાવો કરેલી રકમ",
+        "reimbursed": "ચૂકવેલી રકમ"
+      },
+      "fields": {
+        "expense_date": "ખર્ચની તારીખ",
+        "expense_category": "ખર્ચની શ્રેણી",
+        "sanctioned": "મંજૂર રકમ",
+        "total_sanctioned": "કુલ મંજૂર",
+        "payable_account": "ચૂકવવાપાત્ર ખાતું"
+      },
+      "status": {
+        "draft": "ડ્રાફ્ટ",
+        "unpaid": "બાકી",
+        "partly_paid": "આંશિક ચૂકવ્યું",
+        "paid": "ચૂકવ્યું",
+        "cancelled": "રદ"
+      },
+      "help": {
+        "proof": "નીચે રસીદનો ફોટો જોડો. રસીદ વિના દાવો સબમિટ થઈ શકતો નથી.",
+        "payable_account": "ખાલી છોડો તો એચઆર સેટિંગ્સનું ખર્ચ દાવા ચૂકવવાપાત્ર ખાતું વપરાશે.",
+        "sanctioned_default": "પૂરી રકમ જેટલું",
+        "claim_filter": "આ કર્મચારીના સબમિટ થયેલા દાવા જ બતાવાશે."
+      }
+    },
     title: "એચઆર",
     res: {
       employees: "કર્મચારીઓ",
