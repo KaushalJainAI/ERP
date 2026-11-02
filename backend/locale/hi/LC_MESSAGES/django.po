@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ERP 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-03 03:50+0530\n"
+"POT-Creation-Date: 2026-11-03 04:02+0530\n"
 "PO-Revision-Date: 2026-07-21 12:00+0530\n"
 "Last-Translator: ERP Dev <dev@example.com>\n"
 "Language-Team: Hindi\n"
@@ -2715,9 +2715,6 @@ msgid "system component"
 msgstr "सिस्टम का हिस्सा"
 
 #: hr/models.py:626
-#| msgid ""
-#| "The payroll payable, employee advance and TDS payable accounts cannot be "
-#| "changed once salary slips, advances or payments are submitted."
 msgid ""
 "The payroll payable, employee advance, expense claim payable and TDS payable"
 " accounts cannot be changed once salary slips, advances, payments, expense "
@@ -2797,27 +2794,22 @@ msgid "reference number"
 msgstr "रेफ़रेंस नंबर"
 
 #: hr/models.py:913
-#| msgid "total leave days"
 msgid "total claimed"
 msgstr "कुल दावा राशि"
 
 #: hr/models.py:916
-#| msgid "total deduction"
 msgid "total sanctioned"
 msgstr "कुल स्वीकृत राशि"
 
 #: hr/models.py:919
-#| msgid "instalment amount"
 msgid "outstanding amount"
 msgstr "बाकी राशि"
 
 #: hr/models.py:973
-#| msgid "end date"
 msgid "expense date"
 msgstr "खर्च की तारीख"
 
 #: hr/models.py:980
-#| msgid "instalment amount"
 msgid "sanctioned amount"
 msgstr "स्वीकृत राशि"
 
@@ -3110,7 +3102,6 @@ msgid "The instalment must be between zero and the advance amount."
 msgstr "किस्त शून्य और एडवांस की रकम के बीच होनी चाहिए।"
 
 #: hr/serializers.py:1064 hr/services/expense_claims.py:216
-#| msgid "The instalment must be between zero and the advance amount."
 msgid "The sanctioned amount must be between zero and the claimed amount."
 msgstr "स्वीकृत राशि शून्य और दावा की गई राशि के बीच होनी चाहिए।"
 
@@ -3171,19 +3162,16 @@ msgid "The employee is not active."
 msgstr "कर्मचारी चालू नहीं है।"
 
 #: hr/services/expense_claims.py:186
-#| msgid "Account must be of type 'Tax'."
 msgid "Account must be a liability."
 msgstr "खाता देनदारी (Liability) प्रकार का होना चाहिए।"
 
 #: hr/services/expense_claims.py:196
 #, python-format
-#| msgid "Bill Date cannot be after the posting date."
 msgid "Expense date %(date)s is after the posting date of the claim."
 msgstr "खर्च की तारीख %(date)s, दावे की तारीख के बाद है।"
 
 #: hr/services/expense_claims.py:205
 #, python-format
-#| msgid "Expense category must belong to the same company."
 msgid "Expense category %(category)s belongs to another company."
 msgstr "खर्च श्रेणी %(category)s किसी दूसरी कंपनी की है।"
 
@@ -3192,30 +3180,23 @@ msgid "Add at least one expense before submitting."
 msgstr "जमा करने से पहले कम से कम एक खर्च जोड़ें।"
 
 #: hr/services/expense_claims.py:250
-#| msgid "TDS amount must be greater than zero."
 msgid "The sanctioned total must be greater than zero."
 msgstr "स्वीकृत कुल राशि शून्य से अधिक होनी चाहिए।"
 
 #: hr/services/expense_claims.py:264
-#| msgid "The employee belongs to a different company."
 msgid "The expense claim belongs to a different company."
 msgstr "खर्च दावा किसी दूसरी कंपनी का है।"
 
 #: hr/services/expense_claims.py:268
-#| msgid "The folder belongs to another company."
 msgid "The expense claim belongs to another employee."
 msgstr "खर्च दावा किसी दूसरे कर्मचारी का है।"
 
 #: hr/services/expense_claims.py:272
-#| msgid "Only a submitted Work Order can be mapped."
 msgid "Only a submitted expense claim can be reimbursed."
 msgstr "भरपाई केवल जमा किए गए खर्च दावे की हो सकती है।"
 
 #: hr/services/expense_claims.py:289
 #, python-format
-#| msgid ""
-#| "Allocated amount (%(allocated)s) exceeds the outstanding amount "
-#| "(%(outstanding)s) of '%(name)s'."
 msgid ""
 "Amount %(amount)s exceeds the outstanding amount %(outstanding)s of expense "
 "claim %(claim)s."
@@ -3224,9 +3205,6 @@ msgstr ""
 "है।"
 
 #: hr/services/expense_claims.py:346
-#| msgid ""
-#| "This advance has recoveries in submitted salary slips; cancel those slips "
-#| "first."
 msgid ""
 "This expense claim has reimbursements in submitted payments; cancel those "
 "first."
@@ -3958,6 +3936,136 @@ msgstr "आइटम से सिर्फ़ वेरिएंट जोड�
 #: ngu/serializers.py:50
 msgid "This item is already linked to another NGU variant."
 msgstr "यह आइटम पहले से किसी दूसरे NGU वेरिएंट से जुड़ा है।"
+
+#: notifications/messages.py:15
+msgid "Raw material shortage"
+msgstr "कच्चे माल की कमी"
+
+#: notifications/messages.py:16 notifications/messages.py:20
+#, python-format
+msgid "%(item)s: %(qty)s left, minimum %(critical)s."
+msgstr "%(item)s: %(qty)s बचा है, कम से कम %(critical)s चाहिए।"
+
+#: notifications/messages.py:19
+msgid "Low ready stock"
+msgstr "तैयार माल कम है"
+
+#: notifications/messages.py:23
+msgid "Large sales order"
+msgstr "बड़ा बिक्री ऑर्डर"
+
+#: notifications/messages.py:24
+#, python-format
+msgid "%(order)s, %(customer)s: ₹%(grand_total)s."
+msgstr "%(order)s, %(customer)s: ₹%(grand_total)s।"
+
+#: notifications/messages.py:27
+msgid "Large payment received"
+msgstr "बड़ा भुगतान मिला"
+
+#: notifications/messages.py:28
+#, python-format
+#| msgid ""
+#| "Payment Entry (%(payment_type)s) for %(party_type)s %(party)s: ₹%(amount)s"
+msgid "%(payment)s, %(party)s: ₹%(amount)s."
+msgstr "%(payment)s, %(party)s: ₹%(amount)s।"
+
+#: notifications/messages.py:31
+#| msgid "payment days"
+msgid "Payment delayed"
+msgstr "भुगतान में देरी"
+
+#: notifications/messages.py:32
+#, python-format
+msgid ""
+"%(invoice)s, %(customer)s: ₹%(outstanding)s unpaid for %(days_unpaid)s days."
+msgstr ""
+"%(invoice)s, %(customer)s: ₹%(outstanding)s, %(days_unpaid)s दिन से बाकी।"
+
+#: notifications/messages.py:35
+#| msgid "expense date"
+msgid "Expense unpaid"
+msgstr "खर्च का भुगतान बाकी"
+
+#: notifications/messages.py:36
+#, python-format
+msgid ""
+"%(invoice)s, %(supplier)s: ₹%(outstanding)s unpaid for %(days_unpaid)s days."
+msgstr ""
+"%(invoice)s, %(supplier)s: ₹%(outstanding)s, %(days_unpaid)s दिन से बाकी।"
+
+#: notifications/messages.py:39
+msgid "GST credit at risk"
+msgstr "GST क्रेडिट ख़तरे में"
+
+#: notifications/messages.py:40
+#, python-format
+msgid ""
+"%(invoice)s: ₹%(gst_amount)s GST credit, unpaid for %(days_unpaid)s days."
+msgstr ""
+"%(invoice)s: ₹%(gst_amount)s का GST क्रेडिट, %(days_unpaid)s दिन से भुगतान "
+"बाकी।"
+
+#: notifications/messages.py:43
+msgid "Books check failed"
+msgstr "खातों की जाँच विफल"
+
+#: notifications/messages.py:44
+#, python-format
+msgid ""
+"%(error_count)s problems found in the books.\n"
+"\n"
+"%(summary)s"
+msgstr ""
+"खातों में %(error_count)s समस्याएँ मिलीं।\n"
+"\n"
+"%(summary)s"
+
+#: notifications/messages.py:47
+msgid "Backup failed"
+msgstr "बैकअप विफल"
+
+#: notifications/messages.py:48
+#, python-format
+msgid "Last night's database backup did not complete: %(error)s"
+msgstr "कल रात का डेटाबेस बैकअप पूरा नहीं हुआ: %(error)s"
+
+#: notifications/messages.py:51
+msgid "Overdue bills"
+msgstr "देय तारीख निकल चुके बिल"
+
+#: notifications/messages.py:52
+#, python-format
+msgid "%(count)s overdue bills, ₹%(total_amount)s in total."
+msgstr "%(count)s बिलों की देय तारीख निकल चुकी है, कुल ₹%(total_amount)s।"
+
+#: notifications/messages.py:55
+msgid "Daily summary"
+msgstr "आज का सारांश"
+
+#: notifications/messages.py:57
+#, python-format
+msgid ""
+"₹%(money_in)s received, %(bills_count)s bills worth ₹%(bills_total)s, "
+"%(pending_dispatches)s orders to dispatch."
+msgstr ""
+"₹%(money_in)s मिले, ₹%(bills_total)s के %(bills_count)s बिल बने, "
+"%(pending_dispatches)s ऑर्डर डिस्पैच बाकी।"
+
+#: notifications/messages.py:62
+msgid "Weekly summary"
+msgstr "हफ़्ते का सारांश"
+
+#: notifications/messages.py:63
+#, python-format
+msgid ""
+"To collect this week: ₹%(collections_needed)s. Bills due: ₹%(bills_due)s."
+msgstr "इस हफ़्ते वसूली: ₹%(collections_needed)s। देय बिल: ₹%(bills_due)s।"
+
+#: notifications/messages.py:95
+#, python-format
+msgid "Open in the ERP: %(url)s"
+msgstr "ERP में खोलें: %(url)s"
 
 #: payment_reconciliation/models.py:139
 msgid "The allocations of a submitted reconciliation cannot be changed."

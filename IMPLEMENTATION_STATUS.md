@@ -122,6 +122,7 @@ PF/ESI/PT/LWF until the business crosses those thresholds, and the
 | CI ran only on pushes to `main`/`master`/`dev`, and work merged from agent worktrees without it | 16 failures accumulated across many "done" cards | Now runs on every branch push (this commit). Rule: do not merge or tick a card while CI is red |
 | Too many overlapping status docs: `goals.md`, `gap_plan.md`, `improvements.md`, `checklist.md`, `planning/`, this file | Each drifts. `planning/README.md` still listed done cards as remaining; `goals.md` said "cannot print" after printing shipped | Keep three: `goals.md` (why), `checklist.md` (ticks), this file (audit). Mark the others as historical |
 | Open questions live in a table nobody owns | Q1, Q3–Q6 have been open since 2026-10-31 and are the actual go-live blockers | Put a date and an owner on each, and review weekly |
+| ~~Alert emails were raw keys~~ ("ERP Alert: alert.x / Rule: …", English only) **Done 2026-11-02:** each alert and digest email is a sentence in the recipient's profile language with a full link (`notifications/messages.py`) | — | Done |
 | Pilot not scheduled | Built features are not used yet (production, HR, assistant) | Pick a cutover date and run one week of parallel entry with 2–3 staff |
 
 ---
