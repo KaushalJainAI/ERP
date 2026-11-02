@@ -85,6 +85,15 @@ class Command(BaseCommand):
             help="Create the submitted opening bills. Refused unless every total ties.",
         )
         parser.add_argument(
+            "--from-csv",
+            dest="from_csv",
+            default=None,
+            help=(
+                "Use the accountant's corrected bills from this CSV (same columns as "
+                "--out) instead of the estimate. The same total checks apply."
+            ),
+        )
+        parser.add_argument(
             "--out",
             dest="out",
             default=None,
@@ -103,7 +112,12 @@ class Command(BaseCommand):
             )
         company = resolve_company(options.get("company"))
 
-        plan = opening_service.plan_opening_bills(company, as_on)
+        csv_rows = None
+        if options.get("from_csv"):
+            csv_rows = self._read_csv(options["from_csv"])
+            plan = opening_service.plan_from_csv(company, as_on, csv_rows)
+        else:
+            plan = opening_service.plan_opening_bills(company, as_on)
         self._summary(company, as_on, plan)
 
         if options["out"]:
@@ -125,7 +139,9 @@ class Command(BaseCommand):
             return
 
         try:
-            created = opening_service.commit_opening_bills(company, as_on)
+            created = opening_service.commit_opening_bills(
+                company, as_on, csv_rows=csv_rows
+            )
         except ValidationError as exc:
             raise CommandError("; ".join(exc.messages))
         self.stdout.write(
@@ -136,6 +152,24 @@ class Command(BaseCommand):
                 % {"count": len(created), "company": company.name, "as_on": as_on}
             )
         )
+
+    def _read_csv(self, path):
+        try:
+            # utf-8-sig: Excel saves CSV with a byte-order mark.
+            with open(path, newline="", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                header = [h.strip() for h in (reader.fieldnames or [])]
+                missing = [c for c in opening_service.CSV_REQUIRED if c not in header]
+                if missing:
+                    raise CommandError(
+                        _("%(path)s is missing the column(s): %(columns)s.")
+                        % {"path": path, "columns": ", ".join(missing)}
+                    )
+                return list(reader)
+        except OSError as exc:
+            raise CommandError(
+                _("Cannot read %(path)s: %(error)s") % {"path": path, "error": exc}
+            )
 
     def _summary(self, company, as_on, plan):
         t = plan["totals"]
@@ -158,5 +192,7 @@ class Command(BaseCommand):
                     % {"count": t["review_count"]}
                 )
             )
+        if plan["problems"]:
+            self.stdout.write(self.style.WARNING(_("  Problems that block --commit:")))
             for problem in plan["problems"]:
                 self.stdout.write(self.style.WARNING(f"    - {problem}"))

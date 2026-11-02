@@ -554,7 +554,7 @@ question's recorded answer.
 ### 9. Go-live
 - [x] G-1 Opening bills
 - [x] G-2 Opening bills generator
-- [ ] G-3 Accountant corrections
+- [x] G-3 Accountant corrections (`build_opening_bills --from-csv`, `accounts/test_opening_bills_build.py::CsvCorrectionTests`)
 - [x] G-4 Integrity check
 - [x] G-5 Keep openings out of Tally
 - [x] G-6 Opening stock template

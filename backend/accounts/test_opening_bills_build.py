@@ -218,3 +218,114 @@ class CommandTests(OpeningBuildBase):
                 company=self.company.abbr,
                 stdout=StringIO(),
             )
+
+
+class CsvCorrectionTests(OpeningBuildBase):
+    """G-3: the accountant's corrected CSV, under the same total checks."""
+
+    HEADER = ["kind", "party_type", "party", "bill_date", "amount", "due_date"]
+
+    def setUp(self):
+        super().setUp()
+        # Customer intra owes 236.00 (two invoices); inter has a 50.00 advance.
+        self.sale(self.cust_intra, (self.item18, 1, 100), posting_date="2026-01-10")
+        self.sale(self.cust_intra, (self.item18, 1, 100), posting_date="2026-02-10")
+        self.receive(self.cust_inter, [], "50.00")
+
+    def write_csv(self, rows, header=None, bom=False):
+        handle, path = tempfile.mkstemp(suffix=".csv")
+        os.close(handle)
+        self.addCleanup(os.remove, path)
+        with open(path, "w", newline="", encoding="utf-8-sig" if bom else "utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(header or self.HEADER)
+            writer.writerows(rows)
+        return path
+
+    def intra(self, bill_date, amount, due=""):
+        return ["bill", "Customer", self.cust_intra.name, bill_date, amount, due]
+
+    def test_corrected_split_is_committed_as_given(self):
+        # The accountant knows the real bills: 200.00 in March, 36.00 in April.
+        path = self.write_csv(
+            [
+                self.intra("2026-03-05", "200.00", "2026-06-03"),
+                self.intra("2026-04-01", "36.00"),
+                ["advance", "Customer", self.cust_inter.name, "", "50.00", ""],
+            ],
+            bom=True,  # saved from Excel
+        )
+        self.build(from_csv=path, commit=True)
+        self.assertEqual(
+            self.bills_for(self.cust_intra.name),
+            [
+                (datetime.date(2026, 3, 5), D("200.00")),
+                (datetime.date(2026, 4, 1), D("36.00")),
+            ],
+        )
+        due = OpeningBill.objects.get(bill_date="2026-04-01").due_date
+        self.assertEqual(due, datetime.date(2026, 5, 1))  # blank: +30 credit days
+        self.assertEqual(self.bills_for(self.cust_inter.name), [])
+        self.integrity_ok()
+
+    def test_mismatched_total_is_refused_naming_the_party(self):
+        path = self.write_csv([self.intra("2026-03-05", "200.00")])
+        with self.assertRaises(CommandError) as ctx:
+            self.build(from_csv=path, commit=True)
+        self.assertIn(self.cust_intra.name, str(ctx.exception))
+        self.assertIn("236.00", str(ctx.exception))
+        self.assertEqual(OpeningBill.objects.count(), 0)
+
+    def test_dry_run_reports_problems_and_writes_nothing(self):
+        path = self.write_csv([self.intra("2026-03-05", "200.00")])
+        out = self.build(from_csv=path)
+        self.assertIn("[DRY-RUN]", out)
+        self.assertIn(self.cust_intra.name, out)
+        self.assertEqual(OpeningBill.objects.count(), 0)
+
+    def test_bills_for_a_party_with_only_an_advance_are_refused(self):
+        path = self.write_csv(
+            [
+                self.intra("2026-03-05", "236.00"),
+                ["bill", "Customer", self.cust_inter.name, "2026-03-05", "10.00", ""],
+            ]
+        )
+        with self.assertRaises(CommandError) as ctx:
+            self.build(from_csv=path, commit=True)
+        self.assertIn(self.cust_inter.name, str(ctx.exception))
+
+    def test_bad_rows_are_named_by_row_number(self):
+        rows = [
+            self.intra("2026-03-05", "236.00"),
+            ["bill", "Customer", "Ghost Ltd", "2026-03-05", "1.00", ""],
+            self.intra("05/03/2026", "1.00"),
+            self.intra("2026-03-05", "-5"),
+            self.intra("2026-03-05", "1.00", "2026-03-01"),
+            self.intra("2026-05-05", "1.00"),  # after the cutover
+        ]
+        problems = opening_service.plan_from_csv(
+            self.company,
+            AS_ON,
+            list(csv.DictReader(open(self.write_csv(rows), encoding="utf-8"))),
+        )["problems"]
+        text = "\n".join(problems)
+        for row in ("Row 3", "Row 4", "Row 5", "Row 6", "Row 7"):
+            self.assertIn(row, text)
+        self.assertIn("Ghost Ltd", text)
+
+    def test_missing_required_column_is_refused(self):
+        path = self.write_csv([["Customer", "x"]], header=["party_type", "party"])
+        with self.assertRaises(CommandError) as ctx:
+            self.build(from_csv=path)
+        self.assertIn("bill_date", str(ctx.exception))
+
+    def test_generated_csv_round_trips_unchanged(self):
+        handle, path = tempfile.mkstemp(suffix=".csv")
+        os.close(handle)
+        self.addCleanup(os.remove, path)
+        self.build(out=path)
+        self.build(from_csv=path, commit=True)
+        self.assertEqual(
+            sum(a for _, a in self.bills_for(self.cust_intra.name)), D("236.00")
+        )
+        self.integrity_ok()

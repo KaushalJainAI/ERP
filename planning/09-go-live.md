@@ -149,6 +149,13 @@ accepted one full month.
 ### G-3 Accountant corrections
 - **Depends:** G-2. **Do:** `--from-csv file.csv` loads corrected rows after the same total checks.
 - **Test:** a mismatched total is refused with the party named.
+- **Done 2026-11-02.** The accountant's loop:
+  1. `python manage.py build_opening_bills --as-on 2026-11-30 --out opening.csv` (estimate).
+  2. The accountant edits `opening.csv` in Excel: split, merge or re-date bills per party;
+     a blank `due_date` means bill date + credit days. Only `bill` rows are loaded.
+  3. `python manage.py build_opening_bills --as-on 2026-11-30 --from-csv opening.csv` (dry
+     run: lists every problem, by row number and party).
+  4. Same command with `--commit` once it reports no problems.
 
 ### G-4 Integrity check
 - **Depends:** G-1. **Do:** in `verify_integrity`, add a check that outstanding values equal bill
