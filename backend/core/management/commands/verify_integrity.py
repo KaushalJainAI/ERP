@@ -200,6 +200,28 @@ class Command(BaseCommand):
         for warning in hr_warnings:
             self.stdout.write(self.style.WARNING(f"[hr warning] {warning}"))
 
+        # 9b. Cross-document: no live ledger rows on a missing / unsubmitted
+        #     document (plan #6), no order billed beyond what was ordered (#4).
+        from core.services import ledger_integrity
+
+        ledger_errors, ledger_warnings = ledger_integrity.check()
+        SystemHealthCheck.objects.create(
+            check_name="ledger_documents",
+            status="alert" if ledger_errors else "ok",
+            details={
+                "errors": ledger_errors,
+                "warnings": ledger_warnings,
+                "message": (
+                    ""
+                    if ledger_errors
+                    else "Every live ledger row belongs to a submitted document."
+                ),
+            },
+        )
+        errors.extend(ledger_errors)
+        for warning in ledger_warnings:
+            self.stdout.write(self.style.WARNING(f"[ledger warning] {warning}"))
+
         # 10. Attachments: every proof file is present and matches its recorded
         #     size / SHA-256, and still has a parent record.
         from core import attachments as attachment_service

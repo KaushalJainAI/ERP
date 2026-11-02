@@ -55,7 +55,7 @@ What stops the business from running on it today is **not missing modules**. It 
 
 | Goal | Status | Evidence, and what is left |
 |---|---|---|
-| G1 Books that cannot lie | ✅ | Immutable GL/SLE, `verify_integrity` green, nightly run by `run_scheduler` with an instant alert on failure. **Gap:** invariants #4–#7 from `plan.md` §6 are not checked (order dispatched ≤ ordered, docstatus monotonicity, orphan GL/SLE rows, naming uniqueness). The DB constraints cover some of this |
+| G1 Books that cannot lie | ✅ | Immutable GL/SLE, `verify_integrity` green, nightly run by `run_scheduler` with an instant alert on failure. Since 2026-11-02 it also checks #4 (no order billed beyond what was ordered) and #6 (every live GL/SLE row belongs to a submitted document; a missing document is a warning). #5 and #7 are left to DB constraints (UNIQUE names, submit/cancel guards) |
 | G2 One operational picture | ✅ mostly | Home page with figures and needs-attention panels, stock view, Money to Collect, Bills to Pay, GST position. **Gap:** item-wise and distributor-wise gross profit (old C4) is still not a report |
 | G3 Replace Tally for daily work | ⚠️ code done, not proven | Print (`/print/<kind>/<id>`, browser Save as PDF), dispatch tick creates the bill, purchase bill with charges, returns, GSTR-1/3B. **Left:** O-7 (real Tally round-trip test), and the accountant accepting one month (G-8) |
 | G4 Correct by construction | ✅ | DB CHECKs (non-negative Bin, due ≥ posting, dispatch status, expense category…), audit log, atomic posting. One access level by owner decision D1 |
@@ -101,7 +101,7 @@ Go-live is gated on these, not on code. Ordered by how much they block.
 | Gap | Why it matters |
 |---|---|
 | Gross profit per item and per distributor (old C4) | The stated Horizon 3 question: "what did we earn per product and per distributor?" |
-| `verify_integrity` invariants #4–#7 | Self-healing mandate: drift that DB constraints do not catch would go unnoticed |
+| ~~`verify_integrity` invariants #4–#7~~ **#4 and #6 done 2026-11-02** (`core/services/ledger_integrity.py`). Run it once on the real books: orphan *warnings* there show which imported vouchers have no document | — |
 | No frontend tests; main JS chunk > 500 kB | Factory and order staff use phones; a big first load is slow on mobile data |
 | CSV/Excel import and export of masters and price lists (old C5) | Bulk price updates by hand are where errors creep in |
 | True FIFO valuation (Moving Average used for FIFO items) | Only matters if the accountant values stock FIFO |
