@@ -16,7 +16,9 @@ COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/
-RUN python manage.py compilemessages || true
+# Build-time only: settings need DEBUG or a real key to load. Failing here is
+# deliberate; a broken catalog must not ship as silently-English messages.
+RUN DEBUG=True python manage.py compilemessages
 
 EXPOSE 8000
 

@@ -8,46 +8,95 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0001_initial'),
+        ("users", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Role',
+            name="Role",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=60, unique=True)),
-                ('description', models.CharField(blank=True, max_length=240)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=60, unique=True)),
+                ("description", models.CharField(blank=True, max_length=240)),
             ],
         ),
         migrations.CreateModel(
-            name='RolePermission',
+            name="RolePermission",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('model_label', models.CharField(max_length=120)),
-                ('can_read', models.BooleanField(default=False)),
-                ('can_create', models.BooleanField(default=False)),
-                ('can_write', models.BooleanField(default=False)),
-                ('can_submit', models.BooleanField(default=False)),
-                ('can_cancel', models.BooleanField(default=False)),
-                ('can_delete', models.BooleanField(default=False)),
-                ('role', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='permissions', to='users.role')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("model_label", models.CharField(max_length=120)),
+                ("can_read", models.BooleanField(default=False)),
+                ("can_create", models.BooleanField(default=False)),
+                ("can_write", models.BooleanField(default=False)),
+                ("can_submit", models.BooleanField(default=False)),
+                ("can_cancel", models.BooleanField(default=False)),
+                ("can_delete", models.BooleanField(default=False)),
+                (
+                    "role",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="permissions",
+                        to="users.role",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='UserRole',
+            name="UserRole",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('role', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='role_users', to='users.role')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_roles', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "role",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="role_users",
+                        to="users.role",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="user_roles",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.AddConstraint(
-            model_name='rolepermission',
-            constraint=models.UniqueConstraint(fields=('role', 'model_label'), name='unique_role_model_permission'),
+            model_name="rolepermission",
+            constraint=models.UniqueConstraint(
+                fields=("role", "model_label"), name="unique_role_model_permission"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='userrole',
-            constraint=models.UniqueConstraint(fields=('user', 'role'), name='unique_user_role'),
+            model_name="userrole",
+            constraint=models.UniqueConstraint(
+                fields=("user", "role"), name="unique_user_role"
+            ),
         ),
     ]

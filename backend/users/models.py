@@ -22,6 +22,9 @@ class User(AbstractUser):
     # document's ``modified_at`` changes). Bumped by every profile/role/active
     # change; null for rows not edited since this column was added.
     modified_at = models.DateTimeField(auto_now=True, null=True, editable=False)
+    # Sign out everywhere: tokens issued before this instant are refused
+    # (users.auth). Set on deactivation and on any password change.
+    tokens_valid_after = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         constraints = [

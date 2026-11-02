@@ -220,6 +220,27 @@ sudo certbot renew --dry-run        # confirm renewal works
   `https://` origins in `CORS_ALLOWED_ORIGINS`.
 - Confirm the frontend was built with `VITE_API_URL=https://erp.example.com/api`.
 - Restart the backend after any `.env` change: `sudo systemctl restart erp`.
+- Run Django's deployment check; only the HSTS-subdomain/preload and SSL-redirect
+  notices (nginx redirects) should remain:
+  `cd /srv/erp/backend && .venv/bin/python manage.py check --deploy`.
+
+### Security settings (in `backend/.env`)
+
+The backend **refuses to start** with `DEBUG=False` and a missing, short (< 32
+characters) or example `SECRET_KEY`. Defaults when `DEBUG=False`:
+
+| Setting | Default | Notes |
+|---|---|---|
+| `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | `True` | Set both `False` only for a plain-HTTP LAN install |
+| `SECURE_HSTS_SECONDS` | 30 days | Browsers ignore it over plain HTTP |
+| `SECURE_SSL_REDIRECT` | `False` | nginx does the redirect |
+| `ADMIN_URL` | `admin/` | Change it (e.g. `office-7f3a/`) and the nginx `location /admin/` to match |
+| `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | 60 / 7 | Refresh tokens are single-use and revocable |
+
+API docs (`/api/schema/`, `/api/docs/`) need a signed-in user when `DEBUG=False`.
+When a staff member leaves, **deactivate** their user: every device they were
+signed in on is signed out at once. Staff can do the same for themselves after
+losing a phone (`POST /api/auth/me/logout-all/`).
 
 ---
 
@@ -334,8 +355,11 @@ and Certbot steps above, changing `proxy_pass` to `http://127.0.0.1:8000` for th
 API and serving the frontend from its container (or build `frontend/dist/` and
 serve it statically as in the native path).
 
-> Update the compose `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, and DB password
-> before exposing it publicly — the committed values are for local use only.
+> The committed defaults are for local use only. Before exposing it, export real
+> values: `SECRET_KEY=... DEBUG=False POSTGRES_PASSWORD=... docker compose up -d`
+> (the compose file reads them from the environment; with `DEBUG=False` the
+> backend refuses the default key). Postgres is published on `127.0.0.1:5433`
+> only.
 
 ---
 

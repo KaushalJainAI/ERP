@@ -11,6 +11,9 @@ on:
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    env:
+      # Throwaway key: settings refuse to load without DEBUG or a real key.
+      SECRET_KEY: ci-only-not-a-secret-0123456789abcdefghijklmnopqrstuvwxyz
     steps:
       - uses: actions/checkout@v4
 
