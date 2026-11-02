@@ -28,13 +28,20 @@ const RESULT_GROUPS: {
 ];
 
 /**
- * The search row under the top bar.
+ * Desktop breakpoint at which the search moves inline into the top bar (as in
+ * the NGU storefront). Below it, the full-width search row under the top bar is
+ * used instead, so the two breakpoints never mount two boxes at once.
+ */
+export const INLINE_SEARCH_QUERY = "(min-width: 900px)";
+
+/**
+ * The search box itself: input, shortcut and result dropdown.
  *
  * On a list page the box filters that list: the list reads `?search=` from the URL.
  * Matches from across the whole ERP are still listed beneath it. On every other page
  * the box searches the ERP directly.
  */
-export const SearchBar: React.FC = () => {
+export const SearchBox: React.FC<{ className?: string }> = ({ className }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -281,83 +288,89 @@ export const SearchBar: React.FC = () => {
     : t("search.placeholder", "Search ERP...");
 
   return (
-    <div className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
-      <div className="mx-auto flex h-12 max-w-[1440px] items-center px-3 sm:px-6">
-        <div ref={containerRef} className="relative w-full max-w-2xl">
-          <div className="relative flex items-center">
-            {searching ? (
-              <Loader2 className="pointer-events-none absolute start-3 h-4 w-4 animate-spin text-slate-400" />
-            ) : (
-              <Search className="pointer-events-none absolute start-3 h-4 w-4 text-slate-500" />
-            )}
-            <input
-              ref={inputRef}
-              type="text"
-              role="searchbox"
-              autoComplete="off"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (!open) setOpen(true);
-              }}
-              onFocus={() => {
-                if (query.trim().length > 0) setOpen(true);
-              }}
-              onKeyDown={onKeyDown}
-              placeholder={placeholder}
-              aria-label={placeholder}
-              className="h-9 w-full rounded-full border border-slate-800 bg-slate-800/40 ps-10 pe-16 text-[13px] text-slate-200 placeholder:text-slate-500 transition-colors hover:border-slate-700 focus:border-indigo-500 focus:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  setOpen(false);
-                  inputRef.current?.focus();
-                }}
-                aria-label={t("common.clear", "Clear")}
-                className="absolute end-2.5 rounded-full p-1 text-slate-500 hover:bg-slate-700/60 hover:text-slate-200"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <kbd className="pointer-events-none absolute end-3 hidden lg:inline-block rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-sans text-[10px] font-medium leading-none text-slate-400">
-                {isMac ? "⌘K" : "Ctrl+K"}
-              </kbd>
-            )}
-          </div>
-
-          {open && query.trim().length > 0 && (
-            <div className="absolute inset-x-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-1.5 shadow-2xl animate-pop-in">
-              {!hasAnyResults && !searching && (
-                <p className="px-3 py-6 text-center text-xs text-slate-400">
-                  {t("search.no_results", { query: query.trim(), defaultValue: 'Nothing in the ERP matches "{{query}}".' })}
-                </p>
-              )}
-
-              {pageMode && hasAnyResults && (
-                <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                  {t("search.across_erp", "Across the ERP")}
-                </p>
-              )}
-
-              {RESULT_GROUPS.map((group) => {
-                const hits = allResults.filter((r) => r.category === group.category);
-                if (hits.length === 0) return null;
-                return (
-                  <div key={group.category} className="border-t border-slate-800/60 py-1 first:border-t-0">
-                    <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                      {t(group.labelKey, group.label)}
-                    </p>
-                    {hits.map((hit) => renderHit(hit, group.iconClass))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+    <div ref={containerRef} className={`relative w-full ${className ?? ""}`}>
+      <div className="relative flex items-center">
+        {searching ? (
+          <Loader2 className="pointer-events-none absolute start-3 h-4 w-4 animate-spin text-slate-400" />
+        ) : (
+          <Search className="pointer-events-none absolute start-3 h-4 w-4 text-slate-500" />
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          role="searchbox"
+          autoComplete="off"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!open) setOpen(true);
+          }}
+          onFocus={() => {
+            if (query.trim().length > 0) setOpen(true);
+          }}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          aria-label={placeholder}
+          className="h-9 w-full rounded-full border border-slate-800 bg-slate-800/40 ps-10 pe-16 text-[13px] text-slate-200 placeholder:text-slate-500 transition-colors hover:border-slate-700 focus:border-indigo-500 focus:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        />
+        {query ? (
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setOpen(false);
+              inputRef.current?.focus();
+            }}
+            aria-label={t("common.clear", "Clear")}
+            className="absolute end-2.5 rounded-full p-1 text-slate-500 hover:bg-slate-700/60 hover:text-slate-200"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        ) : (
+          <kbd className="pointer-events-none absolute end-3 hidden lg:inline-block rounded-md border border-slate-700 bg-slate-900 px-1.5 py-0.5 font-sans text-[10px] font-medium leading-none text-slate-400">
+            {isMac ? "⌘K" : "Ctrl+K"}
+          </kbd>
+        )}
       </div>
+
+      {open && query.trim().length > 0 && (
+        <div className="absolute inset-x-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-800 bg-slate-900 p-1.5 shadow-2xl animate-pop-in">
+          {!hasAnyResults && !searching && (
+            <p className="px-3 py-6 text-center text-xs text-slate-400">
+              {t("search.no_results", { query: query.trim(), defaultValue: 'Nothing in the ERP matches "{{query}}".' })}
+            </p>
+          )}
+
+          {pageMode && hasAnyResults && (
+            <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              {t("search.across_erp", "Across the ERP")}
+            </p>
+          )}
+
+          {RESULT_GROUPS.map((group) => {
+            const hits = allResults.filter((r) => r.category === group.category);
+            if (hits.length === 0) return null;
+            return (
+              <div key={group.category} className="border-t border-slate-800/60 py-1 first:border-t-0">
+                <p className="px-2.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  {t(group.labelKey, group.label)}
+                </p>
+                {hits.map((hit) => renderHit(hit, group.iconClass))}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
+
+/** Full-width search row, used below the inline-search breakpoint. */
+export const SearchBar: React.FC = () => (
+  <div className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md">
+    <div className="mx-auto flex h-12 max-w-[1440px] items-center px-3 sm:px-6">
+      <SearchBox className="max-w-2xl" />
+    </div>
+  </div>
+);
+

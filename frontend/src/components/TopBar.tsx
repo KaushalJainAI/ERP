@@ -18,9 +18,11 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/context/CompanyContext";
 import { useTheme } from "@/hooks/useTheme";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useActiveModule, useModuleNav, type ModuleNav } from "@/resources/nav";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { NotificationBell } from "./notifications/NotificationBell";
+import { SearchBox, INLINE_SEARCH_QUERY } from "./SearchBar";
 import { badgeClass, useNavBadges } from "@/resources/navBadges";
 
 /** Daily operational modules kept in the main top bar. Everything else moves into "More ▾". */
@@ -355,6 +357,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
   const nav = useModuleNav();
   const badges = useNavBadges();
   const active = useActiveModule(nav);
+  const showInlineSearch = useMediaQuery(INLINE_SEARCH_QUERY);
   const [drawer, setDrawer] = useState(false);
   useEffect(() => setDrawer(false), [pathname]);
 
@@ -400,8 +403,11 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
         : "text-slate-400 hover:text-slate-100"
     }`;
 
+  // `relative z-50` lifts this header (and its dropdowns) above the sticky
+  // search row that follows it in Layout; backdrop-blur already makes the
+  // header a stacking context, so the menu's own z-index cannot escape it.
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
+    <header className="relative z-50 border-b border-slate-800 bg-slate-900/90 pt-[env(safe-area-inset-top)] backdrop-blur-md">
       <div className="mx-auto max-w-[1440px] px-3 sm:px-6 h-12 flex items-center gap-2 sm:gap-4">
         {/* Mobile menu button */}
         <button
@@ -466,6 +472,14 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
             />
           )}
         </nav>
+
+        {/* Desktop search lives in the top bar, as in the NGU storefront.
+            The full-width row below the bar is used under 900px. */}
+        {showInlineSearch && (
+          <div className="flex min-w-0 flex-1 justify-center px-1">
+            <SearchBox className="max-w-md" />
+          </div>
+        )}
 
         {/* Right side controls */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0 ms-auto">

@@ -6,7 +6,9 @@ import { SearchBar } from "./SearchBar";
 import { Sidebar } from "./Sidebar";
 import { BottomBar } from "./BottomBar";
 import { useSyncUserLanguage } from "@/hooks/useSyncUserLanguage";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useActiveModule, useModuleNav } from "@/resources/nav";
+import { INLINE_SEARCH_QUERY } from "./SearchBar";
 import { AssistantLauncher } from "./assistant/AssistantLauncher";
 
 interface LayoutProps {
@@ -18,6 +20,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { pathname } = useLocation();
   const nav = useModuleNav();
   const active = useActiveModule(nav);
+  const inlineSearch = useMediaQuery(INLINE_SEARCH_QUERY);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -36,10 +39,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-200">
-      {/* The top bar and the search row under it stay pinned together. */}
+      {/* The top bar and the search row under it stay pinned together. On
+          wide screens the search sits inside the top bar instead. */}
       <div className="sticky top-0 z-40">
         <TopBar onOpenMenu={() => setMobileMenuOpen(true)} />
-        <SearchBar />
+        {!inlineSearch && <SearchBar />}
       </div>
       <div className="flex-1 flex min-w-0">
         {active && <Sidebar active={active} />}
