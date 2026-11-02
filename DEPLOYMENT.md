@@ -236,6 +236,7 @@ characters) or example `SECRET_KEY`. Defaults when `DEBUG=False`:
 | `SECURE_SSL_REDIRECT` | `False` | nginx does the redirect |
 | `ADMIN_URL` | `admin/` | Change it (e.g. `office-7f3a/`) and the nginx `location /admin/` to match |
 | `JWT_ACCESS_MINUTES` / `JWT_REFRESH_DAYS` | 60 / 7 | Refresh tokens are single-use and revocable |
+| `CACHE_URL` | file cache in `backend/var/cache` | Shared by all gunicorn workers so login rate limits hold; use `redis://...` for a cache service |
 
 API docs (`/api/schema/`, `/api/docs/`) need a signed-in user when `DEBUG=False`.
 When a staff member leaves, **deactivate** their user: every device they were

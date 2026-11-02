@@ -187,6 +187,21 @@ DRIVE_MAX_BYTES = env.int("DRIVE_MAX_BYTES", default=25 * 1024 * 1024)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Cache: rate limits (login brute-force guard) live here, so every gunicorn
+# worker must share it. A per-process memory cache would give each of the 3
+# workers its own counter. Production defaults to a file cache on this server;
+# set CACHE_URL (e.g. redis://...) to use a shared cache service instead.
+CACHES = {
+    "default": env.cache_url(
+        "CACHE_URL",
+        default=(
+            "locmemcache://"
+            if DEBUG or _RUNNING_TESTS
+            else f"filecache://{BASE_DIR / 'var' / 'cache'}"
+        ),
+    )
+}
+
 # CORS configuration
 # Local development only: allow any origin so the SPA works from any port or LAN
 # IP (Vite hops to 5174+ when 5173 is taken). Production stays on the explicit
