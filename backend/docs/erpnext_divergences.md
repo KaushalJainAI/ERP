@@ -715,3 +715,16 @@ backup). This is new behaviour for the ERP-feeds-Tally direction.
 - **Receipts against opening bills export to Tally as On Account.** Tally holds the opening balance as a ledger balance, not as a bill of the ERP's name, so an `Agst Ref` to an opening bill would point at a bill Tally does not have. The export sends such a receipt On Account. Tally's own pending-bill list for those parties is not cleared by the export; the accountant clears it in Tally.
 - **Opening entries never export.** Opening bills post no GL, so nothing of theirs reaches the export. An Opening Stock reconciliation (purpose `Opening Stock`) is excluded (ERPNext has no Tally export), and so is the `Opening Entry` journal. Preflight lists each in `skipped` with its reason (`opening_stock`, `opening_entry`, `opening_bill`).
 
+
+## Employee expense claims (2026-11-02, app `hr`, planning 05, checklist E-10)
+
+ERPNext's Expense Claim (in `hrms`) is the model. Our clone differs deliberately in these ways:
+
+- **No approval workflow in v1.** ERPNext's approval status (an approver accepts or rejects the claim) is not built. The accountant enters the claimed amount and the sanctioned amount on the draft; submitting it is the approval. The stored `sanctioned_amount` per line is the only "approval" detail.
+- **No advance adjustment against claims in v1.** ERPNext can settle a claim with an Employee Advance (an advance-to-claim adjustment). Here an advance is recovered only through salary slips, and a claim is paid only by an `ExpenseReimbursement`. A claim is never netted against an advance.
+- **Reimbursement is its own document, not a Payment Entry.** ERPNext pays a claim with a Payment Entry against it. We use `ExpenseReimbursement` (`EXP-REIMB-`), which posts Dr the claim's payable account (party `Employee`) / Cr cash or bank, and keeps the claim's outstanding as a stored, integrity-checked projection.
+- **A dedicated payable account.** Claims credit the HR Settings "Employee Reimbursements Payable" liability account (party `Employee`), not the payroll payable account. Wages and expense repayments therefore never mix in the employee's balance.
+- **Proof is required on every claim.** ERPNext attaches receipts optionally. The receipt is a condition of submit (`core.attachments.has_proof`), not gated on the company's `require_proof` flag, because the business needs a receipt for each reimbursed expense.
+- **`expense_date` is checked in application code, not the database.** A CHECK cannot compare a line's date with its parent's `posting_date`. The rule holds on every draft save and again on submit.
+- **Cancel is refused while a reimbursement is live.** Cancel the reimbursements first, then the claim.
+- **Tally export.** Claims and reimbursements carry no Tally voucher type of their own; they export as Journal vouchers (the fallback used by the other HR documents).

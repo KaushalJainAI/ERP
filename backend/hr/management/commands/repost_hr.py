@@ -7,16 +7,18 @@
   cancel + amend).
 
 Advance outstanding and the wages-payable balance are derived on read, so there
-is nothing else to rebuild.  No ledger row is touched.
+is nothing else to rebuild.  Expense claims keep a stored total and outstanding
+projection: both are rebuilt from the claim's lines and its live reimbursements.
+No ledger row is touched.
 """
 
 from django.core.exceptions import ValidationError
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from core.models import DocStatus
+from core.models import Company, DocStatus
 from hr.models import SalarySlip
-from hr.services import integrity, payroll
+from hr.services import expense_claims, integrity, payroll
 
 
 class Command(BaseCommand):
@@ -55,9 +57,19 @@ class Command(BaseCommand):
                             f"(posted slips are not rewritten; cancel and amend)."
                         )
                     )
+        company_id = None
+        if options["company"]:
+            company = Company.objects.filter(abbr=options["company"]).first()
+            if company is None:
+                raise CommandError(
+                    f"No company with abbreviation {options['company']}."
+                )
+            company_id = company.pk
+        claims_changed = expense_claims.repost_claims(company_id=company_id)
         self.stdout.write(
             self.style.SUCCESS(
                 f"Rebuilt {rebuilt} draft slip(s); {drift} posted slip(s) with "
-                f"drift; {failed} draft(s) could not be computed."
+                f"drift; {failed} draft(s) could not be computed; "
+                f"{claims_changed} expense claim(s) corrected."
             )
         )

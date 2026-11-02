@@ -348,4 +348,6 @@ class PortalIssueListCreateView(PortalView):
             )
         except DjangoValidationError as exc:
             return _validation_response(exc)
-        return Response(PortalIssueSerializer(issue).data, status=status.HTTP_201_CREATED)
+        return Response(
+            PortalIssueSerializer(issue).data, status=status.HTTP_201_CREATED
+        )

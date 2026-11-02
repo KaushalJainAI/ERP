@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ERP 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-03 03:06+0530\n"
+"POT-Creation-Date: 2026-11-03 03:50+0530\n"
 "PO-Revision-Date: 2026-07-21 12:00+0530\n"
 "Last-Translator: ERP Dev <dev@example.com>\n"
 "Language-Team: Hindi\n"
@@ -105,6 +105,7 @@ msgid "The period end date must fall within the fiscal year."
 msgstr "अवधि की आख़िरी तारीख वित्त वर्ष के अंदर होनी चाहिए।"
 
 #: accounts/management/commands/build_opening_bills.py:35
+#: core/test_hindi_api.py:46
 #, python-format
 msgid "Company '%(company)s' not found."
 msgstr "कंपनी '%(company)s' नहीं मिली।"
@@ -219,6 +220,7 @@ msgstr "GLEntry की पंक्तियाँ हटाई नहीं ज
 
 #: accounts/models.py:218 accounts/models.py:540 accounts/models.py:1987
 #: assistant/proposals.py:985 assistant/proposals.py:1165 buying/models.py:470
+#: hr/services/expense_claims.py:253
 msgid "Proof attachment is required before submission."
 msgstr "जमा करने से पहले सबूत (फ़ोटो या दस्तावेज़) लगाना ज़रूरी है।"
 
@@ -451,7 +453,7 @@ msgid "Paid From account cannot be a group account."
 msgstr "'किस खाते से' वाला खाता समूह नहीं हो सकता।"
 
 #: accounts/reports/__init__.py:47 accounts/reports/__init__.py:71
-#: gst/reports/__init__.py:93 gst/views.py:24 hr/views.py:87
+#: gst/reports/__init__.py:93 gst/views.py:24 hr/views.py:100
 #: stock/views.py:200
 msgid "This query parameter is required."
 msgstr "यह query parameter ज़रूरी है।"
@@ -537,7 +539,8 @@ msgid "Account must belong to the template's company."
 msgstr "खाता टेम्पलेट की कंपनी का होना चाहिए।"
 
 #: accounts/serializers.py:535 gst/services/supply.py:355
-#: hr/serializers.py:494 hr/services/advances.py:81
+#: hr/serializers.py:499 hr/services/advances.py:81
+#: hr/services/expense_claims.py:183
 msgid "Account must not be a group account."
 msgstr "खाता समूह खाता नहीं होना चाहिए।"
 
@@ -951,7 +954,6 @@ msgstr "पंक्ति %(n)s: वापसी में मात्रा �
 
 #: accounts/services/returns.py:126
 #, python-format
-#| msgid "Only submitted documents can be cancelled."
 msgid ""
 "'%(name)s' is not submitted; only a submitted document can be returned."
 msgstr ""
@@ -1403,8 +1405,9 @@ msgstr "GL खाता Expense मूल प्रकार का होना
 msgid "Day of month when this expense is due (1-31)."
 msgstr "महीने का वह दिन जब यह खर्च देय है (1-31)।"
 
-#: buying/models.py:184 hr/serializers.py:943 hr/serializers.py:1006
-#: hr/services/portal_requests.py:40 hr/services/portal_requests.py:108
+#: buying/models.py:184 hr/serializers.py:955 hr/serializers.py:1018
+#: hr/serializers.py:1055 hr/serializers.py:1187
+#: hr/services/portal_requests.py:40 hr/services/portal_requests.py:106
 msgid "Amount must be greater than zero."
 msgstr "रकम शून्य से ज़्यादा होनी चाहिए।"
 
@@ -1744,7 +1747,7 @@ msgstr "आपको इस कंपनी की पहुँच नहीं 
 msgid "No company is assigned to your user."
 msgstr "आपके यूज़र को कोई कंपनी नहीं दी गई है।"
 
-#: core/company_context.py:129 hr/serializers.py:527 hr/serializers.py:573
+#: core/company_context.py:129 hr/serializers.py:532 hr/serializers.py:579
 msgid "The company cannot be changed."
 msgstr "कंपनी बदली नहीं जा सकती।"
 
@@ -1760,12 +1763,10 @@ msgid ""
 msgstr "आइटम '%(code)s' वेरिएंट वाला टेम्पलेट है: इसके किसी वेरिएंट को चुनें।"
 
 #: core/mixins.py:271 core/models.py:230 core/models.py:234
-#| msgid "Only submitted documents can be cancelled."
 msgid "Submitted or cancelled documents cannot be modified."
 msgstr "जमा या रद्द दस्तावेज़ बदले नहीं जा सकते।"
 
 #: core/mixins.py:491
-#| msgid "Only draft documents can be submitted."
 msgid "Only draft documents can be deleted; cancel and amend instead."
 msgstr ""
 "सिर्फ़ ड्राफ़्ट दस्तावेज़ हटाए जा सकते हैं; बाकी को रद्द करके सुधारें।"
@@ -1788,12 +1789,10 @@ msgid "Only submitted documents can be cancelled."
 msgstr "सिर्फ़ जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
 
 #: core/models.py:132
-#| msgid "Only submitted documents can be cancelled."
 msgid "Only cancelled documents can be amended."
 msgstr "सिर्फ़ रद्द दस्तावेज़ सुधारे (amend) जा सकते हैं।"
 
 #: core/models.py:240
-#| msgid "Only draft documents can be submitted."
 msgid "Only draft documents can be deleted."
 msgstr "सिर्फ़ ड्राफ़्ट दस्तावेज़ हटाए जा सकते हैं।"
 
@@ -2568,11 +2567,11 @@ msgstr "नाम"
 msgid "active"
 msgstr "चालू"
 
-#: hr/models.py:143 hr/models.py:1292 hr/models.py:1345
+#: hr/models.py:143 hr/models.py:1472 hr/models.py:1525
 msgid "from date"
 msgstr "तारीख से"
 
-#: hr/models.py:144 hr/models.py:1293 hr/models.py:1346
+#: hr/models.py:144 hr/models.py:1473 hr/models.py:1526
 msgid "to date"
 msgstr "तारीख तक"
 
@@ -2580,7 +2579,7 @@ msgstr "तारीख तक"
 msgid "date"
 msgstr "तारीख"
 
-#: hr/models.py:164
+#: hr/models.py:164 hr/models.py:977
 msgid "description"
 msgstr "विवरण"
 
@@ -2612,7 +2611,7 @@ msgstr "जन्म तारीख"
 msgid "mobile number"
 msgstr "मोबाइल नंबर"
 
-#: hr/models.py:235 hr/models.py:425 hr/models.py:1138 hr/models.py:1213
+#: hr/models.py:235 hr/models.py:425 hr/models.py:1318 hr/models.py:1393
 msgid "status"
 msgstr "स्थिति"
 
@@ -2668,7 +2667,7 @@ msgstr "UAN"
 msgid "ESIC number"
 msgstr "ESIC नंबर"
 
-#: hr/models.py:348 hr/models.py:637
+#: hr/models.py:348 hr/models.py:653
 msgid "effective from"
 msgstr "कब से लागू"
 
@@ -2693,11 +2692,12 @@ msgstr ""
 "%(date)s से आगे की तारीखें एक जमा वेतन पर्ची में आ चुकी हैं; इसे बदलने के "
 "बजाय उसके बाद से लागू नई मज़दूरी दर जोड़ें।"
 
-#: hr/models.py:428 hr/models.py:986
+#: hr/models.py:428 hr/models.py:1166
 msgid "overtime hours"
 msgstr "ओवरटाइम घंटे"
 
-#: hr/models.py:430 hr/models.py:838 hr/models.py:997 hr/models.py:1059
+#: hr/models.py:430 hr/models.py:854 hr/models.py:911 hr/models.py:1177
+#: hr/models.py:1239
 msgid "remarks"
 msgstr "टिप्पणी"
 
@@ -2714,164 +2714,194 @@ msgstr "प्रकार"
 msgid "system component"
 msgstr "सिस्टम का हिस्सा"
 
-#: hr/models.py:611
+#: hr/models.py:626
+#| msgid ""
+#| "The payroll payable, employee advance and TDS payable accounts cannot be "
+#| "changed once salary slips, advances or payments are submitted."
 msgid ""
-"The payroll payable, employee advance and TDS payable accounts cannot be "
-"changed once salary slips, advances or payments are submitted."
+"The payroll payable, employee advance, expense claim payable and TDS payable"
+" accounts cannot be changed once salary slips, advances, payments, expense "
+"claims or reimbursements are submitted."
 msgstr ""
-"वेतन पर्ची, एडवांस या भुगतान जमा होने के बाद वेतन देय, कर्मचारी एडवांस और "
-"TDS देय खाते बदले नहीं जा सकते।"
+"वेतन देय, कर्मचारी अग्रिम, खर्च दावा देय और TDS देय खाते तब नहीं बदले जा "
+"सकते, जब वेतन पर्चियाँ, अग्रिम, भुगतान, खर्च दावे या भरपाई जमा हो चुके हों।"
 
-#: hr/models.py:636
+#: hr/models.py:652
 msgid "regime"
 msgstr "व्यवस्था"
 
-#: hr/models.py:638
+#: hr/models.py:654
 msgid "label"
 msgstr "लेबल"
 
-#: hr/models.py:640
+#: hr/models.py:656
 msgid "standard deduction"
 msgstr "मानक कटौती"
 
-#: hr/models.py:647
+#: hr/models.py:663
 msgid "rebate income limit"
 msgstr "छूट की आय सीमा"
 
-#: hr/models.py:653
+#: hr/models.py:669
 msgid "maximum rebate"
 msgstr "अधिकतम छूट"
 
-#: hr/models.py:656
+#: hr/models.py:672
 msgid "health and education cess (%)"
 msgstr "स्वास्थ्य और शिक्षा सेस (%)"
 
-#: hr/models.py:661 hr/models.py:1300
+#: hr/models.py:677 hr/models.py:1480
 msgid "notes"
 msgstr "नोट"
 
-#: hr/models.py:694 hr/models.py:732
+#: hr/models.py:710 hr/models.py:748
 msgid "income above"
 msgstr "इससे ज़्यादा आय"
 
-#: hr/models.py:697
+#: hr/models.py:713
 msgid "income up to"
 msgstr "इतनी आय तक"
 
-#: hr/models.py:699
+#: hr/models.py:715
 msgid "rate (%)"
 msgstr "दर (%)"
 
-#: hr/models.py:735
+#: hr/models.py:751
 msgid "surcharge (%)"
 msgstr "सरचार्ज (%)"
 
-#: hr/models.py:772 hr/models.py:827 hr/models.py:881 hr/models.py:979
-#: hr/models.py:1344
+#: hr/models.py:788 hr/models.py:843 hr/models.py:907 hr/models.py:1015
+#: hr/models.py:1061 hr/models.py:1159 hr/models.py:1524
 msgid "posting date"
 msgstr "एंट्री तारीख"
 
-#: hr/models.py:773 hr/models.py:828 hr/models.py:1050 hr/models.py:1135
+#: hr/models.py:789 hr/models.py:844 hr/models.py:978 hr/models.py:1016
+#: hr/models.py:1230 hr/models.py:1315
 msgid "amount"
 msgstr "रकम"
 
-#: hr/models.py:774
+#: hr/models.py:790
 msgid "purpose"
 msgstr "उद्देश्य"
 
-#: hr/models.py:776
+#: hr/models.py:792
 msgid "instalment amount"
 msgstr "किस्त की रकम"
 
-#: hr/models.py:833
+#: hr/models.py:849 hr/models.py:1018
 msgid "mode"
 msgstr "तरीका"
 
-#: hr/models.py:836
+#: hr/models.py:852 hr/models.py:1024
 msgid "reference number"
 msgstr "रेफ़रेंस नंबर"
 
-#: hr/models.py:882 hr/models.py:980
+#: hr/models.py:913
+#| msgid "total leave days"
+msgid "total claimed"
+msgstr "कुल दावा राशि"
+
+#: hr/models.py:916
+#| msgid "total deduction"
+msgid "total sanctioned"
+msgstr "कुल स्वीकृत राशि"
+
+#: hr/models.py:919
+#| msgid "instalment amount"
+msgid "outstanding amount"
+msgstr "बाकी राशि"
+
+#: hr/models.py:973
+#| msgid "end date"
+msgid "expense date"
+msgstr "खर्च की तारीख"
+
+#: hr/models.py:980
+#| msgid "instalment amount"
+msgid "sanctioned amount"
+msgstr "स्वीकृत राशि"
+
+#: hr/models.py:1062 hr/models.py:1160
 msgid "start date"
 msgstr "शुरू की तारीख"
 
-#: hr/models.py:883 hr/models.py:981
+#: hr/models.py:1063 hr/models.py:1161
 msgid "end date"
 msgstr "आख़िरी तारीख"
 
-#: hr/models.py:983
+#: hr/models.py:1163
 msgid "payment days"
 msgstr "भुगतान के दिन"
 
-#: hr/models.py:989
+#: hr/models.py:1169
 msgid "gross pay"
 msgstr "कुल वेतन"
 
-#: hr/models.py:992
+#: hr/models.py:1172
 msgid "total deduction"
 msgstr "कुल कटौती"
 
-#: hr/models.py:995
+#: hr/models.py:1175
 msgid "net pay"
 msgstr "हाथ में वेतन"
 
-#: hr/models.py:1051
+#: hr/models.py:1231
 msgid "manual"
 msgstr "हाथ से"
 
-#: hr/models.py:1092
+#: hr/models.py:1272
 msgid "portal enabled"
 msgstr "पोर्टल चालू"
 
-#: hr/models.py:1094
+#: hr/models.py:1274
 msgid "PIN must be changed"
 msgstr "PIN बदलना ज़रूरी है"
 
-#: hr/models.py:1136 hr/models.py:1353
+#: hr/models.py:1316 hr/models.py:1533
 msgid "reason"
 msgstr "कारण"
 
-#: hr/models.py:1144 hr/models.py:1219
+#: hr/models.py:1324 hr/models.py:1399
 msgid "response"
 msgstr "जवाब"
 
-#: hr/models.py:1205
+#: hr/models.py:1385
 msgid "category"
 msgstr "श्रेणी"
 
-#: hr/models.py:1207
+#: hr/models.py:1387
 msgid "reference date"
 msgstr "रेफ़रेंस तारीख"
 
-#: hr/models.py:1209
+#: hr/models.py:1389
 msgid "reference document"
 msgstr "रेफ़रेंस दस्तावेज़"
 
-#: hr/models.py:1211
+#: hr/models.py:1391
 msgid "message"
 msgstr "संदेश"
 
-#: hr/models.py:1254
+#: hr/models.py:1434
 msgid "leave type name"
 msgstr "छुट्टी के प्रकार का नाम"
 
-#: hr/models.py:1256
+#: hr/models.py:1436
 msgid "max days allowed per year"
 msgstr "साल में ज़्यादा से ज़्यादा दिन"
 
-#: hr/models.py:1261
+#: hr/models.py:1441
 msgid "is carry forward"
 msgstr "अगले साल ले जा सकते हैं"
 
-#: hr/models.py:1262
+#: hr/models.py:1442
 msgid "is active"
 msgstr "चालू है"
 
-#: hr/models.py:1295
+#: hr/models.py:1475
 msgid "total leaves allocated"
 msgstr "कुल दी गई छुट्टियाँ"
 
-#: hr/models.py:1348
+#: hr/models.py:1528
 msgid "total leave days"
 msgstr "कुल छुट्टी के दिन"
 
@@ -2891,7 +2921,7 @@ msgstr "मोबाइल नंबर या PIN गलत है।"
 msgid "Too many failed attempts. Please try again later."
 msgstr "बहुत बार गलत कोशिश हुई। थोड़ी देर बाद फिर कोशिश करें।"
 
-#: hr/portal_views.py:82 hr/services/attendance.py:139 hr/views.py:239
+#: hr/portal_views.py:82 hr/services/attendance.py:139 hr/views.py:255
 msgid "'to' cannot be before 'from'."
 msgstr "'to', 'from' से पहले नहीं हो सकता।"
 
@@ -2907,190 +2937,197 @@ msgstr "PIN बदल गया।"
 msgid "The range is too long."
 msgstr "अवधि बहुत लंबी है।"
 
-#: hr/serializers.py:151
+#: hr/serializers.py:156
 msgid "To date cannot be before from date."
 msgstr "'तारीख तक', 'तारीख से' से पहले नहीं हो सकती।"
 
-#: hr/serializers.py:158
+#: hr/serializers.py:163
 #, python-format
 msgid "%(d)s is listed twice."
 msgstr "%(d)s दो बार लिखा है।"
 
-#: hr/serializers.py:164
+#: hr/serializers.py:169
 #, python-format
 msgid "%(d)s is outside the list's date range."
 msgstr "%(d)s सूची की तारीखों के बाहर है।"
 
-#: hr/serializers.py:287
+#: hr/serializers.py:292
 msgid "Enter a valid mobile number."
 msgstr "सही मोबाइल नंबर लिखें।"
 
-#: hr/serializers.py:293
+#: hr/serializers.py:298
 msgid "Another employee already uses this mobile number."
 msgstr "यह मोबाइल नंबर किसी दूसरे कर्मचारी का है।"
 
-#: hr/serializers.py:300
+#: hr/serializers.py:305
 msgid "Enter a valid PAN."
 msgstr "सही PAN लिखें।"
 
-#: hr/serializers.py:306
+#: hr/serializers.py:311
 msgid "The fixed monthly TDS cannot be negative."
 msgstr "तय मासिक TDS माइनस नहीं हो सकता।"
 
-#: hr/serializers.py:313
+#: hr/serializers.py:318
 msgid "Enter a valid IFSC code."
 msgstr "सही IFSC कोड लिखें।"
 
-#: hr/serializers.py:319
+#: hr/serializers.py:324
 msgid "Aadhaar must be 12 digits."
 msgstr "आधार 12 अंकों का होना चाहिए।"
 
-#: hr/serializers.py:333
+#: hr/serializers.py:338
 msgid "Relieving date cannot be before the joining date."
 msgstr "काम छोड़ने की तारीख काम पर आने की तारीख से पहले नहीं हो सकती।"
 
-#: hr/serializers.py:341
+#: hr/serializers.py:346
 msgid "A relieving date is required when the employee has left."
 msgstr "कर्मचारी के काम छोड़ने पर काम छोड़ने की तारीख ज़रूरी है।"
 
-#: hr/serializers.py:347
+#: hr/serializers.py:352
 msgid "The company of an employee cannot be changed."
 msgstr "कर्मचारी की कंपनी बदली नहीं जा सकती।"
 
-#: hr/serializers.py:384
+#: hr/serializers.py:389
 msgid "The employee cannot be changed."
 msgstr "कर्मचारी बदला नहीं जा सकता।"
 
-#: hr/serializers.py:387
+#: hr/serializers.py:392
 msgid "A daily rate is required for a Daily employee."
 msgstr "दिहाड़ी कर्मचारी के लिए रोज़ की दर ज़रूरी है।"
 
-#: hr/serializers.py:393
+#: hr/serializers.py:398
 msgid "A monthly salary is required for a Monthly employee."
 msgstr "मासिक कर्मचारी के लिए मासिक वेतन ज़रूरी है।"
 
-#: hr/serializers.py:400
+#: hr/serializers.py:405
 msgid "Cannot be negative."
 msgstr "माइनस नहीं हो सकता।"
 
-#: hr/serializers.py:408
+#: hr/serializers.py:413
 msgid "A wage rate already starts on this date."
 msgstr "इस तारीख से एक मज़दूरी दर पहले से शुरू है।"
 
-#: hr/serializers.py:441
+#: hr/serializers.py:446
 msgid "Overtime must be between 0 and 24 hours."
 msgstr "ओवरटाइम 0 से 24 घंटे के बीच होना चाहिए।"
 
-#: hr/serializers.py:445
+#: hr/serializers.py:450
 msgid "An absent employee cannot have overtime."
 msgstr "ग़ैरहाज़िर कर्मचारी का ओवरटाइम नहीं हो सकता।"
 
-#: hr/serializers.py:451
+#: hr/serializers.py:456
 msgid "The date is outside the employee's period of employment."
 msgstr "यह तारीख कर्मचारी के काम की अवधि के बाहर है।"
 
-#: hr/serializers.py:460
+#: hr/serializers.py:465
 msgid "Attendance is already recorded for this employee and date."
 msgstr "इस कर्मचारी और तारीख की हाज़िरी पहले से दर्ज है।"
 
-#: hr/serializers.py:492 hr/services/advances.py:79
+#: hr/serializers.py:497 hr/services/advances.py:79
+#: hr/services/expense_claims.py:179
 msgid "Account must belong to the company."
 msgstr "खाता इसी कंपनी का होना चाहिए।"
 
-#: hr/serializers.py:497
+#: hr/serializers.py:502
 #, python-format
 msgid "Account must be of type %(t)s."
 msgstr "खाता %(t)s प्रकार का होना चाहिए।"
 
-#: hr/serializers.py:538
+#: hr/serializers.py:543
 msgid "The type of a component in use cannot be changed."
 msgstr "इस्तेमाल हो रहे हिस्से का प्रकार बदला नहीं जा सकता।"
 
-#: hr/serializers.py:546
+#: hr/serializers.py:551
 msgid "A component with this name exists."
 msgstr "इस नाम का हिस्सा पहले से है।"
 
-#: hr/serializers.py:576
+#: hr/serializers.py:582
 msgid "HR Settings already exist for this company."
 msgstr "इस कंपनी की HR सेटिंग पहले से है।"
 
-#: hr/serializers.py:700
+#: hr/serializers.py:712
 msgid "The employee of a slip cannot be changed."
 msgstr "पर्ची का कर्मचारी बदला नहीं जा सकता।"
 
-#: hr/serializers.py:704 hr/serializers.py:940 hr/serializers.py:1003
-#: hr/serializers.py:1074 hr/serializers.py:1138 hr/services/advances.py:88
+#: hr/serializers.py:716 hr/serializers.py:952 hr/serializers.py:1015
+#: hr/serializers.py:1248 hr/serializers.py:1310 hr/services/advances.py:88
+#: hr/services/expense_claims.py:173 hr/services/expense_claims.py:260
 #: hr/services/leave.py:32 hr/services/leave.py:113 hr/services/payments.py:16
 #: hr/services/payroll.py:214 hr/services/payroll.py:419
 msgid "The employee belongs to a different company."
 msgstr "कर्मचारी किसी दूसरी कंपनी का है।"
 
-#: hr/serializers.py:709 hr/serializers.py:853 hr/serializers.py:1084
-#: hr/serializers.py:1148 hr/services/leave.py:30 hr/services/leave.py:111
+#: hr/serializers.py:721 hr/serializers.py:865 hr/serializers.py:1258
+#: hr/serializers.py:1320 hr/services/leave.py:30 hr/services/leave.py:111
 #: hr/services/wages.py:83
 msgid "End date cannot be before start date."
 msgstr "आख़िरी तारीख शुरू की तारीख से पहले नहीं हो सकती।"
 
-#: hr/serializers.py:714
+#: hr/serializers.py:726
 #, python-format
 msgid "A salary slip cannot cover more than %(n)s days."
 msgstr "एक वेतन पर्ची %(n)s दिनों से ज़्यादा की नहीं हो सकती।"
 
-#: hr/serializers.py:735
+#: hr/serializers.py:747
 #, python-format
 msgid "Component %(c)s belongs to another company."
 msgstr "हिस्सा %(c)s किसी दूसरी कंपनी का है।"
 
-#: hr/serializers.py:741
+#: hr/serializers.py:753 hr/services/expense_claims.py:211
 msgid "Amounts must be greater than zero."
 msgstr "रकम शून्य से ज़्यादा होनी चाहिए।"
 
-#: hr/serializers.py:747
+#: hr/serializers.py:759
 msgid "Advance recovery rows must name an advance."
 msgstr "एडवांस वसूली की पंक्तियों में एडवांस का नाम होना चाहिए।"
 
-#: hr/serializers.py:757
+#: hr/serializers.py:769
 #, python-format
 msgid "Advance %(a)s cannot be recovered on this slip."
 msgstr "एडवांस %(a)s की वसूली इस पर्ची पर नहीं हो सकती।"
 
-#: hr/serializers.py:765
+#: hr/serializers.py:777
 #, python-format
 msgid "Advance %(a)s appears twice."
 msgstr "एडवांस %(a)s दो बार है।"
 
-#: hr/serializers.py:772
+#: hr/serializers.py:784
 msgid "Only advance recovery rows may name an advance."
 msgstr "सिर्फ़ एडवांस वसूली की पंक्तियों में एडवांस का नाम हो सकता है।"
 
-#: hr/serializers.py:862
+#: hr/serializers.py:874
 #, python-format
 msgid "%(e)s belongs to a different company."
 msgstr "%(e)s किसी दूसरी कंपनी का है।"
 
-#: hr/serializers.py:868
+#: hr/serializers.py:880
 #, python-format
 msgid "%(e)s is listed twice."
 msgstr "%(e)s दो बार लिखा है।"
 
-#: hr/serializers.py:949
+#: hr/serializers.py:961
 msgid "The instalment must be between zero and the advance amount."
 msgstr "किस्त शून्य और एडवांस की रकम के बीच होनी चाहिए।"
 
-#: hr/serializers.py:1078 hr/serializers.py:1142 hr/services/leave.py:34
+#: hr/serializers.py:1064 hr/services/expense_claims.py:216
+#| msgid "The instalment must be between zero and the advance amount."
+msgid "The sanctioned amount must be between zero and the claimed amount."
+msgstr "स्वीकृत राशि शून्य और दावा की गई राशि के बीच होनी चाहिए।"
+
+#: hr/serializers.py:1252 hr/serializers.py:1314 hr/services/leave.py:34
 #: hr/services/leave.py:115
 msgid "The leave type belongs to a different company."
 msgstr "छुट्टी का प्रकार किसी दूसरी कंपनी का है।"
 
-#: hr/serializers.py:1089 hr/services/leave.py:36
+#: hr/serializers.py:1263 hr/services/leave.py:36
 msgid "Allocated leaves cannot be negative."
 msgstr "दी गई छुट्टियाँ माइनस नहीं हो सकतीं।"
 
-#: hr/serializers.py:1153 hr/services/leave.py:117
+#: hr/serializers.py:1325 hr/services/leave.py:117
 msgid "Total leave days must be greater than zero."
 msgstr "कुल छुट्टी के दिन शून्य से ज़्यादा होने चाहिए।"
 
-#: hr/serializers.py:1161 hr/services/leave.py:122
+#: hr/serializers.py:1333 hr/services/leave.py:123
 #, python-format
 msgid ""
 "Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
@@ -3129,7 +3166,73 @@ msgstr "%(employee)s ग़ैरहाज़िर है, उसके ओव�
 msgid "The range cannot exceed %(n)s days."
 msgstr "अवधि %(n)s दिनों से ज़्यादा नहीं हो सकती।"
 
-#: hr/services/leave.py:66
+#: hr/services/expense_claims.py:176 hr/services/portal_requests.py:99
+msgid "The employee is not active."
+msgstr "कर्मचारी चालू नहीं है।"
+
+#: hr/services/expense_claims.py:186
+#| msgid "Account must be of type 'Tax'."
+msgid "Account must be a liability."
+msgstr "खाता देनदारी (Liability) प्रकार का होना चाहिए।"
+
+#: hr/services/expense_claims.py:196
+#, python-format
+#| msgid "Bill Date cannot be after the posting date."
+msgid "Expense date %(date)s is after the posting date of the claim."
+msgstr "खर्च की तारीख %(date)s, दावे की तारीख के बाद है।"
+
+#: hr/services/expense_claims.py:205
+#, python-format
+#| msgid "Expense category must belong to the same company."
+msgid "Expense category %(category)s belongs to another company."
+msgstr "खर्च श्रेणी %(category)s किसी दूसरी कंपनी की है।"
+
+#: hr/services/expense_claims.py:245
+msgid "Add at least one expense before submitting."
+msgstr "जमा करने से पहले कम से कम एक खर्च जोड़ें।"
+
+#: hr/services/expense_claims.py:250
+#| msgid "TDS amount must be greater than zero."
+msgid "The sanctioned total must be greater than zero."
+msgstr "स्वीकृत कुल राशि शून्य से अधिक होनी चाहिए।"
+
+#: hr/services/expense_claims.py:264
+#| msgid "The employee belongs to a different company."
+msgid "The expense claim belongs to a different company."
+msgstr "खर्च दावा किसी दूसरी कंपनी का है।"
+
+#: hr/services/expense_claims.py:268
+#| msgid "The folder belongs to another company."
+msgid "The expense claim belongs to another employee."
+msgstr "खर्च दावा किसी दूसरे कर्मचारी का है।"
+
+#: hr/services/expense_claims.py:272
+#| msgid "Only a submitted Work Order can be mapped."
+msgid "Only a submitted expense claim can be reimbursed."
+msgstr "भरपाई केवल जमा किए गए खर्च दावे की हो सकती है।"
+
+#: hr/services/expense_claims.py:289
+#, python-format
+#| msgid ""
+#| "Allocated amount (%(allocated)s) exceeds the outstanding amount "
+#| "(%(outstanding)s) of '%(name)s'."
+msgid ""
+"Amount %(amount)s exceeds the outstanding amount %(outstanding)s of expense "
+"claim %(claim)s."
+msgstr ""
+"राशि %(amount)s, खर्च दावे %(claim)s की बाकी राशि %(outstanding)s से अधिक "
+"है।"
+
+#: hr/services/expense_claims.py:346
+#| msgid ""
+#| "This advance has recoveries in submitted salary slips; cancel those slips "
+#| "first."
+msgid ""
+"This expense claim has reimbursements in submitted payments; cancel those "
+"first."
+msgstr "इस खर्च दावे की जमा हो चुकी भरपाई मौजूद है; पहले उन्हें रद्द करें।"
+
+#: hr/services/leave.py:62
 #, python-format
 msgid ""
 "Cannot cancel leave allocation: %(taken)s days of leave have already been "
@@ -3138,7 +3241,7 @@ msgstr ""
 "छुट्टी का आवंटन रद्द नहीं हो सकता: इसमें से %(taken)s दिन की छुट्टी ली जा "
 "चुकी है।"
 
-#: hr/services/leave.py:140
+#: hr/services/leave.py:142
 #, python-format
 msgid ""
 "Leave dates overlap with submitted leave application %(name)s (%(from)s to "
@@ -3147,7 +3250,7 @@ msgstr ""
 "छुट्टी की तारीखें जमा छुट्टी अर्ज़ी %(name)s (%(from)s से %(to)s) से टकराती "
 "हैं।"
 
-#: hr/services/leave.py:165
+#: hr/services/leave.py:167
 #, python-format
 msgid ""
 "Insufficient leave balance for %(leave_type)s. Available: %(avail)s, "
@@ -3165,7 +3268,6 @@ msgstr ""
 "है।"
 
 #: hr/services/payroll.py:121 hr/services/payroll.py:164
-#| msgid "Only draft documents can be submitted."
 msgid "Only draft salary slips can be recomputed."
 msgstr "सिर्फ़ ड्राफ़्ट वेतन पर्ची दोबारा गिनी जा सकती है।"
 
@@ -3204,7 +3306,6 @@ msgstr ""
 "में।"
 
 #: hr/services/payroll.py:274
-#| msgid "Only draft documents can be submitted."
 msgid "A salary slip with no earnings cannot be submitted."
 msgstr "बिना कमाई वाली वेतन पर्ची जमा नहीं हो सकती।"
 
@@ -3231,12 +3332,10 @@ msgid ""
 msgstr "इस पर्ची की %(net)s मज़दूरी दी जा चुकी है; पहले भुगतान रद्द करें।"
 
 #: hr/services/payroll.py:386
-#| msgid "Only draft documents can be submitted."
 msgid "Only a draft payroll entry can be changed."
 msgstr "सिर्फ़ ड्राफ़्ट पेरोल एंट्री बदली जा सकती है।"
 
 #: hr/services/payroll.py:402
-#| msgid "Only draft documents can be submitted."
 msgid "Only a draft payroll entry can create slips."
 msgstr "सिर्फ़ ड्राफ़्ट पेरोल एंट्री से पर्चियाँ बन सकती हैं।"
 
@@ -3291,67 +3390,63 @@ msgstr "पोर्टल चालू करने से पहले कर�
 msgid "Only an active employee can use the portal."
 msgstr "सिर्फ़ चालू कर्मचारी पोर्टल इस्तेमाल कर सकता है।"
 
-#: hr/services/portal.py:290
+#: hr/services/portal.py:295
 msgid "The new PIN must differ from the current PIN."
 msgstr "नया PIN मौजूदा PIN से अलग होना चाहिए।"
 
-#: hr/services/portal_requests.py:50 hr/services/portal_requests.py:66
+#: hr/services/portal_requests.py:49 hr/services/portal_requests.py:64
 msgid "You already have a pending advance request."
 msgstr "आपकी एक एडवांस अर्ज़ी पहले से बाकी है।"
 
-#: hr/services/portal_requests.py:74
+#: hr/services/portal_requests.py:72
 msgid "Only a pending request can be withdrawn."
 msgstr "सिर्फ़ बाकी अर्ज़ी वापस ली जा सकती है।"
 
-#: hr/services/portal_requests.py:96
+#: hr/services/portal_requests.py:94
 msgid "Only a pending request can be approved."
 msgstr "सिर्फ़ बाकी अर्ज़ी मंज़ूर हो सकती है।"
 
-#: hr/services/portal_requests.py:101
-msgid "The employee is not active."
-msgstr "कर्मचारी चालू नहीं है।"
-
-#: hr/services/portal_requests.py:113
+#: hr/services/portal_requests.py:111
 msgid "Instalment must be greater than zero and at most the amount."
 msgstr "किस्त शून्य से ज़्यादा और रकम से ज़्यादा नहीं होनी चाहिए।"
 
-#: hr/services/portal_requests.py:152
+#: hr/services/portal_requests.py:150
 msgid "Give the employee a reason."
 msgstr "कर्मचारी को कारण बताएँ।"
 
-#: hr/services/portal_requests.py:156
+#: hr/services/portal_requests.py:154
 msgid "Only a pending request can be rejected."
 msgstr "सिर्फ़ बाकी अर्ज़ी नामंज़ूर हो सकती है।"
 
-#: hr/services/portal_requests.py:173
+#: hr/services/portal_requests.py:171
 msgid "Describe the problem."
 msgstr "समस्या बताएँ।"
 
-#: hr/services/portal_requests.py:183
+#: hr/services/portal_requests.py:181
 msgid "You have too many open issues; wait for a reply first."
 msgstr "आपकी बहुत सी शिकायतें खुली हैं; पहले जवाब का इंतज़ार करें।"
 
-#: hr/services/portal_requests.py:203
+#: hr/services/portal_requests.py:201
 msgid "Choose Resolved or Rejected."
 msgstr "हल हो गया या नामंज़ूर चुनें।"
 
-#: hr/services/portal_requests.py:206
+#: hr/services/portal_requests.py:204
 msgid "Write a reply to the employee."
 msgstr "कर्मचारी को जवाब लिखें।"
 
-#: hr/services/portal_requests.py:210
+#: hr/services/portal_requests.py:208
 msgid "This issue is already closed."
 msgstr "यह शिकायत पहले ही बंद है।"
 
-#: hr/services/reports.py:30 hr/services/reports.py:110
+#: hr/services/reports.py:30 hr/services/reports.py:114
 msgid "Both 'from' and 'to' dates are required."
 msgstr "'from' और 'to' दोनों तारीखें ज़रूरी हैं।"
 
-#: hr/services/reports.py:32 hr/services/reports.py:112
+#: hr/services/reports.py:32 hr/services/reports.py:116
 msgid "'to' date cannot be before 'from' date."
 msgstr "'to' तारीख 'from' तारीख से पहले नहीं हो सकती।"
 
-#: hr/services/setup.py:138
+#: hr/services/setup.py:143
 #, python-format
 msgid ""
 "HR Settings are not configured for company %(company)s. Run seed_defaults or"
@@ -3360,7 +3455,7 @@ msgstr ""
 "कंपनी %(company)s की HR सेटिंग नहीं है। पहले seed_defaults चलाएँ या POST "
 "hr/settings/ensure-setup/ करें।"
 
-#: hr/services/setup.py:158
+#: hr/services/setup.py:163
 #, python-format
 msgid ""
 "System salary components are missing for company %(company)s. Run "
@@ -3451,41 +3546,40 @@ msgstr "%(employee)s की %(date)s से लागू मज़दूरी �
 msgid "The wage rate of %(employee)s effective %(date)s has no daily rate."
 msgstr "%(employee)s की %(date)s से लागू मज़दूरी दर में रोज़ की दर नहीं है।"
 
-#: hr/views.py:92 hr/views.py:464 stock/views.py:194
+#: hr/views.py:105 hr/views.py:480 stock/views.py:194
 msgid "Use YYYY-MM-DD."
 msgstr "YYYY-MM-DD में लिखें।"
 
-#: hr/views.py:102 stock/views.py:205
+#: hr/views.py:115 stock/views.py:205
 msgid "Must be an integer."
 msgstr "पूर्णांक (बिना दशमलव) होना चाहिए।"
 
-#: hr/views.py:108
+#: hr/views.py:121
 #, python-format
 msgid "You do not have %(flag)s permission on %(label)s."
 msgstr "आपको %(label)s पर %(flag)s की अनुमति नहीं है।"
 
-#: hr/views.py:130
+#: hr/views.py:143
 msgid "This record is in use and cannot be deleted."
 msgstr "यह रिकॉर्ड इस्तेमाल में है, हटाया नहीं जा सकता।"
 
-#: hr/views.py:328
-#| msgid "Only submitted documents can be cancelled."
+#: hr/views.py:344
 msgid "System components cannot be deleted."
 msgstr "सिस्टम हिस्से हटाए नहीं जा सकते।"
 
-#: hr/views.py:451
+#: hr/views.py:467
 msgid "Unknown account."
 msgstr "अनजान खाता।"
 
-#: hr/views.py:456
+#: hr/views.py:472
 msgid "Invalid payment mode."
 msgstr "भुगतान का तरीका गलत है।"
 
-#: hr/views.py:616 hr/views.py:659
+#: hr/views.py:684 hr/views.py:727
 msgid "Both from_date and to_date are required."
 msgstr "from_date और to_date दोनों ज़रूरी हैं।"
 
-#: hr/views.py:625 hr/views.py:668
+#: hr/views.py:693 hr/views.py:736
 msgid "Invalid date format. Use YYYY-MM-DD."
 msgstr "तारीख गलत है। YYYY-MM-DD में लिखें।"
 
@@ -3749,7 +3843,6 @@ msgid "The Work Order has no required items; check the BOM components."
 msgstr "वर्क ऑर्डर में कोई ज़रूरी आइटम नहीं है; BOM के हिस्से जाँचें।"
 
 #: manufacturing/services/work_orders.py:155
-#| msgid "Only draft documents can be submitted."
 msgid "A stopped Work Order cannot be submitted."
 msgstr "रुका हुआ वर्क ऑर्डर जमा नहीं हो सकता।"
 
@@ -3759,7 +3852,6 @@ msgstr "पहले इस वर्क ऑर्डर की स्टॉक 
 
 #: manufacturing/services/work_orders.py:262
 #, python-format
-#| msgid "Only submitted documents can be cancelled."
 msgid "Only a submitted Work Order can be %(action)s."
 msgstr "सिर्फ़ जमा वर्क ऑर्डर %(action)s जा सकता है।"
 
@@ -3780,7 +3872,6 @@ msgid "Quantity must be a number."
 msgstr "मात्रा संख्या होनी चाहिए।"
 
 #: manufacturing/services/work_orders.py:342
-#| msgid "Only submitted documents can be cancelled."
 msgid "Only a submitted Work Order can be mapped."
 msgstr "सिर्फ़ जमा वर्क ऑर्डर से आगे के दस्तावेज़ बन सकते हैं।"
 
@@ -3829,7 +3920,6 @@ msgid "The expected good output is zero."
 msgstr "अपेक्षित अच्छा माल शून्य है।"
 
 #: manufacturing/views.py:81
-#| msgid "Only submitted documents can be cancelled."
 msgid "Only a submitted Work Order can be changed."
 msgstr "सिर्फ़ जमा वर्क ऑर्डर बदला जा सकता है।"
 
@@ -4101,7 +4191,6 @@ msgstr ""
 " दस्तावेज़ %(document)s), सीमा %(limit)s से ज़्यादा है।"
 
 #: selling/services/dispatch.py:250
-#| msgid "Only submitted documents can be cancelled."
 msgid "Only submitted Sales Orders can be dispatched."
 msgstr "सिर्फ़ जमा बिक्री ऑर्डर डिस्पैच हो सकते हैं।"
 

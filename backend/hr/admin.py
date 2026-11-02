@@ -263,7 +263,13 @@ class EmployeeIssueAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
 
 @admin.register(LeaveType)
 class LeaveTypeAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
-    list_display = ("name", "company", "max_days_allowed", "is_carry_forward", "is_active")
+    list_display = (
+        "name",
+        "company",
+        "max_days_allowed",
+        "is_carry_forward",
+        "is_active",
+    )
     list_filter = ("company", "is_active", "is_carry_forward")
     search_fields = ("name",)
     readonly_fields = _RO

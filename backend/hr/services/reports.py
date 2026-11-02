@@ -72,8 +72,12 @@ def salary_register_report(
                 "posting_date": str(s.posting_date),
                 "employee_id": s.employee.name,
                 "employee_name": s.employee.employee_name,
-                "department": s.employee.department.name if s.employee.department else "-",
-                "designation": s.employee.designation.name if s.employee.designation else "-",
+                "department": (
+                    s.employee.department.name if s.employee.department else "-"
+                ),
+                "designation": (
+                    s.employee.designation.name if s.employee.designation else "-"
+                ),
                 "pay_type": s.employee.pay_type,
                 "start_date": str(s.start_date),
                 "end_date": str(s.end_date),
@@ -144,7 +148,9 @@ def wage_register_report(
 
     for s in slips:
         rate = wage_rate_for(s.employee, s.start_date)
-        daily_rate_val = rate.daily_rate if rate and rate.daily_rate is not None else None
+        daily_rate_val = (
+            rate.daily_rate if rate and rate.daily_rate is not None else None
+        )
 
         wages = Decimal("0.00")
         overtime = Decimal("0.00")
@@ -178,8 +184,14 @@ def wage_register_report(
                 "posting_date": str(s.posting_date),
                 "employee_id": s.employee.name,
                 "employee_name": s.employee.employee_name,
-                "department": s.employee.department.name if s.employee.department else "-",
-                "daily_rate": str(quantize_money(daily_rate_val)) if daily_rate_val is not None else "-",
+                "department": (
+                    s.employee.department.name if s.employee.department else "-"
+                ),
+                "daily_rate": (
+                    str(quantize_money(daily_rate_val))
+                    if daily_rate_val is not None
+                    else "-"
+                ),
                 "start_date": str(s.start_date),
                 "end_date": str(s.end_date),
                 "payment_days": str(s.payment_days),

@@ -41,7 +41,10 @@ class SetPortalPinSerializer(serializers.Serializer):
 
 class PortalAdvanceRequestCreateSerializer(serializers.Serializer):
     amount = serializers.DecimalField(
-        max_digits=18, decimal_places=2, min_value=Decimal("0.01"), coerce_to_string=False
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        coerce_to_string=False,
     )
     reason = serializers.CharField(max_length=240)
 
@@ -172,7 +175,9 @@ class AdvanceRequestSerializer(serializers.ModelSerializer):
         source="employee.employee_name", read_only=True
     )
     employee_code = serializers.CharField(source="employee.name", read_only=True)
-    advance_name = serializers.CharField(source="advance.name", default=None, read_only=True)
+    advance_name = serializers.CharField(
+        source="advance.name", default=None, read_only=True
+    )
     reviewed_by_name = serializers.CharField(
         source="reviewed_by.username", default=None, read_only=True
     )
