@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ERP 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-03 04:02+0530\n"
+"POT-Creation-Date: 2026-11-03 04:21+0530\n"
 "PO-Revision-Date: 2026-07-21 12:00+0530\n"
 "Last-Translator: ERP Dev <dev@example.com>\n"
 "Language-Team: Hindi\n"
@@ -1891,6 +1891,40 @@ msgstr "AuditLog की पंक्तियाँ हटाई नहीं �
 #: core/models.py:814 core/models.py:817 core/models.py:882
 msgid "Attachments are immutable and cannot be updated."
 msgstr "लगाई गई फ़ाइलें बदली नहीं जा सकतीं।"
+
+#: core/services/ledger_integrity.py:57
+#, python-format
+msgid "%(ledger)s rows reference an unknown document type '%(type)s'."
+msgstr ""
+"%(ledger)s की पंक्तियाँ अनजान दस्तावेज़ प्रकार '%(type)s' की ओर इशारा करती "
+"हैं।"
+
+#: core/services/ledger_integrity.py:76
+#, python-format
+msgid ""
+"%(count)s %(ledger)s voucher(s) of type %(type)s have no document, e.g. "
+"%(examples)s."
+msgstr ""
+"%(type)s प्रकार के %(count)s %(ledger)s वाउचर का कोई दस्तावेज़ नहीं है, जैसे"
+" %(examples)s।"
+
+#: core/services/ledger_integrity.py:90
+#, python-format
+msgid ""
+"Orphan posting: %(ledger)s has live rows for %(type)s %(name)s, which is not"
+" submitted (docstatus %(status)s)."
+msgstr ""
+"बेसहारा एंट्री: %(ledger)s में %(type)s %(name)s की चालू पंक्तियाँ हैं, पर "
+"वह जमा नहीं है (docstatus %(status)s)।"
+
+#: core/services/ledger_integrity.py:141
+#, python-format
+msgid ""
+"Over-billed order: %(order)s ordered %(ordered)s of %(item)s but its "
+"submitted invoices bill %(billed)s."
+msgstr ""
+"ज़्यादा बिल वाला ऑर्डर: %(order)s में %(item)s का ऑर्डर %(ordered)s था, पर "
+"जमा बिलों में %(billed)s का बिल है।"
 
 #: core/views.py:466
 msgid "Attachment not found."
@@ -3965,40 +3999,36 @@ msgstr "बड़ा भुगतान मिला"
 
 #: notifications/messages.py:28
 #, python-format
-#| msgid ""
-#| "Payment Entry (%(payment_type)s) for %(party_type)s %(party)s: ₹%(amount)s"
 msgid "%(payment)s, %(party)s: ₹%(amount)s."
 msgstr "%(payment)s, %(party)s: ₹%(amount)s।"
 
 #: notifications/messages.py:31
-#| msgid "payment days"
 msgid "Payment delayed"
 msgstr "भुगतान में देरी"
 
-#: notifications/messages.py:32
+#: notifications/messages.py:33
 #, python-format
 msgid ""
 "%(invoice)s, %(customer)s: ₹%(outstanding)s unpaid for %(days_unpaid)s days."
 msgstr ""
 "%(invoice)s, %(customer)s: ₹%(outstanding)s, %(days_unpaid)s दिन से बाकी।"
 
-#: notifications/messages.py:35
-#| msgid "expense date"
+#: notifications/messages.py:37
 msgid "Expense unpaid"
 msgstr "खर्च का भुगतान बाकी"
 
-#: notifications/messages.py:36
+#: notifications/messages.py:39
 #, python-format
 msgid ""
 "%(invoice)s, %(supplier)s: ₹%(outstanding)s unpaid for %(days_unpaid)s days."
 msgstr ""
 "%(invoice)s, %(supplier)s: ₹%(outstanding)s, %(days_unpaid)s दिन से बाकी।"
 
-#: notifications/messages.py:39
+#: notifications/messages.py:43
 msgid "GST credit at risk"
 msgstr "GST क्रेडिट ख़तरे में"
 
-#: notifications/messages.py:40
+#: notifications/messages.py:44
 #, python-format
 msgid ""
 "%(invoice)s: ₹%(gst_amount)s GST credit, unpaid for %(days_unpaid)s days."
@@ -4006,11 +4036,11 @@ msgstr ""
 "%(invoice)s: ₹%(gst_amount)s का GST क्रेडिट, %(days_unpaid)s दिन से भुगतान "
 "बाकी।"
 
-#: notifications/messages.py:43
+#: notifications/messages.py:47
 msgid "Books check failed"
 msgstr "खातों की जाँच विफल"
 
-#: notifications/messages.py:44
+#: notifications/messages.py:48
 #, python-format
 msgid ""
 "%(error_count)s problems found in the books.\n"
@@ -4021,29 +4051,29 @@ msgstr ""
 "\n"
 "%(summary)s"
 
-#: notifications/messages.py:47
+#: notifications/messages.py:51
 msgid "Backup failed"
 msgstr "बैकअप विफल"
 
-#: notifications/messages.py:48
+#: notifications/messages.py:52
 #, python-format
 msgid "Last night's database backup did not complete: %(error)s"
 msgstr "कल रात का डेटाबेस बैकअप पूरा नहीं हुआ: %(error)s"
 
-#: notifications/messages.py:51
+#: notifications/messages.py:55
 msgid "Overdue bills"
 msgstr "देय तारीख निकल चुके बिल"
 
-#: notifications/messages.py:52
+#: notifications/messages.py:56
 #, python-format
 msgid "%(count)s overdue bills, ₹%(total_amount)s in total."
 msgstr "%(count)s बिलों की देय तारीख निकल चुकी है, कुल ₹%(total_amount)s।"
 
-#: notifications/messages.py:55
+#: notifications/messages.py:59
 msgid "Daily summary"
 msgstr "आज का सारांश"
 
-#: notifications/messages.py:57
+#: notifications/messages.py:61
 #, python-format
 msgid ""
 "₹%(money_in)s received, %(bills_count)s bills worth ₹%(bills_total)s, "
@@ -4052,17 +4082,17 @@ msgstr ""
 "₹%(money_in)s मिले, ₹%(bills_total)s के %(bills_count)s बिल बने, "
 "%(pending_dispatches)s ऑर्डर डिस्पैच बाकी।"
 
-#: notifications/messages.py:62
+#: notifications/messages.py:66
 msgid "Weekly summary"
 msgstr "हफ़्ते का सारांश"
 
-#: notifications/messages.py:63
+#: notifications/messages.py:67
 #, python-format
 msgid ""
 "To collect this week: ₹%(collections_needed)s. Bills due: ₹%(bills_due)s."
 msgstr "इस हफ़्ते वसूली: ₹%(collections_needed)s। देय बिल: ₹%(bills_due)s।"
 
-#: notifications/messages.py:95
+#: notifications/messages.py:99
 #, python-format
 msgid "Open in the ERP: %(url)s"
 msgstr "ERP में खोलें: %(url)s"
