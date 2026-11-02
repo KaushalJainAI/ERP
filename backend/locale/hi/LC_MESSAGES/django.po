@@ -1,8 +1,9 @@
+#
 msgid ""
 msgstr ""
 "Project-Id-Version: ERP 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 12:00+0530\n"
+"POT-Creation-Date: 2026-11-03 03:28+0530\n"
 "PO-Revision-Date: 2026-07-21 12:00+0530\n"
 "Last-Translator: ERP Dev <dev@example.com>\n"
 "Language-Team: Hindi <hi@example.com>\n"
@@ -12,17 +13,4688 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: accounts/bank_views.py:54 accounts/bank_views.py:73 core/mixins.py:129
+#: users/serializers.py:207
+msgid "This field is required."
+msgstr ""
+
+#: accounts/bank_views.py:65 accounts/reports/__init__.py:54
+#: accounts/views.py:73 gst/reports/__init__.py:52
+msgid "Enter a valid date (YYYY-MM-DD)."
+msgstr ""
+
+#: accounts/bank_views.py:79
+msgid "Must be a bank account id."
+msgstr ""
+
+#: accounts/bank_views.py:81
+msgid "Bank account not found."
+msgstr ""
+
+#: accounts/bank_views.py:86 accounts/services/bank.py:268
+#: accounts/services/bank.py:313
+msgid "Choose at least one voucher."
+msgstr ""
+
+#: accounts/bank_views.py:95
+msgid "Each voucher needs a voucher_type and voucher_no."
+msgstr ""
+
+#: accounts/bank_views.py:193
+msgid ""
+"This bank account has statement or reconciliation history; deactivate it "
+"instead."
+msgstr ""
+
+#: accounts/bank_views.py:304
+msgid "Choose the account to book the amount to."
+msgstr ""
+
+#: accounts/bank_views.py:306
+msgid "Choose an active, non-group account."
+msgstr ""
+
+#: accounts/bank_views.py:308
+msgid "The counter account must differ from the bank."
+msgstr ""
+
+#: accounts/bank_views.py:312 accounts/services/bank.py:275
+msgid "This bank transaction is already reconciled."
+msgstr ""
+
+#: accounts/bank_views.py:417
+msgid "Choose a CSV file."
+msgstr ""
+
+#: accounts/bank_views.py:419 accounts/services/bank_import.py:125
+msgid "The file is too large (limit 5 MB)."
+msgstr ""
+
+#: accounts/bank_views.py:449 accounts/bank_views.py:451
+msgid "Invalid column mapping."
+msgstr ""
+
+#: accounts/bank_views.py:456
+msgid "Must be a number."
+msgstr ""
+
+#: accounts/bank_views.py:531
+msgid "Must be a number of days."
+msgstr ""
+
+#: accounts/bank_views.py:588 accounts/bank_views.py:615
+msgid "Bank transaction not found."
+msgstr ""
+
+#: accounts/closing_views.py:64
+msgid "Choose the closing account (Retained Earnings / Reserves)."
+msgstr ""
+
+#: accounts/closing_views.py:84 accounts/services/closing.py:188
+msgid "The closing account must belong to the company."
+msgstr ""
+
+#: accounts/closing_views.py:92
+msgid "The closing account must be a non-group Liability / Equity account."
+msgstr ""
+
+#: accounts/closing_views.py:105
+msgid "The period end date must fall within the fiscal year."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:35
+#, python-format
+msgid "Company '%(company)s' not found."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:40
+msgid "No company found."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:96
+msgid "Use either --dry-run or --commit, not both."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:101
+#, python-format
+msgid "Invalid --as-on date '%(date)s'. Expected YYYY-MM-DD."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:115
+#, python-format
+msgid "Plan written to %(path)s."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:121
+msgid "[DRY-RUN] No opening bills created. Use --commit to create them."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:134
+#, python-format
+msgid ""
+"Created %(count)s submitted opening bills for %(company)s as on %(as_on)s."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:143
+#, python-format
+msgid "Opening bills for %(company)s as on %(as_on)s:"
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:147
+#, python-format
+msgid "  Bills: %(count)s, total %(total)s."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:151
+#, python-format
+msgid "  Advances (credit balances, not bills): %(count)s, total %(total)s."
+msgstr ""
+
+#: accounts/management/commands/build_opening_bills.py:157
+#, python-format
+msgid "  Parties to review by hand: %(count)s."
+msgstr ""
+
+#: accounts/mapping.py:52
+#, python-format
+msgid "Series '%(series)s' with 4-digit padding exceeds 16 characters."
+msgstr ""
+
+#: accounts/mapping.py:99
+#, python-format
+msgid "No %(what)s account is configured for company '%(company)s'."
+msgstr ""
+
+#: accounts/mapping.py:180
+#, python-format
+msgid "No Bank or Cash account is configured for company '%(company)s'."
+msgstr ""
+
+#: accounts/mapping.py:300
+#, python-format
+msgid "'%(name)s' has already been returned in full."
+msgstr ""
+
+#: accounts/mapping.py:307
+msgid "A return can only be made from a submitted invoice."
+msgstr ""
+
+#: accounts/mapping.py:309
+msgid "A return cannot be made from another return."
+msgstr ""
+
+#: accounts/mapping.py:356
+msgid "Payment can only be requested for a submitted invoice."
+msgstr ""
+
+#: accounts/mapping.py:370
+#, python-format
+msgid "Invoice '%(name)s' has no outstanding amount."
+msgstr ""
+
+#: accounts/models.py:148
+msgid "GLEntry rows are immutable and cannot be updated."
+msgstr ""
+
+#: accounts/models.py:153
+msgid "GLEntry rows are immutable and cannot be deleted."
+msgstr ""
+
+#: accounts/models.py:218 accounts/models.py:540 accounts/models.py:1987
+#: assistant/proposals.py:985 assistant/proposals.py:1165 buying/models.py:470
+#: hr/services/expense_claims.py:253
+msgid "Proof attachment is required before submission."
+msgstr "जमा करने से पहले रसीद (सबूत) की फ़ाइल लगाना ज़रूरी है।"
+
+#: accounts/models.py:222
+msgid "Journal Entry must have at least one line."
+msgstr ""
+
+#: accounts/models.py:228
+#, python-format
+msgid "Account '%(account)s' does not belong to the entry's company."
+msgstr ""
+
+#: accounts/models.py:236
+#, python-format
+msgid ""
+"Journal Entry is unbalanced: Total Debit (%(debit)s) != Total Credit "
+"(%(credit)s)."
+msgstr ""
+
+#: accounts/models.py:402
+msgid "An internal transfer cannot be allocated against invoices."
+msgstr ""
+
+#: accounts/models.py:411
+#, python-format
+msgid ""
+"Payments can only be allocated against a Sales Invoice or a Purchase "
+"Invoice, not '%(doctype)s'."
+msgstr ""
+
+#: accounts/models.py:427 accounts/models.py:502
+#, python-format
+msgid ""
+"A %(payment_type)s payment for a %(party_type)s cannot be allocated against "
+"%(doctype)s '%(name)s'."
+msgstr ""
+
+#: accounts/models.py:440
+#, python-format
+msgid "Invoice '%(name)s' is referenced more than once."
+msgstr ""
+
+#: accounts/models.py:446
+#, python-format
+msgid "The amount allocated to '%(name)s' must be greater than zero."
+msgstr ""
+
+#: accounts/models.py:452 accounts/serializers.py:359
+#, python-format
+msgid "Total allocated (%(allocated)s) exceeds the paid amount (%(paid)s)."
+msgstr ""
+
+#: accounts/models.py:467 payment_reconciliation/services.py:676
+#, python-format
+msgid "Invoice '%(name)s' does not exist."
+msgstr ""
+
+#: accounts/models.py:472
+#, python-format
+msgid "Invoice '%(name)s' is not submitted."
+msgstr ""
+
+#: accounts/models.py:477
+#, python-format
+msgid "Invoice '%(name)s' belongs to a different company."
+msgstr ""
+
+#: accounts/models.py:482
+#, python-format
+msgid "Invoice '%(name)s' belongs to a different party."
+msgstr ""
+
+#: accounts/models.py:491
+#, python-format
+msgid ""
+"Invoice '%(name)s' is booked to a different account than this payment's "
+"party account."
+msgstr ""
+
+#: accounts/models.py:522 accounts/serializers.py:344
+#, python-format
+msgid ""
+"Allocated amount (%(allocated)s) exceeds the outstanding amount "
+"(%(outstanding)s) of '%(name)s'."
+msgstr ""
+
+#: accounts/models.py:543
+msgid "Paid amount must be greater than zero."
+msgstr ""
+
+#: accounts/models.py:545 buying/models.py:513 selling/models.py:310
+msgid "Posting to group accounts is not allowed."
+msgstr ""
+
+#: accounts/models.py:548
+msgid "Paid From and Paid To accounts must be different."
+msgstr ""
+
+#: accounts/models.py:555
+msgid "Payment accounts must belong to the payment's company."
+msgstr ""
+
+#: accounts/models.py:738
+msgid "Opening bill amount must be greater than zero."
+msgstr ""
+
+#: accounts/models.py:740 buying/models.py:477
+msgid "Due date cannot be before the bill date."
+msgstr ""
+
+#: accounts/models.py:742
+msgid "The bill date cannot be after the as-on date."
+msgstr ""
+
+#: accounts/models.py:745
+msgid "The party account must be a posting account of this company."
+msgstr ""
+
+#: accounts/models.py:754
+#, python-format
+msgid "The party account must be a %(kind)s account."
+msgstr ""
+
+#: accounts/models.py:763
+#, python-format
+msgid "'%(party)s' is not a %(party_type)s of this company."
+msgstr ""
+
+#: accounts/models.py:787 accounts/models.py:1334
+#, python-format
+msgid ""
+"Cannot cancel '%(name)s': cancel the linked payment entries first "
+"(%(payments)s)."
+msgstr ""
+
+#: accounts/models.py:1256
+#, python-format
+msgid ""
+"Cannot cancel '%(name)s': cancel the linked returns first (%(returns)s)."
+msgstr ""
+
+#: accounts/models.py:1593
+msgid "The GL account must be of type Bank."
+msgstr ""
+
+#: accounts/models.py:1595 buying/models.py:130
+msgid "The GL account must not be a group."
+msgstr ""
+
+#: accounts/models.py:1597 buying/models.py:132
+msgid "The GL account must belong to the company."
+msgstr ""
+
+#: accounts/models.py:1599
+msgid "Enter a valid IFSC code (e.g. HDFC0001234)."
+msgstr ""
+
+#: accounts/models.py:1642
+msgid "Bank statement imports are immutable."
+msgstr ""
+
+#: accounts/models.py:1646
+msgid "Bank statement imports cannot be deleted."
+msgstr ""
+
+#: accounts/models.py:1706
+msgid "Bank transactions are immutable."
+msgstr ""
+
+#: accounts/models.py:1710
+msgid "Bank transactions cannot be deleted."
+msgstr ""
+
+#: accounts/models.py:1762
+msgid "Bank clearances are immutable; add a new record."
+msgstr ""
+
+#: accounts/models.py:1766
+msgid "Bank clearances cannot be deleted."
+msgstr ""
+
+#: accounts/models.py:1824
+#, python-format
+msgid "Period closing %(fy)s"
+msgstr ""
+
+#: accounts/models.py:1940
+msgid "GST tax payments cannot have TDS amount."
+msgstr ""
+
+#: accounts/models.py:1950
+msgid "Tax payment must have at least one non-zero amount."
+msgstr ""
+
+#: accounts/models.py:1954
+msgid "Paid From account is required when paying tax in cash."
+msgstr ""
+
+#: accounts/models.py:1965
+msgid "TDS tax payments cannot have GST amounts."
+msgstr ""
+
+#: accounts/models.py:1967
+msgid "TDS amount must be greater than zero."
+msgstr ""
+
+#: accounts/models.py:1970
+msgid "Paid From account is required for TDS payment."
+msgstr ""
+
+#: accounts/models.py:1975
+#, python-format
+msgid "Paid From account does not belong to company '%(company)s'."
+msgstr ""
+
+#: accounts/models.py:1979 accounts/services/tax_payment.py:84
+msgid "Paid From account cannot be a group account."
+msgstr ""
+
+#: accounts/reports/__init__.py:47 accounts/reports/__init__.py:71
+#: gst/reports/__init__.py:93 gst/views.py:24 hr/views.py:100
+#: stock/views.py:200
+msgid "This query parameter is required."
+msgstr ""
+
+#: accounts/reports/__init__.py:63 gst/reports/__init__.py:83
+msgid "'from_date' is after 'to_date'."
+msgstr ""
+
+#: accounts/reports/__init__.py:76
+msgid "Enter a valid id."
+msgstr ""
+
+#: accounts/reports/__init__.py:85 gst/reports/__init__.py:99
+msgid "A valid company is required."
+msgstr ""
+
+#: accounts/reports/__init__.py:97
+#, python-format
+msgid "'page' must be >= 1 and 'page_size' between 1 and %(max)d."
+msgstr ""
+
+#: accounts/reports/cashbook.py:37
+msgid "A valid account of this company is required."
+msgstr ""
+
+#: accounts/reports/cashbook.py:41
+msgid "The account must be a Cash or Bank account."
+msgstr ""
+
+#: accounts/reports/registers.py:80 accounts/reports/statement.py:58
+msgid "A valid party of this company is required."
+msgstr ""
+
+#: accounts/reports/registers.py:210
+msgid "A valid item group is required."
+msgstr ""
+
+#: accounts/reports/statement.py:52 accounts/views.py:498
+msgid "party_type must be 'Customer' or 'Supplier'."
+msgstr ""
+
+#: accounts/serializers.py:88
+msgid "GST direction and GST component must be set together."
+msgstr ""
+
+#: accounts/serializers.py:92
+msgid "A GST-tagged account must have type 'Tax'."
+msgstr ""
+
+#: accounts/serializers.py:106
+#, python-format
+msgid "This company already has a %(direction)s %(component)s account."
+msgstr ""
+
+#: accounts/serializers.py:276
+msgid "This field is required for an internal transfer."
+msgstr ""
+
+#: accounts/serializers.py:280
+msgid "Select the party, or choose the paid from and paid to accounts."
+msgstr ""
+
+#: accounts/serializers.py:288
+#, python-format
+msgid ""
+"Choose the paid from and paid to accounts for a %(party_type)s payment."
+msgstr ""
+
+#: accounts/serializers.py:290
+msgid "this"
+msgstr ""
+
+#: accounts/serializers.py:430
+msgid "Each GST component may appear only once per template."
+msgstr ""
+
+#: accounts/serializers.py:509
+msgid "Reverse charge applies to purchase templates only."
+msgstr ""
+
+#: accounts/serializers.py:533
+msgid "Account must belong to the template's company."
+msgstr ""
+
+#: accounts/serializers.py:535 gst/services/supply.py:355
+#: hr/serializers.py:499 hr/services/advances.py:81
+#: hr/services/expense_claims.py:183
+msgid "Account must not be a group account."
+msgstr "खाता समूह (group) खाता नहीं होना चाहिए।"
+
+#: accounts/serializers.py:537 gst/services/supply.py:357
+msgid "Account must be of type 'Tax'."
+msgstr ""
+
+#: accounts/serializers.py:540
+#, python-format
+msgid "A %(type)s template needs %(direction)s GST accounts."
+msgstr ""
+
+#: accounts/serializers.py:544
+msgid "Account is used twice in this template."
+msgstr ""
+
+#: accounts/serializers.py:565
+msgid ""
+"Another default template already exists for this company, type, supply type "
+"and reverse-charge setting."
+msgstr ""
+
+#: accounts/serializers.py:674 accounts/serializers.py:854
+msgid "Each tax account may appear only once in the tax table."
+msgstr ""
+
+#: accounts/serializers.py:696
+msgid "Quantity must not be zero."
+msgstr ""
+
+#: accounts/serializers.py:733
+msgid "A document cannot be converted to or from a return."
+msgstr ""
+
+#: accounts/serializers.py:741
+msgid "Only a return can point at an original."
+msgstr ""
+
+#: accounts/serializers.py:747 accounts/services/returns.py:123
+msgid "A document cannot be returned against itself."
+msgstr ""
+
+#: accounts/serializers.py:758
+#, python-format
+msgid ""
+"Row %(n)s: the quantity must be negative in a return and positive otherwise."
+msgstr ""
+
+#: accounts/serializers.py:772
+#, python-format
+msgid "Row %(n)s: the original row is not on %(name)s."
+msgstr ""
+
+#: accounts/serializers.py:800 assistant/proposals.py:1261 core/mixins.py:27
+#: manufacturing/services/work_orders.py:325
+msgid "Quantity must be greater than zero."
+msgstr ""
+
+#: accounts/services/allocation.py:136
+#, python-format
+msgid "party_type must be 'Customer' or 'Supplier', got '%(ptype)s'"
+msgstr ""
+
+#: accounts/services/bank.py:229
+#, python-format
+msgid "%(type)s %(no)s has no live posting on this bank account."
+msgstr ""
+
+#: accounts/services/bank.py:270 accounts/services/bank.py:322
+msgid "A voucher is listed more than once."
+msgstr ""
+
+#: accounts/services/bank.py:282 accounts/services/bank.py:344
+#, python-format
+msgid "%(type)s %(no)s is already cleared."
+msgstr ""
+
+#: accounts/services/bank.py:289
+#, python-format
+msgid ""
+"The selected vouchers total %(total)s but the bank transaction is "
+"%(amount)s."
+msgstr ""
+
+#: accounts/services/bank.py:305
+msgid "This bank transaction is not reconciled."
+msgstr ""
+
+#: accounts/services/bank.py:330
+#, python-format
+msgid "%(type)s %(no)s is not cleared."
+msgstr ""
+
+#: accounts/services/bank.py:336
+#, python-format
+msgid ""
+"%(no)s was matched to a bank transaction; unmatch that transaction instead."
+msgstr ""
+
+#: accounts/services/bank.py:350
+#, python-format
+msgid "The clearance date of %(no)s cannot be before its posting date."
+msgstr ""
+
+#: accounts/services/bank.py:369
+#, python-format
+msgid ""
+"%(no)s has cleared the bank. Un-clear it in the bank reconciliation before "
+"cancelling."
+msgstr ""
+
+#: accounts/services/bank_import.py:133
+msgid "Could not read the file as text."
+msgstr ""
+
+#: accounts/services/bank_import.py:135
+msgid "This looks like a binary file; upload a CSV file."
+msgstr ""
+
+#: accounts/services/bank_import.py:146 core/attachments.py:316
+#: drive/uploads.py:146
+msgid "The file is empty."
+msgstr ""
+
+#: accounts/services/bank_import.py:148
+msgid "The file has too many rows (limit 20,000)."
+msgstr ""
+
+#: accounts/services/bank_import.py:257
+#, python-format
+msgid "Mapped column(s) not found in the file: %(cols)s"
+msgstr ""
+
+#: accounts/services/bank_import.py:262
+msgid "Map the date column."
+msgstr ""
+
+#: accounts/services/bank_import.py:265
+msgid "Map the withdrawal and deposit columns (or a single amount column)."
+msgstr ""
+
+#: accounts/services/bank_import.py:284
+#, python-format
+msgid "Invalid amount: %(v)s"
+msgstr ""
+
+#: accounts/services/bank_import.py:302
+#, python-format
+msgid "Invalid date: %(v)s"
+msgstr ""
+
+#: accounts/services/bank_import.py:310
+msgid "A line cannot have both a withdrawal and a deposit."
+msgstr ""
+
+#: accounts/services/bank_import.py:339
+msgid "Could not find the header row; choose it."
+msgstr ""
+
+#: accounts/services/bank_import.py:347
+msgid "No transaction lines were found in the file."
+msgstr ""
+
+#: accounts/services/closing.py:104
+#, python-format
+msgid ""
+"The books are closed up to %(date)s by a Period Closing Voucher. Cancel the "
+"closing voucher before posting or cancelling entries dated on or before that"
+" day."
+msgstr ""
+
+#: accounts/services/closing.py:190
+msgid "The closing account cannot be a group."
+msgstr ""
+
+#: accounts/services/closing.py:193
+#, python-format
+msgid "Closing Account %(name)s must be of type Liability / Equity."
+msgstr ""
+
+#: accounts/services/closing.py:198
+#, python-format
+msgid "The period end date must fall within the fiscal year %(fy)s."
+msgstr ""
+
+#: accounts/services/closing.py:204
+#, python-format
+msgid ""
+"Fiscal year %(fy)s is closed. Post the Period Closing Voucher before closing"
+" the fiscal year."
+msgstr ""
+
+#: accounts/services/closing.py:213
+msgid "The period end date belongs to a different fiscal year definition."
+msgstr ""
+
+#: accounts/services/closing.py:220
+#, python-format
+msgid "Fiscal year %(fy)s is already closed by a Period Closing Voucher."
+msgstr ""
+
+#: accounts/services/closing.py:226
+#, python-format
+msgid "You cannot close this period because %(name)s closes a later period."
+msgstr ""
+
+#: accounts/services/closing.py:232
+msgid "There are no income or expense balances to close in this period."
+msgstr ""
+
+#: accounts/services/closing.py:258
+#, python-format
+msgid ""
+"The previous fiscal year (%(fy)s) is not closed, please close it first."
+msgstr ""
+
+#: accounts/services/closing.py:278
+#, python-format
+msgid ""
+"You cannot cancel this document because another Period Closing Voucher "
+"(%(name)s) exists after %(date)s."
+msgstr ""
+
+#: accounts/services/gl.py:58
+msgid "Cannot post empty GL entries."
+msgstr ""
+
+#: accounts/services/gl.py:62
+msgid "Posting date is required for GL entry."
+msgstr ""
+
+#: accounts/services/gl.py:81
+#, python-format
+msgid "Posting to group account '%(account)s' is not allowed."
+msgstr ""
+
+#: accounts/services/gl.py:90
+msgid "Debit and credit amounts must be non-negative."
+msgstr ""
+
+#: accounts/services/gl.py:94
+msgid "A single GL entry line cannot have both debit and credit > 0."
+msgstr ""
+
+#: accounts/services/gl.py:123
+#, python-format
+msgid ""
+"Unbalanced GL entry: Total Debit (%(debit)s) != Total Credit (%(credit)s)."
+msgstr ""
+
+#: accounts/services/gl.py:233
+#, python-format
+msgid ""
+"Imbalance detected during GL repost for %(voucher_type)s:%(voucher_no)s"
+msgstr ""
+
+#: accounts/services/gst_position.py:37
+msgid "Company does not exist."
+msgstr ""
+
+#: accounts/services/gst_position.py:48 accounts/services/gst_position.py:55
+msgid "Invalid month format. Expected YYYY-MM."
+msgstr ""
+
+#: accounts/services/gst_position.py:57
+msgid "Invalid month format."
+msgstr ""
+
+#: accounts/services/gst_position.py:182
+msgid "Invalid as_on date format. Expected YYYY-MM-DD."
+msgstr ""
+
+#: accounts/services/opening.py:147
+msgid "Balance carried forward"
+msgstr ""
+
+#: accounts/services/opening.py:178
+msgid "balances on more than one control account"
+msgstr ""
+
+#: accounts/services/opening.py:180
+#, python-format
+msgid "not a %(party_type)s of this company"
+msgstr ""
+
+#: accounts/services/opening.py:184
+#, python-format
+msgid "%(party)s: %(reason)s. Review by hand."
+msgstr ""
+
+#: accounts/services/opening.py:207
+msgid "Credit balance: an advance, not a bill. Nothing is created."
+msgstr ""
+
+#: accounts/services/opening.py:229
+msgid "Estimate: newest entries that add up to the balance"
+msgstr ""
+
+#: accounts/services/opening.py:238
+#, python-format
+msgid ""
+"%(party)s: bills of %(bills)s do not add up to the balance of %(balance)s."
+msgstr ""
+
+#: accounts/services/opening.py:246
+#, python-format
+msgid ""
+"Total of the bills (%(bills)s) does not equal the ledger balances "
+"(%(balance)s)."
+msgstr ""
+
+#: accounts/services/opening.py:275
+#, python-format
+msgid "Opening bills as on %(as_on)s already exist for this company."
+msgstr ""
+
+#: accounts/services/opening.py:313
+#, python-format
+msgid ""
+"Opening Bill Outstanding Drift for %(name)s: stored %(stored)s != amount "
+"%(amount)s less allocations = %(expected)s."
+msgstr ""
+
+#: accounts/services/opening.py:330
+#, python-format
+msgid ""
+"Opening Bill %(name)s: '%(party)s' is not a %(party_type)s of its company."
+msgstr ""
+
+#: accounts/services/opening.py:366
+#, python-format
+msgid ""
+"Opening bills for %(party)s total %(bills)s, but the ledger balance on "
+"%(as_on)s is %(balance)s."
+msgstr ""
+
+#: accounts/services/returns.py:104
+#, python-format
+msgid "Row %(n)s: quantity must be negative in a return."
+msgstr ""
+
+#: accounts/services/returns.py:126
+#, fuzzy, python-format
+#| msgid "Only submitted documents can be cancelled."
+msgid ""
+"'%(name)s' is not submitted; only a submitted document can be returned."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: accounts/services/returns.py:131
+#, python-format
+msgid "'%(name)s' is itself a return and cannot be returned."
+msgstr ""
+
+#: accounts/services/returns.py:135
+#, python-format
+msgid "'%(name)s' belongs to a different company."
+msgstr ""
+
+#: accounts/services/returns.py:139
+#, python-format
+msgid "The party does not match '%(name)s' (%(party)s)."
+msgstr ""
+
+#: accounts/services/returns.py:144
+#, python-format
+msgid "The party account must be the same as in '%(name)s' (%(account)s)."
+msgstr ""
+
+#: accounts/services/returns.py:149
+#, python-format
+msgid "The posting date cannot be before that of '%(name)s' (%(date)s)."
+msgstr ""
+
+#: accounts/services/returns.py:157
+#, python-format
+msgid ""
+"'Update Stock' cannot be set: the items were not delivered through "
+"'%(name)s'."
+msgstr ""
+
+#: accounts/services/returns.py:208
+#, python-format
+msgid "Row %(n)s: item %(code)s is not on the row it returns in %(name)s."
+msgstr ""
+
+#: accounts/services/returns.py:221
+#, python-format
+msgid "Row %(n)s: item %(code)s does not exist in %(name)s."
+msgstr ""
+
+#: accounts/services/returns.py:230
+#, python-format
+msgid ""
+"Row %(n)s: the rate cannot be greater than the rate used in %(name)s "
+"(%(rate)s)."
+msgstr ""
+
+#: accounts/services/returns.py:243
+#, python-format
+msgid ""
+"Row %(n)s: a batch-tracked item must be returned from the batch of %(name)s."
+msgstr ""
+
+#: accounts/services/returns.py:254
+#, python-format
+msgid ""
+"Cannot return more than %(max)s of item %(code)s from this row of %(name)s."
+msgstr ""
+
+#: accounts/services/returns.py:286
+#, python-format
+msgid "Cannot return more than %(max)s of item %(code)s from %(name)s."
+msgstr ""
+
+#: accounts/services/returns.py:311
+#, python-format
+msgid ""
+"The outstanding amount %(open)s in %(name)s is less than %(total)s: this "
+"return keeps its own outstanding amount instead."
+msgstr ""
+
+#: accounts/services/tax_payment.py:26
+#, python-format
+msgid ""
+"No Output GST account found for %(component)s in company '%(company)s'."
+msgstr ""
+
+#: accounts/services/tax_payment.py:40
+#, python-format
+msgid "No Input GST account found for %(component)s in company '%(company)s'."
+msgstr ""
+
+#: accounts/services/tax_payment.py:60
+#, python-format
+msgid "No TDS Payable account found for company '%(company)s'."
+msgstr ""
+
+#: accounts/services/tax_payment.py:74
+msgid "Paid From account is required when cash is paid."
+msgstr ""
+
+#: accounts/services/tax_payment.py:77
+#, python-format
+msgid ""
+"Paid From account '%(account)s' does not belong to company '%(company)s'."
+msgstr ""
+
+#: accounts/services/taxes.py:168
+#, python-format
+msgid ""
+"Tax rounding drift: row total and line amounts disagree by %(residual)s."
+msgstr ""
+
+#: accounts/services/taxes.py:201
+msgid "The combined GST rate of a line cannot exceed 100%."
+msgstr ""
+
+#: accounts/views.py:230
+msgid "party_type, party, and amount query parameters are required."
+msgstr ""
+
+#: accounts/views.py:238
+#, python-format
+msgid "Invalid amount '%(amount)s'."
+msgstr ""
+
+#: accounts/views.py:589
+msgid "Party not found."
+msgstr ""
+
+#: accounts/views.py:591 gst/views.py:77
+msgid "Party must belong to the company."
+msgstr ""
+
+#: accounts/views.py:659
+msgid "Charge amounts must be numbers."
+msgstr ""
+
+#: accounts/views.py:743 assistant/proposals.py:1252 buying/views.py:300
+#: core/company_context.py:69 stock/views.py:663
+msgid "Company not found."
+msgstr ""
+
+#: accounts/views.py:783
+msgid "month query parameter is required (YYYY-MM)."
+msgstr ""
+
+#: assistant/bill_photo.py:229
+msgid "Which supplier is this bill from?"
+msgstr ""
+
+#: assistant/bill_photo.py:239
+#, python-format
+msgid ""
+"I could not find the supplier %(query)s in the books. Who is the bill from?"
+msgstr ""
+
+#: assistant/bill_photo.py:252
+#, python-format
+msgid "I could not find the item %(query)s in the books. Which item is it?"
+msgstr ""
+
+#: assistant/bill_photo.py:292 assistant/bill_photo.py:320
+msgid "Bill photo"
+msgstr ""
+
+#: assistant/bill_photo.py:357 assistant/proposals.py:583
+msgid "You do not have permission to create Purchase Invoices."
+msgstr ""
+
+#: assistant/bill_photo.py:366
+msgid ""
+"I could not read this bill clearly. Take a clearer photo with the whole bill"
+" in frame, or enter the bill in the form."
+msgstr ""
+
+#: assistant/bill_photo.py:373
+msgid ""
+"The bill reader is not available right now. Please try again, or enter the "
+"bill in the form."
+msgstr ""
+
+#: assistant/bill_photo.py:401
+msgid ""
+"Check the prefilled Purchase Invoice and save it. The bill photo is attached"
+" as proof."
+msgstr ""
+
+#: assistant/bill_photo.py:408
+msgid "The bill could not be prepared. Please enter it in the form."
+msgstr ""
+
+#: assistant/proposals.py:56
+#, python-format
+msgid "Which %(kind)s did you mean for '%(query)s'?"
+msgstr ""
+
+#: assistant/proposals.py:62
+#, python-format
+msgid "%(kind)s '%(query)s' not found."
+msgstr ""
+
+#: assistant/proposals.py:110
+#, python-format
+msgid "Item '%(query)s' not found."
+msgstr ""
+
+#: assistant/proposals.py:139
+#, python-format
+msgid ""
+"Selected %(item)s based on customer's usual orders (%(pct)d%% of past 90 "
+"days). Please confirm."
+msgstr ""
+
+#: assistant/proposals.py:147
+#, python-format
+msgid "Which item did you mean for '%(query)s'?"
+msgstr ""
+
+#: assistant/proposals.py:188
+msgid "You do not have permission to create Sales Orders."
+msgstr ""
+
+#: assistant/proposals.py:220 assistant/proposals.py:417
+#: assistant/proposals.py:613
+#, python-format
+msgid "Quantity for %(item)s is zero or negative."
+msgstr ""
+
+#: assistant/proposals.py:241 assistant/proposals.py:438
+#, python-format
+msgid ""
+"Rate you specified for %(item)s: ₹%(rate)s, price list rate: "
+"₹%(server_rate)s"
+msgstr ""
+
+#: assistant/proposals.py:249 assistant/proposals.py:446
+#: assistant/proposals.py:641
+#, python-format
+msgid "No rate found for %(item)s. Please enter it in the form."
+msgstr ""
+
+#: assistant/proposals.py:282 assistant/proposals.py:479
+#, python-format
+msgid ""
+"Customer credit limit is ₹%(limit)s; current outstanding is "
+"₹%(outstanding)s."
+msgstr ""
+
+#: assistant/proposals.py:338
+#, python-format
+msgid "Sales Order for %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+msgstr ""
+
+#: assistant/proposals.py:385
+msgid "You do not have permission to create Sales Invoices."
+msgstr ""
+
+#: assistant/proposals.py:534
+#, python-format
+msgid "Sales Invoice to %(customer)s: %(items)s = ₹%(total)s (before taxes)"
+msgstr ""
+
+#: assistant/proposals.py:633
+#, python-format
+msgid ""
+"Rate you specified for %(item)s: ₹%(rate)s, purchase rate: ₹%(server_rate)s"
+msgstr ""
+
+#: assistant/proposals.py:667
+#, python-format
+msgid ""
+"Bill total mismatch: stated ₹%(stated)s, computed items total is ₹%(total)s"
+msgstr ""
+
+#: assistant/proposals.py:723
+#, python-format
+msgid ""
+"Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s (Bill "
+"#%(bill_no)s)"
+msgstr ""
+
+#: assistant/proposals.py:731
+#, python-format
+msgid "Purchase Invoice from %(supplier)s: %(items)s = ₹%(total)s"
+msgstr ""
+
+#: assistant/proposals.py:779 assistant/proposals.py:934
+msgid "You do not have permission to create Payment Entries."
+msgstr ""
+
+#: assistant/proposals.py:800 assistant/proposals.py:951
+msgid "Payment amount must be greater than zero."
+msgstr ""
+
+#: assistant/proposals.py:805 assistant/proposals.py:956
+#: assistant/proposals.py:1152
+msgid "Please check the cash/bank account: the usual one was not found."
+msgstr ""
+
+#: assistant/proposals.py:883
+#, python-format
+msgid ""
+"Payment Entry (%(payment_type)s) for %(party_type)s %(party)s: ₹%(amount)s"
+msgstr ""
+
+#: assistant/proposals.py:975
+#, python-format
+msgid "%(customer)s has no open bills; the receipt stays unallocated."
+msgstr ""
+
+#: assistant/proposals.py:980
+#, python-format
+msgid "₹%(amount)s is more than the open bills and stays unallocated."
+msgstr ""
+
+#: assistant/proposals.py:1038
+#, python-format
+msgid "Receipt from %(customer)s: ₹%(amount)s against %(bills)s"
+msgstr ""
+
+#: assistant/proposals.py:1044
+#, python-format
+msgid "Receipt from %(customer)s: ₹%(amount)s (no open bills)"
+msgstr ""
+
+#: assistant/proposals.py:1095
+msgid "You do not have permission to create Expenses."
+msgstr ""
+
+#: assistant/proposals.py:1128 buying/views.py:330
+msgid "Supplier is required."
+msgstr ""
+
+#: assistant/proposals.py:1133 buying/services/expenses.py:68
+#: buying/views.py:342
+msgid "Expense amount must be greater than zero."
+msgstr ""
+
+#: assistant/proposals.py:1140 buying/services/expenses.py:79
+msgid "Invalid date format."
+msgstr ""
+
+#: assistant/proposals.py:1156 buying/services/expenses.py:72
+msgid "Paid from account is required when paid now is selected."
+msgstr ""
+
+#: assistant/proposals.py:1162 buying/models.py:507
+msgid "Enter the supplier's invoice number (Bill No) before submitting."
+msgstr ""
+
+#: assistant/proposals.py:1185
+#, python-format
+msgid "Expense %(category)s from %(supplier)s: ₹%(amount)s, paid now"
+msgstr ""
+
+#: assistant/proposals.py:1192
+#, python-format
+msgid "Expense %(category)s from %(supplier)s: ₹%(amount)s, to pay later"
+msgstr ""
+
+#: assistant/proposals.py:1240
+msgid "You do not have permission to create Production Batches."
+msgstr ""
+
+#: assistant/proposals.py:1268
+#, python-format
+msgid "Item '%(code)s' has no default BOM; set one before starting the batch."
+msgstr ""
+
+#: assistant/proposals.py:1276 manufacturing/services/batches.py:78
+msgid ""
+"Set the Unprocessed, In Process and Ready warehouses for the company first."
+msgstr ""
+
+#: assistant/proposals.py:1288
+#, python-format
+msgid "Batch: %(qty)s of %(item)s"
+msgstr ""
+
+#: assistant/views.py:165
+msgid "No audio file uploaded."
+msgstr ""
+
+#: assistant/views.py:181
+msgid "Voice input is not available right now."
+msgstr ""
+
+#: assistant/views.py:203
+msgid "No bill photo uploaded."
+msgstr ""
+
+#: assistant/views.py:216
+msgid "Send the bill as a JPG, PNG or WebP photo."
+msgstr ""
+
+#: assistant/views.py:225
+#, python-format
+msgid "The bill photo is too large. The maximum size is %(mb)s MB."
+msgstr ""
+
+#: assistant/views.py:242
+msgid "That conversation was not found."
+msgstr ""
+
+#: buying/mapping.py:19
+msgid "Purchase Invoice can only be made from a submitted Purchase Order."
+msgstr ""
+
+#: buying/mapping.py:31
+#, python-format
+msgid "Purchase Order '%(name)s' is already fully invoiced."
+msgstr ""
+
+#: buying/models.py:128
+msgid "The GL account must be of root type Expense."
+msgstr ""
+
+#: buying/models.py:161
+msgid "Day of month when this expense is due (1-31)."
+msgstr ""
+
+#: buying/models.py:184 hr/serializers.py:955 hr/serializers.py:1018
+#: hr/serializers.py:1055 hr/serializers.py:1187
+#: hr/services/portal_requests.py:40 hr/services/portal_requests.py:106
+msgid "Amount must be greater than zero."
+msgstr "राशि शून्य से अधिक होनी चाहिए।"
+
+#: buying/models.py:186
+msgid "Day of month must be between 1 and 31."
+msgstr ""
+
+#: buying/models.py:190
+msgid "Expense category must belong to the same company."
+msgstr ""
+
+#: buying/models.py:194
+msgid "Supplier must belong to the same company."
+msgstr ""
+
+#: buying/models.py:241
+msgid "Purchase Order must have at least one line item."
+msgstr ""
+
+#: buying/models.py:285
+msgid "Amount"
+msgstr ""
+
+#: buying/models.py:286
+msgid "Qty"
+msgstr ""
+
+#: buying/models.py:473 selling/models.py:303
+msgid "Due date is required at submit."
+msgstr ""
+
+#: buying/models.py:475 selling/models.py:305
+msgid "Due date cannot be before posting date."
+msgstr ""
+
+#: buying/models.py:481
+msgid "Purchase Invoice must have at least one line item."
+msgstr ""
+
+#: buying/models.py:485 buying/serializers.py:568
+msgid "Expenses cannot update stock."
+msgstr ""
+
+#: buying/models.py:491 buying/models.py:501
+msgid "Expense line account must match category account."
+msgstr ""
+
+#: buying/models.py:511 buying/serializers.py:590
+msgid "Bill Date cannot be after the posting date."
+msgstr ""
+
+#: buying/models.py:521
+msgid "Credit-to and expense accounts must belong to the invoice's company."
+msgstr ""
+
+#: buying/models.py:525
+msgid "Supplier must belong to the invoice's company."
+msgstr ""
+
+#: buying/models.py:552
+#, python-format
+msgid ""
+"Purchase Invoice '%(name)s' does not update stock: remove the batch details "
+"from item '%(code)s'."
+msgstr ""
+
+#: buying/models.py:564 stock/models.py:678
+#, python-format
+msgid "Item '%(code)s' is not batch-tracked; remove the batch details."
+msgstr ""
+
+#: buying/models.py:576
+#, python-format
+msgid ""
+"Item '%(code)s': a return must use the batch of the purchase (pick the "
+"existing batch)."
+msgstr ""
+
+#: buying/models.py:585 stock/models.py:686
+#, python-format
+msgid ""
+"Item '%(code)s': pick an existing batch or enter new-batch details, not "
+"both."
+msgstr ""
+
+#: buying/models.py:593 selling/models.py:163 selling/models.py:377
+#, python-format
+msgid "Item '%(code)s': batch '%(batch)s' belongs to a different item."
+msgstr ""
+
+#: buying/models.py:631 selling/models.py:407
+#, python-format
+msgid "Warehouse required for item '%(code)s' when update_stock is enabled."
+msgstr ""
+
+#: buying/serializers.py:325 buying/serializers.py:362
+msgid "Choose the expense account of a charge on the bill."
+msgstr ""
+
+#: buying/serializers.py:370
+msgid "The account must belong to the template's company."
+msgstr ""
+
+#: buying/serializers.py:379
+msgid "A charge template with this name already exists."
+msgstr ""
+
+#: buying/serializers.py:559
+msgid "Expense category is required for expense bills."
+msgstr ""
+
+#: buying/serializers.py:605
+#, python-format
+msgid "Supplier invoice no '%(bill_no)s' is already booked on %(name)s."
+msgstr ""
+
+#: buying/serializers.py:619 buying/services/charges.py:150
+msgid "A return (debit note) cannot carry extra charges."
+msgstr ""
+
+#: buying/serializers.py:629
+#, python-format
+msgid "Row %(n)s: the account must be a ledger of the invoice's company."
+msgstr ""
+
+#: buying/services/charges.py:154
+msgid ""
+"Extra charges are added to the stock value: turn on 'Update Stock' or remove"
+" the charges."
+msgstr ""
+
+#: buying/services/charges.py:161
+msgid "Extra charges need at least one stock item line to be spread over."
+msgstr ""
+
+#: buying/services/charges.py:166
+#, python-format
+msgid "Charge row %(n)s: the amount must be greater than zero."
+msgstr ""
+
+#: buying/services/charges.py:171
+#, python-format
+msgid ""
+"Charge row %(n)s: the stock lines have no value to spread an amount-based "
+"charge over; spread it by quantity."
+msgstr ""
+
+#: buying/services/charges.py:181
+#, python-format
+msgid "Charge row %(n)s: choose the expense account of a charge on the bill."
+msgstr ""
+
+#: buying/services/charges.py:189
+#, python-format
+msgid ""
+"Charge row %(n)s: the account must be a ledger of the invoice's company."
+msgstr ""
+
+#: buying/services/charges.py:196
+#, python-format
+msgid "Charge row %(n)s: the account must be an expense account."
+msgstr ""
+
+#: buying/services/charges.py:205
+#, python-format
+msgid ""
+"Perpetual inventory needs the '%(name)s' account for company '%(company)s' "
+"(run seed_defaults)."
+msgstr ""
+
+#: buying/services/expenses.py:56 buying/views.py:309
+msgid "Expense category is required."
+msgstr ""
+
+#: buying/services/expenses.py:59
+msgid "Expense amount is required."
+msgstr ""
+
+#: buying/services/expenses.py:65
+msgid "Invalid expense amount."
+msgstr ""
+
+#: buying/services/expenses.py:86
+msgid "Invalid due date format."
+msgstr ""
+
+#: buying/views.py:147 buying/views.py:193 selling/views.py:225
+#: selling/views.py:272
+msgid "Rates can only be refreshed on a draft."
+msgstr ""
+
+#: buying/views.py:197 selling/views.py:277
+msgid "A return keeps the rates of the original invoice."
+msgstr ""
+
+#: buying/views.py:304
+msgid "Company is required."
+msgstr ""
+
+#: buying/views.py:315
+msgid "Expense category not found."
+msgstr ""
+
+#: buying/views.py:324 stock/views.py:628
+msgid "Supplier not found."
+msgstr ""
+
+#: buying/views.py:334
+msgid "Amount is required."
+msgstr ""
+
+#: buying/views.py:338 payment_reconciliation/services.py:696
+msgid "Invalid amount."
+msgstr ""
+
+#: buying/views.py:353
+msgid "Tax template not found."
+msgstr ""
+
+#: buying/views.py:363
+msgid "Paid from account not found."
+msgstr ""
+
+#: contacts/models.py:19
+msgid "Enter a 6-digit PIN code."
+msgstr ""
+
+#: contacts/models.py:23
+msgid "Billing"
+msgstr ""
+
+#: contacts/models.py:24
+msgid "Shipping"
+msgstr ""
+
+#: contacts/models.py:25
+msgid "Office"
+msgstr ""
+
+#: contacts/models.py:26
+msgid "Personal"
+msgstr ""
+
+#: contacts/models.py:27
+msgid "Plant"
+msgstr ""
+
+#: contacts/models.py:28
+msgid "Postal"
+msgstr ""
+
+#: contacts/models.py:29
+msgid "Shop"
+msgstr ""
+
+#: contacts/models.py:30
+msgid "Subsidiary"
+msgstr ""
+
+#: contacts/models.py:31
+msgid "Warehouse"
+msgstr ""
+
+#: contacts/models.py:32
+msgid "Current"
+msgstr ""
+
+#: contacts/models.py:33
+msgid "Permanent"
+msgstr ""
+
+#: contacts/models.py:34 hr/models.py:37 hr/models.py:91
+msgid "Other"
+msgstr ""
+
+#: contacts/serializers.py:58
+msgid "Link the address to exactly one customer or one supplier."
+msgstr ""
+
+#: contacts/serializers.py:71
+msgid "This party already has a primary address."
+msgstr ""
+
+#: contacts/views.py:41
+msgid "The party must belong to the active company."
+msgstr ""
+
+#: core/attachments.py:121
+msgid "Files cannot be attached to this kind of record."
+msgstr ""
+
+#: core/attachments.py:175 core/views.py:460
+msgid "You do not have permission to do that."
+msgstr ""
+
+#: core/attachments.py:180 core/models.py:895
+msgid "Proof attached to a submitted or cancelled document cannot be deleted."
+msgstr ""
+
+#: core/attachments.py:189
+msgid "Only the uploader or a manager can delete this attachment."
+msgstr ""
+
+#: core/attachments.py:301 drive/uploads.py:131
+msgid "No file was uploaded."
+msgstr ""
+
+#: core/attachments.py:309 drive/uploads.py:139
+#, python-format
+msgid "This file type is not allowed. Allowed: %(types)s."
+msgstr ""
+
+#: core/attachments.py:321 drive/uploads.py:151
+#, python-format
+msgid "The file is too large. The maximum size is %(mb)s MB."
+msgstr ""
+
+#: core/attachments.py:330 drive/uploads.py:161 drive/uploads.py:168
+msgid "The file content does not match its type, so it was rejected."
+msgstr ""
+
+#: core/company_context.py:65
+msgid "Must be a company id."
+msgstr ""
+
+#: core/company_context.py:70
+msgid "You do not have access to this company."
+msgstr ""
+
+#: core/company_context.py:83
+msgid "No company is assigned to your user."
+msgstr ""
+
+#: core/company_context.py:129 hr/serializers.py:532 hr/serializers.py:579
+msgid "The company cannot be changed."
+msgstr ""
+
+#: core/mixins.py:36
+msgid "Rate cannot be negative."
+msgstr ""
+
+#: core/mixins.py:103 stock/services/variants.py:41
+#, python-format
+msgid ""
+"Item '%(code)s' is a template with variants: select one of its variants "
+"instead."
+msgstr ""
+
+#: core/mixins.py:271 core/models.py:230 core/models.py:234
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "Submitted or cancelled documents cannot be modified."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: core/mixins.py:491
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "Only draft documents can be deleted; cancel and amend instead."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: core/mixins.py:572
+#, python-format
+msgid "You do not have permission to create %(target)s."
+msgstr ""
+
+#: core/models.py:91 core/models.py:114
+msgid "Document no longer exists."
+msgstr ""
+
+#: core/models.py:93 core/test_locales.py:214
 msgid "Only draft documents can be submitted."
 msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
 
+#: core/models.py:116
 msgid "Only submitted documents can be cancelled."
 msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
 
-msgid "Draft"
-msgstr "प्रारूप"
+#: core/models.py:132
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only cancelled documents can be amended."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
 
-msgid "Submitted"
-msgstr "जमा किया गया"
+#: core/models.py:240
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "Only draft documents can be deleted."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
 
-msgid "Cancelled"
-msgstr "रद्द कर दिया"
+#: core/models.py:307
+msgid "Enter a valid 6-digit PIN code."
+msgstr ""
+
+#: core/models.py:319
+msgid "Enter a valid 10-character PAN."
+msgstr ""
+
+#: core/models.py:331
+msgid "Enter a valid 21-character CIN."
+msgstr ""
+
+#: core/models.py:484
+msgid "State is required when a GSTIN is set."
+msgstr ""
+
+#: core/models.py:487
+#, python-format
+msgid "GSTIN prefix %(code)s does not match the selected state."
+msgstr ""
+
+#: core/models.py:491
+msgid "A company with a GSTIN must be 'Registered Regular'."
+msgstr ""
+
+#: core/models.py:497
+msgid "Round-off account must belong to this company."
+msgstr ""
+
+#: core/models.py:501
+msgid "Round-off account must not be a group account."
+msgstr ""
+
+#: core/models.py:512
+msgid "Pick a non-group account of this company."
+msgstr ""
+
+#: core/models.py:514
+#, python-format
+msgid "Pick an account of type %(type)s."
+msgstr ""
+
+#: core/models.py:518
+msgid "Pick an Income account."
+msgstr ""
+
+#: core/models.py:528
+msgid "Pick a non-group warehouse of this company."
+msgstr ""
+
+#: core/models.py:551
+#, python-format
+msgid ""
+"Perpetual inventory is enabled for company '%(company)s' but "
+"Company.%(field)s is not set."
+msgstr ""
+
+#: core/models.py:558
+#, python-format
+msgid "Company.%(field)s ('%(account)s') must not be a group account."
+msgstr ""
+
+#: core/models.py:564
+#, python-format
+msgid ""
+"Company.%(field)s ('%(account)s') must belong to company '%(company)s'."
+msgstr ""
+
+#: core/models.py:641
+#, python-format
+msgid "No fiscal year found for posting date %(date)s."
+msgstr ""
+
+#: core/models.py:645
+#, python-format
+msgid "Fiscal year %(name)s is closed; posting on %(date)s is not allowed."
+msgstr ""
+
+#: core/models.py:652
+msgid "End date must be after start date."
+msgstr ""
+
+#: core/models.py:700
+msgid "AuditLog rows are immutable and cannot be updated."
+msgstr ""
+
+#: core/models.py:705
+msgid "AuditLog rows are immutable and cannot be deleted."
+msgstr ""
+
+#: core/models.py:814 core/models.py:817 core/models.py:882
+msgid "Attachments are immutable and cannot be updated."
+msgstr ""
+
+#: core/views.py:466
+msgid "Attachment not found."
+msgstr ""
+
+#: core/views.py:477
+msgid "The record to attach to is missing."
+msgstr ""
+
+#: core/views.py:588
+msgid "This file is already attached to this record."
+msgstr ""
+
+#: core/views.py:631 drive/views.py:317
+msgid "The stored file is missing."
+msgstr ""
+
+#: drive/models.py:87
+msgid "A folder cannot be moved across companies."
+msgstr ""
+
+#: drive/models.py:89
+msgid "A folder cannot be its own parent."
+msgstr ""
+
+#: drive/models.py:91
+msgid "A system folder requires a system key."
+msgstr ""
+
+#: drive/models.py:96
+msgid "A folder cannot be inside itself."
+msgstr ""
+
+#: drive/models.py:150
+msgid "The folder belongs to another company."
+msgstr ""
+
+#: drive/models.py:152 drive/views.py:217 drive/views.py:280
+msgid "Invalid visibility."
+msgstr ""
+
+#: drive/serializers.py:64
+msgid "A folder name is required."
+msgstr ""
+
+#: drive/serializers.py:79 drive/views.py:107
+msgid "A folder with this name already exists here."
+msgstr ""
+
+#: drive/serializers.py:88
+msgid "That folder is not in this company."
+msgstr ""
+
+#: drive/serializers.py:95
+msgid "A folder cannot be moved into itself."
+msgstr ""
+
+#: drive/services.py:94
+msgid "That user is not active."
+msgstr ""
+
+#: drive/services.py:96
+msgid "That user is not a member of this company."
+msgstr ""
+
+#: drive/services.py:98
+msgid "You already have access to your own file."
+msgstr ""
+
+#: drive/views.py:57
+msgid "A folder is required."
+msgstr ""
+
+#: drive/views.py:61
+msgid "Must be a folder id."
+msgstr ""
+
+#: drive/views.py:66
+msgid "That folder was not found."
+msgstr ""
+
+#: drive/views.py:95 drive/views.py:195
+msgid "Must be a folder id or 'root'."
+msgstr ""
+
+#: drive/views.py:120
+msgid "Only the folder creator can change it."
+msgstr ""
+
+#: drive/views.py:122
+msgid "System folders cannot be renamed or moved."
+msgstr ""
+
+#: drive/views.py:134
+msgid "System folders cannot be deleted."
+msgstr ""
+
+#: drive/views.py:136
+msgid "Only the folder creator can delete it."
+msgstr ""
+
+#: drive/views.py:139
+msgid "Move or delete the folder's contents before deleting it."
+msgstr ""
+
+#: drive/views.py:258
+msgid "You do not have permission to edit this file."
+msgstr ""
+
+#: drive/views.py:266
+msgid "A file name is required."
+msgstr ""
+
+#: drive/views.py:276 drive/views.py:374
+msgid "Only the uploader can change sharing."
+msgstr ""
+
+#: drive/views.py:298
+msgid "Only the uploader can delete this file."
+msgstr ""
+
+#: drive/views.py:329
+msgid "Only the uploader can share this file."
+msgstr ""
+
+#: drive/views.py:335
+msgid "Select at least one person."
+msgstr ""
+
+#: drive/views.py:347
+msgid "Every recipient must be a user id."
+msgstr ""
+
+#: drive/views.py:378
+msgid "A user id is required."
+msgstr ""
+
+#: gst/constants.py:44
+msgid "Input"
+msgstr ""
+
+#: gst/constants.py:45
+msgid "Output"
+msgstr ""
+
+#: gst/constants.py:46
+msgid "Reverse Charge"
+msgstr ""
+
+#: gst/constants.py:50
+msgid "Taxable"
+msgstr ""
+
+#: gst/constants.py:51
+msgid "Nil-Rated"
+msgstr ""
+
+#: gst/constants.py:52
+msgid "Exempted"
+msgstr ""
+
+#: gst/constants.py:53
+msgid "Non-GST"
+msgstr ""
+
+#: gst/constants.py:57
+msgid "Sales"
+msgstr ""
+
+#: gst/constants.py:58
+msgid "Purchase"
+msgstr ""
+
+#: gst/constants.py:62
+msgid "Intra-State"
+msgstr ""
+
+#: gst/constants.py:63
+msgid "Inter-State"
+msgstr ""
+
+#: gst/constants.py:68
+msgid "On Net Total"
+msgstr ""
+
+#: gst/constants.py:72
+msgid "Add"
+msgstr ""
+
+#: gst/constants.py:73
+msgid "Deduct"
+msgstr ""
+
+#: gst/constants.py:78
+msgid "Total"
+msgstr ""
+
+#: gst/reports/__init__.py:67
+msgid "Use either 'month' or 'from_date'/'to_date', not both."
+msgstr ""
+
+#: gst/reports/__init__.py:71
+msgid "Enter a valid month (YYYY-MM)."
+msgstr ""
+
+#: gst/reports/__init__.py:80
+msgid "Give a 'month' (YYYY-MM) or both 'from_date' and 'to_date'."
+msgstr ""
+
+#: gst/reports/__init__.py:102 gst/views.py:140
+msgid "The company has no GSTIN; GST reports are unavailable."
+msgstr ""
+
+#: gst/reports/tax_ledger.py:39
+#, python-format
+msgid "Must be one of: %(values)s."
+msgstr ""
+
+#: gst/services/go_live.py:102
+#, python-format
+msgid ""
+"%(company)s has no chart of accounts (no Liability root); nothing set up."
+msgstr ""
+
+#: gst/services/go_live.py:136
+#, python-format
+msgid ""
+"Account '%(name)s' exists but cannot be tagged as %(direction)s "
+"%(component)s; skipped."
+msgstr ""
+
+#: gst/services/go_live.py:253
+#, python-format
+msgid "Accounts for %(title)s are missing; template skipped."
+msgstr ""
+
+#: gst/services/go_live.py:271
+#, python-format
+msgid ""
+"Template '%(title)s' exists with different rows; left unchanged and not "
+"created again."
+msgstr ""
+
+#: gst/services/go_live.py:353
+#, python-format
+msgid ""
+"Company '%(company)s' has no GSTIN: GST invoices and the GSTR-1 / GSTR-3B "
+"reports need it. Set GSTIN, State (Madhya Pradesh = 23) and GST category "
+"'Registered Regular' on the company."
+msgstr ""
+
+#: gst/services/go_live.py:363
+#, python-format
+msgid "Company '%(company)s': GSTIN %(gstin)s is invalid (%(reason)s)."
+msgstr ""
+
+#: gst/services/go_live.py:368
+#, python-format
+msgid "Company '%(company)s' has a GSTIN but no State set."
+msgstr ""
+
+#: gst/services/go_live.py:374
+#, python-format
+msgid ""
+"Company '%(company)s': GSTIN prefix %(prefix)s does not match State "
+"%(state)s."
+msgstr ""
+
+#: gst/services/go_live.py:385
+#, python-format
+msgid "Company '%(company)s' has a GSTIN but GST category is '%(category)s'."
+msgstr ""
+
+#: gst/services/go_live.py:408
+#, python-format
+msgid ""
+"Company '%(company)s' has no tagged GST account for: %(accounts)s. Run: "
+"manage.py setup_gst_accounts --company \"%(company)s\"."
+msgstr ""
+
+#: gst/services/posting.py:73
+#, python-format
+msgid ""
+"No 'Reverse Charge' GST account is set up for %(components)s in company "
+"'%(company)s'."
+msgstr ""
+
+#: gst/services/posting.py:88
+#, python-format
+msgid ""
+"The invoice has a rounding adjustment but company '%(company)s' has no "
+"round-off account."
+msgstr ""
+
+#: gst/services/posting.py:95
+msgid "The company's round-off account must be a ledger of that company."
+msgstr ""
+
+#: gst/services/supply.py:169
+msgid ""
+"The company is not a regular GST registrant, so GST cannot be charged or "
+"claimed on this document."
+msgstr ""
+
+#: gst/services/supply.py:178
+msgid ""
+"A supply to an SEZ or overseas customer without payment of tax (LUT / bond) "
+"carries no GST."
+msgstr ""
+
+#: gst/services/supply.py:185
+msgid "Purchases from a composition supplier carry no GST."
+msgstr ""
+
+#: gst/services/supply.py:191
+msgid ""
+"GST on a purchase from an unregistered or overseas supplier applies only "
+"under reverse charge."
+msgstr ""
+
+#: gst/services/supply.py:280
+msgid "The tax template belongs to a different company."
+msgstr ""
+
+#: gst/services/supply.py:284
+#, python-format
+msgid "A %(type)s document needs a %(type)s tax template."
+msgstr ""
+
+#: gst/services/supply.py:287
+msgid "The tax template is disabled."
+msgstr ""
+
+#: gst/services/supply.py:313
+#, python-format
+msgid "Row %(n)s"
+msgstr ""
+
+#: gst/services/supply.py:326
+msgid "Reverse charge is not supported on sales documents."
+msgstr ""
+
+#: gst/services/supply.py:330
+msgid "'Export with GST' applies to sales documents only."
+msgstr ""
+
+#: gst/services/supply.py:338
+msgid "'Export with GST' applies only to SEZ and overseas customers."
+msgstr ""
+
+#: gst/services/supply.py:353
+msgid "Account must belong to the document's company."
+msgstr ""
+
+#: gst/services/supply.py:359
+msgid "Only the 'On Net Total' charge type is supported."
+msgstr ""
+
+#: gst/services/supply.py:361
+msgid "Only the 'Total' tax category is supported."
+msgstr ""
+
+#: gst/services/supply.py:363
+msgid "Add / Deduct must be 'Add' or 'Deduct'."
+msgstr ""
+
+#: gst/services/supply.py:366
+msgid "Rate must be between 0 and 100."
+msgstr ""
+
+#: gst/services/supply.py:368
+msgid "Account is used twice in the tax table."
+msgstr ""
+
+#: gst/services/supply.py:373
+#, python-format
+msgid "A %(type)s document needs %(direction)s GST accounts."
+msgstr ""
+
+#: gst/services/supply.py:379
+msgid "A GST row cannot be a deduction."
+msgstr ""
+
+#: gst/services/supply.py:385
+#, python-format
+msgid ""
+"%(comp)s is not applicable to this %(kind)s supply (place of supply "
+"%(pos)s). Re-apply the tax template."
+msgstr ""
+
+#: gst/services/supply.py:391
+msgid "intra-state"
+msgstr ""
+
+#: gst/services/supply.py:391
+msgid "inter-state"
+msgstr ""
+
+#: gst/services/supply.py:401
+msgid "Tax table"
+msgstr ""
+
+#: gst/services/supply.py:401
+msgid "IGST cannot be combined with CGST / SGST."
+msgstr ""
+
+#: gst/services/supply.py:419
+msgid "The company's GSTIN is invalid."
+msgstr ""
+
+#: gst/services/supply.py:421
+msgid "Place of supply is required."
+msgstr ""
+
+#: gst/services/supply.py:427
+#, python-format
+msgid "Item %(code)s (line %(n)s)"
+msgstr ""
+
+#: gst/services/supply.py:432
+#, python-format
+msgid "%(label)s needs an HSN/SAC code."
+msgstr ""
+
+#: gst/services/supply.py:435
+#, python-format
+msgid "%(label)s: HSN/SAC code must be 4, 6 or 8 digits."
+msgstr ""
+
+#: gst/services/supply.py:440
+#, python-format
+msgid "%(label)s: HSN/SAC code needs at least %(n)s digits."
+msgstr ""
+
+#: gst/services/supply.py:448
+#, python-format
+msgid "%(party)s: %(reason)s"
+msgstr ""
+
+#: gst/services/supply.py:453
+#, python-format
+msgid "%(party)s: GSTIN prefix %(code)s does not match the party's state."
+msgstr ""
+
+#: gst/services/supply.py:463
+#, python-format
+msgid ""
+"Invoice number '%(name)s' is longer than %(max)s characters, which GST does "
+"not allow."
+msgstr ""
+
+#: gst/services/supply.py:556
+msgid "A return can only have negative quantities."
+msgstr ""
+
+#: gst/validators.py:74
+msgid "GSTIN is required."
+msgstr ""
+
+#: gst/validators.py:76
+msgid "GSTIN must be exactly 15 characters."
+msgstr ""
+
+#: gst/validators.py:78
+msgid "GSTIN format is invalid."
+msgstr ""
+
+#: gst/validators.py:81
+#, python-format
+msgid "GSTIN has an unknown state code (%(code)s)."
+msgstr ""
+
+#: gst/validators.py:84
+msgid "GSTIN checksum is invalid."
+msgstr ""
+
+#: gst/validators.py:107
+msgid "HSN/SAC code must contain digits only."
+msgstr ""
+
+#: gst/validators.py:111
+msgid "HSN/SAC code must be 4, 6 or 8 digits long."
+msgstr ""
+
+#: gst/validators.py:133
+#, python-format
+msgid "A GSTIN is required for a %(category)s party."
+msgstr ""
+
+#: gst/validators.py:140
+#, python-format
+msgid "A %(category)s party must not have a GSTIN."
+msgstr ""
+
+#: gst/validators.py:155
+#, python-format
+msgid "GSTIN prefix %(code)s is %(name)s."
+msgstr ""
+
+#: gst/validators.py:157
+#, python-format
+msgid "GSTIN prefix %(code)s is not a valid state code."
+msgstr ""
+
+#: gst/views.py:65
+msgid "Must be 'Sales' or 'Purchase'."
+msgstr ""
+
+#: gst/views.py:75
+msgid "A valid party is required."
+msgstr ""
+
+#: gst/views.py:80
+msgid "Unknown state code."
+msgstr ""
+
+#: hr/models.py:35
+msgid "Male"
+msgstr ""
+
+#: hr/models.py:36
+msgid "Female"
+msgstr ""
+
+#: hr/models.py:41
+msgid "Active"
+msgstr ""
+
+#: hr/models.py:42
+msgid "Inactive"
+msgstr ""
+
+#: hr/models.py:43
+msgid "Left"
+msgstr ""
+
+#: hr/models.py:47
+msgid "Daily"
+msgstr ""
+
+#: hr/models.py:48
+msgid "Monthly"
+msgstr ""
+
+#: hr/models.py:54
+msgid "New regime"
+msgstr ""
+
+#: hr/models.py:55
+msgid "Old regime"
+msgstr ""
+
+#: hr/models.py:59
+msgid "Present"
+msgstr ""
+
+#: hr/models.py:60
+msgid "Absent"
+msgstr ""
+
+#: hr/models.py:61
+msgid "Half Day"
+msgstr ""
+
+#: hr/models.py:62
+msgid "Paid Leave"
+msgstr ""
+
+#: hr/models.py:66
+msgid "Earning"
+msgstr ""
+
+#: hr/models.py:67
+msgid "Deduction"
+msgstr ""
+
+#: hr/models.py:73
+msgid "Wages"
+msgstr ""
+
+#: hr/models.py:74
+msgid "Overtime"
+msgstr ""
+
+#: hr/models.py:75
+msgid "Advance Recovery"
+msgstr ""
+
+#: hr/models.py:76
+msgid "TDS"
+msgstr ""
+
+#: hr/models.py:80
+msgid "Pending"
+msgstr ""
+
+#: hr/models.py:81
+msgid "Approved"
+msgstr ""
+
+#: hr/models.py:82 hr/models.py:97
+msgid "Rejected"
+msgstr ""
+
+#: hr/models.py:83
+msgid "Withdrawn"
+msgstr ""
+
+#: hr/models.py:87
+msgid "Attendance"
+msgstr ""
+
+#: hr/models.py:88
+msgid "Payment"
+msgstr ""
+
+#: hr/models.py:89
+msgid "Advance"
+msgstr ""
+
+#: hr/models.py:90
+msgid "Salary Slip"
+msgstr ""
+
+#: hr/models.py:95
+msgid "Open"
+msgstr ""
+
+#: hr/models.py:96
+msgid "Resolved"
+msgstr ""
+
+#: hr/models.py:101
+msgid "Cash"
+msgstr ""
+
+#: hr/models.py:102
+msgid "Bank"
+msgstr ""
+
+#: hr/models.py:103
+msgid "UPI"
+msgstr ""
+
+#: hr/models.py:108 hr/models.py:119 hr/models.py:130 hr/models.py:142
+#: hr/models.py:508
+msgid "name"
+msgstr ""
+
+#: hr/models.py:109 hr/models.py:120 hr/models.py:131
+msgid "active"
+msgstr ""
+
+#: hr/models.py:143 hr/models.py:1472 hr/models.py:1525
+msgid "from date"
+msgstr ""
+
+#: hr/models.py:144 hr/models.py:1473 hr/models.py:1526
+msgid "to date"
+msgstr ""
+
+#: hr/models.py:163 hr/models.py:423
+msgid "date"
+msgstr ""
+
+#: hr/models.py:164 hr/models.py:977
+msgid "description"
+msgstr "विवरण"
+
+#: hr/models.py:165
+msgid "weekly off"
+msgstr ""
+
+#: hr/models.py:188
+msgid "first name"
+msgstr ""
+
+#: hr/models.py:189
+msgid "last name"
+msgstr ""
+
+#: hr/models.py:191
+msgid "employee name"
+msgstr ""
+
+#: hr/models.py:194
+msgid "gender"
+msgstr ""
+
+#: hr/models.py:196
+msgid "date of birth"
+msgstr ""
+
+#: hr/models.py:199
+msgid "mobile number"
+msgstr ""
+
+#: hr/models.py:235 hr/models.py:425 hr/models.py:1318 hr/models.py:1393
+msgid "status"
+msgstr ""
+
+#: hr/models.py:241
+msgid "date of joining"
+msgstr ""
+
+#: hr/models.py:242
+msgid "relieving date"
+msgstr ""
+
+#: hr/models.py:244
+msgid "pay type"
+msgstr ""
+
+#: hr/models.py:247
+msgid "standard hours per day"
+msgstr ""
+
+#: hr/models.py:253
+msgid "bank name"
+msgstr ""
+
+#: hr/models.py:255
+msgid "bank account number"
+msgstr ""
+
+#: hr/models.py:257
+msgid "IFSC code"
+msgstr ""
+
+#: hr/models.py:258
+msgid "PAN"
+msgstr ""
+
+#: hr/models.py:261
+msgid "tax regime"
+msgstr ""
+
+#: hr/models.py:270
+msgid "TDS per month (fixed)"
+msgstr ""
+
+#: hr/models.py:276
+msgid "Aadhaar"
+msgstr ""
+
+#: hr/models.py:277
+msgid "UAN"
+msgstr ""
+
+#: hr/models.py:278
+msgid "ESIC number"
+msgstr ""
+
+#: hr/models.py:348 hr/models.py:653
+msgid "effective from"
+msgstr ""
+
+#: hr/models.py:350
+msgid "daily rate"
+msgstr ""
+
+#: hr/models.py:353
+msgid "monthly salary"
+msgstr ""
+
+#: hr/models.py:356
+msgid "overtime hourly rate"
+msgstr ""
+
+#: hr/models.py:384
+#, python-format
+msgid ""
+"A submitted salary slip already covers dates from %(date)s; add a new wage "
+"rate effective after it instead of changing this one."
+msgstr ""
+
+#: hr/models.py:428 hr/models.py:1166
+msgid "overtime hours"
+msgstr ""
+
+#: hr/models.py:430 hr/models.py:854 hr/models.py:911 hr/models.py:1177
+#: hr/models.py:1239
+msgid "remarks"
+msgstr "टिप्पणी"
+
+#: hr/models.py:463
+#, python-format
+msgid "Attendance on %(date)s is locked by submitted salary slip %(slip)s."
+msgstr ""
+
+#: hr/models.py:510
+msgid "type"
+msgstr ""
+
+#: hr/models.py:515
+msgid "system component"
+msgstr ""
+
+#: hr/models.py:626
+msgid ""
+"The payroll payable, employee advance, expense claim payable and TDS payable"
+" accounts cannot be changed once salary slips, advances, payments, expense "
+"claims or reimbursements are submitted."
+msgstr ""
+"वेतन देय, कर्मचारी अग्रिम, खर्च दावा देय और TDS देय खाते तब नहीं बदले जा "
+"सकते, जब वेतन पर्चियाँ, अग्रिम, भुगतान, खर्च दावे या भरपाई जमा हो चुके हों।"
+
+#: hr/models.py:652
+msgid "regime"
+msgstr ""
+
+#: hr/models.py:654
+msgid "label"
+msgstr ""
+
+#: hr/models.py:656
+msgid "standard deduction"
+msgstr ""
+
+#: hr/models.py:663
+msgid "rebate income limit"
+msgstr ""
+
+#: hr/models.py:669
+msgid "maximum rebate"
+msgstr ""
+
+#: hr/models.py:672
+msgid "health and education cess (%)"
+msgstr ""
+
+#: hr/models.py:677 hr/models.py:1480
+msgid "notes"
+msgstr ""
+
+#: hr/models.py:710 hr/models.py:748
+msgid "income above"
+msgstr ""
+
+#: hr/models.py:713
+msgid "income up to"
+msgstr ""
+
+#: hr/models.py:715
+msgid "rate (%)"
+msgstr ""
+
+#: hr/models.py:751
+msgid "surcharge (%)"
+msgstr ""
+
+#: hr/models.py:788 hr/models.py:843 hr/models.py:907 hr/models.py:1015
+#: hr/models.py:1061 hr/models.py:1159 hr/models.py:1524
+msgid "posting date"
+msgstr "दर्ज करने की तारीख"
+
+#: hr/models.py:789 hr/models.py:844 hr/models.py:978 hr/models.py:1016
+#: hr/models.py:1230 hr/models.py:1315
+msgid "amount"
+msgstr "राशि"
+
+#: hr/models.py:790
+msgid "purpose"
+msgstr ""
+
+#: hr/models.py:792
+msgid "instalment amount"
+msgstr ""
+
+#: hr/models.py:849 hr/models.py:1018
+msgid "mode"
+msgstr "माध्यम"
+
+#: hr/models.py:852 hr/models.py:1024
+msgid "reference number"
+msgstr "संदर्भ संख्या"
+
+#: hr/models.py:913
+msgid "total claimed"
+msgstr "कुल दावा राशि"
+
+#: hr/models.py:916
+msgid "total sanctioned"
+msgstr "कुल स्वीकृत राशि"
+
+#: hr/models.py:919
+msgid "outstanding amount"
+msgstr "बाकी राशि"
+
+#: hr/models.py:973
+msgid "expense date"
+msgstr "खर्च की तारीख"
+
+#: hr/models.py:980
+msgid "sanctioned amount"
+msgstr "स्वीकृत राशि"
+
+#: hr/models.py:1062 hr/models.py:1160
+msgid "start date"
+msgstr ""
+
+#: hr/models.py:1063 hr/models.py:1161
+msgid "end date"
+msgstr ""
+
+#: hr/models.py:1163
+msgid "payment days"
+msgstr ""
+
+#: hr/models.py:1169
+msgid "gross pay"
+msgstr ""
+
+#: hr/models.py:1172
+msgid "total deduction"
+msgstr ""
+
+#: hr/models.py:1175
+msgid "net pay"
+msgstr ""
+
+#: hr/models.py:1231
+msgid "manual"
+msgstr ""
+
+#: hr/models.py:1272
+msgid "portal enabled"
+msgstr ""
+
+#: hr/models.py:1274
+msgid "PIN must be changed"
+msgstr ""
+
+#: hr/models.py:1316 hr/models.py:1533
+msgid "reason"
+msgstr ""
+
+#: hr/models.py:1324 hr/models.py:1399
+msgid "response"
+msgstr ""
+
+#: hr/models.py:1385
+msgid "category"
+msgstr ""
+
+#: hr/models.py:1387
+msgid "reference date"
+msgstr ""
+
+#: hr/models.py:1389
+msgid "reference document"
+msgstr ""
+
+#: hr/models.py:1391
+msgid "message"
+msgstr ""
+
+#: hr/models.py:1434
+msgid "leave type name"
+msgstr ""
+
+#: hr/models.py:1436
+msgid "max days allowed per year"
+msgstr ""
+
+#: hr/models.py:1441
+msgid "is carry forward"
+msgstr ""
+
+#: hr/models.py:1442
+msgid "is active"
+msgstr ""
+
+#: hr/models.py:1475
+msgid "total leaves allocated"
+msgstr ""
+
+#: hr/models.py:1528
+msgid "total leave days"
+msgstr ""
+
+#: hr/permissions.py:26
+msgid "Portal access is not available for this account."
+msgstr ""
+
+#: hr/permissions.py:51
+msgid "You must change your PIN before continuing."
+msgstr ""
+
+#: hr/portal_views.py:56
+msgid "Invalid mobile number or PIN."
+msgstr ""
+
+#: hr/portal_views.py:57
+msgid "Too many failed attempts. Please try again later."
+msgstr ""
+
+#: hr/portal_views.py:82 hr/services/attendance.py:139 hr/views.py:255
+msgid "'to' cannot be before 'from'."
+msgstr ""
+
+#: hr/portal_views.py:166
+msgid "The current PIN is incorrect."
+msgstr ""
+
+#: hr/portal_views.py:169
+msgid "PIN changed."
+msgstr ""
+
+#: hr/portal_views.py:216
+msgid "The range is too long."
+msgstr ""
+
+#: hr/serializers.py:156
+msgid "To date cannot be before from date."
+msgstr ""
+
+#: hr/serializers.py:163
+#, python-format
+msgid "%(d)s is listed twice."
+msgstr ""
+
+#: hr/serializers.py:169
+#, python-format
+msgid "%(d)s is outside the list's date range."
+msgstr ""
+
+#: hr/serializers.py:292
+msgid "Enter a valid mobile number."
+msgstr ""
+
+#: hr/serializers.py:298
+msgid "Another employee already uses this mobile number."
+msgstr ""
+
+#: hr/serializers.py:305
+msgid "Enter a valid PAN."
+msgstr ""
+
+#: hr/serializers.py:311
+msgid "The fixed monthly TDS cannot be negative."
+msgstr ""
+
+#: hr/serializers.py:318
+msgid "Enter a valid IFSC code."
+msgstr ""
+
+#: hr/serializers.py:324
+msgid "Aadhaar must be 12 digits."
+msgstr ""
+
+#: hr/serializers.py:338
+msgid "Relieving date cannot be before the joining date."
+msgstr ""
+
+#: hr/serializers.py:346
+msgid "A relieving date is required when the employee has left."
+msgstr ""
+
+#: hr/serializers.py:352
+msgid "The company of an employee cannot be changed."
+msgstr ""
+
+#: hr/serializers.py:389
+msgid "The employee cannot be changed."
+msgstr ""
+
+#: hr/serializers.py:392
+msgid "A daily rate is required for a Daily employee."
+msgstr ""
+
+#: hr/serializers.py:398
+msgid "A monthly salary is required for a Monthly employee."
+msgstr ""
+
+#: hr/serializers.py:405
+msgid "Cannot be negative."
+msgstr ""
+
+#: hr/serializers.py:413
+msgid "A wage rate already starts on this date."
+msgstr ""
+
+#: hr/serializers.py:446
+msgid "Overtime must be between 0 and 24 hours."
+msgstr ""
+
+#: hr/serializers.py:450
+msgid "An absent employee cannot have overtime."
+msgstr ""
+
+#: hr/serializers.py:456
+msgid "The date is outside the employee's period of employment."
+msgstr ""
+
+#: hr/serializers.py:465
+msgid "Attendance is already recorded for this employee and date."
+msgstr ""
+
+#: hr/serializers.py:497 hr/services/advances.py:79
+#: hr/services/expense_claims.py:179
+msgid "Account must belong to the company."
+msgstr "खाता इसी कंपनी का होना चाहिए।"
+
+#: hr/serializers.py:502
+#, python-format
+msgid "Account must be of type %(t)s."
+msgstr ""
+
+#: hr/serializers.py:543
+msgid "The type of a component in use cannot be changed."
+msgstr ""
+
+#: hr/serializers.py:551
+msgid "A component with this name exists."
+msgstr ""
+
+#: hr/serializers.py:582
+msgid "HR Settings already exist for this company."
+msgstr ""
+
+#: hr/serializers.py:712
+msgid "The employee of a slip cannot be changed."
+msgstr ""
+
+#: hr/serializers.py:716 hr/serializers.py:952 hr/serializers.py:1015
+#: hr/serializers.py:1248 hr/serializers.py:1310 hr/services/advances.py:88
+#: hr/services/expense_claims.py:173 hr/services/expense_claims.py:260
+#: hr/services/leave.py:32 hr/services/leave.py:113 hr/services/payments.py:16
+#: hr/services/payroll.py:214 hr/services/payroll.py:419
+msgid "The employee belongs to a different company."
+msgstr "कर्मचारी किसी दूसरी कंपनी का है।"
+
+#: hr/serializers.py:721 hr/serializers.py:865 hr/serializers.py:1258
+#: hr/serializers.py:1320 hr/services/leave.py:30 hr/services/leave.py:111
+#: hr/services/wages.py:83
+msgid "End date cannot be before start date."
+msgstr ""
+
+#: hr/serializers.py:726
+#, python-format
+msgid "A salary slip cannot cover more than %(n)s days."
+msgstr ""
+
+#: hr/serializers.py:747
+#, python-format
+msgid "Component %(c)s belongs to another company."
+msgstr ""
+
+#: hr/serializers.py:753 hr/services/expense_claims.py:211
+msgid "Amounts must be greater than zero."
+msgstr "राशियाँ शून्य से अधिक होनी चाहिए।"
+
+#: hr/serializers.py:759
+msgid "Advance recovery rows must name an advance."
+msgstr ""
+
+#: hr/serializers.py:769
+#, python-format
+msgid "Advance %(a)s cannot be recovered on this slip."
+msgstr ""
+
+#: hr/serializers.py:777
+#, python-format
+msgid "Advance %(a)s appears twice."
+msgstr ""
+
+#: hr/serializers.py:784
+msgid "Only advance recovery rows may name an advance."
+msgstr ""
+
+#: hr/serializers.py:874
+#, python-format
+msgid "%(e)s belongs to a different company."
+msgstr ""
+
+#: hr/serializers.py:880
+#, python-format
+msgid "%(e)s is listed twice."
+msgstr ""
+
+#: hr/serializers.py:961
+msgid "The instalment must be between zero and the advance amount."
+msgstr ""
+
+#: hr/serializers.py:1064 hr/services/expense_claims.py:216
+msgid "The sanctioned amount must be between zero and the claimed amount."
+msgstr "स्वीकृत राशि शून्य और दावा की गई राशि के बीच होनी चाहिए।"
+
+#: hr/serializers.py:1252 hr/serializers.py:1314 hr/services/leave.py:34
+#: hr/services/leave.py:115
+msgid "The leave type belongs to a different company."
+msgstr ""
+
+#: hr/serializers.py:1263 hr/services/leave.py:36
+msgid "Allocated leaves cannot be negative."
+msgstr ""
+
+#: hr/serializers.py:1325 hr/services/leave.py:117
+msgid "Total leave days must be greater than zero."
+msgstr ""
+
+#: hr/serializers.py:1333 hr/services/leave.py:123
+#, python-format
+msgid ""
+"Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
+msgstr ""
+
+#: hr/services/advances.py:83
+msgid "Account must be an asset (cash or bank)."
+msgstr ""
+
+#: hr/services/advances.py:119
+msgid ""
+"This advance has recoveries in submitted salary slips; cancel those slips "
+"first."
+msgstr ""
+
+#: hr/services/attendance.py:103
+#, python-format
+msgid "%(employee)s appears more than once."
+msgstr ""
+
+#: hr/services/attendance.py:114
+#, python-format
+msgid "%(employee)s is not on the active roll on %(date)s."
+msgstr ""
+
+#: hr/services/attendance.py:120
+#, python-format
+msgid "%(employee)s is absent and cannot have overtime hours."
+msgstr ""
+
+#: hr/services/attendance.py:142
+#, python-format
+msgid "The range cannot exceed %(n)s days."
+msgstr ""
+
+#: hr/services/expense_claims.py:176 hr/services/portal_requests.py:99
+msgid "The employee is not active."
+msgstr "कर्मचारी सक्रिय नहीं है।"
+
+#: hr/services/expense_claims.py:186
+msgid "Account must be a liability."
+msgstr "खाता देनदारी (Liability) प्रकार का होना चाहिए।"
+
+#: hr/services/expense_claims.py:196
+#, python-format
+msgid "Expense date %(date)s is after the posting date of the claim."
+msgstr "खर्च की तारीख %(date)s, दावे की तारीख के बाद है।"
+
+#: hr/services/expense_claims.py:205
+#, python-format
+msgid "Expense category %(category)s belongs to another company."
+msgstr "खर्च श्रेणी %(category)s किसी दूसरी कंपनी की है।"
+
+#: hr/services/expense_claims.py:245
+msgid "Add at least one expense before submitting."
+msgstr "जमा करने से पहले कम से कम एक खर्च जोड़ें।"
+
+#: hr/services/expense_claims.py:250
+msgid "The sanctioned total must be greater than zero."
+msgstr "स्वीकृत कुल राशि शून्य से अधिक होनी चाहिए।"
+
+#: hr/services/expense_claims.py:264
+msgid "The expense claim belongs to a different company."
+msgstr "खर्च दावा किसी दूसरी कंपनी का है।"
+
+#: hr/services/expense_claims.py:268
+msgid "The expense claim belongs to another employee."
+msgstr "खर्च दावा किसी दूसरे कर्मचारी का है।"
+
+#: hr/services/expense_claims.py:272
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only a submitted expense claim can be reimbursed."
+msgstr "भरपाई केवल जमा किए गए खर्च दावे की हो सकती है।"
+
+#: hr/services/expense_claims.py:289
+#, python-format
+msgid ""
+"Amount %(amount)s exceeds the outstanding amount %(outstanding)s of expense "
+"claim %(claim)s."
+msgstr ""
+"राशि %(amount)s, खर्च दावे %(claim)s की बाकी राशि %(outstanding)s से अधिक "
+"है।"
+
+#: hr/services/expense_claims.py:346
+msgid ""
+"This expense claim has reimbursements in submitted payments; cancel those "
+"first."
+msgstr "इस खर्च दावे की जमा हो चुकी भरपाई मौजूद है; पहले उन्हें रद्द करें।"
+
+#: hr/services/leave.py:62
+#, python-format
+msgid ""
+"Cannot cancel leave allocation: %(taken)s days of leave have already been "
+"taken against it."
+msgstr ""
+
+#: hr/services/leave.py:142
+#, python-format
+msgid ""
+"Leave dates overlap with submitted leave application %(name)s (%(from)s to "
+"%(to)s)."
+msgstr ""
+
+#: hr/services/leave.py:167
+#, python-format
+msgid ""
+"Insufficient leave balance for %(leave_type)s. Available: %(avail)s, "
+"Requested: %(req)s."
+msgstr ""
+
+#: hr/services/payments.py:22
+#, python-format
+msgid ""
+"Payment of %(amount)s exceeds the wages payable to %(employee)s "
+"(%(balance)s)."
+msgstr ""
+
+#: hr/services/payroll.py:121 hr/services/payroll.py:164
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "Only draft salary slips can be recomputed."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: hr/services/payroll.py:220
+#, python-format
+msgid ""
+"Salary slip %(slip)s (%(start)s to %(end)s) already covers part of this "
+"period for %(employee)s."
+msgstr ""
+
+#: hr/services/payroll.py:239
+msgid ""
+"Attendance or wage rates changed since this slip was calculated; recompute "
+"it before submitting."
+msgstr ""
+
+#: hr/services/payroll.py:252
+#, python-format
+msgid "Component %(c)s belongs to a different company."
+msgstr ""
+
+#: hr/services/payroll.py:260
+#, python-format
+msgid "The account of component %(c)s is not postable for this company."
+msgstr ""
+
+#: hr/services/payroll.py:267
+msgid ""
+"Advance recovery rows must reference an employee advance, and only they may."
+msgstr ""
+
+#: hr/services/payroll.py:274
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "A salary slip with no earnings cannot be submitted."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: hr/services/payroll.py:276
+msgid "Net pay cannot be negative."
+msgstr ""
+
+#: hr/services/payroll.py:296
+#, python-format
+msgid "Advance %(a)s cannot be recovered on this salary slip."
+msgstr ""
+
+#: hr/services/payroll.py:303
+#, python-format
+msgid ""
+"Recovery of %(amount)s exceeds the outstanding %(left)s of advance %(a)s."
+msgstr ""
+
+#: hr/services/payroll.py:361
+#, python-format
+msgid ""
+"Wages of %(net)s from this slip have already been paid out; cancel the "
+"payments first."
+msgstr ""
+
+#: hr/services/payroll.py:386
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "Only a draft payroll entry can be changed."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: hr/services/payroll.py:402
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "Only a draft payroll entry can create slips."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: hr/services/payroll.py:423
+#, python-format
+msgid "Overlaps submitted salary slip %(slip)s."
+msgstr ""
+
+#: hr/services/payroll.py:457
+msgid "Create salary slips for this payroll entry before submitting it."
+msgstr ""
+
+#: hr/services/payroll.py:463
+#, python-format
+msgid "Salary slip %(slip)s (%(employee)s): %(error)s"
+msgstr ""
+
+#: hr/services/payroll.py:496
+msgid "Submit the payroll entry before paying it."
+msgstr ""
+
+#: hr/services/payroll.py:522
+#, python-format
+msgid "Payment for %(employee)s: %(error)s"
+msgstr ""
+
+#: hr/services/portal.py:48
+msgid "The PIN must be 4 to 6 digits."
+msgstr ""
+
+#: hr/services/portal.py:50 hr/services/portal.py:53 hr/services/portal.py:56
+msgid "This PIN is too easy to guess."
+msgstr ""
+
+#: hr/services/portal.py:59
+msgid "The PIN must not be the end of the mobile number."
+msgstr ""
+
+#: hr/services/portal.py:83
+msgid "This employee is linked to a regular user account."
+msgstr ""
+
+#: hr/services/portal.py:92
+msgid "A login user for this employee already exists."
+msgstr ""
+
+#: hr/services/portal.py:125
+msgid "Set the employee's mobile number before enabling the portal."
+msgstr ""
+
+#: hr/services/portal.py:128
+msgid "Only an active employee can use the portal."
+msgstr ""
+
+#: hr/services/portal.py:295
+msgid "The new PIN must differ from the current PIN."
+msgstr ""
+
+#: hr/services/portal_requests.py:49 hr/services/portal_requests.py:64
+msgid "You already have a pending advance request."
+msgstr ""
+
+#: hr/services/portal_requests.py:72
+msgid "Only a pending request can be withdrawn."
+msgstr ""
+
+#: hr/services/portal_requests.py:94
+msgid "Only a pending request can be approved."
+msgstr ""
+
+#: hr/services/portal_requests.py:111
+msgid "Instalment must be greater than zero and at most the amount."
+msgstr ""
+
+#: hr/services/portal_requests.py:150
+msgid "Give the employee a reason."
+msgstr ""
+
+#: hr/services/portal_requests.py:154
+msgid "Only a pending request can be rejected."
+msgstr ""
+
+#: hr/services/portal_requests.py:171
+msgid "Describe the problem."
+msgstr ""
+
+#: hr/services/portal_requests.py:181
+msgid "You have too many open issues; wait for a reply first."
+msgstr ""
+
+#: hr/services/portal_requests.py:201
+msgid "Choose Resolved or Rejected."
+msgstr ""
+
+#: hr/services/portal_requests.py:204
+msgid "Write a reply to the employee."
+msgstr ""
+
+#: hr/services/portal_requests.py:208
+msgid "This issue is already closed."
+msgstr ""
+
+#: hr/services/reports.py:30 hr/services/reports.py:114
+msgid "Both 'from' and 'to' dates are required."
+msgstr ""
+
+#: hr/services/reports.py:32 hr/services/reports.py:116
+msgid "'to' date cannot be before 'from' date."
+msgstr ""
+
+#: hr/services/setup.py:143
+#, python-format
+msgid ""
+"HR Settings are not configured for company %(company)s. Run seed_defaults or"
+" POST hr/settings/ensure-setup/ first."
+msgstr ""
+
+#: hr/services/setup.py:163
+#, python-format
+msgid ""
+"System salary components are missing for company %(company)s. Run "
+"seed_defaults or POST hr/settings/ensure-setup/ first."
+msgstr ""
+
+#: hr/services/tax_rates.py:111
+#, python-format
+msgid ""
+"No %(regime)s income-tax rates are effective on %(date)s. The accountant "
+"must enter them first."
+msgstr ""
+
+#: hr/services/tax_rates.py:123
+msgid "A rate set needs at least one income slab."
+msgstr ""
+
+#: hr/services/tax_rates.py:130
+msgid "Income slabs must start at 0 and join with no gap or overlap."
+msgstr ""
+
+#: hr/services/tax_rates.py:135
+msgid "Only the last income slab may have no upper limit."
+msgstr ""
+
+#: hr/services/tax_rates.py:140
+msgid "The last income slab must have no upper limit."
+msgstr ""
+
+#: hr/services/tds.py:46
+#, python-format
+msgid ""
+"The TDS salary component is missing for company %(company)s. Run "
+"seed_defaults or POST hr/settings/ensure-setup/ first."
+msgstr ""
+
+#: hr/services/tds.py:64
+#, python-format
+msgid ""
+"%(employee)s has no monthly salary effective on %(date)s, so TDS cannot be "
+"worked out."
+msgstr ""
+
+#: hr/services/tds.py:147
+msgid "TDS for this slip is out of date; recompute it before submitting."
+msgstr ""
+
+#: hr/services/tds.py:152
+#, python-format
+msgid "%(employee)s needs a PAN before TDS can be deducted."
+msgstr ""
+
+#: hr/services/tds.py:157
+msgid "Set the TDS payable account in HR Settings before deducting TDS."
+msgstr ""
+
+#: hr/services/tds_register.py:46
+msgid "Use the financial year and quarter, for example 2026-27-Q1."
+msgstr ""
+
+#: hr/services/wages.py:86
+#, python-format
+msgid "A salary slip cannot cover more than %(days)s days."
+msgstr ""
+
+#: hr/services/wages.py:133
+#, python-format
+msgid "%(employee)s has no wage rate effective on %(date)s."
+msgstr ""
+
+#: hr/services/wages.py:142
+#, python-format
+msgid ""
+"The wage rate of %(employee)s effective %(date)s has no monthly salary."
+msgstr ""
+
+#: hr/services/wages.py:153
+#, python-format
+msgid "The wage rate of %(employee)s effective %(date)s has no daily rate."
+msgstr ""
+
+#: hr/views.py:105 hr/views.py:480 stock/views.py:194
+msgid "Use YYYY-MM-DD."
+msgstr ""
+
+#: hr/views.py:115 stock/views.py:205
+msgid "Must be an integer."
+msgstr ""
+
+#: hr/views.py:121
+#, python-format
+msgid "You do not have %(flag)s permission on %(label)s."
+msgstr ""
+
+#: hr/views.py:143
+msgid "This record is in use and cannot be deleted."
+msgstr ""
+
+#: hr/views.py:344
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "System components cannot be deleted."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: hr/views.py:467
+msgid "Unknown account."
+msgstr ""
+
+#: hr/views.py:472
+msgid "Invalid payment mode."
+msgstr ""
+
+#: hr/views.py:684 hr/views.py:727
+msgid "Both from_date and to_date are required."
+msgstr ""
+
+#: hr/views.py:693 hr/views.py:736
+msgid "Invalid date format. Use YYYY-MM-DD."
+msgstr ""
+
+#: manufacturing/serializers.py:171
+msgid "A BOM needs a company and a product item."
+msgstr ""
+
+#: manufacturing/serializers.py:175
+msgid "The BOM product must be a stock item."
+msgstr ""
+
+#: manufacturing/serializers.py:348
+msgid "The BOM belongs to a different company."
+msgstr ""
+
+#: manufacturing/serializers.py:352
+msgid "The BOM makes a different item than the production item."
+msgstr ""
+
+#: manufacturing/services/batches.py:58
+#: manufacturing/services/work_orders.py:107
+#, python-format
+msgid "%(field)s is required."
+msgstr ""
+
+#: manufacturing/services/batches.py:62
+#, python-format
+msgid "%(field)s must be a number."
+msgstr ""
+
+#: manufacturing/services/batches.py:65
+#, python-format
+msgid "%(field)s must be greater than zero."
+msgstr ""
+
+#: manufacturing/services/batches.py:91
+#, python-format
+msgid "Item '%(code)s' has no default BOM."
+msgstr ""
+
+#: manufacturing/services/batches.py:105
+msgid "This Work Order is not a production batch."
+msgstr ""
+
+#: manufacturing/services/batches.py:144
+msgid "Bulk quantity"
+msgstr ""
+
+#: manufacturing/services/batches.py:174
+msgid "Bulk produced"
+msgstr ""
+
+#: manufacturing/services/batches.py:180
+#, python-format
+msgid ""
+"Only a batch in Grinding can finish grinding (this batch is %(status)s)."
+msgstr ""
+
+#: manufacturing/services/batches.py:187
+#, python-format
+msgid "Bulk produced %(actual)s is more than the %(planned)s planned."
+msgstr ""
+
+#: manufacturing/services/batches.py:218
+#, python-format
+msgid ""
+"Grinding loss is %(loss)s%% of the raw consumed, above the %(allowance)s%% "
+"allowance."
+msgstr ""
+
+#: manufacturing/services/batches.py:288
+msgid "Bulk used"
+msgstr ""
+
+#: manufacturing/services/batches.py:290
+msgid "Enter at least one SKU with a packet count."
+msgstr ""
+
+#: manufacturing/services/batches.py:295
+#, python-format
+msgid "%(code)s is listed twice."
+msgstr ""
+
+#: manufacturing/services/batches.py:297
+msgid "Packets"
+msgstr ""
+
+#: manufacturing/services/batches.py:303
+#, python-format
+msgid "Only a batch in Packing can be packed (this batch is %(status)s)."
+msgstr ""
+
+#: manufacturing/services/batches.py:315
+#, python-format
+msgid "The BOM of %(sku)s does not use the bulk item %(bulk)s."
+msgstr ""
+
+#: manufacturing/services/batches.py:327
+#, python-format
+msgid "Only %(qty)s of %(item)s is left in this batch; %(used)s was entered."
+msgstr ""
+
+#: manufacturing/services/batches.py:335
+#, python-format
+msgid ""
+"These packets need %(need)s of %(item)s, but only %(used)s was entered."
+msgstr ""
+
+#: manufacturing/services/batches.py:367
+msgid "This batch is already cancelled."
+msgstr ""
+
+#: manufacturing/services/boms.py:25
+msgid "This BOM is used by a submitted document."
+msgstr ""
+
+#: manufacturing/services/boms.py:49
+#, python-format
+msgid "BOM item '%(code)s' must be a stock item."
+msgstr ""
+
+#: manufacturing/services/boms.py:59
+#, python-format
+msgid "BOM row item '%(code)s' must be a stock item."
+msgstr ""
+
+#: manufacturing/services/boms.py:63
+#, python-format
+msgid "The product '%(code)s' cannot also be a BOM component."
+msgstr ""
+
+#: manufacturing/services/boms.py:68
+#, python-format
+msgid "Item '%(code)s' appears twice in the BOM."
+msgstr ""
+
+#: manufacturing/services/boms.py:77 manufacturing/services/boms.py:138
+msgid "A BOM cannot use itself as a sub-assembly."
+msgstr ""
+
+#: manufacturing/services/boms.py:84
+msgid "The sub-assembly BOM does not exist."
+msgstr ""
+
+#: manufacturing/services/boms.py:88
+#, python-format
+msgid "Sub-BOM '%(bom)s' makes '%(sub)s', not the row item '%(item)s'."
+msgstr ""
+
+#: manufacturing/services/boms.py:98
+#, python-format
+msgid "Sub-BOM '%(bom)s' belongs to a different company."
+msgstr ""
+
+#: manufacturing/services/boms.py:102
+#, python-format
+msgid "Sub-BOM '%(bom)s' is inactive."
+msgstr ""
+
+#: manufacturing/services/boms.py:112
+#, python-format
+msgid "Scrap item '%(code)s' must be a stock item."
+msgstr ""
+
+#: manufacturing/services/boms.py:116
+#, python-format
+msgid "Scrap item '%(code)s' appears twice in the BOM."
+msgstr ""
+
+#: manufacturing/services/boms.py:128
+msgid "The sub-BOM graph contains a cycle; a BOM cannot contain itself."
+msgstr ""
+
+#: manufacturing/services/boms.py:184
+#, python-format
+msgid ""
+"BOM '%(bom)s' is used by a submitted document; create a new BOM version "
+"instead of changing its quantity, loss or components."
+msgstr ""
+
+#: manufacturing/services/costing.py:71 manufacturing/services/costing.py:156
+#, python-format
+msgid "The BOM graph for '%(bom)s' contains a cycle."
+msgstr ""
+
+#: manufacturing/services/production.py:119
+#: manufacturing/services/production.py:173
+#: manufacturing/services/production.py:196
+#: manufacturing/services/work_orders.py:139
+msgid "Source Warehouse"
+msgstr ""
+
+#: manufacturing/services/production.py:120
+#: manufacturing/services/production.py:176
+#: manufacturing/services/production.py:199
+msgid "Target Warehouse"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:42
+#, python-format
+msgid "BOM '%(bom)s' has no positive good output."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:110
+#, python-format
+msgid "%(field)s '%(name)s' is a group warehouse."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:115
+#, python-format
+msgid "%(field)s '%(name)s' belongs to a different company."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:123
+msgid "Work Order quantity must be greater than zero."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:126
+#, python-format
+msgid "BOM '%(bom)s' is inactive."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:129
+#, python-format
+msgid "BOM '%(bom)s' belongs to a different company."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:133
+#, python-format
+msgid "BOM '%(bom)s' makes a different item than the production item."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:137
+msgid "The production item must be a stock item."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:140
+msgid "Finished Goods Warehouse"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:142
+msgid "WIP Warehouse"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:145
+msgid "The WIP Warehouse and the Finished Goods Warehouse must differ."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:148
+msgid "Scrap Warehouse"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:152
+msgid "The Work Order has no required items; check the BOM components."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:155
+#, fuzzy
+#| msgid "Only draft documents can be submitted."
+msgid "A stopped Work Order cannot be submitted."
+msgstr "केवल प्रारूप दस्तावेज़ जमा किए जा सकते हैं।"
+
+#: manufacturing/services/work_orders.py:248
+msgid "Cancel the stock entries of this Work Order first."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:262
+#, fuzzy, python-format
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only a submitted Work Order can be %(action)s."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: manufacturing/services/work_orders.py:263
+msgid "stopped"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:263
+msgid "resumed"
+msgstr ""
+
+#: manufacturing/services/work_orders.py:318
+msgid "Quantity is required."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:323
+msgid "Quantity must be a number."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:342
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only a submitted Work Order can be mapped."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: manufacturing/services/work_orders.py:344
+msgid "A stopped Work Order cannot create stock entries."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:351
+msgid ""
+"A Work Order can create a Material Transfer for Manufacture or a Manufacture"
+" entry."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:361
+#, python-format
+msgid "Only %(qty)s of the Work Order basis remains to be produced."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:384
+msgid "There is nothing left to transfer or consume for this Work Order."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:392
+msgid ""
+"This Work Order consumes directly from the source warehouse; no material "
+"transfer is needed."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:396
+msgid "The Work Order has no WIP Warehouse."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:445
+msgid "No transferred material is available to consume for this Work Order."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:452
+msgid "The BOM has scrap items but the Work Order has no Scrap Warehouse."
+msgstr ""
+
+#: manufacturing/services/work_orders.py:471
+msgid "The expected good output is zero."
+msgstr ""
+
+#: manufacturing/views.py:81
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only a submitted Work Order can be changed."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: manufacturing/views.py:94
+msgid "This Work Order is already stopped."
+msgstr ""
+
+#: manufacturing/views.py:99
+msgid "This Work Order is already fully produced."
+msgstr ""
+
+#: manufacturing/views.py:114
+msgid "A completed Work Order cannot be resumed."
+msgstr ""
+
+#: manufacturing/views.py:131
+msgid "Submit the Work Order before making stock entries."
+msgstr ""
+
+#: manufacturing/views.py:190
+msgid "Choose a company and a bulk item."
+msgstr ""
+
+#: manufacturing/views.py:196
+msgid "The company must be the one selected."
+msgstr ""
+
+#: manufacturing/views.py:242
+msgid "Choose a SKU for every line."
+msgstr ""
+
+#: ngu/serializers.py:40
+msgid "Only variants can be linked to an item."
+msgstr ""
+
+#: ngu/serializers.py:50
+msgid "This item is already linked to another NGU variant."
+msgstr ""
+
+#: payment_reconciliation/models.py:139
+msgid "The allocations of a submitted reconciliation cannot be changed."
+msgstr ""
+
+#: payment_reconciliation/services.py:57 payment_reconciliation/services.py:96
+msgid "Party type must be Customer or Supplier."
+msgstr ""
+
+#: payment_reconciliation/services.py:100
+#, python-format
+msgid "%(type)s '%(party)s' does not exist in this company."
+msgstr ""
+
+#: payment_reconciliation/services.py:381
+#, python-format
+msgid "%(what)s '%(name)s' has nothing left to reconcile for this party."
+msgstr ""
+
+#: payment_reconciliation/services.py:396
+msgid "Payment / note"
+msgstr ""
+
+#: payment_reconciliation/services.py:397
+msgid "Invoice"
+msgstr ""
+
+#: payment_reconciliation/services.py:402
+msgid ""
+"The selected rows are booked to different party accounts; reconcile them "
+"separately."
+msgstr ""
+
+#: payment_reconciliation/services.py:440
+#: payment_reconciliation/services.py:665
+msgid "Allocate at least one payment against an invoice."
+msgstr ""
+
+#: payment_reconciliation/services.py:449
+#, python-format
+msgid "The party account must be a %(type)s account of this company."
+msgstr ""
+
+#: payment_reconciliation/services.py:458
+#, python-format
+msgid "Invoices of a %(type)s are '%(label)s', not '%(got)s'."
+msgstr ""
+
+#: payment_reconciliation/services.py:463
+#, python-format
+msgid "'%(doctype)s' cannot be reconciled against an invoice."
+msgstr ""
+
+#: payment_reconciliation/services.py:467
+msgid "A document cannot be reconciled against itself."
+msgstr ""
+
+#: payment_reconciliation/services.py:470
+msgid "Every allocated amount must be greater than zero."
+msgstr ""
+
+#: payment_reconciliation/services.py:486
+#, python-format
+msgid "%(what)s does not exist."
+msgstr ""
+
+#: payment_reconciliation/services.py:488
+#, python-format
+msgid "%(what)s is not submitted."
+msgstr ""
+
+#: payment_reconciliation/services.py:491
+#, python-format
+msgid "%(what)s belongs to a different company."
+msgstr ""
+
+#: payment_reconciliation/services.py:495
+#, python-format
+msgid "%(what)s belongs to a different party."
+msgstr ""
+
+#: payment_reconciliation/services.py:499
+#, python-format
+msgid "%(what)s is booked to a different party account."
+msgstr ""
+
+#: payment_reconciliation/services.py:503
+#, python-format
+msgid "%(what)s is %(kind)s."
+msgstr ""
+
+#: payment_reconciliation/services.py:507
+msgid "a return, not an invoice"
+msgstr ""
+
+#: payment_reconciliation/services.py:509
+msgid "not a credit / debit note"
+msgstr ""
+
+#: payment_reconciliation/services.py:516
+#, python-format
+msgid ""
+"%(what)s was posted before bill-wise tracking and cannot be reconciled; "
+"allocate a payment entry against it instead."
+msgstr ""
+
+#: payment_reconciliation/services.py:525
+#, python-format
+msgid "Invoice '%(name)s'"
+msgstr ""
+
+#: payment_reconciliation/services.py:532
+#, python-format
+msgid "Note '%(name)s'"
+msgstr ""
+
+#: payment_reconciliation/services.py:536
+#, python-format
+msgid "Note '%(name)s' reduces its original invoice, not its own balance."
+msgstr ""
+
+#: payment_reconciliation/services.py:546
+#, python-format
+msgid "'%(name)s' does not exist or is not submitted."
+msgstr ""
+
+#: payment_reconciliation/services.py:554
+#, python-format
+msgid "'%(name)s' has no entry for %(party)s on account '%(account)s'."
+msgstr ""
+
+#: payment_reconciliation/services.py:569
+#, python-format
+msgid ""
+"Allocated %(used)s exceeds the outstanding amount %(open)s of invoice "
+"'%(name)s'."
+msgstr ""
+
+#: payment_reconciliation/services.py:579
+#, python-format
+msgid ""
+"Allocated %(used)s exceeds the unallocated amount %(open)s of '%(name)s'."
+msgstr ""
+
+#: payment_reconciliation/signals.py:57
+#, python-format
+msgid ""
+"Cannot cancel '%(name)s': unreconcile the payment reconciliation entries "
+"first (%(entries)s)."
+msgstr ""
+
+#: printing/views.py:34
+#, python-format
+msgid "Must be one of: %(options)s."
+msgstr ""
+
+#: selling/mapping.py:23
+msgid "Sales Invoice can only be made from a submitted Sales Order."
+msgstr ""
+
+#: selling/mapping.py:35 selling/services/dispatch.py:262
+#, python-format
+msgid "Sales Order '%(name)s' is already fully invoiced."
+msgstr ""
+
+#: selling/mapping.py:51 selling/services/dispatch.py:281
+#, python-format
+msgid "Dispatch quantity must be greater than zero for item '%(code)s'."
+msgstr ""
+
+#: selling/mapping.py:58 selling/services/dispatch.py:288
+#, python-format
+msgid "Cannot dispatch %(qty)s for '%(code)s'; only %(remaining)s remaining."
+msgstr ""
+
+#: selling/mapping.py:70
+msgid "No lines to invoice."
+msgstr ""
+
+#: selling/models.py:159
+msgid "Sales Order must have at least one line item."
+msgstr ""
+
+#: selling/models.py:308
+msgid "Sales Invoice must have at least one line item."
+msgstr ""
+
+#: selling/models.py:319
+msgid "Debit-to and income accounts must belong to the invoice's company."
+msgstr ""
+
+#: selling/models.py:322
+msgid "Customer must belong to the invoice's company."
+msgstr ""
+
+#: selling/models.py:350
+#, python-format
+msgid ""
+"Sales Invoice '%(name)s' does not update stock: remove the batch from item "
+"'%(code)s'."
+msgstr ""
+
+#: selling/models.py:361
+#, python-format
+msgid "Item '%(code)s' is not batch-tracked; remove the batch."
+msgstr ""
+
+#: selling/reports/kpis.py:100 selling/reports/kpis.py:102
+msgid "Enter valid dates (YYYY-MM-DD)."
+msgstr ""
+
+#: selling/reports/kpis.py:104
+msgid "'from_date' cannot be after 'to_date'."
+msgstr ""
+
+#: selling/services/credit.py:136
+#, python-format
+msgid ""
+"Credit limit crossed for %(customer)s: exposure %(total)s (existing "
+"%(existing)s + this document %(document)s) exceeds limit %(limit)s."
+msgstr ""
+
+#: selling/services/dispatch.py:250
+#, fuzzy
+#| msgid "Only submitted documents can be cancelled."
+msgid "Only submitted Sales Orders can be dispatched."
+msgstr "केवल जमा किए गए दस्तावेज़ रद्द किए जा सकते हैं।"
+
+#: selling/services/dispatch.py:273
+#, python-format
+msgid "Order item %(id)s is not available for dispatch."
+msgstr ""
+
+#: selling/services/dispatch.py:304
+#, python-format
+msgid "Warehouse is required for item '%(code)s'."
+msgstr ""
+
+#: selling/views.py:67
+msgid "Expected a list of customer updates."
+msgstr ""
+
+#: selling/views.py:175 selling/views.py:176
+msgid "'lines' must be a list."
+msgstr ""
+
+#: selling/views.py:189 selling/views.py:192
+msgid "Each line must include 'order_item_id' and 'qty'."
+msgstr ""
+
+#: stock/models.py:161
+#, python-format
+msgid ""
+"Item '%(code)s' already has stock ledger entries and cannot become a "
+"template."
+msgstr ""
+
+#: stock/models.py:182
+#, python-format
+msgid ""
+"Batch tracking cannot be changed for item '%(code)s': it already has stock "
+"ledger entries."
+msgstr ""
+
+#: stock/models.py:264
+#, python-format
+msgid "Value '%(value)s' does not belong to attribute '%(attribute)s'."
+msgstr ""
+
+#: stock/models.py:315
+#, python-format
+msgid "Warehouse account '%(account)s' belongs to a different company."
+msgstr ""
+
+#: stock/models.py:320
+#, python-format
+msgid "Warehouse account '%(account)s' must not be a group account."
+msgstr ""
+
+#: stock/models.py:325
+#, python-format
+msgid "Warehouse account '%(account)s' must be a Stock account."
+msgstr ""
+
+#: stock/models.py:436 stock/services/batches.py:173
+#, python-format
+msgid ""
+"Item '%(code)s' is a template with variants: create the batch for one of its"
+" variants."
+msgstr ""
+
+#: stock/models.py:449
+#, python-format
+msgid "The item of batch '%(batch)s' cannot change once it has stock."
+msgstr ""
+
+#: stock/models.py:507
+msgid "StockLedgerEntry rows are immutable and cannot be updated."
+msgstr ""
+
+#: stock/models.py:513
+msgid "StockLedgerEntry rows are immutable and cannot be deleted."
+msgstr ""
+
+#: stock/models.py:624
+msgid "Stock Entry must have at least one item."
+msgstr ""
+
+#: stock/models.py:640
+msgid "Material Receipt requires a Target Warehouse."
+msgstr ""
+
+#: stock/models.py:646
+msgid "Material Issue requires a Source Warehouse."
+msgstr ""
+
+#: stock/models.py:651
+msgid "Material Transfer requires both Source and Target Warehouses."
+msgstr ""
+
+#: stock/serializers.py:159
+msgid "An item cannot be both nil-rated/exempt and non-GST."
+msgstr ""
+
+#: stock/serializers.py:167
+msgid "A variant cannot itself have variants."
+msgstr ""
+
+#: stock/serializers.py:173
+msgid "This template has variants."
+msgstr ""
+
+#: stock/serializers.py:179
+msgid "Only a template item (has variants) declares attributes."
+msgstr ""
+
+#: stock/serializers.py:195
+msgid "An item that tracks expiry must also be batch-tracked."
+msgstr ""
+
+#: stock/serializers.py:203
+msgid "Shelf life must be positive and needs 'has expiry date'."
+msgstr ""
+
+#: stock/serializers.py:215
+msgid ""
+"Batch tracking cannot be changed once the item has stock ledger entries."
+msgstr ""
+
+#: stock/serializers.py:270
+msgid "Values and abbreviations must be unique within an attribute."
+msgstr ""
+
+#: stock/serializers.py:284
+msgid "Unknown attribute value."
+msgstr ""
+
+#: stock/serializers.py:294
+#, python-format
+msgid ""
+"The abbreviation of '%(value)s' cannot change: variants already use it."
+msgstr ""
+
+#: stock/serializers.py:311
+#, python-format
+msgid "Value '%(value)s' is used by items."
+msgstr ""
+
+#: stock/serializers.py:392
+#, python-format
+msgid "Item '%(code)s' is a template with variants: pick one of its variants."
+msgstr ""
+
+#: stock/serializers.py:401 stock/serializers.py:617 stock/serializers.py:744
+#: stock/services/batches.py:180 stock/services/reconciliation.py:225
+#, python-format
+msgid "Item '%(code)s' is not batch-tracked."
+msgstr ""
+
+#: stock/serializers.py:408
+msgid "The item of a batch cannot change once it has stock."
+msgstr ""
+
+#: stock/serializers.py:421
+msgid "Item does not track expiry."
+msgstr ""
+
+#: stock/serializers.py:425
+msgid "This item tracks expiry; a date is required."
+msgstr ""
+
+#: stock/serializers.py:429 stock/serializers.py:633
+msgid "Expiry cannot be before manufacturing."
+msgstr ""
+
+#: stock/serializers.py:455
+msgid "The batch number cannot be changed."
+msgstr ""
+
+#: stock/serializers.py:602
+msgid "Valuation rate cannot be negative."
+msgstr ""
+
+#: stock/serializers.py:612 stock/serializers.py:750
+#: stock/services/reconciliation.py:229
+msgid "Batch does not belong to this item."
+msgstr ""
+
+#: stock/serializers.py:628
+msgid "Pick an existing batch or enter new-batch details, not both."
+msgstr ""
+
+#: stock/serializers.py:712 stock/services/reconciliation.py:233
+msgid "Please specify either Quantity or Valuation Rate or both."
+msgstr ""
+
+#: stock/serializers.py:715 stock/services/ledger.py:314
+msgid "Negative Quantity is not allowed."
+msgstr ""
+
+#: stock/serializers.py:718 stock/services/ledger.py:316
+msgid "Negative Valuation Rate is not allowed."
+msgstr ""
+
+#: stock/serializers.py:722
+msgid "Select a leaf warehouse, not a group warehouse."
+msgstr ""
+
+#: stock/serializers.py:728 stock/services/reconciliation.py:190
+#, python-format
+msgid "Item '%(code)s' is not a stock item."
+msgstr ""
+
+#: stock/serializers.py:736 stock/services/ledger.py:409
+#: stock/services/reconciliation.py:217
+#, python-format
+msgid "Item '%(code)s' is batch-tracked: enter the batch counted."
+msgstr ""
+
+#: stock/serializers.py:837
+#, python-format
+msgid "Row #%(row)s: Same item and warehouse combination already entered."
+msgstr ""
+
+#: stock/serializers.py:848
+#, python-format
+msgid "Row #%(row)s: Warehouse '%(name)s' belongs to a different company."
+msgstr ""
+
+#: stock/services/batches.py:111
+#, python-format
+msgid "Item '%(code)s' does not track expiry; remove the expiry date."
+msgstr ""
+
+#: stock/services/batches.py:118
+#, python-format
+msgid ""
+"Item '%(code)s' tracks expiry: enter an expiry date, or a manufacturing date"
+" and set the item's shelf life."
+msgstr ""
+
+#: stock/services/batches.py:127
+msgid "Expiry date cannot be before the manufacturing date."
+msgstr ""
+
+#: stock/services/batches.py:138
+#, python-format
+msgid ""
+"Item code '%(code)s' is too long for automatic batch numbering; enter the "
+"batch number manually."
+msgstr ""
+
+#: stock/services/batches.py:147
+#, python-format
+msgid "Generated batch number '%(no)s' is too long."
+msgstr ""
+
+#: stock/services/batches.py:188
+#, python-format
+msgid "Batch '%(no)s' already exists."
+msgstr ""
+
+#: stock/services/batches.py:367
+#, python-format
+msgid ""
+"Insufficient usable batch stock for item '%(code)s': required %(req)s, "
+"available %(avail)s (expired, disabled and empty batches are skipped)."
+msgstr ""
+
+#: stock/services/batches.py:428
+#, python-format
+msgid "Batch required for Item '%(code)s'."
+msgstr ""
+
+#: stock/services/batches.py:435
+#, python-format
+msgid "FEFO suggests %(picks)s."
+msgstr ""
+
+#: stock/services/batches.py:463 stock/services/ledger.py:414
+#, python-format
+msgid "Item '%(code)s' is not batch-tracked but a batch was given."
+msgstr ""
+
+#: stock/services/batches.py:470
+#, python-format
+msgid "Batch '%(batch)s' belongs to a different item than '%(code)s'."
+msgstr ""
+
+#: stock/services/batches.py:475
+#, python-format
+msgid "Batch '%(batch)s' is disabled."
+msgstr ""
+
+#: stock/services/batches.py:481
+#, python-format
+msgid "Batch '%(batch)s' expired on %(date)s."
+msgstr ""
+
+#: stock/services/batches.py:488
+#, python-format
+msgid ""
+"Insufficient stock in batch '%(batch)s' of item '%(code)s': available "
+"%(avail)s, required %(req)s."
+msgstr ""
+
+#: stock/services/ledger.py:62
+msgid "Cannot post empty stock ledger entries."
+msgstr ""
+
+#: stock/services/ledger.py:101 stock/services/ledger.py:401
+#, python-format
+msgid "Stock transaction not allowed on group warehouse '%(name)s'."
+msgstr ""
+
+#: stock/services/ledger.py:154
+#, python-format
+msgid ""
+"Transfer of '%(code)s': incoming quantity does not match the quantity taken "
+"out."
+msgstr ""
+
+#: stock/services/ledger.py:212
+#, python-format
+msgid ""
+"Insufficient stock for Item '%(code)s' in Warehouse '%(warehouse)s'. "
+"Available: %(available)s, Required: %(required)s"
+msgstr ""
+
+#: stock/services/ledger.py:308
+msgid "Current stock is negative; enter the counted quantity."
+msgstr ""
+
+#: stock/services/ledger.py:325
+msgid ""
+"A valuation rate is required to count stock into a position that has no "
+"current rate."
+msgstr ""
+
+#: stock/services/ledger.py:420
+#, python-format
+msgid "Batch '%(batch_no)s' belongs to a different item than '%(code)s'."
+msgstr ""
+
+#: stock/services/ledger.py:448
+#, python-format
+msgid ""
+"Cannot reconcile '%(code)s' in '%(warehouse)s' as of %(date)s %(time)s: "
+"stock moved later (%(latest_date)s %(latest_time)s). Reconcile at or after "
+"the latest movement."
+msgstr ""
+
+#: stock/services/ledger.py:547
+#, python-format
+msgid ""
+"Cannot cancel: reversing this entry would leave negative stock for Item "
+"'%(code)s' in Warehouse '%(warehouse)s' (available %(available)s, reversal "
+"%(reversal)s). Cancel the later transactions that consumed this stock first."
+msgstr ""
+
+#: stock/services/ledger.py:569
+#, python-format
+msgid ""
+"Cannot cancel: reversing this entry would leave negative stock in batch "
+"'%(batch_no)s' of Item '%(code)s' in Warehouse '%(warehouse)s' (short by "
+"%(short)s). Cancel the later transactions that consumed this batch first."
+msgstr ""
+
+#: stock/services/pricing.py:67
+#, python-format
+msgid "Price List '%(name)s' is disabled."
+msgstr ""
+
+#: stock/services/pricing.py:71
+#, python-format
+msgid "Price List '%(name)s' is not a selling list."
+msgstr ""
+
+#: stock/services/pricing.py:76
+#, python-format
+msgid "Price List '%(name)s' is not a buying list."
+msgstr ""
+
+#: stock/services/pricing.py:82
+#, python-format
+msgid ""
+"Price List '%(name)s' is in %(currency)s but the company uses "
+"%(company_currency)s; v1 has no currency conversion."
+msgstr ""
+
+#: stock/services/pricing.py:288 stock/services/pricing.py:341
+#, python-format
+msgid ""
+"No price for Item %(code)s in Price List %(list)s, and the item has no "
+"standard rate."
+msgstr ""
+
+#: stock/services/reconciliation.py:29
+#, python-format
+msgid "Row #%(row)s: %(msg)s"
+msgstr ""
+
+#: stock/services/reconciliation.py:62
+msgid "Please enter the Difference (Expense) Account."
+msgstr ""
+
+#: stock/services/reconciliation.py:68
+#, python-format
+msgid "Account '%(account)s' belongs to a different company."
+msgstr ""
+
+#: stock/services/reconciliation.py:77
+#, python-format
+msgid "Account '%(account)s' must not be a group account."
+msgstr ""
+
+#: stock/services/reconciliation.py:86
+msgid ""
+"The Difference Account must be an Asset / Liability / Equity account (e.g. "
+"Temporary Opening), since this Stock Reconciliation is an opening entry."
+msgstr ""
+
+#: stock/services/reconciliation.py:183
+msgid "Same item and warehouse combination already entered."
+msgstr ""
+
+#: stock/services/reconciliation.py:195
+#, python-format
+msgid "Item '%(code)s' is inactive."
+msgstr ""
+
+#: stock/services/reconciliation.py:201
+#, python-format
+msgid "Warehouse '%(name)s' is a group warehouse."
+msgstr ""
+
+#: stock/services/reconciliation.py:209
+#, python-format
+msgid "Warehouse '%(name)s' belongs to a different company."
+msgstr ""
+
+#: stock/services/reconciliation.py:240
+msgid "Negative Quantity or Valuation Rate is not allowed."
+msgstr ""
+
+#: stock/services/reconciliation.py:252
+msgid "Stock Reconciliation must have at least one item."
+msgstr ""
+
+#: stock/services/reconciliation.py:278 stock/services/reconciliation.py:309
+msgid "Nothing to reconcile: no row changes the quantity or valuation rate."
+msgstr ""
+
+#: stock/services/variants.py:72
+#, python-format
+msgid "Item '%(code)s' is not a template item."
+msgstr ""
+
+#: stock/services/variants.py:77
+#, python-format
+msgid "Template '%(code)s' has no attributes; add them first."
+msgstr ""
+
+#: stock/services/variants.py:81 stock/views.py:114
+msgid "Select at least one attribute value."
+msgstr ""
+
+#: stock/services/variants.py:87
+msgid "Attribute and value must be ids."
+msgstr ""
+
+#: stock/services/variants.py:91
+#, python-format
+msgid "Attribute #%(id)s is not used by template '%(code)s'."
+msgstr ""
+
+#: stock/services/variants.py:96
+#, python-format
+msgid "Attribute '%(name)s' is disabled."
+msgstr ""
+
+#: stock/services/variants.py:103
+#, python-format
+msgid "Value #%(id)s is not a value of attribute '%(name)s'."
+msgstr ""
+
+#: stock/services/variants.py:123
+#, python-format
+msgid "A variant with these attributes already exists: '%(code)s'."
+msgstr ""
+
+#: stock/services/variants.py:133
+#, python-format
+msgid "Variant code '%(code)s' is too long."
+msgstr ""
+
+#: stock/services/variants.py:135
+msgid "Variant name is too long."
+msgstr ""
+
+#: stock/services/variants.py:137
+#, python-format
+msgid "Item '%(code)s' already exists."
+msgstr ""
+
+#: stock/services/variants.py:160
+msgid "A variant with these attributes already exists."
+msgstr ""
+
+#: stock/services/variants.py:177
+#, python-format
+msgid ""
+"Template '%(code)s' already has variants; its attributes cannot change."
+msgstr ""
+
+#: stock/services/variants.py:182
+msgid "Unknown attribute."
+msgstr ""
+
+#: stock/views.py:109
+msgid "Each row needs an attribute and a value."
+msgstr ""
+
+#: stock/views.py:146
+msgid "This attribute is used by items; disable it instead."
+msgstr ""
+
+#: stock/views.py:282
+msgid "This batch is used by stock movements; disable it instead."
+msgstr ""
+
+#: stock/views.py:305 stock/views.py:336
+msgid "A positive quantity is required."
+msgstr ""
+
+#: stock/views.py:309 stock/views.py:340
+msgid "Unknown item."
+msgstr ""
+
+#: stock/views.py:311 stock/views.py:342
+msgid "Unknown warehouse."
+msgstr ""
+
+#: stock/views.py:356
+msgid "voucher_type and voucher_no are required."
+msgstr ""
+
+#: stock/views.py:447
+msgid "'company' and 'warehouse' are required integers."
+msgstr ""
+
+#: stock/views.py:456
+msgid "Unknown company, warehouse, item or item group."
+msgstr ""
+
+#: stock/views.py:461
+msgid "Warehouse belongs to a different company."
+msgstr ""
+
+#: stock/views.py:520
+msgid "Must not be negative."
+msgstr ""
+
+#: stock/views.py:604
+msgid "Item not found."
+msgstr ""
+
+#: stock/views.py:611
+msgid "Price List not found."
+msgstr ""
+
+#: stock/views.py:620
+msgid "Customer not found."
+msgstr ""
+
+#: tally_export/models.py:24
+msgid "Export log rows are immutable and cannot be updated."
+msgstr ""
+
+#: tally_export/models.py:27
+msgid "Export log rows are immutable and cannot be deleted."
+msgstr ""
+
+#: tally_export/models.py:41
+#, python-format
+msgid "%(model)s rows are immutable and cannot be updated."
+msgstr ""
+
+#: tally_export/models.py:48
+#, python-format
+msgid "%(model)s rows are immutable and cannot be deleted."
+msgstr ""
+
+#: tally_export/models.py:126
+msgid "The account belongs to a different company."
+msgstr ""
+
+#: tally_export/models.py:129
+msgid "Group accounts are not posted to."
+msgstr ""
+
+#: tally_export/serializers.py:33
+msgid "Expected an object of voucher key -> Tally voucher type name."
+msgstr ""
+
+#: tally_export/serializers.py:39
+msgid "Expected a list of strings."
+msgstr ""
+
+#: tally_export/serializers.py:68
+msgid "Tally ledger name is required."
+msgstr ""
+
+#: tally_export/serializers.py:79
+msgid "Party type and party are set together or not at all."
+msgstr ""
+
+#: tally_export/serializers.py:112
+msgid "Tally stock item name is required."
+msgstr ""
+
+#: tally_export/views.py:173
+msgid "vouchers, masters or zip."
+msgstr ""
+
+#: tally_export/views.py:200
+msgid "Pick at least one voucher."
+msgstr ""
+
+#: tally_export/views.py:206
+msgid "Each needs doctype and name."
+msgstr ""
+
+#: users/models.py:7
+msgid "Orders"
+msgstr ""
+
+#: users/models.py:8
+msgid "Factory"
+msgstr ""
+
+#: users/models.py:9
+msgid "Accounts"
+msgstr ""
+
+#: users/models.py:10
+msgid "Admin"
+msgstr ""
+
+#: users/serializers.py:90
+#, python-format
+msgid "'%(label)s' is not an installed model (use app_label.ModelName)."
+msgstr ""
+
+#: users/serializers.py:175
+msgid "The username cannot be changed."
+msgstr ""
+
+#: users/serializers.py:181
+msgid "This field may not be blank."
+msgstr ""
+
+#: users/serializers.py:190
+msgid "A user with that email already exists."
+msgstr ""
+
+#: users/serializers.py:196
+msgid "Unsupported language."
+msgstr ""
+
+#: users/serializers.py:220
+msgid "Use the set-password action to change a password."
+msgstr ""
+
+#: users/serializers.py:226 users/views.py:146
+msgid "You cannot deactivate yourself."
+msgstr ""
+
+#: users/serializers.py:239
+msgid "You cannot change your own roles."
+msgstr ""
+
+#: users/serializers.py:245
+msgid "You do not have permission to assign roles."
+msgstr ""
+
+#: users/serializers.py:297
+msgid "The old password is incorrect."
+msgstr ""
+
+#: users/serializers.py:306
+msgid "The new password must differ from the old one."
+msgstr ""
+
+#: users/views.py:67
+msgid "Password changed."
+msgstr ""
+
+#: users/views.py:106
+msgid "Only a superuser can modify a superuser account."
+msgstr ""
+
+#: users/views.py:172
+msgid "Use change-password to change your own password."
+msgstr ""
+
+#: users/views.py:182
+msgid "Password updated."
+msgstr ""
+
+#~ msgid "Draft"
+#~ msgstr "प्रारूप"
+
+#~ msgid "Submitted"
+#~ msgstr "जमा किया गया"
+
+#~ msgid "Cancelled"
+#~ msgstr "रद्द कर दिया"

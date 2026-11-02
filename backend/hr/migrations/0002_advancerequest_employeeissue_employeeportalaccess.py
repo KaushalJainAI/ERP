@@ -8,79 +8,371 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0011_attachment'),
-        ('hr', '0001_initial'),
+        ("core", "0011_attachment"),
+        ("hr", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AdvanceRequest',
+            name="AdvanceRequest",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('modified_at', models.DateTimeField(auto_now=True)),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=18, verbose_name='amount')),
-                ('reason', models.CharField(max_length=240, verbose_name='reason')),
-                ('status', models.CharField(choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected'), ('Withdrawn', 'Withdrawn')], db_index=True, default='Pending', max_length=10, verbose_name='status')),
-                ('response', models.CharField(blank=True, default='', max_length=500, verbose_name='response')),
-                ('reviewed_at', models.DateTimeField(blank=True, null=True)),
-                ('advance', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='request', to='hr.employeeadvance')),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='advance_requests', to='core.company')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('employee', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='advance_requests', to='hr.employee')),
-                ('modified_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('reviewed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("modified_at", models.DateTimeField(auto_now=True)),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=18, verbose_name="amount"
+                    ),
+                ),
+                ("reason", models.CharField(max_length=240, verbose_name="reason")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("Pending", "Pending"),
+                            ("Approved", "Approved"),
+                            ("Rejected", "Rejected"),
+                            ("Withdrawn", "Withdrawn"),
+                        ],
+                        db_index=True,
+                        default="Pending",
+                        max_length=10,
+                        verbose_name="status",
+                    ),
+                ),
+                (
+                    "response",
+                    models.CharField(
+                        blank=True, default="", max_length=500, verbose_name="response"
+                    ),
+                ),
+                ("reviewed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "advance",
+                    models.OneToOneField(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="request",
+                        to="hr.employeeadvance",
+                    ),
+                ),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="advance_requests",
+                        to="core.company",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "employee",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="advance_requests",
+                        to="hr.employee",
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "reviewed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at', '-id'],
-                'constraints': [models.CheckConstraint(check=models.Q(('amount__gt', 0)), name='check_advance_request_amount_positive'), models.UniqueConstraint(condition=models.Q(('status', 'Pending')), fields=('employee',), name='unique_pending_advance_request_per_employee'), models.CheckConstraint(check=models.Q(models.Q(('status', 'Approved'), ('advance__isnull', False)), models.Q(models.Q(('status', 'Approved'), _negated=True), ('advance__isnull', True)), _connector='OR'), name='check_advance_request_advance_iff_approved'), models.CheckConstraint(check=models.Q(models.Q(('status__in', ['Approved', 'Rejected']), _negated=True), ('reviewed_at__isnull', False), _connector='OR'), name='check_advance_request_decision_stamped')],
+                "ordering": ["-created_at", "-id"],
+                "constraints": [
+                    models.CheckConstraint(
+                        check=models.Q(("amount__gt", 0)),
+                        name="check_advance_request_amount_positive",
+                    ),
+                    models.UniqueConstraint(
+                        condition=models.Q(("status", "Pending")),
+                        fields=("employee",),
+                        name="unique_pending_advance_request_per_employee",
+                    ),
+                    models.CheckConstraint(
+                        check=models.Q(
+                            models.Q(
+                                ("status", "Approved"), ("advance__isnull", False)
+                            ),
+                            models.Q(
+                                models.Q(("status", "Approved"), _negated=True),
+                                ("advance__isnull", True),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="check_advance_request_advance_iff_approved",
+                    ),
+                    models.CheckConstraint(
+                        check=models.Q(
+                            models.Q(
+                                ("status__in", ["Approved", "Rejected"]), _negated=True
+                            ),
+                            ("reviewed_at__isnull", False),
+                            _connector="OR",
+                        ),
+                        name="check_advance_request_decision_stamped",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='EmployeeIssue',
+            name="EmployeeIssue",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('modified_at', models.DateTimeField(auto_now=True)),
-                ('category', models.CharField(choices=[('Attendance', 'Attendance'), ('Payment', 'Payment'), ('Advance', 'Advance'), ('Salary Slip', 'Salary Slip'), ('Other', 'Other')], max_length=20, verbose_name='category')),
-                ('reference_date', models.DateField(blank=True, null=True, verbose_name='reference date')),
-                ('reference_doc', models.CharField(blank=True, max_length=60, null=True, verbose_name='reference document')),
-                ('message', models.CharField(max_length=1000, verbose_name='message')),
-                ('status', models.CharField(choices=[('Open', 'Open'), ('Resolved', 'Resolved'), ('Rejected', 'Rejected')], db_index=True, default='Open', max_length=10, verbose_name='status')),
-                ('response', models.CharField(blank=True, default='', max_length=1000, verbose_name='response')),
-                ('resolved_at', models.DateTimeField(blank=True, null=True)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='employee_issues', to='core.company')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('employee', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='issues', to='hr.employee')),
-                ('modified_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('resolved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("modified_at", models.DateTimeField(auto_now=True)),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("Attendance", "Attendance"),
+                            ("Payment", "Payment"),
+                            ("Advance", "Advance"),
+                            ("Salary Slip", "Salary Slip"),
+                            ("Other", "Other"),
+                        ],
+                        max_length=20,
+                        verbose_name="category",
+                    ),
+                ),
+                (
+                    "reference_date",
+                    models.DateField(
+                        blank=True, null=True, verbose_name="reference date"
+                    ),
+                ),
+                (
+                    "reference_doc",
+                    models.CharField(
+                        blank=True,
+                        max_length=60,
+                        null=True,
+                        verbose_name="reference document",
+                    ),
+                ),
+                ("message", models.CharField(max_length=1000, verbose_name="message")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("Open", "Open"),
+                            ("Resolved", "Resolved"),
+                            ("Rejected", "Rejected"),
+                        ],
+                        db_index=True,
+                        default="Open",
+                        max_length=10,
+                        verbose_name="status",
+                    ),
+                ),
+                (
+                    "response",
+                    models.CharField(
+                        blank=True, default="", max_length=1000, verbose_name="response"
+                    ),
+                ),
+                ("resolved_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="employee_issues",
+                        to="core.company",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "employee",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="issues",
+                        to="hr.employee",
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "resolved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created_at', '-id'],
-                'constraints': [models.CheckConstraint(check=models.Q(('message', ''), _negated=True), name='check_employee_issue_message_not_blank'), models.CheckConstraint(check=models.Q(models.Q(('status', 'Open'), ('resolved_at__isnull', True)), models.Q(models.Q(('status', 'Open'), _negated=True), ('resolved_at__isnull', False)), _connector='OR'), name='check_employee_issue_closed_iff_resolved_at')],
+                "ordering": ["-created_at", "-id"],
+                "constraints": [
+                    models.CheckConstraint(
+                        check=models.Q(("message", ""), _negated=True),
+                        name="check_employee_issue_message_not_blank",
+                    ),
+                    models.CheckConstraint(
+                        check=models.Q(
+                            models.Q(("status", "Open"), ("resolved_at__isnull", True)),
+                            models.Q(
+                                models.Q(("status", "Open"), _negated=True),
+                                ("resolved_at__isnull", False),
+                            ),
+                            _connector="OR",
+                        ),
+                        name="check_employee_issue_closed_iff_resolved_at",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='EmployeePortalAccess',
+            name="EmployeePortalAccess",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('modified_at', models.DateTimeField(auto_now=True)),
-                ('portal_enabled', models.BooleanField(default=False, verbose_name='portal enabled')),
-                ('pin_hash', models.CharField(blank=True, default='', editable=False, max_length=255)),
-                ('pin_must_change', models.BooleanField(default=True, verbose_name='PIN must be changed')),
-                ('pin_set_at', models.DateTimeField(blank=True, editable=False, null=True)),
-                ('failed_attempts', models.PositiveSmallIntegerField(default=0)),
-                ('locked_until', models.DateTimeField(blank=True, null=True)),
-                ('last_login_at', models.DateTimeField(blank=True, null=True)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('employee', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='portal_access', to='hr.employee')),
-                ('modified_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('pin_set_by', models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                ("modified_at", models.DateTimeField(auto_now=True)),
+                (
+                    "portal_enabled",
+                    models.BooleanField(default=False, verbose_name="portal enabled"),
+                ),
+                (
+                    "pin_hash",
+                    models.CharField(
+                        blank=True, default="", editable=False, max_length=255
+                    ),
+                ),
+                (
+                    "pin_must_change",
+                    models.BooleanField(
+                        default=True, verbose_name="PIN must be changed"
+                    ),
+                ),
+                (
+                    "pin_set_at",
+                    models.DateTimeField(blank=True, editable=False, null=True),
+                ),
+                ("failed_attempts", models.PositiveSmallIntegerField(default=0)),
+                ("locked_until", models.DateTimeField(blank=True, null=True)),
+                ("last_login_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "employee",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="portal_access",
+                        to="hr.employee",
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "pin_set_by",
+                    models.ForeignKey(
+                        blank=True,
+                        editable=False,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'constraints': [models.CheckConstraint(check=models.Q(('portal_enabled', False), models.Q(('pin_hash', ''), _negated=True), _connector='OR'), name='check_portal_enabled_has_pin')],
+                "constraints": [
+                    models.CheckConstraint(
+                        check=models.Q(
+                            ("portal_enabled", False),
+                            models.Q(("pin_hash", ""), _negated=True),
+                            _connector="OR",
+                        ),
+                        name="check_portal_enabled_has_pin",
+                    )
+                ],
             },
         ),
     ]

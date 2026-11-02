@@ -513,6 +513,7 @@ question's recorded answer.
 - [x] E-7 Monthly repeats
 - [x] E-8 Tally mapping check
 - [ ] E-9 Category list (OWNER)
+- [x] E-10 Employee expense claims and reimbursement (backend)
 
 ### 6. Taxes
 - [x] T-1 Input credit flag

@@ -10,6 +10,8 @@ from hr.views import (
     EmployeePaymentViewSet,
     EmployeeViewSet,
     EmployeeWageRateViewSet,
+    ExpenseClaimViewSet,
+    ExpenseReimbursementViewSet,
     HolidayListViewSet,
     HRSettingsViewSet,
     PayrollEntryViewSet,
@@ -60,11 +62,19 @@ router.register("salary-slips", SalarySlipViewSet, basename="salaryslip")
 router.register("payroll-entries", PayrollEntryViewSet, basename="payrollentry")
 router.register("employee-advances", EmployeeAdvanceViewSet, basename="employeeadvance")
 router.register("employee-payments", EmployeePaymentViewSet, basename="employeepayment")
+router.register("expense-claims", ExpenseClaimViewSet, basename="expenseclaim")
+router.register(
+    "expense-reimbursements",
+    ExpenseReimbursementViewSet,
+    basename="expensereimbursement",
+)
 router.register("advance-requests", AdvanceRequestViewSet, basename="advancerequest")
 router.register("employee-issues", EmployeeIssueViewSet, basename="employeeissue")
 router.register("leave-types", LeaveTypeViewSet, basename="leavetype")
 router.register("leave-allocations", LeaveAllocationViewSet, basename="leaveallocation")
-router.register("leave-applications", LeaveApplicationViewSet, basename="leaveapplication")
+router.register(
+    "leave-applications", LeaveApplicationViewSet, basename="leaveapplication"
+)
 
 # Employee self-service portal (own data only; see hr/portal_views.py).
 portal_patterns = [
@@ -101,8 +111,12 @@ portal_patterns = [
 urlpatterns = [
     path("portal/", include(portal_patterns)),
     path("portal-overview/", PortalOverviewView.as_view(), name="portal-overview"),
-    path("reports/leave-balance/", leave_balance_report_view, name="report-leave-balance"),
-    path("reports/salary-register/", salary_register_view, name="report-salary-register"),
+    path(
+        "reports/leave-balance/", leave_balance_report_view, name="report-leave-balance"
+    ),
+    path(
+        "reports/salary-register/", salary_register_view, name="report-salary-register"
+    ),
     path("reports/wage-register/", wage_register_view, name="report-wage-register"),
     path("reports/tds-register/", tds_register_view, name="report-tds-register"),
     path("", include(router.urls)),

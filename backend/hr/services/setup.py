@@ -17,6 +17,7 @@ PAYROLL_PAYABLE_NAME = "Wages Payable"
 EMPLOYEE_ADVANCE_NAME = "Employee Advances"
 CASH_NAME = "Cash Account"
 TDS_PAYABLE_NAME = "TDS Payable"
+EXPENSE_CLAIM_PAYABLE_NAME = "Employee Reimbursements Payable"
 
 SYSTEM_COMPONENTS = (
     (SystemComponent.WAGES, "Wages", ComponentType.EARNING),
@@ -88,6 +89,9 @@ def ensure_hr_setup(company):
             employee_advance_account=_ensure_account(
                 company, EMPLOYEE_ADVANCE_NAME, AccountRootType.ASSET
             ),
+            expense_claim_payable_account=_ensure_account(
+                company, EXPENSE_CLAIM_PAYABLE_NAME, AccountRootType.LIABILITY
+            ),
             default_payment_account=cash,
         )
 
@@ -128,6 +132,7 @@ def get_settings(company):
             "wage_expense_account",
             "payroll_payable_account",
             "employee_advance_account",
+            "expense_claim_payable_account",
             "default_payment_account",
         )
         .first()

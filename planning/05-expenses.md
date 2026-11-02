@@ -170,3 +170,27 @@ A photo-to-expense step can follow later (checklist 8.8).
 ### E-9 Category list (OWNER)
 The accountant agrees the categories and their account for each, including GST and Tally ledger
 mapping. Provide it as a CSV for `ensure_categories`.
+
+## Employee expense claims (staff repayments)
+
+Staff sometimes pay company expenses from their own pocket: diesel, courier, tea for
+guests, small parts. These are not bills to a supplier, so they have their own
+documents (E-10, backend only).
+
+- **Claim** (`ExpenseClaim`, `EXP-CLM-`): the employee, the posting date and one line per
+  expense (date, `ExpenseCategory`, description, amount and the amount sanctioned). The
+  receipt is attached as proof, and submit refuses without one. Submit posts Dr each
+  category's expense account (sanctioned) and Cr the company's "Employee Reimbursements
+  Payable" account, with the employee as party. The claim's `outstanding_amount` is then
+  the sanctioned total.
+- **Reimbursement** (`ExpenseReimbursement`, `EXP-REIMB-`): money paid back to the
+  employee against one submitted claim, in cash, bank or UPI. Submit posts Dr the payable
+  account (party employee) and Cr the cash or bank account. It cannot exceed the claim's
+  outstanding. Cancel restores it.
+- **Owed to staff:** `GET /api/hr/expense-claims/owed/` lists, per employee, what the
+  submitted claims ask for, what has been paid back, and what is still owed.
+- A claim cannot be cancelled while a reimbursement is live. `verify_integrity` checks the
+  stored outstanding against the live reimbursements, and `repost_hr` rebuilds it.
+
+Deliberately not in v1: an approval step, and netting a claim against an employee advance.
+Divergences from ERPNext are in `backend/docs/erpnext_divergences.md`.

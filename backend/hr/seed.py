@@ -19,6 +19,8 @@ HR_LABELS = (
     "hr.PayrollEntry",
     "hr.EmployeeAdvance",
     "hr.EmployeePayment",
+    "hr.ExpenseClaim",
+    "hr.ExpenseReimbursement",
     "hr.EmployeePortalAccess",
     "hr.AdvanceRequest",
     "hr.EmployeeIssue",
@@ -38,7 +40,13 @@ HR_ROLES = [
     ),
 ]
 
-_MASTERS = ("hr.Department", "hr.Designation", "hr.Branch", "hr.HolidayList", "hr.LeaveType")
+_MASTERS = (
+    "hr.Department",
+    "hr.Designation",
+    "hr.Branch",
+    "hr.HolidayList",
+    "hr.LeaveType",
+)
 
 HR_ROLE_MATRIX = {
     "HR User": {
@@ -50,6 +58,8 @@ HR_ROLE_MATRIX = {
         "hr.PayrollEntry": READ_CREATE_WRITE_DELETE,
         "hr.EmployeeAdvance": READ_CREATE_WRITE_DELETE,
         "hr.EmployeePayment": READ,
+        "hr.ExpenseClaim": READ_CREATE_WRITE_DELETE,
+        "hr.ExpenseReimbursement": READ,
         "hr.LeaveAllocation": READ,
         "hr.LeaveApplication": READ_CREATE_WRITE_DELETE,
         # Portal: read advance requests, read + resolve issues.  Approving /

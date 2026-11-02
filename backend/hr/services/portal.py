@@ -134,7 +134,10 @@ def set_portal_pin(employee, pin, by_user):
             .get(pk=employee.pk)
         )
         ensure_portal_user(employee)
-        access, _created = EmployeePortalAccess.objects.select_for_update().get_or_create(
+        (
+            access,
+            _created,
+        ) = EmployeePortalAccess.objects.select_for_update().get_or_create(
             employee=employee, defaults={"pin_hash": make_password(pin)}
         )
         access.pin_hash = make_password(pin)
@@ -284,7 +287,9 @@ def change_pin(employee, access, current_pin, new_pin):
             return LOCKED
         if not check_password(current_pin, access.pin_hash):
             _register_failure(access, employee.user)
-            access.save(update_fields=["failed_attempts", "locked_until", "modified_at"])
+            access.save(
+                update_fields=["failed_attempts", "locked_until", "modified_at"]
+            )
             return INVALID
         if current_pin == new_pin:
             raise ValidationError(_("The new PIN must differ from the current PIN."))
