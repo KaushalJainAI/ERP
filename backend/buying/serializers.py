@@ -545,6 +545,9 @@ class PurchaseInvoiceSerializer(
 
                 calc = terms_service.calculate_due_date("Supplier", supplier, base_date)
                 attrs["due_date"] = max(calc, posting_date)
+        from accounts.services import terms as terms_service
+
+        terms_service.validate_due_date(self, attrs)
         attrs = super().validate(attrs)
         is_expense = attrs.get(
             "is_expense", getattr(self.instance, "is_expense", False)

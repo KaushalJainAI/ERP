@@ -1,270 +1,155 @@
 # Implementation Status
 
-> **Audit date:** 2026-10-29
-> **Base commit:** `b427a08` (`main`)
-> **Working tree at audit time:** 45 modified/untracked paths — several findings below are coded but not committed.
+> **Audit date:** 2026-11-02
+> **Base commit:** `f7479b9` (`main`), working tree clean before this audit.
+> **Replaces:** the 2026-10-29 audit (`b427a08`). Most of its "missing" rows were built
+> on 2026-10-31 (Phase 10, see [planning/README.md](planning/README.md)).
 >
-> This is a point-in-time audit of what the repository actually implements. **The code
-> is the source of truth**, not this document. Re-run the checks in
-> [§9](#9-how-to-re-verify) before relying on a row below.
-
-## Scope and method
-
-Every item was checked against the current code, not just the planning docs:
-
-- **Schema:** `backend/*/models.py` and `backend/*/migrations/`
-- **HTTP surface:** `backend/config/urls.py`, `backend/*/urls.py`, serializers, views
-- **Behaviour:** services, posting code, tests
-- **Frontend:** `frontend/src/resources/`, `frontend/src/routes/`, pages
-- **Planning intent:** `gap_plan.md`, `checklist.md`, `plan.md`, `assistant_plan.md`, `improvements.md`
-
-**Status labels**
-
-| Label | Meaning |
-|---|---|
-| **Implemented** | Model + migration + API + UI (where applicable) + tests exist and are wired. |
-| **Partial** | Some layers exist, but the feature is not usable end-to-end or is uncommitted/unwired. |
-| **Missing** | No meaningful implementation. |
-| **Operational** | Code exists; completion needs business data or a human decision. |
+> Point-in-time snapshot. **The code is the source of truth.** Re-run the checks in
+> [§8](#8-how-to-re-verify) before relying on a row.
 
 ---
 
-## 1. Status at a glance
+## 1. Headline
 
-| Area | Status | Summary |
+The software side of go-live is nearly done. 65 of 77 Phase 10 cards are ticked (L-4
+was reopened in this audit), and
+printing, dispatch-to-bill, collections, expenses, GST position, alerts, bank
+reconciliation, period close, opening bills and the Hindi assistant are all in the code.
+
+What stops the business from running on it today is **not missing modules**. It is:
+
+1. **CI had never passed** (4 of 4 runs on `main` failed, the same 16 tests each time).
+   Fixed in the commit that adds this file, see §2.
+2. **Owner and accountant inputs** that only the business can give (§4).
+3. **Two code cards**: G-3 (opening-bill corrections) and L-4 (Hindi backend messages,
+   ticked but never done). Plus a short list of production-hardening items (§5).
+
+---
+
+## 2. Health checks run on 2026-11-02
+
+| Check | Before | After this commit |
 |---|---|---|
-| Foundation, auth, RBAC, company isolation | **Implemented** | `UserCompany`, company context, scoped querysets, frontend company gate. |
-| Accounting, GST, registers, Tally export | **Implemented** | GL, GST engine, GSTR-1/3B, registers, returns, Tally XML export. |
-| Selling / buying core | **Implemented** | SO → SI → Payment, PO → PI → Payment, returns, credit limits, price lists. |
-| Stock / manufacturing | **Implemented** | SLE/Bin, stock entries, reconciliation, batches, BOM/work orders, COGS. |
-| Reporting | **Mostly implemented** | Financial statements, registers, GST reports, stock reports. GP/item-wise sales missing. |
-| Printing / invoice issuance | **Partial** | JSON print payloads exist; no HTML/PDF renderer and no frontend print UI. |
-| Banking and period close | **Partial** | Models/services exist but are uncommitted and have no migration, API, UI, or tests. |
-| HR and payroll | **Partial** | Masters, attendance, payroll, advances done; leave, statutory payroll, registers, and some screens missing. |
-| Assistant | **Missing** | No backend app or frontend UI. |
-| Ops / reliability | **Partial** | Integrity checker exists; no scheduling/alerting, backup automation, or outbox dispatcher. |
+| `pytest` (SQLite, as CI runs it) | 16 failed, 1651 passed | All pass, except 3 backup-script tests that skip when PowerShell is not installed. GitHub's Ubuntu runner has `pwsh`, so they run in CI |
+| `manage.py check`, `makemigrations --check` | clean | clean |
+| `verify_integrity` on an empty DB | green | green |
+| `verify_integrity` after `seed_demo` | **red**: 1.2e-14 "manufacturing value drift" | green |
+| `npm run lint` (`tsc`) and `npm run build` | pass (main chunk > 500 kB) | unchanged |
+| GitHub Actions on `main` | **4/4 runs failed** | expected green on next push |
+
+**What the 16 failures were, and what changed:**
+
+| Failure | Real problem? | Fix |
+|---|---|---|
+| 8 ageing-report tests | **Yes, a user-facing bug.** A due date before the posting date reached the DB CHECK and returned **HTTP 500** instead of a readable error. The test data also broke the rule | `accounts.services.terms.validate_due_date` now returns a 400 field error on sales and purchase invoices. Test data fixed. New `DueDateValidationTests` |
+| 2 ageing assertions | No: stale after M-1 (90-day customer default) | Expectations updated: an invoice with no due date is due posting + 90 days |
+| `test_no_taxes_means_net…` | **Yes.** `validate_before_submit` compared a date with a string when an invoice was built in code (imports, scripts) | Both invoice models normalise dates before comparing |
+| 3 seed/dashboard integrity tests | Partly: on SQLite, `Sum()` returns floats, giving 1.2e-14 drift on a true zero | Manufacturing check now rounds to 2 dp, as the Bin check already did |
+| Constraint-count test | No: stale after O-1 (dispatch status) and E-2 (expense category) | Counts updated, with the new constraint named |
+| 3 backup-runbook tests | **Yes, for a Linux server.** Tests (and the docs) assumed Windows `powershell`. The default backup folder `..\backups` becomes a literal backslash filename on Linux | Tests use `pwsh` or `powershell`, whichever exists. Scripts use `../backups` |
 
 ---
 
-## 2. Entirely unimplemented
+## 3. Progress against goals ([goals.md](goals.md))
 
-| Plan item | Ref | What is missing | Evidence |
+| Goal | Status | Evidence, and what is left |
+|---|---|---|
+| G1 Books that cannot lie | ✅ | Immutable GL/SLE, `verify_integrity` green, nightly run by `run_scheduler` with an instant alert on failure. **Gap:** invariants #4–#7 from `plan.md` §6 are not checked (order dispatched ≤ ordered, docstatus monotonicity, orphan GL/SLE rows, naming uniqueness). The DB constraints cover some of this |
+| G2 One operational picture | ✅ mostly | Home page with figures and needs-attention panels, stock view, Money to Collect, Bills to Pay, GST position. **Gap:** item-wise and distributor-wise gross profit (old C4) is still not a report |
+| G3 Replace Tally for daily work | ⚠️ code done, not proven | Print (`/print/<kind>/<id>`, browser Save as PDF), dispatch tick creates the bill, purchase bill with charges, returns, GSTR-1/3B. **Left:** O-7 (real Tally round-trip test), and the accountant accepting one month (G-8) |
+| G4 Correct by construction | ✅ | DB CHECKs (non-negative Bin, due ≥ posting, dispatch status, expense category…), audit log, atomic posting. One access level by owner decision D1 |
+| G5 Usable by staff | ⚠️ | 13 locales complete in the frontend; Hindi assistant (voice, bill photo, proposals) built. **Backend messages are not translated at all** (see L-4 in §5.1). **Left:** L-4, L-5 Hindi review, H-7 evaluation sentences, pilot with 2–3 staff |
+| G6 Own the stack | ✅ | Django/DRF/Postgres + React; Tally export with openings excluded (G-5) |
+| G7 Bigger than Tally | ⚠️ | Production stages (P-3/P-4/P-6), bank reconciliation, payroll and TDS built. Not yet in daily use |
+| G8 Know where the money goes | ⚠️ code done | Expense categories, Paid/Due, monthly repeats, proof required, pending-bill reminders. **Left:** E-9 category list (owner), N-10 switch on email |
+
+---
+
+## 4. Blocked on the business (only you can unblock these)
+
+Go-live is gated on these, not on code. Ordered by how much they block.
+
+| # | What is needed | From | Unblocks |
 |---|---|---|---|
-| Historical invoice backfill | A1 | No `is_historical`, legacy journal entry, historical status, or backfill command. The Tally history viewer is read-only and separate from Selling/Buying invoices. | No `historical`/`backfill` fields or commands in `selling`/`buying`; only `legacy.TallyRecord`/`TallyItemLine`. |
-| Payment reconciliation tool | B3 | No unallocated-receipts → invoice matching API or screen. Only per-payment allocation on Payment Entry. | No reconciliation service/view; `accounts` has allocation logic only. |
-| TDS (194Q / 194C / 194J) | B4 | No Tax Withholding models, rates, or posting logic. | No `TaxWithholding`/`TDS` model anywhere. |
-| Delivery Note / Purchase Receipt | C2 | No models, endpoints, or UI. Dispatch/GRN is not separated from the invoice. | No `DeliveryNote`/`PurchaseReceipt`; stock posts from invoice/stock entry. |
-| Quality Inspection | C3 | No inspection document, parameters, or acceptance/rejection flow. | Absent from models/URLs/resources. |
-| Gross Profit / item-wise sales reports | C4 | No report endpoints or pages. | Absent from `accounts/reports` and frontend reports. |
-| CSV/Excel import-export | C5 | No bulk party/item/price import or report export. CSV/XLSX code exists only for attachment MIME validation. | `core/attachments.py` only. |
-| Contact people / WhatsApp | C6 | Only `contacts.Address`; no `Contact` model, phone roles, or WhatsApp integration. | `backend/contacts/models.py` has `Address`/`AddressType` only. |
-| Leave | D2 / 7.3 | No `LeaveType`, `LeaveAllocation`, or `LeaveApplication`. “Paid Leave” attendance is the stand-in. | Absent from `hr/models.py`. |
-| Salary/wage registers | D3 / 7.5 | Neither report exists. Advance balance report and bank-transfer file export are also missing. | No register endpoints; only per-employee advance summary. |
-| MP minimum wage + wage-definition rule | D4 / 7.4 | No effective-dated minimum-wage table, skill categories, or 50% basic wage rule. | Absent from `hr`. |
-| PF / ESI / PT / LWF / bonus / gratuity | D5 / 7.7–7.9 | No enable flags, contribution logic, registers, returns, or calculation reports. | Absent from `Company` and `hr`. |
-| Piece-rate manufacturing | D6 / 7.10 | No worker output against Work Orders, piece-rate wages, or labour cost in production costing. | Absent. |
-| Assistant (voice + chat) | G1 / Phase 8 | No `backend/assistant` app, models, read tools, proposal builders, SSE endpoint, frontend launcher/panel, or STT/TTS. | `backend/assistant` does not exist. |
-| Backup/restore drill + scheduled dumps | F1 | No management command, cron, or restore runbook automation. Only ad-hoc backup files/docs. | `core/management/commands` has no backup command. |
-| Integrity alerting / cron | F2 | `verify_integrity` writes health rows but nothing schedules it or alerts on failure. | No scheduler/worker/alert path. |
-| Tally XML import | E1 | Tally **export** is done. Import of Day Book + All Masters XML (stock-journal lines, bank instruments, invoice extras, company master) is not. | `import_tally.py` imports legacy records, not E1 XML. |
-| Quotation | `plan.md` §2 | Mentioned in the roadmap (`Quotation → SalesOrder → DeliveryNote`) but never built. | No model or resource. |
-| True FIFO valuation | improvements P1.3 | `stock/services/ledger.py` explicitly uses Moving Average, even for FIFO-flagged items. | Comment at `stock/services/ledger.py:121`. |
-| Outbox dispatcher / Celery | improvements P1.11 | `core.Outbox` model exists, but production code never writes to it and nothing dispatches it. No Celery app/worker. | Only test code creates `Outbox` rows; no `celery.py`. |
-
-Deliberately skipped by user decision: e-Way Bill/e-Invoice and per-item UOM conversion.
+| 1 | **Cutover figures**: party balances and stock count on the cutover date (the ERP ledger ends 2026-10-19) | Accountant + factory | G-2 run, G-6 load, G-8 |
+| 2 | **Q6**: sending email account and each staff member's address | Owner | N-10: no reminder or overdue alert reaches anyone until this is set (`EMAIL_BACKEND` defaults to console) |
+| 3 | **Q1**: has turnover passed ₹5 crore? Do consignments cross the e-way bill limit? | Accountant | Whether e-invoice / e-way bill becomes mandatory work (O-7) |
+| 4 | **Q4**: standard supplier payment days | Owner | Due dates and "Bills to Pay" for suppliers |
+| 5 | **Q3**: is Ready stock counted in packets or kg? | Owner | P-7 item and recipe clean-up |
+| 6 | **Q5**: which staff are above the income-tax limit | Accountant | Real TDS figures (T-6/T-7 are built) |
+| 7 | E-9 expense categories, T-8 tax rule check, L-5 Hindi review, H-7 test sentences, A-7 remove demo company | Owner | Respective cards |
+| 8 | Physical count of the 7 negative-stock items; decision on the 20 ledgers that change type between years | Factory, accountant | Clean opening stock and comparable P&L |
 
 ---
 
-## 3. Partial / uncommitted / not wired end-to-end
+## 5. Remaining gaps in the software
 
-### 3.1 Printing and invoice issuance (A2)
+### 5.1 Before go-live
 
-- `backend/printing/` is **untracked** and mounted at `/api/print/` in `backend/config/urls.py`.
-- Endpoints return **JSON print payloads only** (`PrintView` subclasses in `printing/views.py`).
-- No HTML template, PDF renderer, or PDF dependency (`requirements.txt` has no WeasyPrint/ReportLab).
-- No frontend print button, preview, or download flow.
-- Tests cover payload builders (`test_print_data.py`, `test_words.py`), not rendered output.
-- **Risk:** committing the `urls.py` change without the untracked `backend/printing/` directory breaks deployment with an import error.
-
-**Remaining:** PDF/HTML templates, frontend trigger, company print settings (bank details, terms, signatory, logo), and an end-to-end test.
-
-### 3.2 Bank reconciliation (B1)
-
-- `BankAccount`, `BankStatementImport`, `BankTransaction`, `BankClearance` are in `backend/accounts/models.py`.
-- `accounts/services/bank.py` implements clearance/matching logic.
-- **No migration:** latest tracked accounts migration is `0008`; the tables do not exist in a migrated database.
-- No serializer, view, URL, admin registration, frontend, or tests.
-
-**Remaining:** migration, API, admin, screen, statement-import format handling, tests.
-
-### 3.3 Period Closing Voucher (B2)
-
-- `PeriodClosingVoucher` model and `accounts/services/closing.py` exist.
-- **No migration, API, admin, frontend, or tests.**
-- Cannot be used to close a year end-to-end.
-
-### 3.4 Purchase invoice charges / landed cost (A5 / 6.9)
-
-- `backend/buying/services/charges.py` is untracked.
-- It references `PurchaseInvoiceCharge` and `PurchaseChargeTemplate`, **which do not exist** in `buying/models.py`.
-- No migration, serializer, UI, or tests; the service cannot be used as written.
-
-### 3.5 HR screens (D1 / 7.1–7.2)
-
-- Most HR resources and panels are implemented (`resources/hr.ts`, payroll/employee panels).
-- `hrLinks` exposes **dead routes**: `/hr/muster-roll`, `/hr/muster-report`, `/hr/inbox`.
-- `frontend/src/pages/hr/MusterRollPage.tsx` is untracked and imported by nothing.
-- Backend muster-roll endpoints exist, so this is a wiring gap, not a backend gap.
-
-### 3.6 Translations (E3)
-
-- Frontend: English plus 12 Indian-language bundles in `frontend/src/i18n/locales/`.
-- Backend: only a `hi` `.po` file under `backend/locale/`.
-- New `lg.*`, Journal Entry type/reference labels, and other recent strings are not translated into all 12 languages.
-
-### 3.7 `verify_integrity` invariants
-
-`plan.md` §6 defines seven invariants. The checker covers GL balance, stock/bin, negative stock, GST, outstanding, batches, payroll, manufacturing, and reconciliation, but **does not enforce**:
-
-- #4 order fulfilment (`SalesOrderItem.delivered_qty` vs linked deliveries)
-- #5 document-status monotonicity (no `1 → 0` or `2 → anything`)
-- #6 orphan GL/SLE rows
-- #7 naming uniqueness across submitted documents
-
-### 3.8 `repost_gl`
-
-- `accounts/services/gl.py:repost()` only re-validates debit == credit.
-- README/CLAUDE describe a projection rebuild; there is no stored GL projection to rebuild, so the documentation and behaviour disagree.
-
-### 3.9 GST setup (A3 / E4)
-
-- `setup_gst_accounts` command and `gst/services/go_live.py` create separate Input/Output CGST/SGST/IGST accounts and 5/12/18% templates. This is implemented but **untracked** at audit time.
-- Company GSTIN/PAN/address/GST category fields and the organisation profile screen exist.
-- Remaining work is **operational**: run the command per company and enter the real company details. There is no dedicated GST setup wizard.
-
-### 3.10 Company isolation (W0)
-
-Implemented and verified: `UserCompany`, `core/company_context.py`, `CompanyScopedMixin`, frontend `CompanyContext`, and company selection gating. Do not treat W0 as an open gap.
-
----
-
-## 4. Operational / business-input items
-
-| Item | Ref | What is needed |
+| Gap | Why it matters | Size |
 |---|---|---|
-| Physical count of 7 negative-stock items | C1 | Stock Reconciliation is implemented. The count and adjustment entry are pending. |
-| Reclassify 20 ledgers that change type between years | E2 | Accountant decision; profit differs in 3 years. |
-| Tally Day Book + All Masters XML | E1 | Obtain the sender’s files before import work can finish. |
-| Company GSTIN/PAN/address + GST accounts | A3/E4 | Enter real data and run `setup_gst_accounts` per company. |
-| Assistant discovery | 8.0 | Confirm entry types, staff languages, phone vs desktop, STT provider. |
-| Pilot and training | 8.7 / go-live | One-week pilot with 2–3 staff on real books. |
+| **L-4 Hindi backend catalog. Ticked, but not done** (unticked in this commit). `backend/locale/hi/.../django.po` has 6 entries; the other 11 locales have ~800 msgids whose `msgstr` is the English text (L-6 drafts). No `.mo` is committed, and the Dockerfile runs `compilemessages \|\| true`, which hides failures | Every server message (validation errors, alert and digest emails) reaches Hindi-speaking staff in English. Breaks owner decision D8 and mandate 3 | Medium: generate `hi` from the full catalog, translate, have L-5 reviewed. Drop `\|\| true` |
+| **G-3** `--from-csv` corrections for the opening-bills generator | The accountant must be able to correct the estimated opening bills, or overdue alerts start from wrong figures | Small (1 card, spec in `planning/09-go-live.md`) |
+| **Production defaults fail open.** `settings.py` defaults `DEBUG=True` and an insecure `SECRET_KEY`; `docker-compose.yml` hardcodes both | One missing env var exposes debug pages (data, settings) on the internet | Small: refuse to start when `DEBUG=False` and the key is the default, and drop secrets from compose |
+| **Backups are documented, not running.** The `run_scheduler` container does not run backups; the cron line, the off-site copy (rclone/S3) and PowerShell all have to be set up by hand on the server | A disk failure loses the books. This is the one thing Tally-on-a-PC users get burned by | Small: schedule `backup.ps1` (or `pg_dump`) and an off-site sync, and alert on failure like `verify_integrity` does |
+| `psycopg-binary==3.2.1` pin has no wheel for Python 3.13 | Fine on the Docker image (3.11), but a fresh server with newer Python cannot install it | Trivial: raise the pin |
+| H-6 is committed (`1d15f6b`, `79bfc22`) but not ticked | The checklist under-reports progress | Verify acceptance, then tick |
+
+### 5.2 First months
+
+| Gap | Why it matters |
+|---|---|
+| Gross profit per item and per distributor (old C4) | The stated Horizon 3 question: "what did we earn per product and per distributor?" |
+| `verify_integrity` invariants #4–#7 | Self-healing mandate: drift that DB constraints do not catch would go unnoticed |
+| No frontend tests; main JS chunk > 500 kB | Factory and order staff use phones; a big first load is slow on mobile data |
+| CSV/Excel import and export of masters and price lists (old C5) | Bulk price updates by hand are where errors creep in |
+| True FIFO valuation (Moving Average used for FIFO items) | Only matters if the accountant values stock FIFO |
+
+### 5.3 Deliberately out of scope (owner decisions)
+
+Delivery Note / Purchase Receipt (D4), lot tracking and Quality Inspection (D2),
+historical invoice mirror (A1, replaced by opening bills), multi-company work (W0),
+PF/ESI/PT/LWF until the business crosses those thresholds, and the
+[goals.md non-goals](goals.md#non-goals).
 
 ---
 
-## 5. Stale checklist items that are actually done
+## 6. How the project is being managed: gaps
 
-`checklist.md` is accurate for the later phases (6.7–6.9, 7.3–7.10, Phase 8), but several earlier “pending” items are stale. These are implemented:
-
-- COGS / perpetual inventory and fiscal-period lock
-- Nested draft updates and amend-copying lines
-- Invoice outstanding and payment allocation
-- GST engine, GSTR-1/3B, tax ledger
-- Stock reconciliation, returns, registers, dashboards
-- User/role API, attachments, manufacturing, price lists, credit limits
-- Tally **export**
-- Most HR masters, attendance, payroll, advances, and employee screens
-
-`improvements.md` Phase 1.5 / 2.4 / Outbox ticks are also outdated.
+| Gap | Effect | Suggested rule |
+|---|---|---|
+| CI ran only on pushes to `main`/`master`/`dev`, and work merged from agent worktrees without it | 16 failures accumulated across many "done" cards | Now runs on every branch push (this commit). Rule: do not merge or tick a card while CI is red |
+| Too many overlapping status docs: `goals.md`, `gap_plan.md`, `improvements.md`, `checklist.md`, `planning/`, this file | Each drifts. `planning/README.md` still listed done cards as remaining; `goals.md` said "cannot print" after printing shipped | Keep three: `goals.md` (why), `checklist.md` (ticks), this file (audit). Mark the others as historical |
+| Open questions live in a table nobody owns | Q1, Q3–Q6 have been open since 2026-10-31 and are the actual go-live blockers | Put a date and an owner on each, and review weekly |
+| Pilot not scheduled | Built features are not used yet (production, HR, assistant) | Pick a cutover date and run one week of parallel entry with 2–3 staff |
 
 ---
 
-## 6. Recommended order
+## 7. Recommended order
 
-1. **Commit and finish B1/B2** — add the missing migration, serializers/views/URLs/admin, frontend screens, and tests.
-2. **Finish A2** — HTML/PDF templates and a frontend print/download flow. This is the main “can we issue a bill?” blocker.
-3. **Decide A1** — backfill 27,575 historical invoices or explicitly import opening balances only.
-4. **A5 + C2** — landed cost on purchase invoices, then Delivery Note / Purchase Receipt.
-5. **Payroll completeness** — leave, salary/wage registers, MP wage rules, then PF/ESI/PT/LWF when switched on.
-6. **Assistant last** — largest single build, not required for go-live.
-
----
-
-## 7. Pre-go-live hardening (not plan items)
-
-- `docker-compose.yml` hardcodes `SECRET_KEY=django-insecure-docker-secret-key-12345` and `DEBUG=True`.
-- No frontend test framework or `npm test` script.
-- `core.models.DummySubmittableDoc` still ships in production models.
-- `RolePermission.model_label` is free text, not a registry/FK.
-- Throttling uses Django’s default per-process cache; no shared `CACHES` configuration.
-- Celery/Redis remain dependencies without a worker or dispatcher.
+1. Push the CI fix and confirm GitHub Actions is green.
+2. Owner and accountant: answer Q6 and Q4, pick a cutover date, and arrange the stock count (§4).
+3. Build G-3 and L-4, harden production settings, and automate backups with an off-site copy (§5.1).
+4. One-week pilot in parallel with Tally, then G-8 cutover once the accountant signs off.
+5. After go-live: gross-profit report, the remaining integrity invariants, frontend performance.
 
 ---
 
-## 8. Working-tree warning
+## 8. How to re-verify
 
-At audit time the following major features were **untracked or modified but uncommitted**:
-
-- `backend/printing/`
-- `backend/accounts/services/bank.py`
-- `backend/accounts/services/closing.py`
-- `backend/buying/services/charges.py`
-- `backend/gst/management/` and `backend/gst/services/go_live.py`
-- `frontend/src/pages/hr/MusterRollPage.tsx`
-- Register/GL/Tally lookup changes and report pages
-
-Do not assume any of these are delivered until they are committed, migrated, and tested.
-
----
-
-## 9. How to re-verify
-
-Run these from the repository root (PowerShell):
-
-```powershell
-# What is actually tracked / uncommitted
-git status --short
-
-# Models that should exist for a feature
-Select-String -Path backend\*\models.py -Pattern 'class (LeaveType|LeaveApplication|TaxWithholding|DeliveryNote|PurchaseReceipt|QualityInspection|Contact)\b'
-
-# Migrations for bank reconciliation / period close
-Select-String -Path backend\accounts\migrations\*.py -Pattern 'BankAccount|BankStatement|PeriodClosingVoucher'
-
-# Routes for printing / banking / closing
-Select-String -Path backend\config\urls.py,backend\*\urls.py -Pattern 'printing|bank|closing'
-
-# Printing is still JSON-only?
-Select-String -Path backend\printing\*.py -Pattern 'pdf|PDF|HTML|html|render'
-
-# Frontend print UI
-Get-ChildItem frontend\src -Recurse -Include *.tsx,*.ts | Select-String -Pattern 'api/print|window.print|PrintButton'
-
-# Assistant app
-Test-Path backend\assistant
-
-# Integrity invariants
-Select-String -Path backend\core\management\commands\verify_integrity.py -Pattern 'delivered_qty|monotonic|orphan|naming'
-
-# Outbox producers / dispatcher
-Get-ChildItem backend -Recurse -Include *.py | Select-String -Pattern 'Outbox.objects.create' | Where-Object { $_.Path -notmatch 'tests.py' }
-
-# FIFO status
-Select-String -Path backend\stock\services\ledger.py -Pattern 'FIFO|Moving Average'
-```
-
-Also run the actual test suite and `verify_integrity` before marking anything done:
-
-```powershell
+```bash
 cd backend
-python manage.py test
+pytest -q
+python manage.py check && python manage.py makemigrations --check --dry-run
 python manage.py verify_integrity
 ```
 
----
+```bash
+cd frontend
+npm ci && npm run lint && npm run build
+```
 
-## 10. Updating this document
-
-- Change a row only after the code, migration, API, UI, and tests all exist.
-- Add the commit hash and date next to the change.
-- Re-audit at least before each release; the planning docs drift quickly.
-- Keep the **status** labels consistent with §Scope and method.
+```bash
+grep -c '^- \[ \] [A-Z]-[0-9]' checklist.md
+```

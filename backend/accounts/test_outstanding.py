@@ -142,7 +142,9 @@ class SubmitAndTaggingTests(OutstandingBase):
         self.assertEqual(d["status"], "Unpaid")
         self.assertEqual(D(d["outstanding_amount"]), D("118.00"))
         row = GLEntry.objects.get(voucher_no=d["name"], account=self.creditors)
-        self.assertEqual((row.against_voucher_type, row.against_voucher_no), (PI_LABEL, d["name"]))
+        self.assertEqual(
+            (row.against_voucher_type, row.against_voucher_no), (PI_LABEL, d["name"])
+        )
         self.assertEqual((row.party_type, row.party), ("Supplier", "Intra Sup"))
 
     def test_draft_invoice_has_zero_outstanding_and_draft_status(self):
@@ -185,10 +187,14 @@ class PaymentStatusTests(OutstandingBase):
         inv = self.si_obj(self.sale(self.cust_intra, (self.item18, 2, 100)))  # 236
         pe = self.receive(self.cust_intra, [(inv, "100.00")], "100.00")
         self.reload(inv)
-        self.assertEqual((inv.status, inv.outstanding_amount), ("Partly Paid", D("136.00")))
+        self.assertEqual(
+            (inv.status, inv.outstanding_amount), ("Partly Paid", D("136.00"))
+        )
         # The payment's party line is split + tagged against the invoice.
         row = GLEntry.objects.get(voucher_no=pe.name, account=self.debtors)
-        self.assertEqual((row.against_voucher_type, row.against_voucher_no), (SI_LABEL, inv.name))
+        self.assertEqual(
+            (row.against_voucher_type, row.against_voucher_no), (SI_LABEL, inv.name)
+        )
         self.assertEqual((row.debit, row.credit), (D("0.00"), D("100.00")))
         self.assertEqual(acc_mapping.invoice_outstanding(inv), D("136.00"))
         self.receive(self.cust_intra, [(inv, "136.00")], "136.00")
@@ -203,7 +209,9 @@ class PaymentStatusTests(OutstandingBase):
         self.assertEqual(self.reload(inv).status, "Paid")
         pe2.cancel()
         self.reload(inv)
-        self.assertEqual((inv.status, inv.outstanding_amount), ("Partly Paid", D("136.00")))
+        self.assertEqual(
+            (inv.status, inv.outstanding_amount), ("Partly Paid", D("136.00"))
+        )
         pe1.cancel()
         self.reload(inv)
         self.assertEqual((inv.status, inv.outstanding_amount), ("Unpaid", D("236.00")))
@@ -216,7 +224,9 @@ class PaymentStatusTests(OutstandingBase):
         tagged = rows.get(against_voucher_no=inv.name)
         advance = rows.get(against_voucher_no__isnull=True)
         self.assertEqual((tagged.credit, advance.credit), (D("100.00"), D("200.00")))
-        self.assertEqual((advance.party_type, advance.party), ("Customer", "Intra Cust"))
+        self.assertEqual(
+            (advance.party_type, advance.party), ("Customer", "Intra Cust")
+        )
         self.assert_balanced(pe.name)
         self.assertEqual(self.reload(inv).outstanding_amount, D("136.00"))
 
@@ -245,17 +255,23 @@ class PaymentStatusTests(OutstandingBase):
     def test_supplier_party_balance(self):
         inv = self.pi_obj(self.purchase(self.sup_intra, (self.item18, 1, 100)))  # 118
         self.pay(self.sup_intra, [(inv, "50.00")], "50.00")
-        bal = outstanding_service.party_balance("Supplier", "Intra Sup", self.company.pk)
+        bal = outstanding_service.party_balance(
+            "Supplier", "Intra Sup", self.company.pk
+        )
         self.assertEqual(bal, D("68.00"))
 
     def test_purchase_pay_flow(self):
         inv = self.pi_obj(self.purchase(self.sup_intra, (self.item18, 1, 100)))  # 118
         pe = self.pay(self.sup_intra, [(inv, "50.00")], "50.00")
         self.reload(inv)
-        self.assertEqual((inv.status, inv.outstanding_amount), ("Partly Paid", D("68.00")))
+        self.assertEqual(
+            (inv.status, inv.outstanding_amount), ("Partly Paid", D("68.00"))
+        )
         row = GLEntry.objects.get(voucher_no=pe.name, account=self.creditors)
         self.assertEqual((row.debit, row.credit), (D("50.00"), D("0.00")))
-        self.assertEqual((row.against_voucher_type, row.against_voucher_no), (PI_LABEL, inv.name))
+        self.assertEqual(
+            (row.against_voucher_type, row.against_voucher_no), (PI_LABEL, inv.name)
+        )
         self.assert_balanced(pe.name)
         pe2 = self.pay(self.sup_intra, [(inv, "68.00")], "68.00")
         self.assertEqual(self.reload(inv).status, "Paid")
@@ -430,7 +446,9 @@ class AllocationValidationTests(OutstandingBase):
         body["references"][0]["allocated_amount"] = "10.00"
         res = self.client.post("/api/accounts/payment-entries/", body, format="json")
         self.assertEqual(res.status_code, 201, res.content)
-        res = self.client.post(f"/api/accounts/payment-entries/{res.data['id']}/submit/")
+        res = self.client.post(
+            f"/api/accounts/payment-entries/{res.data['id']}/submit/"
+        )
         self.assertEqual(res.status_code, 200, res.content)
         self.assertEqual(self.reload(self.inv).status, "Partly Paid")
 
@@ -444,8 +462,12 @@ class CancelAndAmendTests(OutstandingBase):
         self.assertEqual(res.status_code, 400, res.content)
         self.assertIn(pe.name, str(res.data))
         self.reload(inv)
-        self.assertEqual((inv.docstatus, inv.status), (DocStatus.SUBMITTED, "Partly Paid"))
-        self.assertTrue(GLEntry.objects.filter(voucher_no=inv.name, is_cancelled=False).exists())
+        self.assertEqual(
+            (inv.docstatus, inv.status), (DocStatus.SUBMITTED, "Partly Paid")
+        )
+        self.assertTrue(
+            GLEntry.objects.filter(voucher_no=inv.name, is_cancelled=False).exists()
+        )
 
         pe.cancel()
         res = self.client.post(f"{SI_URL}{d['id']}/cancel/")
@@ -467,9 +489,7 @@ class CancelAndAmendTests(OutstandingBase):
     def test_cancelled_invoice_without_payments(self):
         inv = self.si_obj(self.sale(self.cust_intra, (self.item18, 1, 100)))
         inv.cancel()
-        self.assertEqual(
-            (inv.status, inv.outstanding_amount), ("Cancelled", D("0.00"))
-        )
+        self.assertEqual((inv.status, inv.outstanding_amount), ("Cancelled", D("0.00")))
         self.integrity_ok()
 
     def test_amend_resets_outstanding_and_status(self):
@@ -479,7 +499,9 @@ class CancelAndAmendTests(OutstandingBase):
         self.assertEqual(self.reload(inv).status, "Cancelled")
         res = self.client.post(f"{SI_URL}{d['id']}/amend/")
         self.assertEqual(res.status_code, 201, res.content)
-        self.assertEqual((res.data["status"], D(res.data["outstanding_amount"])), ("Draft", D("0")))
+        self.assertEqual(
+            (res.data["status"], D(res.data["outstanding_amount"])), ("Draft", D("0"))
+        )
         new = SalesInvoice.objects.get(pk=res.data["id"])
         self.assertEqual((new.status, new.outstanding_amount), ("Draft", D("0.00")))
         new.submit()
@@ -509,7 +531,9 @@ class SelfHealingTests(OutstandingBase):
         SalesInvoice.objects.filter(pk=self.inv.pk).update(
             outstanding_amount=D("5.00"), status="Paid"
         )
-        PurchaseInvoice.objects.filter(pk=self.pinv.pk).update(outstanding_amount=D("1.00"))
+        PurchaseInvoice.objects.filter(pk=self.pinv.pk).update(
+            outstanding_amount=D("1.00")
+        )
         with self.assertRaises(Exception):
             call_command("verify_integrity", stdout=StringIO(), stderr=StringIO())
         check = self.health()
@@ -521,7 +545,9 @@ class SelfHealingTests(OutstandingBase):
         self.assertIn("2 corrected", out.getvalue())
         self.reload(self.inv)
         self.reload(self.pinv)
-        self.assertEqual((self.inv.outstanding_amount, self.inv.status), (D("236.00"), "Unpaid"))
+        self.assertEqual(
+            (self.inv.outstanding_amount, self.inv.status), (D("236.00"), "Unpaid")
+        )
         self.assertEqual(self.pinv.outstanding_amount, D("118.00"))
         self.integrity_ok()
         self.assertEqual(self.health().status, "ok")
@@ -565,6 +591,36 @@ class SelfHealingTests(OutstandingBase):
         self.integrity_ok()
 
 
+class DueDateValidationTests(OutstandingBase):
+    """A due date before posting is a 400 field error, not a 500 from the DB CHECK."""
+
+    def test_sales_invoice_due_before_posting_is_rejected(self):
+        body = self.si_body(
+            self.cust_intra,
+            self.lines((self.item18, 1, 100)),
+            due_date="2026-03-01",
+        )
+        data = self.create(SI_URL, body, expect=400)
+        self.assertIn("due_date", data)
+
+    def test_purchase_invoice_due_before_posting_is_rejected(self):
+        body = self.pi_body(
+            self.sup_intra,
+            self.lines((self.item18, 1, 100)),
+            due_date="2026-03-01",
+        )
+        data = self.create(PI_URL, body, expect=400)
+        self.assertIn("due_date", data)
+
+    def test_due_on_posting_date_is_accepted(self):
+        body = self.si_body(
+            self.cust_intra,
+            self.lines((self.item18, 1, 100)),
+            due_date="2026-04-01",
+        )
+        self.create(SI_URL, body)
+
+
 class StatusPropertyTests(OutstandingBase):
     def make(self, **kw):
         inv = self.si_obj(self.sale(self.cust_intra, (self.item18, 1, 100), **kw))
@@ -602,7 +658,9 @@ class StatusPropertyTests(OutstandingBase):
         d = self.create(
             SI_URL,
             self.si_body(
-                self.cust_intra, self.lines((self.item18, 1, 100)), due_date="2026-04-10"
+                self.cust_intra,
+                self.lines((self.item18, 1, 100)),
+                due_date="2026-04-10",
             ),
         )
         draft = self.si_obj(d)
@@ -623,7 +681,9 @@ class ReadOnlyFieldTests(OutstandingBase):
     TAMPER = {"outstanding_amount": "999.00", "status": "Paid"}
 
     def test_si_create_ignores_client_supplied_values(self):
-        body = self.si_body(self.cust_intra, self.lines((self.item18, 1, 100)), **self.TAMPER)
+        body = self.si_body(
+            self.cust_intra, self.lines((self.item18, 1, 100)), **self.TAMPER
+        )
         body.update({"is_overdue": True, "display_status": "Overdue"})
         d = self.create(SI_URL, body)
         self.assertEqual((d["status"], D(d["outstanding_amount"])), ("Draft", D("0")))
@@ -637,12 +697,16 @@ class ReadOnlyFieldTests(OutstandingBase):
         )
         res = self.client.patch(f"{SI_URL}{d['id']}/", self.TAMPER, format="json")
         self.assertEqual(res.status_code, 200, res.content)
-        self.assertEqual((res.data["status"], D(res.data["outstanding_amount"])), ("Draft", D("0")))
+        self.assertEqual(
+            (res.data["status"], D(res.data["outstanding_amount"])), ("Draft", D("0"))
+        )
         inv = self.si_obj(d)
         self.assertEqual((inv.status, inv.outstanding_amount), ("Draft", D("0.00")))
 
     def test_pi_create_and_patch_ignore_client_supplied_values(self):
-        body = self.pi_body(self.sup_intra, self.lines((self.item18, 1, 100)), **self.TAMPER)
+        body = self.pi_body(
+            self.sup_intra, self.lines((self.item18, 1, 100)), **self.TAMPER
+        )
         d = self.create(PI_URL, body)
         self.assertEqual((d["status"], D(d["outstanding_amount"])), ("Draft", D("0")))
         res = self.client.patch(f"{PI_URL}{d['id']}/", self.TAMPER, format="json")
@@ -675,10 +739,14 @@ class AgeingReportTests(OutstandingBase):
         self.a = self.book(self.cust_intra, "2026-07-01")  # 14 days   -> 0-30
         self.b = self.book(self.cust_intra, "2026-06-01")  # 44 days   -> 31-60
         self.c = self.book(self.cust_inter, "2026-04-20")  # 86 days   -> 61-90
-        self.d = self.book(self.cust_inter, "2026-01-01")  # 195 days  -> 90+
-        self.e = self.book(self.cust_inter, None)  # posting 2026-04-01: 105 -> 90+
+        # Posted on its due date: a due date can never precede posting (DB CHECK).
+        self.d = self.book(
+            self.cust_inter, "2026-01-01", posting="2026-01-01"
+        )  # 195 -> 90+
+        # No due date: the 90-day customer default (M-1) makes it 2026-06-30.
+        self.e = self.book(self.cust_inter, None)  # 15 days  -> 0-30
         self.f = self.book(self.cust_intra, "2026-08-01")  # not yet due -> 0-30
-        self.paid = self.book(self.cust_intra, "2026-01-01")
+        self.paid = self.book(self.cust_intra, "2026-01-01", posting="2026-01-01")
         self.receive(self.cust_intra, [(self.paid, "118.00")], "118.00")
         self.later = self.book(self.cust_intra, "2026-08-10", posting="2026-08-05")
         self.draft = self.create(
@@ -697,7 +765,14 @@ class AgeingReportTests(OutstandingBase):
         rows = {r["invoice"]: r for r in data["rows"]}
         self.assertEqual(
             set(rows),
-            {self.a.name, self.b.name, self.c.name, self.d.name, self.e.name, self.f.name},
+            {
+                self.a.name,
+                self.b.name,
+                self.c.name,
+                self.d.name,
+                self.e.name,
+                self.f.name,
+            },
         )
 
         def bucket(inv):
@@ -707,13 +782,13 @@ class AgeingReportTests(OutstandingBase):
         self.assertEqual(bucket(self.b), {"31-60": "118.00"})
         self.assertEqual(bucket(self.c), {"61-90": "118.00"})
         self.assertEqual(bucket(self.d), {"90+": "118.00"})
-        self.assertEqual(bucket(self.e), {"90+": "118.00"})
+        self.assertEqual(bucket(self.e), {"0-30": "118.00"})
         self.assertEqual(bucket(self.f), {"0-30": "118.00"})
         self.assertEqual(rows[self.a.name]["days_overdue"], 14)
-        self.assertEqual(rows[self.e.name]["days_overdue"], 105)
+        self.assertEqual(rows[self.e.name]["days_overdue"], 15)
         self.assertEqual(rows[self.f.name]["days_overdue"], 0)
         self.assertEqual(rows[self.a.name]["due_date"], "2026-07-01")
-        self.assertIsNone(rows[self.e.name]["due_date"])
+        self.assertEqual(rows[self.e.name]["due_date"], "2026-06-30")
         self.assertEqual(rows[self.a.name]["rounded_total"], "118.00")
 
     def test_partial_payment_shows_the_remainder(self):
@@ -728,16 +803,18 @@ class AgeingReportTests(OutstandingBase):
         intra, inter = parties["Intra Cust"], parties["Inter Cust"]
         self.assertEqual(intra["outstanding"], "354.00")  # a + b + f
         self.assertEqual(
-            intra["buckets"], {"0-30": "236.00", "31-60": "118.00", "61-90": "0.00", "90+": "0.00"}
+            intra["buckets"],
+            {"0-30": "236.00", "31-60": "118.00", "61-90": "0.00", "90+": "0.00"},
         )
         self.assertEqual(inter["outstanding"], "354.00")  # c + d + e
         self.assertEqual(
-            inter["buckets"], {"0-30": "0.00", "31-60": "0.00", "61-90": "118.00", "90+": "236.00"}
+            inter["buckets"],
+            {"0-30": "118.00", "31-60": "0.00", "61-90": "118.00", "90+": "118.00"},
         )
         self.assertEqual(data["total"]["outstanding"], "708.00")
         self.assertEqual(
             data["total"]["buckets"],
-            {"0-30": "236.00", "31-60": "118.00", "61-90": "118.00", "90+": "236.00"},
+            {"0-30": "354.00", "31-60": "118.00", "61-90": "118.00", "90+": "118.00"},
         )
         self.assertEqual(data["total"]["rounded_total"], "708.00")
 
@@ -772,18 +849,28 @@ class AgeingReportTests(OutstandingBase):
 
     def test_validation(self):
         self.assertEqual(self.client.get(AGEING_URL).status_code, 400)
-        self.assertEqual(self.client.get(AGEING_URL, {"party_type": "Other"}).status_code, 400)
+        self.assertEqual(
+            self.client.get(AGEING_URL, {"party_type": "Other"}).status_code, 400
+        )
         res = self.client.get(AGEING_URL, {"party_type": "Customer", "as_on": "nope"})
         self.assertEqual(res.status_code, 400)
 
     def test_rbac(self):
-        user = User.objects.create_user(username="nobody", email="n@test.com", password="x")
+        user = User.objects.create_user(
+            username="nobody", email="n@test.com", password="x"
+        )
         client = APIClient()
-        self.assertEqual(client.get(AGEING_URL, {"party_type": "Customer"}).status_code, 401)
+        self.assertEqual(
+            client.get(AGEING_URL, {"party_type": "Customer"}).status_code, 401
+        )
         client.force_authenticate(user)
-        self.assertEqual(client.get(AGEING_URL, {"party_type": "Customer"}).status_code, 403)
+        self.assertEqual(
+            client.get(AGEING_URL, {"party_type": "Customer"}).status_code, 403
+        )
         role = Role.objects.create(name="Ledger reader")
-        RolePermission.objects.create(role=role, model_label="accounts.GLEntry", can_read=True)
+        RolePermission.objects.create(
+            role=role, model_label="accounts.GLEntry", can_read=True
+        )
         UserRole.objects.create(user=user, role=role)
         res = client.get(AGEING_URL, {"party_type": "Customer", "as_on": self.AS_ON})
         self.assertEqual(res.status_code, 200, res.content)

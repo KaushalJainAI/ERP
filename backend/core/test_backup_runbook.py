@@ -3,7 +3,13 @@ import shutil
 import subprocess
 import tempfile
 import time
+import unittest
+
 from django.test import SimpleTestCase
+
+# Windows ships ``powershell``; Linux servers and GitHub's Ubuntu runners ship
+# PowerShell 7 as ``pwsh``. Use whichever is installed.
+POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
 
 
 class BackupRunbookTests(SimpleTestCase):
@@ -24,6 +30,7 @@ class BackupRunbookTests(SimpleTestCase):
             os.path.exists(self.verify_script), "verify_backup.ps1 must exist"
         )
 
+    @unittest.skipUnless(POWERSHELL, "PowerShell (pwsh) is not installed")
     def test_backup_and_retention_mock(self):
         tmp_dir = tempfile.mkdtemp(prefix="test_erp_backup_")
         try:
@@ -36,7 +43,7 @@ class BackupRunbookTests(SimpleTestCase):
 
             # Run backup.ps1 in Mock mode
             cmd = [
-                "powershell",
+                POWERSHELL,
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -67,7 +74,7 @@ class BackupRunbookTests(SimpleTestCase):
 
             # Run verify_backup.ps1 on the newly created backup
             verify_cmd = [
-                "powershell",
+                POWERSHELL,
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -85,11 +92,12 @@ class BackupRunbookTests(SimpleTestCase):
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    @unittest.skipUnless(POWERSHELL, "PowerShell (pwsh) is not installed")
     def test_backup_dry_run(self):
         tmp_dir = tempfile.mkdtemp(prefix="test_erp_dryrun_")
         try:
             cmd = [
-                "powershell",
+                POWERSHELL,
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -108,9 +116,10 @@ class BackupRunbookTests(SimpleTestCase):
         finally:
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    @unittest.skipUnless(POWERSHELL, "PowerShell (pwsh) is not installed")
     def test_verify_rejects_missing_file(self):
         cmd = [
-            "powershell",
+            POWERSHELL,
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",

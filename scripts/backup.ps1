@@ -18,7 +18,7 @@
 [CmdletBinding()]
 param(
     [string]$DatabaseUrl = $env:DATABASE_URL,
-    [string]$BackupDir = $(if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { Join-Path $PSScriptRoot "..\backups" }),
+    [string]$BackupDir = $(if ($env:BACKUP_DIR) { $env:BACKUP_DIR } else { Join-Path $PSScriptRoot "../backups" }),
     [int]$RetentionDays = 30,
     [switch]$DryRun,
     [switch]$Mock

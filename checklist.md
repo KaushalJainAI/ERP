@@ -547,7 +547,7 @@ question's recorded answer.
 - [x] L-1 Mark everything
 - [x] L-2 Guard test
 - [x] L-3 Build setup
-- [x] L-4 Hindi
+- [ ] L-4 Hindi — reopened 2026-11-02: `backend/locale/hi/LC_MESSAGES/django.po` holds 6 entries (other locales: ~800 msgids), so backend messages reach Hindi users in English. See IMPLEMENTATION_STATUS.md §5.1
 - [ ] L-5 Hindi review (OWNER)
 - [x] L-6 Other languages
 

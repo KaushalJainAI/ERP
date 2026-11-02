@@ -71,3 +71,42 @@ def due_date_for(
 ) -> datetime.date:
     """Convenience alias for calculate_due_date matching planning/04-collections-and-payables.md."""
     return calculate_due_date(party_type, party, base_date)
+
+
+def _as_date(value: Any) -> Optional[datetime.date]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime.datetime):
+        return value.date()
+    if isinstance(value, datetime.date):
+        return value
+    return datetime.date.fromisoformat(str(value))
+
+
+def validate_due_date(serializer: Any, attrs: dict) -> None:
+    """Reject a due date before the posting (or supplier bill) date with a 400.
+
+    The DB CHECK ``*_due_date_gte_posting`` is the real guarantee; this turns
+    the violation into a field error the user can read instead of a 500.
+    """
+    from django.utils.translation import gettext as _
+    from rest_framework import serializers
+
+    instance = getattr(serializer, "instance", None)
+
+    def current(field: str) -> Any:
+        return attrs.get(field, getattr(instance, field, None))
+
+    due = _as_date(current("due_date"))
+    if due is None:
+        return
+    posting = _as_date(current("posting_date"))
+    if posting and due < posting:
+        raise serializers.ValidationError(
+            {"due_date": _("Due date cannot be before posting date.")}
+        )
+    bill = _as_date(current("bill_date")) if "bill_date" in serializer.fields else None
+    if bill and due < bill:
+        raise serializers.ValidationError(
+            {"due_date": _("Due date cannot be before the bill date.")}
+        )

@@ -29,7 +29,7 @@ Write-Host "=========================================="
 
 # Find latest backup if not specified
 if (-not $BackupFile) {
-    $backupDir = Join-Path $PSScriptRoot "..\backups"
+    $backupDir = Join-Path $PSScriptRoot "../backups"
     if (Test-Path $backupDir) {
         $latest = Get-ChildItem -Path $backupDir -File | Where-Object {
             $_.Name -like "erp_db_*.dump" -or $_.Name -like "erp_db_*.sql*"
