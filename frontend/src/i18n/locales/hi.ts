@@ -2816,6 +2816,7 @@ const hi: Record<string, unknown> = {
       expense_unpaid: { title: "खर्च का भुगतान बाकी", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} दिन से बकाया" },
       gst_credit_at_risk: { title: "GST क्रेडिट जोखिम में", body: "{{invoice}}: {{gst_amount}} GST क्रेडिट, {{days_unpaid}} दिन से बकाया" },
       integrity_failed: { title: "खातों की जाँच विफल", body: "खातों में {{error_count}} समस्याएँ मिलीं" },
+      backup_failed: { title: "बैकअप विफल", body: "कल रात का डेटाबेस बैकअप पूरा नहीं हुआ: {{error}}" },
       overdue_bills_digest: { title: "अतिदेय बिल", body: "{{count}} अतिदेय बिल, कुल {{total_amount}}" },
       daily_summary: { title: "दैनिक सारांश", body: "{{money_in}} प्राप्त, {{bills_count}} बिल {{bills_total}} के, {{pending_dispatches}} ऑर्डर भेजने हैं" },
       weekly_digest: { title: "साप्ताहिक सारांश", body: "इस सप्ताह वसूलना है: {{collections_needed}}। देय बिल: {{bills_due}}" },

@@ -2823,6 +2823,7 @@ const ur: Record<string, unknown> = {
       expense_unpaid: { title: "خرچ کی ادائیگی باقی", body: "{{invoice}}، {{supplier}}: {{outstanding}} {{days_unpaid}} دن سے باقی" },
       gst_credit_at_risk: { title: "GST کریڈٹ خطرے میں", body: "{{invoice}}: {{gst_amount}} GST کریڈٹ، {{days_unpaid}} دن سے باقی" },
       integrity_failed: { title: "کھاتوں کی جانچ ناکام", body: "کھاتوں میں {{error_count}} مسائل ملے" },
+      backup_failed: { title: "بیک اپ ناکام", body: "کل رات کا ڈیٹا بیس بیک اپ مکمل نہیں ہوا: {{error}}" },
       overdue_bills_digest: { title: "واجب الادا بل", body: "{{count}} واجب الادا بل، کل {{total_amount}}" },
       daily_summary: { title: "روزانہ خلاصہ", body: "{{money_in}} موصول، {{bills_count}} بل {{bills_total}}، {{pending_dispatches}} آرڈر بھیجنے ہیں" },
       weekly_digest: { title: "ہفتہ وار خلاصہ", body: "اس ہفتے وصول کرنا ہے: {{collections_needed}}۔ واجب الادا بل: {{bills_due}}" },

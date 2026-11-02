@@ -2823,6 +2823,7 @@ const kn: Record<string, unknown> = {
       expense_unpaid: { title: "ಖರ್ಚು ಪಾವತಿಸಿಲ್ಲ", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ದಿನಗಳಿಂದ ಬಾಕಿ" },
       gst_credit_at_risk: { title: "GST ಕ್ರೆಡಿಟ್ ಅಪಾಯದಲ್ಲಿದೆ", body: "{{invoice}}: {{gst_amount}} GST ಕ್ರೆಡಿಟ್, {{days_unpaid}} ದಿನಗಳಿಂದ ಬಾಕಿ" },
       integrity_failed: { title: "ಲೆಕ್ಕಗಳ ಪರಿಶೀಲನೆ ವಿಫಲ", body: "ಲೆಕ್ಕಗಳಲ್ಲಿ {{error_count}} ಸಮಸ್ಯೆಗಳು ಕಂಡುಬಂದಿವೆ" },
+      backup_failed: { title: "ಬ್ಯಾಕಪ್ ವಿಫಲ", body: "ನಿನ್ನೆ ರಾತ್ರಿಯ ಡೇಟಾಬೇಸ್ ಬ್ಯಾಕಪ್ ಪೂರ್ಣಗೊಂಡಿಲ್ಲ: {{error}}" },
       overdue_bills_digest: { title: "ಅವಧಿ ಮೀರಿದ ಬಿಲ್‌ಗಳು", body: "{{count}} ಅವಧಿ ಮೀರಿದ ಬಿಲ್‌ಗಳು, ಒಟ್ಟು {{total_amount}}" },
       daily_summary: { title: "ದೈನಂದಿನ ಸಾರಾಂಶ", body: "{{money_in}} ಬಂದಿದೆ, {{bills_count}} ಬಿಲ್‌ಗಳು {{bills_total}}, {{pending_dispatches}} ಆರ್ಡರ್‌ಗಳನ್ನು ಕಳುಹಿಸಬೇಕು" },
       weekly_digest: { title: "ವಾರದ ಸಾರಾಂಶ", body: "ಈ ವಾರ ವಸೂಲಿ ಮಾಡಬೇಕಾದದ್ದು: {{collections_needed}}. ಪಾವತಿಸಬೇಕಾದ ಬಿಲ್‌ಗಳು: {{bills_due}}" },

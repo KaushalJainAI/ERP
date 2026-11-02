@@ -12,7 +12,11 @@ def check_item_ready_low(item, company=None):
     Checks if an item's ready stock has fallen below its critical_stock.
     If so, evaluates rule 'ready_low'.
     """
-    if not item.is_stock_item or not item.critical_stock or item.critical_stock <= Decimal("0.000"):
+    if (
+        not item.is_stock_item
+        or not item.critical_stock
+        or item.critical_stock <= Decimal("0.000")
+    ):
         return None
 
     from stock.models import Bin
@@ -87,6 +91,18 @@ def on_integrity_failed(errors):
         dedupe_key=f"integrity_failed_{now_ts}",
     )
 
+
+def on_backup_failed(error):
+    """Alert the Admin when the nightly database backup fails (core.backup_db).
+    One alert per day: a retry the same day does not send a second email."""
+    today = timezone.localdate().isoformat()
+    return evaluate_rule(
+        rule_key="backup_failed",
+        message_key="alert.backup_failed",
+        params={"error": str(error)[:500]},
+        link="/health",
+        dedupe_key=f"backup_failed_{today}",
+    )
 
 
 def on_sales_order_submit(order):

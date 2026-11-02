@@ -2823,6 +2823,7 @@ const as: Record<string, unknown> = {
       expense_unpaid: { title: "খৰচ অপৰিশোধিত", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} দিন ধৰি বাকী" },
       gst_credit_at_risk: { title: "GST ক্ৰেডিট বিপদত", body: "{{invoice}}: {{gst_amount}} GST ক্ৰেডিট, {{days_unpaid}} দিন ধৰি বাকী" },
       integrity_failed: { title: "হিচাপ পৰীক্ষা বিফল", body: "হিচাপত {{error_count}}টা সমস্যা পোৱা গ'ল" },
+      backup_failed: { title: "বেকআপ বিফল", body: "কালি ৰাতিৰ ডাটাবেছ বেকআপ সম্পূৰ্ণ নহ'ল: {{error}}" },
       overdue_bills_digest: { title: "ম্যাদ উকলি যোৱা বিল", body: "{{count}}খন ম্যাদ উকলি যোৱা বিল, মুঠ {{total_amount}}" },
       daily_summary: { title: "দৈনিক সাৰাংশ", body: "{{money_in}} পোৱা গ'ল, {{bills_count}}খন বিল {{bills_total}}, {{pending_dispatches}}টা অৰ্ডাৰ পঠিয়াব লাগে" },
       weekly_digest: { title: "সাপ্তাহিক সাৰাংশ", body: "এই সপ্তাহত আদায় কৰিব লাগে: {{collections_needed}}। দিবলগীয়া বিল: {{bills_due}}" },

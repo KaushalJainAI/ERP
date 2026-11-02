@@ -277,7 +277,25 @@ sudo systemctl reload nginx
 
 ## 9. Backups, Retention Policy & Restore Drill
 
-### Nightly Backup Procedure
+### Built-in nightly backup (recommended)
+
+The scheduler (`python manage.py run_scheduler`, the `erp_scheduler` container or a
+systemd service) runs `python manage.py backup_db` every night at **01:30**:
+
+- PostgreSQL: `pg_dump --format=custom` into `BACKUP_DIR` (needs the PostgreSQL
+  client, same or newer major version than the server; the job says so if not).
+- Deletes backups older than `BACKUP_RETENTION_DAYS` (30), never the newest one.
+- **Off-site copy:** set `BACKUP_RCLONE_REMOTE` (for example `gdrive:erp-backups`
+  after `rclone config`) and every new file is copied off the server. Do this: a
+  backup on the same disk does not survive a disk failure.
+- Every run is recorded as a `backup` health check; a failure emails the
+  `backup_failed` alert recipients and shows in the notification bell.
+
+Run it by hand any time: `python manage.py backup_db`. Settings in `backend/.env`:
+`BACKUP_ENABLED` (True), `BACKUP_DIR` (`backend/backups`), `BACKUP_RETENTION_DAYS`
+(30), `BACKUP_RCLONE_REMOTE` (empty = off). Restore with the drill below.
+
+### Nightly Backup Procedure (PowerShell scripts, alternative)
 
 Backups are executed nightly using PostgreSQL's custom format (`pg_dump -Fc`), which supports compressed, verifiable, and selective restoration via `pg_restore`.
 

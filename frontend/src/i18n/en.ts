@@ -138,6 +138,7 @@ export const enExtra = {
       expense_unpaid: { title: "Expense unpaid", body: "{{invoice}}, {{supplier}}: {{outstanding}} unpaid for {{days_unpaid}} days" },
       gst_credit_at_risk: { title: "GST credit at risk", body: "{{invoice}}: {{gst_amount}} GST credit, unpaid for {{days_unpaid}} days" },
       integrity_failed: { title: "Books check failed", body: "{{error_count}} problems found in the books" },
+      backup_failed: { title: "Backup failed", body: "Last night's database backup did not complete: {{error}}" },
       overdue_bills_digest: { title: "Overdue bills", body: "{{count}} overdue bills, {{total_amount}} in total" },
       daily_summary: { title: "Daily summary", body: "{{money_in}} received, {{bills_count}} bills worth {{bills_total}}, {{pending_dispatches}} orders to dispatch" },
       weekly_digest: { title: "Weekly summary", body: "To collect this week: {{collections_needed}}. Bills due: {{bills_due}}" },

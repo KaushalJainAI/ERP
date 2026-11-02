@@ -2823,6 +2823,7 @@ const gu: Record<string, unknown> = {
       expense_unpaid: { title: "ખર્ચ ચૂકવવાનો બાકી", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} દિવસથી બાકી" },
       gst_credit_at_risk: { title: "GST ક્રેડિટ જોખમમાં", body: "{{invoice}}: {{gst_amount}} GST ક્રેડિટ, {{days_unpaid}} દિવસથી બાકી" },
       integrity_failed: { title: "હિસાબ તપાસ નિષ્ફળ", body: "હિસાબમાં {{error_count}} સમસ્યાઓ મળી" },
+      backup_failed: { title: "બેકઅપ નિષ્ફળ", body: "ગઈ રાતનો ડેટાબેઝ બેકઅપ પૂરો થયો નથી: {{error}}" },
       overdue_bills_digest: { title: "મુદત વીતેલા બિલ", body: "{{count}} મુદત વીતેલા બિલ, કુલ {{total_amount}}" },
       daily_summary: { title: "દૈનિક સારાંશ", body: "{{money_in}} મળ્યા, {{bills_count}} બિલ {{bills_total}}, {{pending_dispatches}} ઓર્ડર મોકલવાના છે" },
       weekly_digest: { title: "સાપ્તાહિક સારાંશ", body: "આ અઠવાડિયે વસૂલવાના: {{collections_needed}}. ચૂકવવાના બિલ: {{bills_due}}" },

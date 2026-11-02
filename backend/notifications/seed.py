@@ -7,6 +7,7 @@ DEFAULT_ALERT_RULES = [
     "raw_material_shortage",
     "ready_low",
     "integrity_failed",
+    "backup_failed",
     "large_order",
     "large_payment",
     "payment_delay",

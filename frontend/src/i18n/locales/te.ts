@@ -2823,6 +2823,7 @@ const te: Record<string, unknown> = {
       expense_unpaid: { title: "ఖర్చు చెల్లించలేదు", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} రోజులుగా బకాయి" },
       gst_credit_at_risk: { title: "GST క్రెడిట్ ప్రమాదంలో ఉంది", body: "{{invoice}}: {{gst_amount}} GST క్రెడిట్, {{days_unpaid}} రోజులుగా బకాయి" },
       integrity_failed: { title: "ఖాతాల తనిఖీ విఫలమైంది", body: "ఖాతాల్లో {{error_count}} సమస్యలు కనుగొనబడ్డాయి" },
+      backup_failed: { title: "బ్యాకప్ విఫలమైంది", body: "నిన్న రాత్రి డేటాబేస్ బ్యాకప్ పూర్తి కాలేదు: {{error}}" },
       overdue_bills_digest: { title: "గడువు దాటిన బిల్లులు", body: "{{count}} గడువు దాటిన బిల్లులు, మొత్తం {{total_amount}}" },
       daily_summary: { title: "రోజువారీ సారాంశం", body: "{{money_in}} అందింది, {{bills_count}} బిల్లులు {{bills_total}}, {{pending_dispatches}} ఆర్డర్లు పంపాలి" },
       weekly_digest: { title: "వారపు సారాంశం", body: "ఈ వారం వసూలు చేయాల్సింది: {{collections_needed}}. చెల్లించాల్సిన బిల్లులు: {{bills_due}}" },

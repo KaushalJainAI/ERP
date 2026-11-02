@@ -283,6 +283,13 @@ EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 ADMIN_ALERT_EMAIL = env("ADMIN_ALERT_EMAIL", default=EMAIL_HOST_USER)
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
+# Nightly database backup (core.backup_db, run by run_scheduler at 01:30).
+BACKUP_ENABLED = env.bool("BACKUP_ENABLED", default=True)
+BACKUP_DIR = Path(env.str("BACKUP_DIR", default=str(BASE_DIR / "backups")))
+BACKUP_RETENTION_DAYS = env.int("BACKUP_RETENTION_DAYS", default=30)
+# rclone destination for the off-site copy, e.g. "gdrive:erp-backups". Empty = off.
+BACKUP_RCLONE_REMOTE = env.str("BACKUP_RCLONE_REMOTE", default="")
+
 # ── Production transport security (behind nginx + HTTPS, see DEPLOYMENT.md) ──
 if not DEBUG:
     # nginx terminates TLS and always sets X-Forwarded-Proto (DEPLOYMENT.md);

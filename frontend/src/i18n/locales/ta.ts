@@ -2823,6 +2823,7 @@ const ta: Record<string, unknown> = {
       expense_unpaid: { title: "செலவு செலுத்தப்படவில்லை", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} நாட்களாக நிலுவை" },
       gst_credit_at_risk: { title: "GST கிரெடிட் ஆபத்தில்", body: "{{invoice}}: {{gst_amount}} GST கிரெடிட், {{days_unpaid}} நாட்களாக நிலுவை" },
       integrity_failed: { title: "கணக்கு சரிபார்ப்பு தோல்வி", body: "கணக்குகளில் {{error_count}} சிக்கல்கள் கண்டறியப்பட்டன" },
+      backup_failed: { title: "காப்புப்பிரதி தோல்வி", body: "நேற்றிரவு தரவுத்தள காப்புப்பிரதி முடியவில்லை: {{error}}" },
       overdue_bills_digest: { title: "தாமதமான பில்கள்", body: "{{count}} தாமத பில்கள், மொத்தம் {{total_amount}}" },
       daily_summary: { title: "தினசரி சுருக்கம்", body: "{{money_in}} பெறப்பட்டது, {{bills_count}} பில்கள் {{bills_total}}, {{pending_dispatches}} ஆர்டர்கள் அனுப்ப வேண்டும்" },
       weekly_digest: { title: "வாராந்திர சுருக்கம்", body: "இந்த வாரம் வசூலிக்க வேண்டியது: {{collections_needed}}. செலுத்த வேண்டிய பில்கள்: {{bills_due}}" },

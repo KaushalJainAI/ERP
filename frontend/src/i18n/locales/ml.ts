@@ -2823,6 +2823,7 @@ const ml: Record<string, unknown> = {
       expense_unpaid: { title: "ചെലവ് അടച്ചിട്ടില്ല", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ദിവസമായി കുടിശ്ശിക" },
       gst_credit_at_risk: { title: "GST ക്രെഡിറ്റ് അപകടത്തിൽ", body: "{{invoice}}: {{gst_amount}} GST ക്രെഡിറ്റ്, {{days_unpaid}} ദിവസമായി കുടിശ്ശിക" },
       integrity_failed: { title: "കണക്ക് പരിശോധന പരാജയപ്പെട്ടു", body: "കണക്കുകളിൽ {{error_count}} പ്രശ്നങ്ങൾ കണ്ടെത്തി" },
+      backup_failed: { title: "ബാക്കപ്പ് പരാജയപ്പെട്ടു", body: "ഇന്നലെ രാത്രിയിലെ ഡാറ്റാബേസ് ബാക്കപ്പ് പൂർത്തിയായില്ല: {{error}}" },
       overdue_bills_digest: { title: "കാലാവധി കഴിഞ്ഞ ബില്ലുകൾ", body: "കാലാവധി കഴിഞ്ഞ {{count}} ബില്ലുകൾ, ആകെ {{total_amount}}" },
       daily_summary: { title: "ദൈനംദിന സംഗ്രഹം", body: "{{money_in}} ലഭിച്ചു, {{bills_count}} ബില്ലുകൾ {{bills_total}}, {{pending_dispatches}} ഓർഡറുകൾ അയയ്ക്കാനുണ്ട്" },
       weekly_digest: { title: "പ്രതിവാര സംഗ്രഹം", body: "ഈ ആഴ്ച പിരിക്കാനുള്ളത്: {{collections_needed}}. അടയ്ക്കാനുള്ള ബില്ലുകൾ: {{bills_due}}" },

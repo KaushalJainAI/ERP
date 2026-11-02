@@ -2823,6 +2823,7 @@ const pa: Record<string, unknown> = {
       expense_unpaid: { title: "ਖਰਚਾ ਨਹੀਂ ਭਰਿਆ", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ਦਿਨਾਂ ਤੋਂ ਬਕਾਇਆ" },
       gst_credit_at_risk: { title: "GST ਕ੍ਰੈਡਿਟ ਜੋਖਮ ਵਿੱਚ", body: "{{invoice}}: {{gst_amount}} GST ਕ੍ਰੈਡਿਟ, {{days_unpaid}} ਦਿਨਾਂ ਤੋਂ ਬਕਾਇਆ" },
       integrity_failed: { title: "ਖਾਤਿਆਂ ਦੀ ਜਾਂਚ ਅਸਫਲ", body: "ਖਾਤਿਆਂ ਵਿੱਚ {{error_count}} ਸਮੱਸਿਆਵਾਂ ਮਿਲੀਆਂ" },
+      backup_failed: { title: "ਬੈਕਅੱਪ ਅਸਫਲ", body: "ਪਿਛਲੀ ਰਾਤ ਦਾ ਡਾਟਾਬੇਸ ਬੈਕਅੱਪ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ: {{error}}" },
       overdue_bills_digest: { title: "ਮਿਆਦ ਲੰਘੇ ਬਿੱਲ", body: "{{count}} ਮਿਆਦ ਲੰਘੇ ਬਿੱਲ, ਕੁੱਲ {{total_amount}}" },
       daily_summary: { title: "ਰੋਜ਼ਾਨਾ ਸਾਰ", body: "{{money_in}} ਪ੍ਰਾਪਤ, {{bills_count}} ਬਿੱਲ {{bills_total}}, {{pending_dispatches}} ਆਰਡਰ ਭੇਜਣੇ ਹਨ" },
       weekly_digest: { title: "ਹਫ਼ਤਾਵਾਰੀ ਸਾਰ", body: "ਇਸ ਹਫ਼ਤੇ ਵਸੂਲਣਾ ਹੈ: {{collections_needed}}। ਭਰਨ ਵਾਲੇ ਬਿੱਲ: {{bills_due}}" },
