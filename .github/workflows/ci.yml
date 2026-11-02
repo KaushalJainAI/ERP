@@ -24,6 +24,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          sudo apt-get install -y --no-install-recommends gettext
           cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -34,6 +35,7 @@ jobs:
           python manage.py check
           python manage.py makemigrations --check
           python manage.py migrate
+          python manage.py compilemessages
 
       - name: Run Pytest
         run: |
