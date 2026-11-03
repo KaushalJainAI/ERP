@@ -160,6 +160,8 @@ def derive(invoice):
     """``(outstanding_amount, status)`` an invoice must carry, from its docstatus and
     the ledger. The stored column is CHECKed ``>= 0`` for an invoice and ``<= 0`` for
     a return (its own credit / debit balance), so it is clamped to that side."""
+    if getattr(invoice, "is_historical", False):
+        return ZERO, InvoiceStatus.HISTORICAL
     if invoice.docstatus == DocStatus.DRAFT:
         return ZERO, InvoiceStatus.DRAFT
     if invoice.docstatus == DocStatus.CANCELLED:
@@ -206,7 +208,7 @@ def repost(company=None):
     company). Returns the number of invoices that actually changed."""
     changed = 0
     for model in invoice_models():
-        qs = model.objects.all()
+        qs = model.objects.filter(is_historical=False)
         if company is not None:
             qs = qs.filter(company=company)
         for pk in list(qs.order_by("pk").values_list("pk", flat=True)):
@@ -224,7 +226,7 @@ def check_integrity():
     errors = []
     for model in invoice_models():
         label = model.voucher_label()
-        for invoice in model.objects.all().order_by("pk"):
+        for invoice in model.objects.filter(is_historical=False).order_by("pk"):
             expected, status = derive(invoice)
             if (invoice.outstanding_amount, invoice.status) != (expected, status):
                 errors.append(

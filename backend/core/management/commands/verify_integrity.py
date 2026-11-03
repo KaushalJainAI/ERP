@@ -1,6 +1,6 @@
 from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Sum
+from django.db.models import Sum, Q, F
 from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
 from core.models import Company, SystemHealthCheck
@@ -17,23 +17,19 @@ class Command(BaseCommand):
         errors = []
 
         # 1. GL Balance Invariant
-        vouchers = (
+        imbalanced = (
             GLEntry.objects.filter(is_cancelled=False)
             .values("voucher_type", "voucher_no")
-            .distinct()
-        )
-        for v in vouchers:
-            v_entries = GLEntry.objects.filter(
-                voucher_type=v["voucher_type"],
-                voucher_no=v["voucher_no"],
-                is_cancelled=False,
+            .annotate(
+                total_dr=Sum("debit"),
+                total_cr=Sum("credit"),
             )
-            total_dr = sum(e.debit for e in v_entries)
-            total_cr = sum(e.credit for e in v_entries)
-            if total_dr != total_cr:
-                errors.append(
-                    f"GL Imbalance in {v['voucher_type']}:{v['voucher_no']} - Debit: {total_dr}, Credit: {total_cr}"
-                )
+            .filter(~Q(total_dr=F("total_cr")))
+        )
+        for v in imbalanced:
+            errors.append(
+                f"GL Imbalance in {v['voucher_type']}:{v['voucher_no']} - Debit: {v['total_dr']}, Credit: {v['total_cr']}"
+            )
 
         # 2. Stock Bin Accuracy Invariant
         for bin_obj in Bin.objects.all():
