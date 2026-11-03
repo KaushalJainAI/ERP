@@ -45,6 +45,11 @@ def backfill_expense_claim_payable(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
+    # The data backfill writes to accounts_account and then the migration changes
+    # its FK constraint. PostgreSQL rejects that ALTER inside the same transaction
+    # while account-table trigger events are still pending.
+    atomic = False
+
     dependencies = [
         ("accounts", "0011_opening_bill"),
         ("buying", "0021_recurringexpense_purchaseinvoice_recurring_expense_and_more"),
