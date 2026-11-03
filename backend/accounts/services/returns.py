@@ -372,7 +372,7 @@ def check_integrity():
     for model in invoice_models():
         label = model.voucher_label()
         returns = model.objects.filter(
-            is_return=True, docstatus=DocStatus.SUBMITTED
+            is_return=True, docstatus=DocStatus.SUBMITTED, is_historical=False
         ).select_related("return_against")
         originals = set()
         for ret in returns:

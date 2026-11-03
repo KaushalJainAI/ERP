@@ -49,8 +49,11 @@ def _signed(row) -> Decimal:
 
 def _documents(model):
     party = model.party_field
+    qs = model.objects.exclude(docstatus=DocStatus.DRAFT)
+    if any(f.name == "is_historical" for f in model._meta.get_fields()):
+        qs = qs.filter(is_historical=False)
     return (
-        model.objects.exclude(docstatus=DocStatus.DRAFT)
+        qs
         .select_related("company", party)
         .prefetch_related(
             "items",
