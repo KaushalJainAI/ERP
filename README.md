@@ -27,6 +27,7 @@ Every transactional document moves `Draft → Submitted → Cancelled` and posts
 | [checklist.md](checklist.md) | Ordered task list. Work top-to-bottom, one item per commit. |
 | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | Point-in-time audit of what is implemented, partial, or missing — with re-verification commands. |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Deploy on a VPS: Nginx + Gunicorn + systemd, Certbot/HTTPS, domain DNS. |
+| [NEW_COMPANY_PROVISIONING_GUIDE.md](docs/NEW_COMPANY_PROVISIONING_GUIDE.md) | Provisioning guide: adding a new company (multi-tenant) or deploying a fresh standalone instance. |
 | [DATABASE.md](DATABASE.md) | PostgreSQL role/database setup, migrate & seed, backups. |
 
 ### Backend docs (`backend/docs/`)

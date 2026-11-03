@@ -48,3 +48,9 @@ media/
 backend/backups/
 frontend/i18n-dump.json
 backend/var/
+
+# Production credentials and sensitive admin docs
+CREDENTIALS.md
+*credentials*.md
+docs/*credentials*.md
+

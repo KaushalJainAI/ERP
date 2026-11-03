@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext as _
 from core.models import (
     Company,
+    DocStatus,
     GSTCategory,
     State,
     SubmittableDocument,
@@ -168,11 +169,24 @@ class SalesOrder(TaxableDocument, SubmittableDocument):
 
         credit_service.enforce(self, getattr(self, "_submit_user", None))
 
+    def ensure_no_linked_invoices(self):
+        active_invoices = self.invoices.filter(docstatus=DocStatus.SUBMITTED)
+        if active_invoices.exists():
+            names = ", ".join(active_invoices.values_list("name", flat=True)[:3])
+            raise ValidationError(
+                _(
+                    "Cannot cancel Sales Order '%(order)s' because it is referenced by submitted Sales Invoices: %(invoices)s. "
+                    "Cancel the linked invoices first."
+                )
+                % {"order": self.name, "invoices": names}
+            )
+
     def on_submit(self):
         pass  # Submitting reserves order intent; stock/GL posted on invoice or delivery
 
     def on_cancel(self):
-        pass
+        self.ensure_no_linked_invoices()
+        self.dispatch_status = DispatchStatus.PENDING
 
     def __str__(self):
         return f"{self.name} - {self.customer.name}"

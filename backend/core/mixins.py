@@ -464,6 +464,11 @@ class AuditLogMixin:
         instance.delete()
         record_audit_log(user, "delete", instance)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        from core.deletion import handle_unified_destroy
+        return handle_unified_destroy(self, request, instance)
+
 
 class SubmittableViewSetMixin(AuditLogMixin):
     """

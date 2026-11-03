@@ -6,6 +6,7 @@ Ubuntu VPS behind **Nginx**, with **Gunicorn** serving Django via **systemd** an
 
 Related docs:
 - [DEPLOYMENT_SHARED_VM.md](DEPLOYMENT_SHARED_VM.md) — production deployment on the shared NGU/AIAAS VM with Docker Compose and Caddy.
+- [NEW_COMPANY_PROVISIONING_GUIDE.md](NEW_COMPANY_PROVISIONING_GUIDE.md) — how to add a company (multi-tenant) or spin up a dedicated instance for another client.
 - [DATABASE.md](DATABASE.md) — PostgreSQL role/database setup, migrate & seed, backups.
 - [backend/.env.production.example](backend/.env.production.example) — production env template.
 - [README.md](README.md) — project overview and the full docs map.

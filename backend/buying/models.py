@@ -241,11 +241,23 @@ class PurchaseOrder(TaxableDocument, SubmittableDocument):
             raise ValidationError(_("Purchase Order must have at least one line item."))
         self.calculate_taxes_and_totals(for_submit=True)
 
+    def ensure_no_linked_invoices(self):
+        active_invoices = self.invoices.filter(docstatus=DocStatus.SUBMITTED)
+        if active_invoices.exists():
+            names = ", ".join(active_invoices.values_list("name", flat=True)[:3])
+            raise ValidationError(
+                _(
+                    "Cannot cancel Purchase Order '%(order)s' because it is referenced by submitted Purchase Invoices: %(invoices)s. "
+                    "Cancel the linked invoices first."
+                )
+                % {"order": self.name, "invoices": names}
+            )
+
     def on_submit(self):
         pass  # Submitting reserves purchase intent
 
     def on_cancel(self):
-        pass
+        self.ensure_no_linked_invoices()
 
     def __str__(self):
         return f"{self.name} - {self.supplier.name}"

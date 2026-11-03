@@ -1,0 +1,112 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - erp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: erp-backend:${ERP_BACKEND_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.production
+    command: gunicorn --bind 0.0.0.0:8000 --workers 2 --worker-class gthread --threads 4 --timeout 120 config.wsgi:application
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - erp_media:/app/media
+      - erp_static:/app/staticfiles
+      - erp_backups:/app/backups
+    expose:
+      - "8000"
+    mem_limit: 768m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: erp-backend:${ERP_BACKEND_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.production
+    command: python manage.py run_scheduler
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - erp_media:/app/media
+      - erp_backups:/app/backups
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    image: erp-frontend:${ERP_FRONTEND_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - erp_static:/app/staticfiles:ro
+    expose:
+      - "80"
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ERP_DOMAIN: ${ERP_DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile.standalone:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  erp_postgres_data:
+  erp_media:
+  erp_static:
+  erp_backups:
+  caddy_data:
+  caddy_config:
