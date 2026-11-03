@@ -1886,6 +1886,8 @@ const hi: Record<string, unknown> = {
       inbox: "कर्मचारी अनुरोध",
     },
     fields: {
+      employment_type: "नौकरी का प्रकार",
+      contract_end_date: "अनुबंध ख़त्म होने की तारीख",
       employee: "कर्मचारी",
       first_name: "पहला नाम",
       last_name: "उपनाम",
@@ -1968,6 +1970,8 @@ const hi: Record<string, unknown> = {
       amount: "राशि",
     },
     opt: {
+      regular: "नियमित",
+      temporary: "अस्थायी (तय अवधि)",
       male: "पुरुष",
       female: "महिला",
       other: "अन्य",
@@ -1998,6 +2002,8 @@ const hi: Record<string, unknown> = {
       resolved: "सुलझा",
     },
     help: {
+      employment_type: "अस्थायी कर्मचारियों की हाज़िरी और वेतन तय अवधि में नियमित कर्मचारियों जैसे ही चलते हैं।",
+      contract_end_date: "काम का आख़िरी दिन (शामिल)। अस्थायी कर्मचारियों के लिए ज़रूरी; नियमित कर्मचारियों के लिए खाली छोड़ें।",
       aadhaar: "कर्मचारी संपादित करने की अनुमति न हो तो छिपा हुआ दिखता है।",
       mobile: "कर्मचारी पोर्टल साइन-इन के लिए उपयोग होता है।",
       standard_hours: "एक पूरे दिन के घंटे; इससे अधिक को ओवरटाइम गिना जाता है।",
@@ -2639,6 +2645,9 @@ const hi: Record<string, unknown> = {
     need_stock: "खर्चे स्टॉक आइटम पर बाँटे जाते हैं: स्टॉक अपडेट चालू करें और कम से कम एक स्टॉक आइटम जोड़ें।",
   },
   bank: {
+    actions: {
+      bank_book: "बैंक बही",
+    },
     res: {
       bank_accounts: "बैंक खाते",
       bank_account: "बैंक खाता",

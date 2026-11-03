@@ -1886,6 +1886,8 @@ const ur: Record<string, unknown> = {
       inbox: "ملازمین کی درخواستیں",
     },
     fields: {
+      employment_type: "ملازمت کی قسم",
+      contract_end_date: "معاہدہ ختم ہونے کی تاریخ",
       employee: "ملازم",
       first_name: "پہلا نام",
       last_name: "آخری نام",
@@ -1968,6 +1970,8 @@ const ur: Record<string, unknown> = {
       amount: "رقم",
     },
     opt: {
+      regular: "مستقل",
+      temporary: "عارضی (مقررہ مدت)",
       male: "مرد",
       female: "عورت",
       other: "دیگر",
@@ -1998,6 +2002,8 @@ const ur: Record<string, unknown> = {
       resolved: "حل شدہ",
     },
     help: {
+      employment_type: "عارضی ملازمین کی حاضری اور تنخواہ مقررہ مدت میں مستقل ملازمین کی طرح ہی چلتی ہے۔",
+      contract_end_date: "کام کا آخری دن (شامل)۔ عارضی ملازمین کے لیے ضروری؛ مستقل ملازمین کے لیے خالی چھوڑیں۔",
       aadhaar: "جب تک آپ ملازمین میں ترمیم نہ کر سکیں، یہ چھپا کر دکھایا جاتا ہے۔",
       mobile: "ملازم پورٹل میں سائن اِن کے لیے استعمال ہوتا ہے۔",
       standard_hours: "ایک مکمل دن کے گھنٹے؛ اس سے زیادہ کو اوور ٹائم شمار کیا جاتا ہے۔",
@@ -2639,6 +2645,9 @@ const ur: Record<string, unknown> = {
     need_stock: "اخراجات اسٹاک آئٹمز پر تقسیم ہوتے ہیں: اسٹاک اپڈیٹ آن کریں اور کم از کم ایک اسٹاک آئٹم شامل کریں۔",
   },
   bank: {
+    actions: {
+      bank_book: "بینک بہی",
+    },
     res: {
       bank_accounts: "بینک اکاؤنٹس",
       bank_account: "بینک اکاؤنٹ",

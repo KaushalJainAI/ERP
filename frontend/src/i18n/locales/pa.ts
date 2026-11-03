@@ -1886,6 +1886,8 @@ const pa: Record<string, unknown> = {
       inbox: "ਕਰਮਚਾਰੀ ਬੇਨਤੀਆਂ",
     },
     fields: {
+      employment_type: "ਨੌਕਰੀ ਦੀ ਕਿਸਮ",
+      contract_end_date: "ਇਕਰਾਰ ਖ਼ਤਮ ਹੋਣ ਦੀ ਤਾਰੀਖ",
       employee: "ਕਰਮਚਾਰੀ",
       first_name: "ਪਹਿਲਾ ਨਾਮ",
       last_name: "ਆਖ਼ਰੀ ਨਾਮ",
@@ -1968,6 +1970,8 @@ const pa: Record<string, unknown> = {
       amount: "ਰਕਮ",
     },
     opt: {
+      regular: "ਨਿਯਮਤ",
+      temporary: "ਆਰਜ਼ੀ (ਮਿੱਥੀ ਮਿਆਦ)",
       male: "ਪੁਰਸ਼",
       female: "ਔਰਤ",
       other: "ਹੋਰ",
@@ -1998,6 +2002,8 @@ const pa: Record<string, unknown> = {
       resolved: "ਹੱਲ ਹੋਇਆ",
     },
     help: {
+      employment_type: "ਆਰਜ਼ੀ ਕਰਮਚਾਰੀਆਂ ਦੀ ਹਾਜ਼ਰੀ ਅਤੇ ਤਨਖ਼ਾਹ ਮਿੱਥੀ ਮਿਆਦ ਦੌਰਾਨ ਨਿਯਮਤ ਕਰਮਚਾਰੀਆਂ ਵਾਂਗ ਹੀ ਚੱਲਦੀ ਹੈ।",
+      contract_end_date: "ਕੰਮ ਦਾ ਆਖ਼ਰੀ ਦਿਨ (ਸਮੇਤ)। ਆਰਜ਼ੀ ਕਰਮਚਾਰੀਆਂ ਲਈ ਜ਼ਰੂਰੀ; ਨਿਯਮਤ ਕਰਮਚਾਰੀਆਂ ਲਈ ਖਾਲੀ ਛੱਡੋ।",
       aadhaar: "ਮਾਸਕ ਕਰਕੇ ਦਿਖਾਇਆ ਜਾਂਦਾ ਹੈ, ਜਦ ਤੱਕ ਤੁਸੀਂ ਕਰਮਚਾਰੀ ਸੋਧ ਨਹੀਂ ਸਕਦੇ।",
       mobile: "ਕਰਮਚਾਰੀ ਪੋਰਟਲ ਸਾਈਨ-ਇਨ ਲਈ ਵਰਤਿਆ ਜਾਂਦਾ ਹੈ।",
       standard_hours: "ਇੱਕ ਪੂਰੇ ਦਿਨ ਦੇ ਘੰਟੇ; ਇਸ ਤੋਂ ਵੱਧ ਨੂੰ ਓਵਰਟਾਈਮ ਗਿਣਿਆ ਜਾਂਦਾ ਹੈ।",
@@ -2639,6 +2645,9 @@ const pa: Record<string, unknown> = {
     need_stock: "ਖ਼ਰਚੇ ਸਟਾਕ ਆਈਟਮਾਂ ਉੱਤੇ ਵੰਡੇ ਜਾਂਦੇ ਹਨ: ਸਟਾਕ ਅੱਪਡੇਟ ਚਾਲੂ ਕਰੋ ਅਤੇ ਘੱਟੋ-ਘੱਟ ਇੱਕ ਸਟਾਕ ਆਈਟਮ ਜੋੜੋ।",
   },
   bank: {
+    actions: {
+      bank_book: "ਬੈਂਕ ਬਹੀ",
+    },
     res: {
       bank_accounts: "ਬੈਂਕ ਖਾਤੇ",
       bank_account: "ਬੈਂਕ ਖਾਤਾ",

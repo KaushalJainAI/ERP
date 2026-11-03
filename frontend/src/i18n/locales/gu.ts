@@ -1886,6 +1886,8 @@ const gu: Record<string, unknown> = {
       inbox: "કર્મચારી વિનંતીઓ",
     },
     fields: {
+      employment_type: "નોકરીનો પ્રકાર",
+      contract_end_date: "કરાર પૂરો થવાની તારીખ",
       employee: "કર્મચારી",
       first_name: "પ્રથમ નામ",
       last_name: "અટક",
@@ -1968,6 +1970,8 @@ const gu: Record<string, unknown> = {
       amount: "રકમ",
     },
     opt: {
+      regular: "નિયમિત",
+      temporary: "કામચલાઉ (નિશ્ચિત મુદત)",
       male: "પુરુષ",
       female: "સ્ત્રી",
       other: "અન્ય",
@@ -1998,6 +2002,8 @@ const gu: Record<string, unknown> = {
       resolved: "ઉકેલાયેલ",
     },
     help: {
+      employment_type: "કામચલાઉ કર્મચારીઓની હાજરી અને પગાર નિશ્ચિત મુદત દરમિયાન નિયમિત કર્મચારીઓ જેવા જ ચાલે છે.",
+      contract_end_date: "કામનો છેલ્લો દિવસ (સહિત). કામચલાઉ કર્મચારીઓ માટે જરૂરી; નિયમિત કર્મચારીઓ માટે ખાલી રાખો.",
       aadhaar: "કર્મચારીઓ સંપાદિત કરવાની પરવાનગી ન હોય તો છુપાવેલ બતાવાય છે.",
       mobile: "કર્મચારી પોર્ટલ સાઇન-ઇન માટે વપરાય છે.",
       standard_hours: "એક પૂરા દિવસના કલાકો; આનાથી વધુ હોય તો ઓવરટાઇમ ગણાય છે.",
@@ -2639,6 +2645,9 @@ const gu: Record<string, unknown> = {
     need_stock: "ખર્ચ સ્ટોક આઇટમ પર વહેંચાય છે: સ્ટોક અપડેટ ચાલુ કરો અને ઓછામાં ઓછી એક સ્ટોક આઇટમ ઉમેરો.",
   },
   bank: {
+    actions: {
+      bank_book: "બેંક ખાતાવહી",
+    },
     res: {
       bank_accounts: "બેંક ખાતાં",
       bank_account: "બેંક ખાતું",

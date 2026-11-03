@@ -1886,6 +1886,8 @@ const or: Record<string, unknown> = {
       inbox: "କର୍ମଚାରୀ ଅନୁରୋଧ",
     },
     fields: {
+      employment_type: "ଚାକିରିର ପ୍ରକାର",
+      contract_end_date: "ଚୁକ୍ତି ଶେଷ ତାରିଖ",
       employee: "କର୍ମଚାରୀ",
       first_name: "ପ୍ରଥମ ନାମ",
       last_name: "ଶେଷ ନାମ",
@@ -1968,6 +1970,8 @@ const or: Record<string, unknown> = {
       amount: "ରାଶି",
     },
     opt: {
+      regular: "ନିୟମିତ",
+      temporary: "ଅସ୍ଥାୟୀ (ନିର୍ଦ୍ଦିଷ୍ଟ ଅବଧି)",
       male: "ପୁରୁଷ",
       female: "ମହିଳା",
       other: "ଅନ୍ୟ",
@@ -1998,6 +2002,8 @@ const or: Record<string, unknown> = {
       resolved: "ସମାଧାନ ହୋଇଛି",
     },
     help: {
+      employment_type: "ଅସ୍ଥାୟୀ କର୍ମଚାରୀଙ୍କ ଉପସ୍ଥିତି ଓ ଦରମା ନିର୍ଦ୍ଦିଷ୍ଟ ଅବଧିରେ ନିୟମିତ କର୍ମଚାରୀଙ୍କ ପରି ଚାଲେ।",
+      contract_end_date: "କାମର ଶେଷ ଦିନ (ସମେତ)। ଅସ୍ଥାୟୀ କର୍ମଚାରୀଙ୍କ ପାଇଁ ଆବଶ୍ୟକ; ନିୟମିତ କର୍ମଚାରୀଙ୍କ ପାଇଁ ଖାଲି ରଖନ୍ତୁ।",
       aadhaar: "ଆପଣ କର୍ମଚାରୀ ସମ୍ପାଦନ କରିପାରୁନଥିଲେ ଲୁଚାଇ ଦେଖାଯାଏ।",
       mobile: "କର୍ମଚାରୀ ପୋର୍ଟାଲ୍ ସାଇନ୍ ଇନ୍ ପାଇଁ ବ୍ୟବହୃତ ହୁଏ।",
       standard_hours: "ଗୋଟିଏ ପୂର୍ଣ୍ଣ ଦିନର ଘଣ୍ଟା; ଏହାଠାରୁ ଅଧିକକୁ ଓଭରଟାଇମ୍ ଗଣାଯାଏ।",
@@ -2639,6 +2645,9 @@ const or: Record<string, unknown> = {
     need_stock: "ଖର୍ଚ୍ଚ ଷ୍ଟକ୍ ଆଇଟମ୍ ଉପରେ ବଣ୍ଟାଯାଏ: ଷ୍ଟକ୍ ଅପଡେଟ୍ ଚାଲୁ କରନ୍ତୁ ଏବଂ ଅତି କମରେ ଗୋଟିଏ ଷ୍ଟକ୍ ଆଇଟମ୍ ଯୋଡ଼ନ୍ତୁ।",
   },
   bank: {
+    actions: {
+      bank_book: "ବ୍ୟାଙ୍କ ଖାତା",
+    },
     res: {
       bank_accounts: "ବ୍ୟାଙ୍କ ଖାତା",
       bank_account: "ବ୍ୟାଙ୍କ ଖାତା",

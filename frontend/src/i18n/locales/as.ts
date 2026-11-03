@@ -1886,6 +1886,8 @@ const as: Record<string, unknown> = {
       inbox: "কৰ্মচাৰীৰ অনুৰোধ",
     },
     fields: {
+      employment_type: "নিযুক্তিৰ প্ৰকাৰ",
+      contract_end_date: "চুক্তি শেষ হোৱাৰ তাৰিখ",
       employee: "কৰ্মচাৰী",
       first_name: "প্ৰথম নাম",
       last_name: "শেষ নাম",
@@ -1968,6 +1970,8 @@ const as: Record<string, unknown> = {
       amount: "পৰিমাণ",
     },
     opt: {
+      regular: "নিয়মীয়া",
+      temporary: "অস্থায়ী (নিৰ্দিষ্ট ম্যাদ)",
       male: "পুৰুষ",
       female: "মহিলা",
       other: "অন্য",
@@ -1998,6 +2002,8 @@ const as: Record<string, unknown> = {
       resolved: "সমাধান হোৱা",
     },
     help: {
+      employment_type: "অস্থায়ী কৰ্মচাৰীৰ উপস্থিতি আৰু দৰমহা নিৰ্দিষ্ট ম্যাদত নিয়মীয়া কৰ্মচাৰীৰ দৰেই চলে।",
+      contract_end_date: "কামৰ শেষ দিন (সামৰি)। অস্থায়ী কৰ্মচাৰীৰ বাবে প্ৰয়োজনীয়; নিয়মীয়া কৰ্মচাৰীৰ বাবে খালী ৰাখক।",
       aadhaar: "কৰ্মচাৰী সম্পাদনা কৰাৰ অনুমতি নাথাকিলে লুকুৱাই দেখুওৱা হয়।",
       mobile: "কৰ্মচাৰী পৰ্টেলত ছাইন-ইনৰ বাবে ব্যৱহাৰ হয়।",
       standard_hours: "এটা সম্পূৰ্ণ দিনৰ ঘণ্টা; ইয়াতকৈ বেছি হ'লে অভাৰটাইম গণ্য হয়।",
@@ -2639,6 +2645,9 @@ const as: Record<string, unknown> = {
     need_stock: "খৰচ ষ্টক আইটেমত ভগাই দিয়া হয়: ষ্টক আপডেট চালু কৰক আৰু অতি কমেও এটা ষ্টক আইটেম যোগ কৰক।",
   },
   bank: {
+    actions: {
+      bank_book: "বেংক বহী",
+    },
     res: {
       bank_accounts: "বেংক একাউণ্ট",
       bank_account: "বেংক একাউণ্ট",

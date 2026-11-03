@@ -1886,6 +1886,8 @@ const bn: Record<string, unknown> = {
       inbox: "কর্মচারীদের অনুরোধ",
     },
     fields: {
+      employment_type: "চাকরির ধরন",
+      contract_end_date: "চুক্তি শেষের তারিখ",
       employee: "কর্মচারী",
       first_name: "প্রথম নাম",
       last_name: "শেষ নাম",
@@ -1968,6 +1970,8 @@ const bn: Record<string, unknown> = {
       amount: "পরিমাণ",
     },
     opt: {
+      regular: "নিয়মিত",
+      temporary: "অস্থায়ী (নির্দিষ্ট মেয়াদ)",
       male: "পুরুষ",
       female: "মহিলা",
       other: "অন্যান্য",
@@ -1998,6 +2002,8 @@ const bn: Record<string, unknown> = {
       resolved: "সমাধান হয়েছে",
     },
     help: {
+      employment_type: "অস্থায়ী কর্মীদের উপস্থিতি ও বেতন নির্দিষ্ট মেয়াদে নিয়মিত কর্মীদের মতোই চলে।",
+      contract_end_date: "কাজের শেষ দিন (সহ)। অস্থায়ী কর্মীদের জন্য আবশ্যক; নিয়মিত কর্মীদের জন্য খালি রাখুন।",
       aadhaar: "কর্মচারী সম্পাদনার অনুমতি না থাকলে ঢাকা অবস্থায় দেখানো হয়।",
       mobile: "কর্মচারী পোর্টালে সাইন-ইনের জন্য ব্যবহৃত হয়।",
       standard_hours: "এক পূর্ণ দিনের ঘণ্টা; এর বেশি হলে ওভারটাইম গণ্য হয়।",
@@ -2639,6 +2645,9 @@ const bn: Record<string, unknown> = {
     need_stock: "খরচ স্টক আইটেমের উপর ভাগ হয়: স্টক আপডেট চালু করুন এবং অন্তত একটি স্টক আইটেম যোগ করুন।",
   },
   bank: {
+    actions: {
+      bank_book: "ব্যাংক খাতা",
+    },
     res: {
       bank_accounts: "ব্যাংক অ্যাকাউন্ট",
       bank_account: "ব্যাংক অ্যাকাউন্ট",

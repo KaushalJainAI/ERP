@@ -1,4 +1,4 @@
-import { CalendarCheck, FileUp, Landmark, Scale, CheckCheck } from "lucide-react";
+import { BookOpen, CalendarCheck, FileUp, Landmark, Scale, CheckCheck } from "lucide-react";
 import type { LinkDef, NavLink, ResourceConfig } from "@/types";
 import { companyField, docNoField } from "./selling";
 
@@ -36,6 +36,18 @@ const bankAccounts: ResourceConfig = {
   icon: Landmark,
   ordering: "bank_name",
   titleField: "bank_name",
+  actions: [
+    {
+      // Every past receipt and payment on this account (incl. the Tally years),
+      // with running balance and the Tally voucher type / number.
+      key: "bank_book",
+      labelKey: "bank.actions.bank_book",
+      icon: BookOpen,
+      kind: "navigate",
+      showWhen: (d) => !!d.account,
+      navigate: (d) => ({ to: `/accounts/reports/cash-book?account=${d.account}` }),
+    },
+  ],
   columns: [
     { key: "bank_name", labelKey: "bank.fields.bank_name" },
     { key: "account_name", labelKey: "bank.fields.account" },

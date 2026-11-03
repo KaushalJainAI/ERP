@@ -5,6 +5,9 @@
  */
 export const enBank = {
   bank: {
+    actions: {
+      bank_book: "Bank book",
+    },
     res: {
       bank_accounts: "Bank Accounts",
       bank_account: "Bank Account",

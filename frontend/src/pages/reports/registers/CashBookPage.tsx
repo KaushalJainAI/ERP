@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { LinkField } from "@/components/doc/LinkField";
 import { listRecords } from "@/api/endpoints";
 import { formatDate } from "@/lib/format";
@@ -65,11 +66,15 @@ const Bal: React.FC<{ v: string }> = ({ v }) => {
 export const CashBookPage: React.FC = () => {
   const { t } = useTranslation();
   const f = useRegisterFilters();
-  const [account, setAccount] = useState("");
+  // `?account=<GL account id>` opens one bank / cash book directly (the
+  // "Bank book" action on a Bank Account links here).
+  const [params] = useSearchParams();
+  const [account, setAccount] = useState(params.get("account") ?? "");
 
   // Cash and Bank accounts of the chosen company (the account API filters on one type at a time).
   const accountLink = useMemo<LinkDef>(
     () => ({
+      endpoint: "/accounts/accounts/", // resolves the label of a pre-selected account
       labelField: "name",
       fetcher: async (search: string) => {
         const lists = await Promise.all(
