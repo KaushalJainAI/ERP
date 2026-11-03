@@ -1,0 +1,14 @@
+.env
+.env.*
+*.sqlite3
+*.db
+media/
+staticfiles/
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.git/

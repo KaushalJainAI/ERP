@@ -5,6 +5,7 @@ Ubuntu VPS behind **Nginx**, with **Gunicorn** serving Django via **systemd** an
 **HTTPS via Certbot / Let's Encrypt**.
 
 Related docs:
+- [docs/DEPLOYMENT_SHARED_VM.md](docs/DEPLOYMENT_SHARED_VM.md) — the production target shared with NGU/AIAAS, including its Docker Compose, Caddy, and backup runbook.
 - [DATABASE.md](DATABASE.md) — PostgreSQL role/database setup, migrate & seed, backups.
 - [backend/.env.production.example](backend/.env.production.example) — production env template.
 - [README.md](README.md) — project overview and the full docs map.

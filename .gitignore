@@ -1,4 +1,6 @@
 # Python & Django
+.env.production
+.env.backend.production
 *.mo
 __pycache__/
 *.py[cod]

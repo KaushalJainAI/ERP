@@ -1,0 +1,92 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-erp_db}
+      POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+    volumes:
+      - erp_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_user} -d ${POSTGRES_DB:-erp_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    image: erp-backend:${ERP_BACKEND_TAG:?Set ERP_BACKEND_TAG in .env.production}
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.production
+    command: gunicorn --bind 0.0.0.0:8000 --workers 2 --worker-class gthread --threads 4 --timeout 120 config.wsgi:application
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - erp_media:/app/media
+      - erp_static:/app/staticfiles
+    expose:
+      - "8000"
+    mem_limit: 768m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  scheduler:
+    image: erp-backend:${ERP_BACKEND_TAG:?Set ERP_BACKEND_TAG in .env.production}
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env.production
+    command: python manage.py run_scheduler
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - erp_media:/app/media
+    mem_limit: 256m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: erp-frontend:${ERP_FRONTEND_TAG:?Set ERP_FRONTEND_TAG in .env.production}
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - backend
+    volumes:
+      - erp_static:/app/staticfiles:ro
+    expose:
+      - "80"
+    networks:
+      default: {}
+      edge:
+        aliases:
+          - erp-frontend
+    mem_limit: 128m
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  erp_postgres_data:
+  erp_media:
+  erp_static:
+
+networks:
+  edge:
+    external: true
+    name: ngu_ngu-network
