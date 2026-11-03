@@ -373,6 +373,10 @@ def eligible_employees(entry):
         status=EmployeeStatus.ACTIVE,
         date_of_joining__lte=entry.end_date,
     ).filter(Q(relieving_date__isnull=True) | Q(relieving_date__gte=entry.start_date))
+    qs = qs.filter(
+        Q(contract_end_date__isnull=True)
+        | Q(contract_end_date__gte=entry.start_date)
+    )
     if entry.department_id:
         qs = qs.filter(department_id=entry.department_id)
     if entry.branch_id:

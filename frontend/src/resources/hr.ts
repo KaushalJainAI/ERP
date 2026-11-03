@@ -34,6 +34,7 @@ const options = (values: string[]): SelectOption[] => values.map((value) => ({ v
 
 const GENDERS = options(["Male", "Female", "Other"]);
 const EMPLOYEE_STATUS = options(["Active", "Inactive", "Left"]);
+const EMPLOYMENT_TYPES = options(["Regular", "Temporary"]);
 const PAY_TYPES = options(["Daily", "Monthly"]);
 const TAX_REGIMES = options(["New", "Old"]);
 const ATTENDANCE_STATUS = options(["Present", "Absent", "Half Day", "Paid Leave"]);
@@ -189,6 +190,8 @@ const employees: ResourceConfig = {
     { key: "mobile_no", labelKey: "hrm.fields.mobile_no" },
     { key: "department_name", labelKey: "hrm.fields.department" },
     { key: "designation_name", labelKey: "hrm.fields.designation" },
+    { key: "employment_type", labelKey: "hrm.fields.employment_type", render: optCell },
+    { key: "contract_end_date", labelKey: "hrm.fields.contract_end_date", type: "date" },
     { key: "pay_type", labelKey: "hrm.fields.pay_type", render: optCell },
     { key: "status", labelKey: "hrm.fields.status", render: optCell },
     { key: "date_of_joining", labelKey: "hrm.fields.date_of_joining", type: "date" },
@@ -207,6 +210,8 @@ const employees: ResourceConfig = {
     { key: "holiday_list", labelKey: "hrm.fields.holiday_list", type: "link", link: holidayListLink },
     { key: "status", labelKey: "hrm.fields.status", type: "select", options: EMPLOYEE_STATUS, defaultValue: "Active" },
     { key: "date_of_joining", labelKey: "hrm.fields.date_of_joining", type: "date", required: true, defaultValue: dateToday },
+    { key: "employment_type", labelKey: "hrm.fields.employment_type", type: "select", options: EMPLOYMENT_TYPES, defaultValue: "Regular", helpKey: "hrm.help.employment_type" },
+    { key: "contract_end_date", labelKey: "hrm.fields.contract_end_date", type: "date", helpKey: "hrm.help.contract_end_date" },
     { key: "relieving_date", labelKey: "hrm.fields.relieving_date", type: "date" },
     { key: "pay_type", labelKey: "hrm.fields.pay_type", type: "select", options: PAY_TYPES, defaultValue: "Daily" },
     {

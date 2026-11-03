@@ -65,9 +65,18 @@ class EmployeeAdmin(TimeStampedAdminMixin, admin.ModelAdmin):
         "company",
         "department",
         "status",
+        "employment_type",
+        "contract_end_date",
         "pay_type",
     )
-    list_filter = ("company", "status", "pay_type", "department", "branch")
+    list_filter = (
+        "company",
+        "status",
+        "employment_type",
+        "pay_type",
+        "department",
+        "branch",
+    )
     search_fields = ("name", "employee_name", "mobile_no")
     readonly_fields = ("employee_name", *_RO)
 

@@ -32,6 +32,7 @@ def active_employees(company_id, date):
     qs = Employee.objects.filter(
         status=EmployeeStatus.ACTIVE, date_of_joining__lte=date
     ).filter(Q(relieving_date__isnull=True) | Q(relieving_date__gte=date))
+    qs = qs.filter(Q(contract_end_date__isnull=True) | Q(contract_end_date__gte=date))
     if company_id:
         qs = qs.filter(company_id=company_id)
     return qs.select_related("department", "designation")
@@ -144,6 +145,9 @@ def muster_report(company_id, from_date, to_date, department_id=None):
     employees = Employee.objects.filter(
         date_of_joining__lte=to_date,
     ).filter(Q(relieving_date__isnull=True) | Q(relieving_date__gte=from_date))
+    employees = employees.filter(
+        Q(contract_end_date__isnull=True) | Q(contract_end_date__gte=from_date)
+    )
     employees = employees.exclude(status=EmployeeStatus.INACTIVE)
     if company_id:
         employees = employees.filter(company_id=company_id)

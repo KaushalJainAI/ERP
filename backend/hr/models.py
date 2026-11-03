@@ -43,6 +43,11 @@ class EmployeeStatus(models.TextChoices):
     LEFT = "Left", _("Left")
 
 
+class EmploymentType(models.TextChoices):
+    REGULAR = "Regular", _("Regular")
+    TEMPORARY = "Temporary", _("Temporary (fixed-term)")
+
+
 class PayType(models.TextChoices):
     DAILY = "Daily", _("Daily")
     MONTHLY = "Monthly", _("Monthly")
@@ -239,6 +244,19 @@ class Employee(TimeStampedModel):
         db_index=True,
     )
     date_of_joining = models.DateField(_("date of joining"))
+    employment_type = models.CharField(
+        _("employment type"),
+        max_length=12,
+        choices=EmploymentType.choices,
+        default=EmploymentType.REGULAR,
+        db_index=True,
+    )
+    contract_end_date = models.DateField(
+        _("contract end date"),
+        null=True,
+        blank=True,
+        help_text=_("Last day of a temporary employee's fixed term, inclusive."),
+    )
     relieving_date = models.DateField(_("relieving date"), null=True, blank=True)
     pay_type = models.CharField(
         _("pay type"), max_length=10, choices=PayType.choices, default=PayType.DAILY
@@ -291,6 +309,11 @@ class Employee(TimeStampedModel):
         ordering = ["name"]
         constraints = [
             models.CheckConstraint(
+                check=Q(contract_end_date__isnull=True)
+                | Q(contract_end_date__gte=F("date_of_joining")),
+                name="check_employee_contract_end_after_joining",
+            ),
+            models.CheckConstraint(
                 check=Q(relieving_date__isnull=True)
                 | Q(relieving_date__gte=F("date_of_joining")),
                 name="check_employee_relieving_after_joining",
@@ -319,6 +342,12 @@ class Employee(TimeStampedModel):
                 name="check_employee_tds_non_negative",
             ),
         ]
+
+    @property
+    def employment_end_date(self):
+        """The earlier of the fixed-term end and actual relieving date, if set."""
+        dates = [d for d in (self.contract_end_date, self.relieving_date) if d]
+        return min(dates) if dates else None
 
     def save(self, *args, **kwargs):
         self.employee_name = f"{self.first_name} {self.last_name}".strip()

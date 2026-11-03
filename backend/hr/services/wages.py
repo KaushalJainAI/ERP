@@ -115,7 +115,7 @@ def compute_wages(employee, start_date, end_date):
     for day in daterange(start_date, end_date):
         if day < employee.date_of_joining:
             continue
-        if employee.relieving_date and day > employee.relieving_date:
+        if employee.employment_end_date and day > employee.employment_end_date:
             continue
         record = attendance.get(day)
         if record is not None:

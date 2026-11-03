@@ -34,6 +34,7 @@ from hr.models import (
     Employee,
     EmployeeAdvance,
     EmployeePayment,
+    EmploymentType,
     EmployeeStatus,
     EmployeeWageRate,
     ExpenseClaim,
@@ -220,6 +221,8 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "holiday_list",
             "status",
             "date_of_joining",
+            "employment_type",
+            "contract_end_date",
             "relieving_date",
             "pay_type",
             "standard_hours_per_day",
@@ -330,7 +333,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
         def get(name):
             return attrs.get(name, getattr(inst, name, None) if inst else None)
 
-        joining, relieving = get("date_of_joining"), get("relieving_date")
+        joining = get("date_of_joining")
+        relieving = get("relieving_date")
+        employment_type = get("employment_type")
+        contract_end = get("contract_end_date")
         if joining and relieving and relieving < joining:
             raise DRFValidationError(
                 {
@@ -338,6 +344,14 @@ class EmployeeSerializer(serializers.ModelSerializer):
                         "Relieving date cannot be before the joining date."
                     )
                 }
+            )
+        if employment_type == EmploymentType.TEMPORARY and not contract_end:
+            raise DRFValidationError(
+                {"contract_end_date": _("A contract end date is required for temporary employees.")}
+            )
+        if joining and contract_end and contract_end < joining:
+            raise DRFValidationError(
+                {"contract_end_date": _("Contract end date cannot be before the joining date.")}
             )
         if get("status") == EmployeeStatus.LEFT and not relieving:
             raise DRFValidationError(
@@ -449,8 +463,9 @@ class AttendanceSerializer(ModelErrorMixin, serializers.ModelSerializer):
             raise DRFValidationError(
                 {"ot_hours": _("An absent employee cannot have overtime.")}
             )
+        employment_end = employee.employment_end_date
         if date < employee.date_of_joining or (
-            employee.relieving_date and date > employee.relieving_date
+            employment_end and date > employment_end
         ):
             raise DRFValidationError(
                 {"date": _("The date is outside the employee's period of employment.")}
