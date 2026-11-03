@@ -1305,11 +1305,12 @@ class DBConstraintTests(GSTDocBase):
         )
         # Invoices also carry the outstanding-sign CHECK, the three return CHECKs
         # (return_against needs is_return, not self, amount sign) and the
-        # due-date-not-before-posting CHECK.
-        self.assertEqual(len(SalesInvoice._meta.constraints), 8)
+        # due-date-not-before-posting CHECK and the historical-record CHECK.
+        self.assertEqual(len(SalesInvoice._meta.constraints), 9)
         # PurchaseInvoice adds the supplier-bill-number UNIQUE, the
-        # bill-date-not-after-posting CHECK and the expense-needs-category CHECK.
-        self.assertEqual(len(PurchaseInvoice._meta.constraints), 11)
+        # bill-date-not-after-posting CHECK, the expense-needs-category CHECK and
+        # the historical-record CHECK.
+        self.assertEqual(len(PurchaseInvoice._meta.constraints), 12)
 
 
 class DryRunTests(GSTDocBase):

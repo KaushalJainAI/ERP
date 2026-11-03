@@ -208,7 +208,13 @@ class PaymentEntryViewSet(
     queryset = PaymentEntry.objects.all().prefetch_related("references")
     serializer_class = PaymentEntrySerializer
     permission_classes = [permissions.IsAuthenticated, HasRolePermission]
-    filterset_fields = ["company", "payment_type", "posting_date", "docstatus"]
+    filterset_fields = [
+        "company",
+        "payment_type",
+        "posting_date",
+        "docstatus",
+        "is_historical",
+    ]
     search_fields = ["name", "party_name", "reference_no"]
     ordering_fields = ["posting_date", "created_at"]
     action_permission_flags = {

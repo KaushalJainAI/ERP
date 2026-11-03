@@ -101,6 +101,12 @@ class SubmittableDocument(TimeStampedModel):
 
     def cancel(self, user=None):
         """Atomically cancel the document and reverse ledger entries."""
+        if getattr(self, "is_historical", False):
+            # Imported from Tally: its GL is the TLY-* journal, and Tally stays
+            # the place to correct the old books.
+            raise ValidationError(
+                _("Historical documents imported from Tally cannot be cancelled.")
+            )
         with transaction.atomic():
             # Lock the row and re-read docstatus so two concurrent cancels
             # cannot both pass the guard and reverse ledger entries twice.

@@ -258,6 +258,7 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
             *PayableDocument.return_constraints(),
+            *PayableDocument.historical_constraints(),
             models.CheckConstraint(
                 check=models.Q(due_date__isnull=True)
                 | models.Q(due_date__gte=models.F("posting_date")),

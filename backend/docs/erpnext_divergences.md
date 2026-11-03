@@ -728,3 +728,20 @@ ERPNext's Expense Claim (in `hrms`) is the model. Our clone differs deliberately
 - **`expense_date` is checked in application code, not the database.** A CHECK cannot compare a line's date with its parent's `posting_date`. The rule holds on every draft save and again on submit.
 - **Cancel is refused while a reimbursement is live.** Cancel the reimbursements first, then the claim.
 - **Tally export.** Claims and reimbursements carry no Tally voucher type of their own; they export as Journal vouchers (the fallback used by the other HR documents).
+
+
+## Historical documents from Tally (2026-11-03)
+
+**ERPNext:** migrated history is imported as ordinary submitted invoices / payment
+entries (or via the Opening Invoice Creation Tool), which post their own GL.
+
+**Here:** the ten Tally years were already imported as `TLY-*` Journal Entries that
+reconcile to Tally to ₹0.00. Re-posting them as invoices would double the books, so
+Tally-era Sales Invoices, Purchase Invoices and Payment Entries are created as
+**historical** documents: `is_historical=True`, linked one-to-one to their
+`source_journal`, status `Historical`, outstanding 0. They post nothing, cannot be
+cancelled (corrections stay in Tally), are never exported to Tally (`TLY-` names),
+and are left out of GSTR-1 / GSTR-3B / GST position (those periods were filed from
+Tally). What a party still owes from that period is carried by the opening bills
+(G-1), which reference the same Tally bill numbers. Enforced by a CHECK on each
+table (`*_historical_is_settled_record`).

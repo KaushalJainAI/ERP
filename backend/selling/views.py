@@ -260,6 +260,7 @@ class SalesInvoiceViewSet(
         "docstatus",
         "update_stock",
         "is_return",
+        "is_historical",
         "return_against",
     ]
     search_fields = ["name", "customer__name"]

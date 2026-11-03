@@ -207,6 +207,9 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
     references = PaymentEntryReferenceSerializer(many=True, required=False)
     paid_from_name = serializers.CharField(source="paid_from.name", read_only=True)
     paid_to_name = serializers.CharField(source="paid_to.name", read_only=True)
+    source_journal_name = serializers.CharField(
+        source="source_journal.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = PaymentEntry
@@ -225,13 +228,23 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "paid_amount",
             "received_amount",
             "reference_no",
+            "is_historical",
+            "source_journal",
+            "source_journal_name",
             "docstatus",
             "amended_from",
             "references",
             "created_at",
             "modified_at",
         )
-        read_only_fields = ("id", "docstatus", "created_at", "modified_at")
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "is_historical",
+            "source_journal",
+            "created_at",
+            "modified_at",
+        )
         # Operators only enter the party, the amount and the bank / cash account;
         # the other leg, the party type and the received amount are filled in
         # ``validate`` (ERPNext's ``set_missing_values``).
@@ -703,6 +716,10 @@ RETURN_HEADER_FIELDS = (
     "return_against",
     "return_against_name",
     "update_outstanding_for_self",
+    # Historical (imported from Tally): read-only; the GL is the source journal.
+    "is_historical",
+    "source_journal",
+    "source_journal_name",
 )
 
 

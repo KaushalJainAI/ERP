@@ -56,7 +56,7 @@ def parse_month(month: Any) -> tuple[datetime.date, datetime.date, str]:
     else:
         raise ValidationError(_("Invalid month format."))
 
-    _, last_day = calendar.monthrange(start.year, start.month)
+    _weekday, last_day = calendar.monthrange(start.year, start.month)
     end = datetime.date(start.year, start.month, last_day)
     return start, end, month_str
 
@@ -71,6 +71,7 @@ def gst_position(company: Any, month: Any) -> dict[str, Any]:
         sales_invoice__posting_date__gte=start_date,
         sales_invoice__posting_date__lte=end_date,
         sales_invoice__docstatus=DocStatus.SUBMITTED,
+        sales_invoice__is_historical=False,  # filed from Tally
     )
     sales_agg = sales_qs.aggregate(
         igst=Sum("igst_amount"),
@@ -88,6 +89,7 @@ def gst_position(company: Any, month: Any) -> dict[str, Any]:
         purchase_invoice__posting_date__gte=start_date,
         purchase_invoice__posting_date__lte=end_date,
         purchase_invoice__docstatus=DocStatus.SUBMITTED,
+        purchase_invoice__is_historical=False,  # filed from Tally
         purchase_invoice__itc_eligible=True,
     )
     purchases_agg = purchases_qs.aggregate(

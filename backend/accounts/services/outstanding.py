@@ -136,6 +136,8 @@ def customer_outstanding(customer, company=None):
 
 def status_for(invoice, outstanding):
     """Stored status for a submitted invoice with this ``outstanding``."""
+    if getattr(invoice, "is_historical", False):
+        return InvoiceStatus.HISTORICAL
     if invoice.is_return:
         return InvoiceStatus.RETURN
     if outstanding == 0:

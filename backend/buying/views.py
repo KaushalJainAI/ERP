@@ -181,6 +181,7 @@ class PurchaseInvoiceViewSet(
         "docstatus",
         "update_stock",
         "is_return",
+        "is_historical",
         "return_against",
     ]
     search_fields = ["name", "supplier__name", "bill_no"]

@@ -297,6 +297,26 @@ class PaymentType(models.TextChoices):
 class PaymentEntry(SubmittableDocument):
     payment_type = models.CharField(max_length=20, choices=PaymentType.choices)
     posting_date = models.DateField()
+    # Historical (a Tally receipt / payment): read-only, posts nothing. Its GL is
+    # the ``source_journal`` (TLY-* Journal Entry) the Tally import created.
+    is_historical = models.BooleanField(default=False, editable=False)
+    source_journal = models.OneToOneField(
+        "accounts.JournalEntry",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        editable=False,
+    )
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(is_historical=False)
+                | models.Q(source_journal__isnull=False, docstatus=1),
+                name="accounts_paymententry_historical_is_submitted_record",
+            ),
+        ]
     company = models.ForeignKey(
         Company, on_delete=models.PROTECT, related_name="payment_entries"
     )
@@ -1136,6 +1156,9 @@ class InvoiceStatus(models.TextChoices):
     # Returns (ERPNext statuses): the credit / debit note itself, and an invoice
     # that is fully settled and has a submitted return against it.
     RETURN = "Return", "Return"
+    # Imported from Tally: shown with its items, but its money is already in the
+    # books through its TLY-* Journal Entry, so it owes nothing here.
+    HISTORICAL = "Historical", "Historical"
     CREDIT_NOTE_ISSUED = "Credit Note Issued", "Credit Note Issued"
     DEBIT_NOTE_ISSUED = "Debit Note Issued", "Debit Note Issued"
 
@@ -1166,6 +1189,17 @@ class PayableDocument(models.Model):
     # as in ERPNext v15. A return carries NEGATIVE quantities and totals;
     # ``return_against`` is optional (a standalone return is allowed).
     is_return = models.BooleanField(default=False)
+    # Historical (imported from Tally): read-only, posts nothing. Its GL is the
+    # ``source_journal`` (a TLY-* Journal Entry) the import created earlier.
+    is_historical = models.BooleanField(default=False, editable=False)
+    source_journal = models.OneToOneField(
+        "accounts.JournalEntry",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        editable=False,
+    )
     return_against = models.ForeignKey(
         "self",
         null=True,
@@ -1197,6 +1231,23 @@ class PayableDocument(models.Model):
             ),
             name="%(app_label)s_%(class)s_outstanding_sign",
         )
+
+    @staticmethod
+    def historical_constraints():
+        """A historical document is submitted, owes nothing, is marked
+        Historical and names the journal that holds its GL."""
+        return [
+            models.CheckConstraint(
+                check=models.Q(is_historical=False)
+                | models.Q(
+                    source_journal__isnull=False,
+                    docstatus=1,
+                    outstanding_amount=0,
+                    status="Historical",
+                ),
+                name="%(app_label)s_%(class)s_historical_is_settled_record",
+            ),
+        ]
 
     @staticmethod
     def return_constraints():

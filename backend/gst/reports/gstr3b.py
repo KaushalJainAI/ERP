@@ -102,6 +102,8 @@ def build(company, from_date, to_date):
         "posting_date__gte": from_date,
         "posting_date__lte": to_date,
         "docstatus": DocStatus.SUBMITTED,
+        # Tally-era invoices were filed from Tally, not from the ERP.
+        "is_historical": False,
     }
     sales = SalesInvoice.objects.filter(**in_period).prefetch_related("items")
     purchases = (

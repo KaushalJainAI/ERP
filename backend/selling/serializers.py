@@ -285,6 +285,9 @@ class SalesInvoiceSerializer(
     sales_order_name = serializers.CharField(
         source="sales_order.name", read_only=True, allow_null=True
     )
+    source_journal_name = serializers.CharField(
+        source="source_journal.name", read_only=True, allow_null=True
+    )
     return_against_name = serializers.CharField(
         source="return_against.name", read_only=True, allow_null=True
     )

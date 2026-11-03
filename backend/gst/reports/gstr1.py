@@ -212,6 +212,8 @@ def build(company, from_date, to_date):
             posting_date__gte=from_date,
             posting_date__lte=to_date,
             docstatus__in=(DocStatus.SUBMITTED, DocStatus.CANCELLED),
+            # Tally-era invoices were filed from Tally, not from the ERP.
+            is_historical=False,
         )
         .select_related("customer", "return_against")
         .prefetch_related("items__item__stock_uom")

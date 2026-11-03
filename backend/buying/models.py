@@ -350,6 +350,7 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
             *TaxableDocument.Meta.constraints,
             PayableDocument.outstanding_constraint(),
             *PayableDocument.return_constraints(),
+            *PayableDocument.historical_constraints(),
             # ERPNext ``validate_supplier_invoice``: one live bill number per
             # supplier (a cancelled invoice frees it; blank is "not entered").
             models.UniqueConstraint(
