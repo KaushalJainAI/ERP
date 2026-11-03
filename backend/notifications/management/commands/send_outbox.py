@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.core.mail import send_mail
 from django.core.management.base import BaseCommand
-from django.db import connection, models
+from django.db import connection, models, transaction
 from django.utils import timezone
 
 from core.models import Outbox
@@ -17,6 +17,7 @@ BACKOFF_MINUTES = {
 }
 
 
+@transaction.atomic
 def process_outbox():
     """
     Process pending Outbox rows and send emails.
