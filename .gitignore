@@ -54,3 +54,5 @@ CREDENTIALS.md
 *credentials*.md
 docs/*credentials*.md
 
+*.jsonl.gz
+tally_history.jsonl.gz

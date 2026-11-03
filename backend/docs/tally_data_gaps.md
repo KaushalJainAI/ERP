@@ -82,7 +82,7 @@ What goes away is any need for the *old* Tally data, which takes this:
 
 | # | Tally data | Volume | What the ERP needs |
 |---|---|---:|---|
-| G1 | **Old invoices as real Sales / Purchase Invoices** (not just JE + history lines) | 27,575 vouchers | Invoice outstanding, ageing and payment matching work only for invoices created in the ERP. Bill-wise is on for only 84 ledgers in Tally (125 allocations), so open bills per invoice **cannot be derived**. Party *balances* are exact. Go-live plan: carry party balances (already correct) and allocate new receipts in the ERP |
+| G1 | **Old invoices as real Sales / Purchase Invoices** | 27,575 vouchers | **Covered (2026-11-04)**: Imported via `export_tally_history` / `import_tally_history` as historical submitted documents (`is_historical=True`, status `Historical`) with item lines and oldest-first display allocations. No GL/Stock posting; books preserved to ₹0.00. |
 | G2 | **Negative stock** on 7 items (Achar Masala, Papad, Mix Masala, Jeeravan, Chat Masala, Old Bardan, Rai Dal 500gm) | 7 | Physical count + Stock Reconciliation (ERPNext disallows negative stock by default). Until then these items show 0 and have no FY 2026-27 movements. The movements are in `TallyItemLine` |
 | G3 | **Combined GST ledgers** (`C Gst`, `S Gst`, `I Gst`, `Cess Gst` are both input and output) | 6 | GST reports can't split Tally-period tax. New invoices need separate Input/Output GST accounts set up before go-live |
 | G4 | Interest on overdue balances | 75 ledgers | Interest / dunning feature (in archive) |
