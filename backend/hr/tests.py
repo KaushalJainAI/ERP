@@ -1730,8 +1730,12 @@ class LeaveAndReportTests(HRBase):
 
         # Cancel should revert attendance
         app.cancel()
-        self.assertFalse(Attendance.objects.filter(employee=w, date=d(2026, 5, 1)).exists())
-        self.assertFalse(Attendance.objects.filter(employee=w, date=d(2026, 5, 2)).exists())
+        self.assertFalse(
+            Attendance.objects.filter(employee=w, date=d(2026, 5, 1)).exists()
+        )
+        self.assertFalse(
+            Attendance.objects.filter(employee=w, date=d(2026, 5, 2)).exists()
+        )
 
     def test_leave_locked_by_salary_slip_cannot_be_submitted(self):
         w = self.employee("Mohan")
@@ -1794,7 +1798,12 @@ class LeaveAndReportTests(HRBase):
         )
         self.assertEqual(r.status_code, 200, r.content)
         data = r.json()
-        self.assertTrue(any(row["employee_name"] == "Anita" and row["balance"] == "6.00" for row in data["rows"]))
+        self.assertTrue(
+            any(
+                row["employee_name"] == "Anita" and row["balance"] == "6.00"
+                for row in data["rows"]
+            )
+        )
 
     def test_salary_and_wage_register_reports(self):
         # A Monthly slip needs the income-tax rates in force (see hr/test_tds.py).

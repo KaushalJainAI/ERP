@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Q, Sum
+from django.db.models import Sum
 from django.utils.translation import gettext_lazy as _
 
 from core.models import DocStatus
@@ -38,27 +38,23 @@ def validate_allocation(allocation):
 
 def cancel_allocation(allocation):
     """Cancel allocation if no leaves have been taken against it that would cause negative balance."""
-    taken = (
-        LeaveApplication.objects.filter(
-            employee=allocation.employee,
-            leave_type=allocation.leave_type,
-            docstatus=DocStatus.SUBMITTED,
-            from_date__gte=allocation.from_date,
-            to_date__lte=allocation.to_date,
-        ).aggregate(s=Sum("total_leave_days"))["s"]
-        or Decimal("0.00")
-    )
-    other_alloc = (
-        LeaveAllocation.objects.filter(
-            employee=allocation.employee,
-            leave_type=allocation.leave_type,
-            docstatus=DocStatus.SUBMITTED,
-            from_date__lte=allocation.to_date,
-            to_date__gte=allocation.from_date,
-        )
-        .exclude(pk=allocation.pk)
-        .aggregate(s=Sum("total_leaves_allocated"))["s"]
-        or Decimal("0.00")
+    taken = LeaveApplication.objects.filter(
+        employee=allocation.employee,
+        leave_type=allocation.leave_type,
+        docstatus=DocStatus.SUBMITTED,
+        from_date__gte=allocation.from_date,
+        to_date__lte=allocation.to_date,
+    ).aggregate(s=Sum("total_leave_days"))["s"] or Decimal("0.00")
+    other_alloc = LeaveAllocation.objects.filter(
+        employee=allocation.employee,
+        leave_type=allocation.leave_type,
+        docstatus=DocStatus.SUBMITTED,
+        from_date__lte=allocation.to_date,
+        to_date__gte=allocation.from_date,
+    ).exclude(pk=allocation.pk).aggregate(s=Sum("total_leaves_allocated"))[
+        "s"
+    ] or Decimal(
+        "0.00"
     )
     if other_alloc < taken:
         raise ValidationError(
@@ -83,13 +79,17 @@ def get_leave_balance(
         alloc_qs = alloc_qs.filter(to_date__gte=from_date)
     if to_date:
         alloc_qs = alloc_qs.filter(from_date__lte=to_date)
-    
+
     if not alloc_qs.exists():
         return Decimal("0.00")
 
-    alloc_start = alloc_qs.order_by("from_date").values_list("from_date", flat=True).first()
+    alloc_start = (
+        alloc_qs.order_by("from_date").values_list("from_date", flat=True).first()
+    )
     alloc_end = alloc_qs.order_by("-to_date").values_list("to_date", flat=True).first()
-    allocated = alloc_qs.aggregate(s=Sum("total_leaves_allocated"))["s"] or Decimal("0.00")
+    allocated = alloc_qs.aggregate(s=Sum("total_leaves_allocated"))["s"] or Decimal(
+        "0.00"
+    )
 
     app_qs = LeaveApplication.objects.filter(
         employee=employee,
@@ -119,7 +119,9 @@ def validate_application(application):
     days_in_span = (application.to_date - application.from_date).days + 1
     if application.total_leave_days > Decimal(days_in_span):
         raise ValidationError(
-            _("Total leave days (%(days)s) cannot exceed the date range span (%(span)s).")
+            _(
+                "Total leave days (%(days)s) cannot exceed the date range span (%(span)s)."
+            )
             % {"days": application.total_leave_days, "span": days_in_span}
         )
 
@@ -185,7 +187,9 @@ def submit_application(application):
             ).first()
             if att:
                 att.status = AttendanceStatus.PAID_LEAVE
-                att.remarks = f"Leave: {application.name} ({application.leave_type.name})"
+                att.remarks = (
+                    f"Leave: {application.name} ({application.leave_type.name})"
+                )
                 if application.modified_by:
                     att.modified_by = application.modified_by
                 att.save()
@@ -252,10 +256,9 @@ def leave_balance_report(
                 alloc_qs = alloc_qs.filter(to_date__gte=from_date)
             if to_date:
                 alloc_qs = alloc_qs.filter(from_date__lte=to_date)
-            allocated = (
-                alloc_qs.aggregate(s=Sum("total_leaves_allocated"))["s"]
-                or Decimal("0.00")
-            )
+            allocated = alloc_qs.aggregate(s=Sum("total_leaves_allocated"))[
+                "s"
+            ] or Decimal("0.00")
 
             app_qs = LeaveApplication.objects.filter(
                 employee=emp,

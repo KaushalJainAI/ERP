@@ -2,6 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from users.views import (
     ChangeOwnPasswordView,
+    LogoutAllView,
+    LogoutView,
     UserViewSet,
     CurrentUserView,
     RoleViewSet,
@@ -20,6 +22,8 @@ router.register("permissions", RolePermissionViewSet, basename="permission")
 urlpatterns = [
     path("token/", ThrottledTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", ThrottledTokenRefreshView.as_view(), name="token_refresh"),
+    path("logout/", LogoutView.as_view(), name="logout"),
+    path("me/logout-all/", LogoutAllView.as_view(), name="logout_all"),
     path(
         "me/change-password/", ChangeOwnPasswordView.as_view(), name="change_password"
     ),

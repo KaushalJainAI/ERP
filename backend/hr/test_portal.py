@@ -131,7 +131,10 @@ class PortalCredentialTests(PortalBase):
     def test_set_pin_again_resets_lockout_and_forces_change(self):
         client = self.portal_client()
         access = EmployeePortalAccess.objects.get(employee=self.w)
-        access.failed_attempts, access.locked_until = 5, timezone.now() + datetime.timedelta(minutes=9)
+        access.failed_attempts, access.locked_until = (
+            5,
+            timezone.now() + datetime.timedelta(minutes=9),
+        )
         access.save()
         self.assertFalse(access.pin_must_change)
         self.set_pin(pin="5926")
@@ -227,9 +230,7 @@ class PortalLoginTests(PortalBase):
         )
         self.assertTrue(AccessToken(body["access"])["portal"])
         self.w.refresh_from_db()
-        self.assertEqual(
-            int(AccessToken(body["access"])["user_id"]), self.w.user.pk
-        )
+        self.assertEqual(int(AccessToken(body["access"])["user_id"]), self.w.user.pk)
         self.assertIsNotNone(
             EmployeePortalAccess.objects.get(employee=self.w).last_login_at
         )
@@ -279,9 +280,7 @@ class PortalLoginTests(PortalBase):
         self.assertEqual(r.status_code, 429, r.content)
         self.assertEqual(r.json()["code"], "locked")
         self.assertNotIn("PIN is", r.json()["detail"])
-        self.assertEqual(
-            AuditLog.objects.filter(action="portal_lockout").count(), 1
-        )
+        self.assertEqual(AuditLog.objects.filter(action="portal_lockout").count(), 1)
         row = self.api.get(f"{API}employees/{self.w.pk}/").json()
         self.assertTrue(row["portal_locked"])
         later = timezone.now() + datetime.timedelta(minutes=14)
@@ -353,7 +352,9 @@ class PortalLoginTests(PortalBase):
     def test_refresh_token_keeps_portal_claim(self):
         self.set_pin()
         refresh = self.login().json()["refresh"]
-        r = APIClient().post("/api/auth/token/refresh/", {"refresh": refresh}, format="json")
+        r = APIClient().post(
+            "/api/auth/token/refresh/", {"refresh": refresh}, format="json"
+        )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertTrue(AccessToken(r.json()["access"])["portal"])
 
@@ -424,9 +425,7 @@ class PortalPinChangeTests(PortalBase):
         ok = self.login(pin=self.new_pin)
         self.assertEqual(ok.status_code, 200)
         self.assertFalse(ok.json()["pin_must_change"])
-        self.assertTrue(
-            AuditLog.objects.filter(action="portal_change_pin").exists()
-        )
+        self.assertTrue(AuditLog.objects.filter(action="portal_change_pin").exists())
 
     def test_change_pin_validation(self):
         client = self.portal_client(change_pin=False)
@@ -467,7 +466,9 @@ class PortalPinChangeTests(PortalBase):
 # ================================================================ read access
 class PortalReadTests(PortalBase):
     def test_me_has_no_pii_and_current_rates(self):
-        dept = self.api.post(API + "departments/", {"name": "Spice"}, format="json").json()
+        dept = self.api.post(
+            API + "departments/", {"name": "Spice"}, format="json"
+        ).json()
         self.w.department_id = dept["id"]
         self.w.aadhaar = "123456789012"
         self.w.pan = "ABCDE1234F"
@@ -536,12 +537,24 @@ class PortalReadTests(PortalBase):
         self.assertEqual(
             rows,
             [
-                {"date": "2026-04-01", "status": "Present", "ot_hours": "2.00", "remarks": ""},
-                {"date": "2026-04-02", "status": "Absent", "ot_hours": "0.00", "remarks": ""},
+                {
+                    "date": "2026-04-01",
+                    "status": "Present",
+                    "ot_hours": "2.00",
+                    "remarks": "",
+                },
+                {
+                    "date": "2026-04-02",
+                    "status": "Absent",
+                    "ot_hours": "0.00",
+                    "remarks": "",
+                },
             ],
         )
         self.assertEqual(
-            client.get(PORTAL + "attendance/?from=2025-01-01&to=2026-12-31").status_code,
+            client.get(
+                PORTAL + "attendance/?from=2025-01-01&to=2026-12-31"
+            ).status_code,
             400,
         )
 
@@ -551,7 +564,9 @@ class PortalReadTests(PortalBase):
         self.att(self.w, d(2026, 4, 7), "Present", ot="2")
         draft = self.make_slip(self.w, d(2026, 4, 1), d(2026, 4, 7))
         client = self.portal_client()
-        self.assertEqual(client.get(PORTAL + "salary-slips/").json(), [])  # draft hidden
+        self.assertEqual(
+            client.get(PORTAL + "salary-slips/").json(), []
+        )  # draft hidden
         self.assertEqual(
             client.get(PORTAL + f"salary-slips/{draft['name']}/").status_code, 404
         )
@@ -670,12 +685,22 @@ class PortalIsolationTests(PortalBase):
             403,
         )
         self.assertEqual(
-            client.post(f"{API}employees/{self.w.pk}/set-portal-pin/", {"pin": "5926"}, format="json").status_code,
+            client.post(
+                f"{API}employees/{self.w.pk}/set-portal-pin/",
+                {"pin": "5926"},
+                format="json",
+            ).status_code,
             403,
         )
 
     def test_business_users_and_anonymous_are_denied_on_portal_routes(self):
-        for path in ("me/", "summary/", "salary-slips/", "advance-requests/", "issues/"):
+        for path in (
+            "me/",
+            "summary/",
+            "salary-slips/",
+            "advance-requests/",
+            "issues/",
+        ):
             self.assertIn(APIClient().get(PORTAL + path).status_code, (401, 403))
             self.assertEqual(self.api.get(PORTAL + path).status_code, 403, path)
             hr = self.role_client(f"hr{path[:3]}", "HR Manager")
@@ -779,13 +804,20 @@ class PortalAdvanceRequestTests(PortalBase):
         self.assertEqual(AdvanceRequest.objects.count(), 1)
 
         # admin sees it
-        self.assertEqual(self.api.get(API + "portal-overview/").json(), {
-            "pending_advance_requests": 1, "open_issues": 0})
+        self.assertEqual(
+            self.api.get(API + "portal-overview/").json(),
+            {"pending_advance_requests": 1, "open_issues": 0},
+        )
         lst = self.api.get(API + "advance-requests/?status=Pending").json()["results"]
         self.assertEqual(lst[0]["id"], req_id)
         self.assertEqual(lst[0]["employee_code"], self.w.name)
         self.assertEqual(
-            len(self.api.get(API + f"advance-requests/?employee={self.w.pk}").json()["results"]), 1
+            len(
+                self.api.get(API + f"advance-requests/?employee={self.w.pk}").json()[
+                    "results"
+                ]
+            ),
+            1,
         )
 
         r = self.api.post(
@@ -800,7 +832,12 @@ class PortalAdvanceRequestTests(PortalBase):
         advance = EmployeeAdvance.objects.get(name=approved["advance_name"])
         self.assertEqual(advance.docstatus, DocStatus.DRAFT)
         self.assertEqual(
-            (advance.amount, advance.instalment_amount, advance.employee, advance.purpose),
+            (
+                advance.amount,
+                advance.instalment_amount,
+                advance.employee,
+                advance.purpose,
+            ),
             (D("450.00"), D("150.00"), self.w, "Medical"),
         )
         self.assertEqual(advance.paid_from, self.cfg.default_payment_account)
@@ -835,7 +872,9 @@ class PortalAdvanceRequestTests(PortalBase):
         # approved => a new request is allowed again
         self.assertEqual(self.request(client, "100", "later").status_code, 201)
         # a non-pending request cannot be decided twice
-        again = self.api.post(f"{API}advance-requests/{req_id}/approve/", {}, format="json")
+        again = self.api.post(
+            f"{API}advance-requests/{req_id}/approve/", {}, format="json"
+        )
         self.assertEqual(again.status_code, 400)
         self.assertEqual(EmployeeAdvance.objects.count(), 1)
 
@@ -857,7 +896,9 @@ class PortalAdvanceRequestTests(PortalBase):
         self.assertEqual(bad.status_code, 400)
         self.assertEqual(AdvanceRequest.objects.get(pk=req_id).status, "Pending")
         self.assertEqual(EmployeeAdvance.objects.count(), 0)
-        ok = self.api.post(f"{API}advance-requests/{req_id}/approve/", {}, format="json")
+        ok = self.api.post(
+            f"{API}advance-requests/{req_id}/approve/", {}, format="json"
+        )
         self.assertEqual(ok.status_code, 200, ok.content)
         self.assertEqual(EmployeeAdvance.objects.get().amount, D("300.00"))
 
@@ -865,7 +906,9 @@ class PortalAdvanceRequestTests(PortalBase):
         client = self.portal_client()
         req_id = self.request(client).json()["id"]
         self.assertEqual(
-            self.api.post(f"{API}advance-requests/{req_id}/reject/", {}, format="json").status_code,
+            self.api.post(
+                f"{API}advance-requests/{req_id}/reject/", {}, format="json"
+            ).status_code,
             400,
         )
         r = self.api.post(
@@ -880,10 +923,13 @@ class PortalAdvanceRequestTests(PortalBase):
         self.assertEqual(mine["response"], "Too soon after the last one")
         # a rejected request cannot be withdrawn or approved
         self.assertEqual(
-            client.post(PORTAL + f"advance-requests/{req_id}/withdraw/").status_code, 400
+            client.post(PORTAL + f"advance-requests/{req_id}/withdraw/").status_code,
+            400,
         )
         self.assertEqual(
-            self.api.post(f"{API}advance-requests/{req_id}/approve/", {}, format="json").status_code,
+            self.api.post(
+                f"{API}advance-requests/{req_id}/approve/", {}, format="json"
+            ).status_code,
             400,
         )
         # new request, withdrawn by the employee
@@ -892,10 +938,13 @@ class PortalAdvanceRequestTests(PortalBase):
         self.assertEqual(w.status_code, 200, w.content)
         self.assertEqual(w.json()["status"], "Withdrawn")
         self.assertEqual(
-            client.post(PORTAL + f"advance-requests/{new_id}/withdraw/").status_code, 400
+            client.post(PORTAL + f"advance-requests/{new_id}/withdraw/").status_code,
+            400,
         )
         self.assertEqual(
-            self.api.post(f"{API}advance-requests/{new_id}/approve/", {}, format="json").status_code,
+            self.api.post(
+                f"{API}advance-requests/{new_id}/approve/", {}, format="json"
+            ).status_code,
             400,
         )
         self.assertEqual(self.request(client, "50", "ok").status_code, 201)
@@ -911,7 +960,9 @@ class PortalAdvanceRequestTests(PortalBase):
             {"reason": "x"},
         ):
             self.assertEqual(
-                client.post(PORTAL + "advance-requests/", body, format="json").status_code,
+                client.post(
+                    PORTAL + "advance-requests/", body, format="json"
+                ).status_code,
                 400,
                 body,
             )
@@ -922,17 +973,32 @@ class PortalAdvanceRequestTests(PortalBase):
         req_id = self.request(client).json()["id"]
         hr_user = self.role_client("hru", "HR User")
         self.assertEqual(hr_user.get(API + "advance-requests/").status_code, 200)
-        self.assertEqual(hr_user.get(f"{API}advance-requests/{req_id}/").status_code, 200)
         self.assertEqual(
-            hr_user.post(f"{API}advance-requests/{req_id}/approve/", {}, format="json").status_code, 403
+            hr_user.get(f"{API}advance-requests/{req_id}/").status_code, 200
         )
         self.assertEqual(
-            hr_user.post(f"{API}advance-requests/{req_id}/reject/", {"response": "no"}, format="json").status_code, 403
+            hr_user.post(
+                f"{API}advance-requests/{req_id}/approve/", {}, format="json"
+            ).status_code,
+            403,
         )
-        self.assertEqual(hr_user.delete(f"{API}advance-requests/{req_id}/").status_code, 403)
+        self.assertEqual(
+            hr_user.post(
+                f"{API}advance-requests/{req_id}/reject/",
+                {"response": "no"},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            hr_user.delete(f"{API}advance-requests/{req_id}/").status_code, 403
+        )
         manager = self.role_client("hrm", "HR Manager")
         self.assertEqual(
-            manager.post(f"{API}advance-requests/{req_id}/approve/", {}, format="json").status_code, 200
+            manager.post(
+                f"{API}advance-requests/{req_id}/approve/", {}, format="json"
+            ).status_code,
+            200,
         )
 
     def test_db_constraints(self):
@@ -941,20 +1007,29 @@ class PortalAdvanceRequestTests(PortalBase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             AdvanceRequest.objects.create(**base)  # second Pending
         with self.assertRaises(IntegrityError), transaction.atomic():
-            AdvanceRequest.objects.create(**{**base, "amount": D("0"), "status": "Withdrawn"})
+            AdvanceRequest.objects.create(
+                **{**base, "amount": D("0"), "status": "Withdrawn"}
+            )
         with self.assertRaises(IntegrityError), transaction.atomic():
             AdvanceRequest.objects.create(
                 **{**base, "status": "Approved", "reviewed_at": timezone.now()}
             )  # Approved without an advance
         adv = self.advance(self.w, "10", submit=False)
         with self.assertRaises(IntegrityError), transaction.atomic():
-            AdvanceRequest.objects.create(**{**base, "status": "Withdrawn", "advance": adv})
+            AdvanceRequest.objects.create(
+                **{**base, "status": "Withdrawn", "advance": adv}
+            )
         with self.assertRaises(IntegrityError), transaction.atomic():
             AdvanceRequest.objects.create(
                 **{**base, "status": "Rejected"}
             )  # decision without reviewed_at
         AdvanceRequest.objects.create(
-            **{**base, "status": "Approved", "advance": adv, "reviewed_at": timezone.now()}
+            **{
+                **base,
+                "status": "Approved",
+                "advance": adv,
+                "reviewed_at": timezone.now(),
+            }
         )
         from django.db.models.deletion import ProtectedError
 
@@ -995,29 +1070,56 @@ class PortalIssueTests(PortalBase):
         self.assertEqual(issue["reference_date"], "2026-04-03")
         slip_issue = client.post(
             PORTAL + "issues/",
-            {"category": "Salary Slip", "reference_doc": "SAL-0001", "message": "Wrong total"},
+            {
+                "category": "Salary Slip",
+                "reference_doc": "SAL-0001",
+                "message": "Wrong total",
+            },
             format="json",
         )
         self.assertEqual(slip_issue.status_code, 201)
         self.assertEqual(slip_issue.json()["reference_doc"], "SAL-0001")
         self.assertEqual(len(client.get(PORTAL + "issues/").json()), 2)
 
-        self.assertEqual(self.api.get(API + "portal-overview/").json()["open_issues"], 2)
-        rows = self.api.get(API + "employee-issues/?status=Open&category=Attendance").json()["results"]
+        self.assertEqual(
+            self.api.get(API + "portal-overview/").json()["open_issues"], 2
+        )
+        rows = self.api.get(
+            API + "employee-issues/?status=Open&category=Attendance"
+        ).json()["results"]
         self.assertEqual([x["id"] for x in rows], [issue["id"]])
         self.assertEqual(rows[0]["employee_code"], self.w.name)
 
         hr_user = self.role_client("hru", "HR User")  # may resolve
         url = f"{API}employee-issues/{issue['id']}/resolve/"
-        self.assertEqual(hr_user.post(url, {"status": "Resolved"}, format="json").status_code, 400)
-        self.assertEqual(hr_user.post(url, {"status": "Open", "response": "x"}, format="json").status_code, 400)
-        self.assertEqual(hr_user.post(url, {"status": "Bogus", "response": "x"}, format="json").status_code, 400)
-        r = hr_user.post(url, {"status": "Resolved", "response": "Fixed, thanks"}, format="json")
+        self.assertEqual(
+            hr_user.post(url, {"status": "Resolved"}, format="json").status_code, 400
+        )
+        self.assertEqual(
+            hr_user.post(
+                url, {"status": "Open", "response": "x"}, format="json"
+            ).status_code,
+            400,
+        )
+        self.assertEqual(
+            hr_user.post(
+                url, {"status": "Bogus", "response": "x"}, format="json"
+            ).status_code,
+            400,
+        )
+        r = hr_user.post(
+            url, {"status": "Resolved", "response": "Fixed, thanks"}, format="json"
+        )
         self.assertEqual(r.status_code, 200, r.content)
         self.assertEqual(r.json()["status"], "Resolved")
         self.assertIsNotNone(r.json()["resolved_at"])
         # closed issues cannot be closed again
-        self.assertEqual(hr_user.post(url, {"status": "Rejected", "response": "x"}, format="json").status_code, 400)
+        self.assertEqual(
+            hr_user.post(
+                url, {"status": "Rejected", "response": "x"}, format="json"
+            ).status_code,
+            400,
+        )
         mine = {i["id"]: i for i in client.get(PORTAL + "issues/").json()}
         self.assertEqual(mine[issue["id"]]["status"], "Resolved")
         self.assertEqual(mine[issue["id"]]["response"], "Fixed, thanks")
@@ -1027,9 +1129,14 @@ class PortalIssueTests(PortalBase):
             format="json",
         )
         self.assertEqual(r.json()["status"], "Rejected")
-        self.assertEqual(self.api.get(API + "portal-overview/").json()["open_issues"], 0)
+        self.assertEqual(
+            self.api.get(API + "portal-overview/").json()["open_issues"], 0
+        )
         self.assertTrue(
-            AuditLog.objects.filter(model_label="hr.EmployeeIssue", action="resolve").count() == 2
+            AuditLog.objects.filter(
+                model_label="hr.EmployeeIssue", action="resolve"
+            ).count()
+            == 2
         )
 
     def test_validation_and_limits(self):
@@ -1042,16 +1149,28 @@ class PortalIssueTests(PortalBase):
             {"message": "x"},
             {"category": "Other", "message": "x", "reference_date": "yesterday"},
         ):
-            self.assertEqual(client.post(PORTAL + "issues/", body, format="json").status_code, 400, body)
+            self.assertEqual(
+                client.post(PORTAL + "issues/", body, format="json").status_code,
+                400,
+                body,
+            )
         from hr.services.portal_requests import MAX_OPEN_ISSUES
 
         for i in range(MAX_OPEN_ISSUES):
             self.assertEqual(
-                client.post(PORTAL + "issues/", {"category": "Other", "message": f"m{i}"}, format="json").status_code,
+                client.post(
+                    PORTAL + "issues/",
+                    {"category": "Other", "message": f"m{i}"},
+                    format="json",
+                ).status_code,
                 201,
             )
         self.assertEqual(
-            client.post(PORTAL + "issues/", {"category": "Other", "message": "one more"}, format="json").status_code,
+            client.post(
+                PORTAL + "issues/",
+                {"category": "Other", "message": "one more"},
+                format="json",
+            ).status_code,
             400,
         )
 
@@ -1061,36 +1180,59 @@ class PortalIssueTests(PortalBase):
             PORTAL + "issues/", {"category": "Other", "message": "help"}, format="json"
         ).json()["id"]
         nobody = APIClient()
-        nobody.force_authenticate(User.objects.create_user(username="n", email="n@x.com"))
+        nobody.force_authenticate(
+            User.objects.create_user(username="n", email="n@x.com")
+        )
         self.assertEqual(nobody.get(API + "employee-issues/").status_code, 403)
         self.assertEqual(nobody.get(API + "portal-overview/").status_code, 403)
         self.assertEqual(
-            nobody.post(f"{API}employee-issues/{issue_id}/resolve/", {"status": "Resolved", "response": "x"}, format="json").status_code,
+            nobody.post(
+                f"{API}employee-issues/{issue_id}/resolve/",
+                {"status": "Resolved", "response": "x"},
+                format="json",
+            ).status_code,
             403,
         )
         hr_user = self.role_client("hru", "HR User")
         self.assertEqual(hr_user.get(API + "portal-overview/").status_code, 200)
-        self.assertEqual(hr_user.delete(f"{API}employee-issues/{issue_id}/").status_code, 403)
         self.assertEqual(
-            hr_user.post(API + "employee-issues/", {"message": "x"}, format="json").status_code, 403
+            hr_user.delete(f"{API}employee-issues/{issue_id}/").status_code, 403
+        )
+        self.assertEqual(
+            hr_user.post(
+                API + "employee-issues/", {"message": "x"}, format="json"
+            ).status_code,
+            403,
         )
 
     def test_db_constraints(self):
-        base = dict(employee=self.w, company=self.company, category="Other", message="m")
+        base = dict(
+            employee=self.w, company=self.company, category="Other", message="m"
+        )
         with self.assertRaises(IntegrityError), transaction.atomic():
             EmployeeIssue.objects.create(**{**base, "message": ""})
         with self.assertRaises(IntegrityError), transaction.atomic():
-            EmployeeIssue.objects.create(**{**base, "status": "Resolved"})  # no resolved_at
+            EmployeeIssue.objects.create(
+                **{**base, "status": "Resolved"}
+            )  # no resolved_at
         with self.assertRaises(IntegrityError), transaction.atomic():
-            EmployeeIssue.objects.create(**{**base, "resolved_at": timezone.now()})  # Open but closed
-        EmployeeIssue.objects.create(**{**base, "status": IssueStatus.RESOLVED, "resolved_at": timezone.now()})
+            EmployeeIssue.objects.create(
+                **{**base, "resolved_at": timezone.now()}
+            )  # Open but closed
+        EmployeeIssue.objects.create(
+            **{**base, "status": IssueStatus.RESOLVED, "resolved_at": timezone.now()}
+        )
 
 
 class PortalSeedTests(PortalBase):
     def test_seed_matrix(self):
         from hr.seed import HR_LABELS
 
-        for label in ("hr.EmployeePortalAccess", "hr.AdvanceRequest", "hr.EmployeeIssue"):
+        for label in (
+            "hr.EmployeePortalAccess",
+            "hr.AdvanceRequest",
+            "hr.EmployeeIssue",
+        ):
             self.assertIn(label, HR_LABELS)
             self.assertIn(label, HR_ROLE_MATRIX["HR Manager"])
         user = HR_ROLE_MATRIX["HR User"]

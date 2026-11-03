@@ -36,6 +36,9 @@ from hr.models import (
     EmployeePayment,
     EmployeeStatus,
     EmployeeWageRate,
+    ExpenseClaim,
+    ExpenseClaimDetail,
+    ExpenseReimbursement,
     Holiday,
     HolidayList,
     HRSettings,
@@ -51,8 +54,10 @@ from hr.models import (
     LeaveApplication,
 )
 from hr.services import advances as advance_service
+from hr.services import expense_claims as claim_service
 from hr.services import leave as leave_service
 from hr.services import payroll
+from hr.services.setup import get_settings
 from hr.services.wages import MAX_SLIP_DAYS
 from users.permissions import user_has_model_permission
 
@@ -556,6 +561,7 @@ class HRSettingsSerializer(ModelErrorMixin, serializers.ModelSerializer):
             "wage_expense_account",
             "payroll_payable_account",
             "employee_advance_account",
+            "expense_claim_payable_account",
             "default_payment_account",
             "tds_payable_account",
         )
@@ -592,6 +598,12 @@ class HRSettingsSerializer(ModelErrorMixin, serializers.ModelSerializer):
             company,
             AccountRootType.ASSET,
             "employee_advance_account",
+        )
+        _check_account(
+            get("expense_claim_payable_account"),
+            company,
+            AccountRootType.LIABILITY,
+            "expense_claim_payable_account",
         )
         _check_account(
             get("default_payment_account"),
@@ -1012,6 +1024,170 @@ class EmployeePaymentSerializer(AutoNameMixin, serializers.ModelSerializer):
 
 
 # --------------------------------------------------------------------- leave
+# ------------------------------------------------------------ expense claims
+class ExpenseClaimDetailSerializer(serializers.ModelSerializer):
+    expense_category_name = serializers.CharField(
+        source="expense_category.name", read_only=True
+    )
+
+    class Meta:
+        model = ExpenseClaimDetail
+        fields = (
+            "id",
+            "idx",
+            "expense_date",
+            "expense_category",
+            "expense_category_name",
+            "description",
+            "amount",
+            "sanctioned_amount",
+        )
+        read_only_fields = ("id", "idx")
+        extra_kwargs = {"sanctioned_amount": {"required": False}}
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("sanctioned_amount") is None and "amount" in attrs:
+            attrs["sanctioned_amount"] = attrs["amount"]
+        amount = attrs.get("amount")
+        sanctioned = attrs.get("sanctioned_amount")
+        if amount is not None and amount <= 0:
+            raise DRFValidationError({"amount": _("Amount must be greater than zero.")})
+        if (
+            amount is not None
+            and sanctioned is not None
+            and not (0 <= sanctioned <= amount)
+        ):
+            raise DRFValidationError(
+                {
+                    "sanctioned_amount": _(
+                        "The sanctioned amount must be between zero and the claimed amount."
+                    )
+                }
+            )
+        return attrs
+
+
+class ExpenseClaimSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
+    children_field = "lines"
+    name_prefix = claim_service.CLAIM_PREFIX
+
+    lines = ExpenseClaimDetailSerializer(many=True, required=False)
+    employee_name = serializers.CharField(
+        source="employee.employee_name", read_only=True
+    )
+    status = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ExpenseClaim
+        fields = (
+            "id",
+            "name",
+            "docstatus",
+            "amended_from",
+            "company",
+            "employee",
+            "employee_name",
+            "posting_date",
+            "payable_account",
+            "remarks",
+            "total_claimed",
+            "total_sanctioned",
+            "outstanding_amount",
+            "status",
+            "lines",
+            "modified_at",
+        )
+        read_only_fields = (
+            "id",
+            "docstatus",
+            "amended_from",
+            "total_claimed",
+            "total_sanctioned",
+            "outstanding_amount",
+            "modified_at",
+        )
+        extra_kwargs = {"payable_account": {"required": False}}
+
+    def get_status(self, obj):
+        return claim_service.status_of(obj)
+
+    def validate(self, attrs):
+        inst = self.instance
+
+        def get(name):
+            return attrs.get(name, getattr(inst, name, None) if inst else None)
+
+        company, employee = get("company"), get("employee")
+        payable = get("payable_account")
+        try:
+            if payable is None:
+                # Default: the company's expense claim payable account.
+                payable = get_settings(company).expense_claim_payable_account
+                attrs["payable_account"] = payable
+            claim_service.check_header(company, employee, payable)
+        except DjangoValidationError as exc:
+            raise as_drf_error(exc)
+        return super().validate(attrs)
+
+    # The mixin calls this after every create / update.
+    def refresh_totals(self, instance):
+        try:
+            claim_service.refresh_draft(instance)
+        except DjangoValidationError as exc:
+            raise as_drf_error(exc)
+
+
+class ExpenseReimbursementSerializer(AutoNameMixin, serializers.ModelSerializer):
+    name_prefix = claim_service.REIMBURSEMENT_PREFIX
+
+    employee_name = serializers.CharField(
+        source="employee.employee_name", read_only=True
+    )
+    expense_claim_name = serializers.CharField(
+        source="expense_claim.name", read_only=True
+    )
+
+    class Meta:
+        model = ExpenseReimbursement
+        fields = (
+            "id",
+            "name",
+            "docstatus",
+            "amended_from",
+            "company",
+            "employee",
+            "employee_name",
+            "expense_claim",
+            "expense_claim_name",
+            "posting_date",
+            "amount",
+            "mode",
+            "paid_from",
+            "reference_no",
+            "modified_at",
+        )
+        read_only_fields = ("id", "docstatus", "amended_from", "modified_at")
+
+    def validate(self, attrs):
+        inst = self.instance
+
+        def get(name):
+            return attrs.get(name, getattr(inst, name, None) if inst else None)
+
+        company, employee = get("company"), get("employee")
+        claim = get("expense_claim")
+        try:
+            claim_service.check_reimbursement_links(company, employee, claim)
+            get_settings(company)  # clear error when HR is not set up
+            advance_service.validate_paid_from(get("paid_from"), company)
+        except DjangoValidationError as exc:
+            raise as_drf_error(exc)
+        if get("amount") is not None and get("amount") <= 0:
+            raise DRFValidationError({"amount": _("Amount must be greater than zero.")})
+        return attrs
+
+
 class LeaveTypeSerializer(
     TranslatedSerializerMixin, ModelErrorMixin, serializers.ModelSerializer
 ):
@@ -1036,9 +1212,7 @@ class LeaveAllocationSerializer(
     employee_name = serializers.CharField(
         source="employee.employee_name", read_only=True
     )
-    leave_type_name = serializers.CharField(
-        source="leave_type.name", read_only=True
-    )
+    leave_type_name = serializers.CharField(source="leave_type.name", read_only=True)
 
     class Meta:
         model = LeaveAllocation
@@ -1099,9 +1273,7 @@ class LeaveApplicationSerializer(
     employee_name = serializers.CharField(
         source="employee.employee_name", read_only=True
     )
-    leave_type_name = serializers.CharField(
-        source="leave_type.name", read_only=True
-    )
+    leave_type_name = serializers.CharField(source="leave_type.name", read_only=True)
 
     class Meta:
         model = LeaveApplication

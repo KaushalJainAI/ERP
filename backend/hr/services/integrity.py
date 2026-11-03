@@ -240,4 +240,113 @@ def check():
                     f"(wages payable {balance})."
                 )
 
+    # 6. Expense claims and their reimbursements.
+    _expense_claim_checks(errors)
+
     return errors, warnings
+
+
+def _expense_claim_checks(errors):
+    """Expense claims: totals match the rows, the stored outstanding equals the
+    sanctioned amount less the live reimbursements, and the GL agrees.
+
+    The payable account of each (claim payable account, employee) pair must hold
+    exactly the sum of the submitted claims' outstanding amounts.
+    """
+    from hr.models import ExpenseClaim, ExpenseReimbursement
+    from hr.services import expense_claims as claim_service
+
+    expected = {}
+    for claim in ExpenseClaim.objects.select_related("employee", "payable_account"):
+        claimed, sanctioned = claim_service.line_totals(claim)
+        if (claim.total_claimed, claim.total_sanctioned) != (claimed, sanctioned):
+            errors.append(
+                f"Expense claim {claim.name}: stored totals ({claim.total_claimed}, "
+                f"{claim.total_sanctioned}) do not match its lines ({claimed}, "
+                f"{sanctioned}); run repost_hr."
+            )
+        live = _live("hr.ExpenseClaim", claim.name)
+        if claim.docstatus != DocStatus.SUBMITTED:
+            if live.exists():
+                errors.append(
+                    f"Expense claim {claim.name} is not submitted but has live GL entries."
+                )
+            if claim.outstanding_amount != ZERO:
+                errors.append(
+                    f"Expense claim {claim.name} is not submitted but has an "
+                    f"outstanding amount ({claim.outstanding_amount})."
+                )
+            continue
+        debit = _sum(live, "debit")
+        credit = _sum(live, "credit")
+        if debit != claim.total_sanctioned or credit != claim.total_sanctioned:
+            errors.append(
+                f"Expense claim {claim.name}: GL debit {debit} / credit {credit} do "
+                f"not equal the sanctioned total {claim.total_sanctioned}."
+            )
+        payable = _sum(
+            live.filter(
+                account_id=claim.payable_account_id,
+                party_type="Employee",
+                party=claim.employee.name,
+            ),
+            "credit",
+        )
+        if payable != claim.total_sanctioned:
+            errors.append(
+                f"Expense claim {claim.name}: payable credit {payable} does not equal "
+                f"the sanctioned total {claim.total_sanctioned}."
+            )
+        reimbursed = claim_service.live_reimbursed(claim)
+        should_owe = claim.total_sanctioned - reimbursed
+        if claim.outstanding_amount != should_owe:
+            errors.append(
+                f"Expense claim {claim.name}: stored outstanding "
+                f"{claim.outstanding_amount} differs from sanctioned "
+                f"{claim.total_sanctioned} less reimbursements {reimbursed} "
+                f"({should_owe}); run repost_hr."
+            )
+        key = (claim.payable_account_id, claim.employee_id)
+        account, employee, total = expected.get(
+            key, (claim.payable_account, claim.employee, ZERO)
+        )
+        expected[key] = (account, employee, total + claim.outstanding_amount)
+
+    for account, employee, left in expected.values():
+        rows = GLEntry.objects.filter(
+            account_id=account.pk,
+            party_type="Employee",
+            party=employee.name,
+            is_cancelled=False,
+        )
+        ledger = _sum(rows, "credit") - _sum(rows, "debit")
+        if ledger != left:
+            errors.append(
+                f"Employee {employee.name}: expense claims outstanding {left} do not "
+                f"match the payable account ledger balance {ledger}."
+            )
+
+    for reimbursement in ExpenseReimbursement.objects.select_related("expense_claim"):
+        live = _live("hr.ExpenseReimbursement", reimbursement.name)
+        if reimbursement.docstatus != DocStatus.SUBMITTED:
+            if live.exists():
+                errors.append(
+                    f"Expense reimbursement {reimbursement.name} is not submitted but "
+                    f"has live GL entries."
+                )
+            continue
+        payable_account_id = reimbursement.expense_claim.payable_account_id
+        debit = _sum(
+            live.filter(
+                account_id=payable_account_id,
+                party_type="Employee",
+                party=reimbursement.employee.name,
+            ),
+            "debit",
+        )
+        credit = _sum(live.filter(account_id=reimbursement.paid_from_id), "credit")
+        if debit != reimbursement.amount or credit != reimbursement.amount:
+            errors.append(
+                f"Expense reimbursement {reimbursement.name}: GL debit {debit} / credit "
+                f"{credit} do not equal the amount {reimbursement.amount}."
+            )

@@ -1807,6 +1807,43 @@ const gu: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ખર્ચના દાવા",
+      "claim": "ખર્ચનો દાવો",
+      "reimbursements": "ભરપાઈ",
+      "reimbursement": "ભરપાઈ",
+      "owed_nav": "કર્મચારીઓને બાકી",
+      "owed_title": "કર્મચારીઓને બાકી",
+      "owed_subtitle": "ભરપાઈ પછી, કર્મચારીઓએ ચૂકવેલા ખર્ચ માટે કંપનીએ હજી ચૂકવવાના બાકી.",
+      "owed_empty": "કર્મચારીઓને કોઈ બાકી નથી.",
+      "owed_total": "કુલ",
+      "owed_view": "દાવા જુઓ",
+      "lines": "ખર્ચની વિગતો",
+      "col": {
+        "claimed": "દાવો કરેલી રકમ",
+        "reimbursed": "ચૂકવેલી રકમ"
+      },
+      "fields": {
+        "expense_date": "ખર્ચની તારીખ",
+        "expense_category": "ખર્ચની શ્રેણી",
+        "sanctioned": "મંજૂર રકમ",
+        "total_sanctioned": "કુલ મંજૂર",
+        "payable_account": "ચૂકવવાપાત્ર ખાતું"
+      },
+      "status": {
+        "draft": "ડ્રાફ્ટ",
+        "unpaid": "બાકી",
+        "partly_paid": "આંશિક ચૂકવ્યું",
+        "paid": "ચૂકવ્યું",
+        "cancelled": "રદ"
+      },
+      "help": {
+        "proof": "નીચે રસીદનો ફોટો જોડો. રસીદ વિના દાવો સબમિટ થઈ શકતો નથી.",
+        "payable_account": "ખાલી છોડો તો એચઆર સેટિંગ્સનું ખર્ચ દાવા ચૂકવવાપાત્ર ખાતું વપરાશે.",
+        "sanctioned_default": "પૂરી રકમ જેટલું",
+        "claim_filter": "આ કર્મચારીના સબમિટ થયેલા દાવા જ બતાવાશે."
+      }
+    },
     title: "એચઆર",
     res: {
       employees: "કર્મચારીઓ",
@@ -2717,6 +2754,11 @@ const gu: Record<string, unknown> = {
     "review_banner_title": "AI દ્વારા ભરેલ ફોર્મ",
     "not_right": "બરાબર નથી? મને કહો શું બદલવું છે",
     "attach_bill": "કૃપા કરીને સપ્લાયર બિલનો ફોટો અથવા દસ્તાવેજ જોડો.",
+    "bill": {
+      "upload": "સપ્લાયરના બિલનો ફોટો મોકલો",
+      "reading": "બિલ વાંચી રહ્યા છીએ...",
+      "failed": "બિલનો ફોટો વાંચી શકાયો નહીં. ફરી પ્રયાસ કરો, અથવા ફોર્મમાં બિલ ભરો."
+    },
     "warnings": "ચેતવણીઓ",
     "ai_filled_hint": "AI દ્વારા ભરેલ",
     "suggested_prompts": "આ રીતે બોલી જુઓ",
@@ -2823,6 +2865,7 @@ const gu: Record<string, unknown> = {
       expense_unpaid: { title: "ખર્ચ ચૂકવવાનો બાકી", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} દિવસથી બાકી" },
       gst_credit_at_risk: { title: "GST ક્રેડિટ જોખમમાં", body: "{{invoice}}: {{gst_amount}} GST ક્રેડિટ, {{days_unpaid}} દિવસથી બાકી" },
       integrity_failed: { title: "હિસાબ તપાસ નિષ્ફળ", body: "હિસાબમાં {{error_count}} સમસ્યાઓ મળી" },
+      backup_failed: { title: "બેકઅપ નિષ્ફળ", body: "ગઈ રાતનો ડેટાબેઝ બેકઅપ પૂરો થયો નથી: {{error}}" },
       overdue_bills_digest: { title: "મુદત વીતેલા બિલ", body: "{{count}} મુદત વીતેલા બિલ, કુલ {{total_amount}}" },
       daily_summary: { title: "દૈનિક સારાંશ", body: "{{money_in}} મળ્યા, {{bills_count}} બિલ {{bills_total}}, {{pending_dispatches}} ઓર્ડર મોકલવાના છે" },
       weekly_digest: { title: "સાપ્તાહિક સારાંશ", body: "આ અઠવાડિયે વસૂલવાના: {{collections_needed}}. ચૂકવવાના બિલ: {{bills_due}}" },

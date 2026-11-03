@@ -1807,6 +1807,43 @@ const pa: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ਖ਼ਰਚੇ ਦੇ ਦਾਅਵੇ",
+      "claim": "ਖ਼ਰਚੇ ਦਾ ਦਾਅਵਾ",
+      "reimbursements": "ਭਰਪਾਈ",
+      "reimbursement": "ਭਰਪਾਈ",
+      "owed_nav": "ਮੁਲਾਜ਼ਮਾਂ ਦੀ ਬਕਾਇਆ ਰਕਮ",
+      "owed_title": "ਮੁਲਾਜ਼ਮਾਂ ਦੀ ਬਕਾਇਆ ਰਕਮ",
+      "owed_subtitle": "ਭਰਪਾਈ ਤੋਂ ਬਾਅਦ, ਕੰਪਨੀ ਵੱਲੋਂ ਹਰੇਕ ਮੁਲਾਜ਼ਮ ਨੂੰ ਦਿੱਤੇ ਜਾਣ ਬਾਕੀ ਖ਼ਰਚੇ।",
+      "owed_empty": "ਮੁਲਾਜ਼ਮਾਂ ਦਾ ਕੋਈ ਬਕਾਇਆ ਨਹੀਂ ਹੈ।",
+      "owed_total": "ਕੁੱਲ",
+      "owed_view": "ਦਾਅਵੇ ਵੇਖੋ",
+      "lines": "ਖ਼ਰਚੇ ਦੀਆਂ ਸਤਰਾਂ",
+      "col": {
+        "claimed": "ਦਾਅਵਾ ਕੀਤੀ ਰਕਮ",
+        "reimbursed": "ਭਰਪਾਈ ਹੋਈ ਰਕਮ"
+      },
+      "fields": {
+        "expense_date": "ਖ਼ਰਚੇ ਦੀ ਮਿਤੀ",
+        "expense_category": "ਖ਼ਰਚੇ ਦੀ ਸ਼੍ਰੇਣੀ",
+        "sanctioned": "ਮਨਜ਼ੂਰ ਰਕਮ",
+        "total_sanctioned": "ਕੁੱਲ ਮਨਜ਼ੂਰ",
+        "payable_account": "ਅਦਾਇਗੀ ਯੋਗ ਖਾਤਾ"
+      },
+      "status": {
+        "draft": "ਡਰਾਫ਼ਟ",
+        "unpaid": "ਅਦਾ ਨਹੀਂ ਹੋਇਆ",
+        "partly_paid": "ਅੰਸ਼ਕ ਅਦਾਇਗੀ",
+        "paid": "ਅਦਾ ਹੋਇਆ",
+        "cancelled": "ਰੱਦ"
+      },
+      "help": {
+        "proof": "ਹੇਠਾਂ ਰਸੀਦ ਦੀ ਫ਼ੋਟੋ ਲਗਾਓ। ਰਸੀਦ ਤੋਂ ਬਿਨਾਂ ਦਾਅਵਾ ਜਮ੍ਹਾਂ ਨਹੀਂ ਹੋ ਸਕਦਾ।",
+        "payable_account": "ਖਾਲੀ ਛੱਡੋ ਤਾਂ ਐੱਚਆਰ ਸੈਟਿੰਗਾਂ ਵਾਲਾ ਖ਼ਰਚਾ ਦਾਅਵਾ ਅਦਾਇਗੀ ਖਾਤਾ ਵਰਤਿਆ ਜਾਵੇਗਾ।",
+        "sanctioned_default": "ਪੂਰੀ ਰਕਮ ਦੇ ਬਰਾਬਰ",
+        "claim_filter": "ਇਸ ਮੁਲਾਜ਼ਮ ਦੇ ਜਮ੍ਹਾਂ ਕੀਤੇ ਦਾਅਵੇ ਹੀ ਦਿਖਾਏ ਜਾਣਗੇ।"
+      }
+    },
     title: "ਮਨੁੱਖੀ ਸਰੋਤ",
     res: {
       employees: "ਕਰਮਚਾਰੀ",
@@ -2717,6 +2754,11 @@ const pa: Record<string, unknown> = {
     "review_banner_title": "AI ਦੁਆਰਾ ਭਰਿਆ ਫਾਰਮ",
     "not_right": "ਸਹੀ ਨਹੀਂ ਹੈ? ਮੈਨੂੰ ਦੱਸੋ ਕੀ ਬਦਲਣਾ ਹੈ",
     "attach_bill": "ਕਿਰਪਾ ਕਰਕੇ ਸਪਲਾਇਰ ਬਿੱਲ ਦੀ ਫੋਟੋ ਜਾਂ ਦਸਤਾਵੇਜ਼ ਨੱਥੀ ਕਰੋ।",
+    "bill": {
+      "upload": "ਸਪਲਾਇਰ ਦੇ ਬਿੱਲ ਦੀ ਫੋਟੋ ਭੇਜੋ",
+      "reading": "ਬਿੱਲ ਪੜ੍ਹ ਰਹੇ ਹਾਂ...",
+      "failed": "ਬਿੱਲ ਦੀ ਫੋਟੋ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ, ਜਾਂ ਫਾਰਮ ਵਿੱਚ ਬਿੱਲ ਭਰੋ।"
+    },
     "warnings": "ਚੇਤਾਵਨੀਆਂ",
     "ai_filled_hint": "AI ਦੁਆਰਾ ਭਰਿਆ ਗਿਆ",
     "suggested_prompts": "ਇੰਝ ਬੋਲ ਕੇ ਵੇਖੋ",
@@ -2823,6 +2865,7 @@ const pa: Record<string, unknown> = {
       expense_unpaid: { title: "ਖਰਚਾ ਨਹੀਂ ਭਰਿਆ", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ਦਿਨਾਂ ਤੋਂ ਬਕਾਇਆ" },
       gst_credit_at_risk: { title: "GST ਕ੍ਰੈਡਿਟ ਜੋਖਮ ਵਿੱਚ", body: "{{invoice}}: {{gst_amount}} GST ਕ੍ਰੈਡਿਟ, {{days_unpaid}} ਦਿਨਾਂ ਤੋਂ ਬਕਾਇਆ" },
       integrity_failed: { title: "ਖਾਤਿਆਂ ਦੀ ਜਾਂਚ ਅਸਫਲ", body: "ਖਾਤਿਆਂ ਵਿੱਚ {{error_count}} ਸਮੱਸਿਆਵਾਂ ਮਿਲੀਆਂ" },
+      backup_failed: { title: "ਬੈਕਅੱਪ ਅਸਫਲ", body: "ਪਿਛਲੀ ਰਾਤ ਦਾ ਡਾਟਾਬੇਸ ਬੈਕਅੱਪ ਪੂਰਾ ਨਹੀਂ ਹੋਇਆ: {{error}}" },
       overdue_bills_digest: { title: "ਮਿਆਦ ਲੰਘੇ ਬਿੱਲ", body: "{{count}} ਮਿਆਦ ਲੰਘੇ ਬਿੱਲ, ਕੁੱਲ {{total_amount}}" },
       daily_summary: { title: "ਰੋਜ਼ਾਨਾ ਸਾਰ", body: "{{money_in}} ਪ੍ਰਾਪਤ, {{bills_count}} ਬਿੱਲ {{bills_total}}, {{pending_dispatches}} ਆਰਡਰ ਭੇਜਣੇ ਹਨ" },
       weekly_digest: { title: "ਹਫ਼ਤਾਵਾਰੀ ਸਾਰ", body: "ਇਸ ਹਫ਼ਤੇ ਵਸੂਲਣਾ ਹੈ: {{collections_needed}}। ਭਰਨ ਵਾਲੇ ਬਿੱਲ: {{bills_due}}" },

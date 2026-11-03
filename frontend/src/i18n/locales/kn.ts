@@ -1807,6 +1807,43 @@ const kn: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ವೆಚ್ಚದ ಕ್ಲೈಮ್‌ಗಳು",
+      "claim": "ವೆಚ್ಚದ ಕ್ಲೈಮ್",
+      "reimbursements": "ಮರುಪಾವತಿಗಳು",
+      "reimbursement": "ಮರುಪಾವತಿ",
+      "owed_nav": "ಸಿಬ್ಬಂದಿಗೆ ಬಾಕಿ",
+      "owed_title": "ಸಿಬ್ಬಂದಿಗೆ ಬಾಕಿ",
+      "owed_subtitle": "ಮರುಪಾವತಿಯ ನಂತರ, ಸಿಬ್ಬಂದಿ ಪಾವತಿಸಿದ ವೆಚ್ಚಗಳಿಗಾಗಿ ಕಂಪನಿ ಇನ್ನೂ ನೀಡಬೇಕಾದ ಮೊತ್ತ.",
+      "owed_empty": "ಸಿಬ್ಬಂದಿಗೆ ಯಾವುದೇ ಬಾಕಿ ಇಲ್ಲ.",
+      "owed_total": "ಒಟ್ಟು",
+      "owed_view": "ಕ್ಲೈಮ್‌ಗಳನ್ನು ನೋಡಿ",
+      "lines": "ವೆಚ್ಚದ ವಿವರಗಳು",
+      "col": {
+        "claimed": "ಕ್ಲೈಮ್ ಮಾಡಿದ ಮೊತ್ತ",
+        "reimbursed": "ಮರುಪಾವತಿಸಿದ ಮೊತ್ತ"
+      },
+      "fields": {
+        "expense_date": "ವೆಚ್ಚದ ದಿನಾಂಕ",
+        "expense_category": "ವೆಚ್ಚದ ವರ್ಗ",
+        "sanctioned": "ಮಂಜೂರಾದ ಮೊತ್ತ",
+        "total_sanctioned": "ಒಟ್ಟು ಮಂಜೂರು",
+        "payable_account": "ಪಾವತಿಸಬೇಕಾದ ಖಾತೆ"
+      },
+      "status": {
+        "draft": "ಕರಡು",
+        "unpaid": "ಪಾವತಿಯಾಗಿಲ್ಲ",
+        "partly_paid": "ಭಾಗಶಃ ಪಾವತಿ",
+        "paid": "ಪಾವತಿಯಾಗಿದೆ",
+        "cancelled": "ರದ್ದುಗೊಂಡಿದೆ"
+      },
+      "help": {
+        "proof": "ಕೆಳಗೆ ರಶೀದಿಯ ಫೋಟೋ ಲಗತ್ತಿಸಿ. ರಶೀದಿ ಇಲ್ಲದೆ ಕ್ಲೈಮ್ ಸಲ್ಲಿಸಲಾಗುವುದಿಲ್ಲ.",
+        "payable_account": "ಖಾಲಿ ಬಿಟ್ಟರೆ ಎಚ್‌ಆರ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳ ವೆಚ್ಚದ ಕ್ಲೈಮ್ ಪಾವತಿ ಖಾತೆ ಬಳಸಲಾಗುತ್ತದೆ.",
+        "sanctioned_default": "ಪೂರ್ಣ ಮೊತ್ತಕ್ಕೆ ಸಮ",
+        "claim_filter": "ಈ ಸಿಬ್ಬಂದಿಯ ಸಲ್ಲಿಸಿದ ಕ್ಲೈಮ್‌ಗಳು ಮಾತ್ರ ತೋರಿಸಲಾಗುತ್ತದೆ."
+      }
+    },
     title: "ಮಾನವ ಸಂಪನ್ಮೂಲ",
     res: {
       employees: "ಉದ್ಯೋಗಿಗಳು",
@@ -2717,6 +2754,11 @@ const kn: Record<string, unknown> = {
     "review_banner_title": "AI ತುಂಬಿದ ಫಾರ್ಮ್",
     "not_right": "ಸರಿಯಾಗಿಲ್ಲವೇ? ಏನನ್ನು ಬದಲಾಯಿಸಬೇಕೆಂದು ತಿಳಿಸಿ",
     "attach_bill": "ದಯವಿಟ್ಟು ಪೂರೈಕೆದಾರರ ಬಿಲ್ ಫೋಟೋ ಅಥವಾ ದಾಖಲೆಯನ್ನು ಲಗತ್ತಿಸಿ.",
+    "bill": {
+      "upload": "ಪೂರೈಕೆದಾರರ ಬಿಲ್‌ನ ಫೋಟೋ ಕಳುಹಿಸಿ",
+      "reading": "ಬಿಲ್ ಓದಲಾಗುತ್ತಿದೆ...",
+      "failed": "ಬಿಲ್ ಫೋಟೋ ಓದಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಫಾರ್ಮ್‌ನಲ್ಲಿ ಬಿಲ್ ನಮೂದಿಸಿ."
+    },
     "warnings": "ಎಚ್ಚರಿಕೆಗಳು",
     "ai_filled_hint": "AI ನಿಂದ ತುಂಬಲ್ಪಟ್ಟಿದೆ",
     "suggested_prompts": "ಹೀಗೆ ಹೇಳಿ ನೋಡಿ",
@@ -2823,6 +2865,7 @@ const kn: Record<string, unknown> = {
       expense_unpaid: { title: "ಖರ್ಚು ಪಾವತಿಸಿಲ್ಲ", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ದಿನಗಳಿಂದ ಬಾಕಿ" },
       gst_credit_at_risk: { title: "GST ಕ್ರೆಡಿಟ್ ಅಪಾಯದಲ್ಲಿದೆ", body: "{{invoice}}: {{gst_amount}} GST ಕ್ರೆಡಿಟ್, {{days_unpaid}} ದಿನಗಳಿಂದ ಬಾಕಿ" },
       integrity_failed: { title: "ಲೆಕ್ಕಗಳ ಪರಿಶೀಲನೆ ವಿಫಲ", body: "ಲೆಕ್ಕಗಳಲ್ಲಿ {{error_count}} ಸಮಸ್ಯೆಗಳು ಕಂಡುಬಂದಿವೆ" },
+      backup_failed: { title: "ಬ್ಯಾಕಪ್ ವಿಫಲ", body: "ನಿನ್ನೆ ರಾತ್ರಿಯ ಡೇಟಾಬೇಸ್ ಬ್ಯಾಕಪ್ ಪೂರ್ಣಗೊಂಡಿಲ್ಲ: {{error}}" },
       overdue_bills_digest: { title: "ಅವಧಿ ಮೀರಿದ ಬಿಲ್‌ಗಳು", body: "{{count}} ಅವಧಿ ಮೀರಿದ ಬಿಲ್‌ಗಳು, ಒಟ್ಟು {{total_amount}}" },
       daily_summary: { title: "ದೈನಂದಿನ ಸಾರಾಂಶ", body: "{{money_in}} ಬಂದಿದೆ, {{bills_count}} ಬಿಲ್‌ಗಳು {{bills_total}}, {{pending_dispatches}} ಆರ್ಡರ್‌ಗಳನ್ನು ಕಳುಹಿಸಬೇಕು" },
       weekly_digest: { title: "ವಾರದ ಸಾರಾಂಶ", body: "ಈ ವಾರ ವಸೂಲಿ ಮಾಡಬೇಕಾದದ್ದು: {{collections_needed}}. ಪಾವತಿಸಬೇಕಾದ ಬಿಲ್‌ಗಳು: {{bills_due}}" },

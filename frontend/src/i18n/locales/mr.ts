@@ -1807,6 +1807,43 @@ const mr: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "खर्च दावे",
+      "claim": "खर्च दावा",
+      "reimbursements": "परतफेड",
+      "reimbursement": "परतफेड",
+      "owed_nav": "कर्मचाऱ्यांची बाकी रक्कम",
+      "owed_title": "कर्मचाऱ्यांची बाकी रक्कम",
+      "owed_subtitle": "परतफेडीनंतर, कर्मचाऱ्यांनी केलेल्या खर्चापोटी कंपनीने अजून द्यायची रक्कम.",
+      "owed_empty": "कर्मचाऱ्यांची कोणतीही बाकी रक्कम नाही.",
+      "owed_total": "एकूण",
+      "owed_view": "दावे पहा",
+      "lines": "खर्चाचे तपशील",
+      "col": {
+        "claimed": "दावा केलेली रक्कम",
+        "reimbursed": "परत केलेली रक्कम"
+      },
+      "fields": {
+        "expense_date": "खर्चाची तारीख",
+        "expense_category": "खर्चाचा प्रकार",
+        "sanctioned": "मंजूर रक्कम",
+        "total_sanctioned": "एकूण मंजूर",
+        "payable_account": "देय खाते"
+      },
+      "status": {
+        "draft": "मसुदा",
+        "unpaid": "बाकी",
+        "partly_paid": "अंशतः दिले",
+        "paid": "दिले",
+        "cancelled": "रद्द"
+      },
+      "help": {
+        "proof": "खाली पावतीचा फोटो जोडा. पावतीशिवाय दावा सादर करता येत नाही.",
+        "payable_account": "रिकामे ठेवल्यास एचआर सेटिंग्जमधील खर्च दावा देय खाते वापरले जाईल.",
+        "sanctioned_default": "पूर्ण रकमेएवढी",
+        "claim_filter": "या कर्मचाऱ्याचे सादर केलेले दावेच दिसतील."
+      }
+    },
     title: "मानव संसाधन",
     res: {
       employees: "कर्मचारी",
@@ -2717,6 +2754,11 @@ const mr: Record<string, unknown> = {
     "review_banner_title": "एआयने भरलेला फॉर्म",
     "not_right": "योग्य नाही? काय बदलायचे ते सांगा",
     "attach_bill": "कृपया पुरवठादार बिलाचा फोटो किंवा दस्तऐवज जोडा.",
+    "bill": {
+      "upload": "पुरवठादाराच्या बिलाचा फोटो पाठवा",
+      "reading": "बिल वाचत आहे...",
+      "failed": "बिलाचा फोटो वाचता आला नाही. पुन्हा प्रयत्न करा, किंवा फॉर्ममध्ये बिल भरा."
+    },
     "warnings": "इशारे",
     "ai_filled_hint": "एआयने भरलेले",
     "suggested_prompts": "असे बोलून पहा",
@@ -2823,6 +2865,7 @@ const mr: Record<string, unknown> = {
       expense_unpaid: { title: "खर्च न भरलेला", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} दिवसांपासून थकीत" },
       gst_credit_at_risk: { title: "GST क्रेडिट धोक्यात", body: "{{invoice}}: {{gst_amount}} GST क्रेडिट, {{days_unpaid}} दिवसांपासून थकीत" },
       integrity_failed: { title: "हिशेब तपासणी अयशस्वी", body: "हिशेबात {{error_count}} समस्या आढळल्या" },
+      backup_failed: { title: "बॅकअप अयशस्वी", body: "काल रात्रीचा डेटाबेस बॅकअप पूर्ण झाला नाही: {{error}}" },
       overdue_bills_digest: { title: "थकीत बिले", body: "{{count}} थकीत बिले, एकूण {{total_amount}}" },
       daily_summary: { title: "दैनिक सारांश", body: "{{money_in}} मिळाले, {{bills_count}} बिले {{bills_total}}, {{pending_dispatches}} ऑर्डर पाठवायच्या आहेत" },
       weekly_digest: { title: "साप्ताहिक सारांश", body: "या आठवड्यात वसूल करायचे: {{collections_needed}}. देय बिले: {{bills_due}}" },

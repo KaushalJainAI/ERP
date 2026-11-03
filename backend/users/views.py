@@ -6,8 +6,15 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from core.mixins import AuditLogMixin, record_audit_log
+from users.auth import (
+    SessionAwareTokenRefreshSerializer,
+    issue_tokens,
+    revoke_all_sessions,
+)
 from users.models import Role, RolePermission, User
 from users.serializers import (
     ChangePasswordSerializer,
@@ -29,10 +36,52 @@ class ThrottledTokenObtainPairView(TokenObtainPairView):
 
 
 class ThrottledTokenRefreshView(TokenRefreshView):
-    """Refresh endpoint under the same brute-force `auth` scope as login."""
+    """Refresh endpoint under the same brute-force `auth` scope as login.
+    Refuses inactive users and sessions revoked by ``tokens_valid_after``."""
 
+    serializer_class = SessionAwareTokenRefreshSerializer
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "auth"
+
+
+class LogoutView(APIView):
+    """POST /api/auth/logout/ ``{refresh}`` -- sign this device out.
+
+    Blacklists the refresh token so a copy of it cannot mint new access tokens.
+    Open to anonymous callers (the access token may already have expired);
+    it can only revoke a token the caller already holds. Always 200, so it
+    does not reveal whether a token was valid."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        raw = request.data.get("refresh")
+        if raw:
+            try:
+                RefreshToken(raw).blacklist()
+            except TokenError:
+                pass
+        return Response({"detail": _("Signed out.")})
+
+
+class LogoutAllView(APIView):
+    """POST /api/auth/me/logout-all/ -- sign out on every device (lost phone)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        with transaction.atomic():
+            revoke_all_sessions(request.user)
+            record_audit_log(
+                request.user,
+                "update",
+                request.user,
+                changes={"sessions": "signed out everywhere"},
+            )
+        return Response({"detail": _("Signed out on all devices.")})
 
 
 class CurrentUserView(generics.RetrieveUpdateAPIView):
@@ -58,13 +107,18 @@ class ChangeOwnPasswordView(APIView):
         with transaction.atomic():
             request.user.set_password(ser.validated_data["new_password"])
             request.user.save(update_fields=["password", "modified_at"])
+            # Other devices (and any stolen token) are signed out; this device
+            # continues with the fresh pair returned below.
+            revoke_all_sessions(request.user)
             record_audit_log(
                 request.user,
                 "update",
                 request.user,
                 changes={"password": "changed (self-service)"},
             )
-        return Response({"detail": _("Password changed.")})
+        return Response(
+            {"detail": _("Password changed."), **issue_tokens(request.user)}
+        )
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -138,6 +192,8 @@ class UserViewSet(viewsets.ModelViewSet):
                 for k in after
                 if before[k] != after[k]
             }
+            if before["is_active"] and not after["is_active"]:
+                revoke_all_sessions(user)
             record_audit_log(self.request.user, "update", user, changes=changes)
 
     def _set_active(self, request, active):
@@ -148,6 +204,8 @@ class UserViewSet(viewsets.ModelViewSet):
             if user.is_active != active:
                 user.is_active = active
                 user.save(update_fields=["is_active", "modified_at"])
+                if not active:
+                    revoke_all_sessions(user)
                 record_audit_log(
                     request.user,
                     "update",
@@ -176,6 +234,7 @@ class UserViewSet(viewsets.ModelViewSet):
         with transaction.atomic():
             user.set_password(ser.validated_data["new_password"])
             user.save(update_fields=["password", "modified_at"])
+            revoke_all_sessions(user)
             record_audit_log(
                 request.user, "update", user, changes={"password": "reset by admin"}
             )

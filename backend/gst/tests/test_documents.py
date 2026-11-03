@@ -1296,14 +1296,20 @@ class DBConstraintTests(GSTDocBase):
             "check_purchaseinvoiceitem_expiry_after_manufacturing",
             {c.name for c in PurchaseInvoiceItem._meta.constraints},
         )
-        for model in (SalesOrder, PurchaseOrder):
-            self.assertEqual(len(model._meta.constraints), 3)
-        # Invoices also carry the outstanding-sign CHECK and the three return CHECKs
-        # (return_against needs is_return, not self, amount sign).
-        self.assertEqual(len(SalesInvoice._meta.constraints), 7)
-        # PurchaseInvoice adds the supplier-bill-number UNIQUE and the
-        # bill-date-not-after-posting CHECK.
-        self.assertEqual(len(PurchaseInvoice._meta.constraints), 9)
+        self.assertEqual(len(PurchaseOrder._meta.constraints), 3)
+        # SalesOrder adds the dispatch-status CHECK (O-cards, dispatch flow).
+        self.assertEqual(len(SalesOrder._meta.constraints), 4)
+        self.assertIn(
+            "check_sales_order_dispatch_status_valid",
+            {c.name for c in SalesOrder._meta.constraints},
+        )
+        # Invoices also carry the outstanding-sign CHECK, the three return CHECKs
+        # (return_against needs is_return, not self, amount sign) and the
+        # due-date-not-before-posting CHECK.
+        self.assertEqual(len(SalesInvoice._meta.constraints), 8)
+        # PurchaseInvoice adds the supplier-bill-number UNIQUE, the
+        # bill-date-not-after-posting CHECK and the expense-needs-category CHECK.
+        self.assertEqual(len(PurchaseInvoice._meta.constraints), 11)
 
 
 class DryRunTests(GSTDocBase):

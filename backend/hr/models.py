@@ -561,6 +561,11 @@ class HRSettings(TimeStampedModel):
     default_payment_account = models.ForeignKey(
         "accounts.Account", on_delete=models.PROTECT, related_name="+"
     )
+    # Credited (party Employee) by each submitted expense claim; each expense
+    # reimbursement debits it.  See hr.services.expense_claims.
+    expense_claim_payable_account = models.ForeignKey(
+        "accounts.Account", on_delete=models.PROTECT, related_name="+"
+    )
     # Credited by each slip's TDS row; TaxPayment (TDS) debits it.  Nullable so
     # existing rows migrate; ensure_hr_setup fills it in.
     tds_payable_account = models.ForeignKey(
@@ -576,7 +581,11 @@ class HRSettings(TimeStampedModel):
         verbose_name_plural = "HR Settings"
 
     #: Accounts whose change would orphan existing postings.
-    LOCKED_ONCE_POSTED = ("payroll_payable_account", "employee_advance_account")
+    LOCKED_ONCE_POSTED = (
+        "payroll_payable_account",
+        "employee_advance_account",
+        "expense_claim_payable_account",
+    )
     #: Locked once posted, but only when already set (filled in on first setup).
     LOCKED_IF_SET = ("tds_payable_account",)
 
@@ -589,6 +598,12 @@ class HRSettings(TimeStampedModel):
                 company_id=self.company_id, docstatus=DocStatus.SUBMITTED
             ).exists()
             or EmployeePayment.objects.filter(
+                company_id=self.company_id, docstatus=DocStatus.SUBMITTED
+            ).exists()
+            or ExpenseClaim.objects.filter(
+                company_id=self.company_id, docstatus=DocStatus.SUBMITTED
+            ).exists()
+            or ExpenseReimbursement.objects.filter(
                 company_id=self.company_id, docstatus=DocStatus.SUBMITTED
             ).exists()
         )
@@ -608,9 +623,10 @@ class HRSettings(TimeStampedModel):
                 if changed and self.has_postings():
                     raise ValidationError(
                         _(
-                            "The payroll payable, employee advance and TDS payable "
-                            "accounts cannot be changed once salary slips, advances or "
-                            "payments are submitted."
+                            "The payroll payable, employee advance, expense claim "
+                            "payable and TDS payable accounts cannot be changed once "
+                            "salary slips, advances, payments, expense claims or "
+                            "reimbursements are submitted."
                         )
                     )
         super().save(*args, **kwargs)
@@ -867,6 +883,170 @@ class EmployeePayment(SubmittableDocument):
         from accounts.services import gl as gl_service
 
         gl_service.reverse(self)
+
+    def __str__(self):
+        return f"{self.name} ({self.employee_id})"
+
+
+class ExpenseClaim(SubmittableDocument):
+    """Company expenses an employee paid from their own pocket, with proof.
+
+    ``total_claimed`` / ``total_sanctioned`` are derived from the lines and rebuilt
+    on every draft save.  ``outstanding_amount`` is a stored projection of the
+    ledger (sanctioned less live reimbursements), written only by
+    ``hr.services.expense_claims.rebuild_claim`` and checked by integrity.
+    ``status`` is derived (``hr.services.expense_claims.status_of``).
+    """
+
+    company = models.ForeignKey(
+        "core.Company", on_delete=models.PROTECT, related_name="expense_claims"
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name="expense_claims"
+    )
+    posting_date = models.DateField(_("posting date"))
+    payable_account = models.ForeignKey(
+        "accounts.Account", on_delete=models.PROTECT, related_name="+"
+    )
+    remarks = models.CharField(_("remarks"), max_length=240, blank=True, default="")
+    total_claimed = models.DecimalField(
+        _("total claimed"), max_digits=18, decimal_places=2, default=ZERO
+    )
+    total_sanctioned = models.DecimalField(
+        _("total sanctioned"), max_digits=18, decimal_places=2, default=ZERO
+    )
+    outstanding_amount = models.DecimalField(
+        _("outstanding amount"), max_digits=18, decimal_places=2, default=ZERO
+    )
+
+    class Meta:
+        ordering = ["-posting_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(total_claimed__gte=0)
+                & Q(total_sanctioned__gte=0)
+                & Q(outstanding_amount__gte=0),
+                name="check_expense_claim_amounts_non_negative",
+            ),
+            models.CheckConstraint(
+                check=Q(total_sanctioned__lte=F("total_claimed")),
+                name="check_expense_claim_sanctioned_within_claimed",
+            ),
+            models.CheckConstraint(
+                check=Q(outstanding_amount__lte=F("total_sanctioned")),
+                name="check_expense_claim_outstanding_within_sanctioned",
+            ),
+            # A submitted claim always sanctions something.
+            models.CheckConstraint(
+                check=~Q(docstatus=DocStatus.SUBMITTED) | Q(total_sanctioned__gt=0),
+                name="check_expense_claim_submitted_sanctioned",
+            ),
+        ]
+
+    def validate_before_submit(self):
+        from hr.services import expense_claims
+
+        expense_claims.validate_claim(self)
+
+    def on_submit(self):
+        from hr.services import expense_claims
+
+        expense_claims.post_claim(self)
+
+    def on_cancel(self):
+        from hr.services import expense_claims
+
+        expense_claims.cancel_claim(self)
+
+    def __str__(self):
+        return f"{self.name} ({self.employee_id})"
+
+
+class ExpenseClaimDetail(models.Model):
+    """One expense of a claim.  ``sanctioned_amount`` is what the company accepts
+    (defaults to ``amount``); it is posted to the category's expense account."""
+
+    claim = models.ForeignKey(
+        ExpenseClaim, on_delete=models.CASCADE, related_name="lines"
+    )
+    idx = models.PositiveIntegerField(default=0)
+    expense_date = models.DateField(_("expense date"))
+    expense_category = models.ForeignKey(
+        "buying.ExpenseCategory", on_delete=models.PROTECT, related_name="+"
+    )
+    description = models.CharField(_("description"), max_length=240)
+    amount = models.DecimalField(_("amount"), max_digits=18, decimal_places=2)
+    sanctioned_amount = models.DecimalField(
+        _("sanctioned amount"), max_digits=18, decimal_places=2
+    )
+
+    class Meta:
+        ordering = ["idx", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(amount__gt=0), name="check_expense_claim_line_amount_positive"
+            ),
+            models.CheckConstraint(
+                check=Q(sanctioned_amount__gte=0)
+                & Q(sanctioned_amount__lte=F("amount")),
+                name="check_expense_claim_line_sanctioned",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.claim_id} {self.expense_category_id} {self.amount}"
+
+
+class ExpenseReimbursement(SubmittableDocument):
+    """Money paid back to an employee for a submitted expense claim:
+    Dr the claim's payable account (party Employee) / Cr cash or bank."""
+
+    company = models.ForeignKey(
+        "core.Company",
+        on_delete=models.PROTECT,
+        related_name="expense_reimbursements",
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.PROTECT, related_name="expense_reimbursements"
+    )
+    expense_claim = models.ForeignKey(
+        ExpenseClaim, on_delete=models.PROTECT, related_name="reimbursements"
+    )
+    posting_date = models.DateField(_("posting date"))
+    amount = models.DecimalField(_("amount"), max_digits=18, decimal_places=2)
+    mode = models.CharField(
+        _("mode"), max_length=10, choices=PaymentMode.choices, default=PaymentMode.CASH
+    )
+    paid_from = models.ForeignKey(
+        "accounts.Account", on_delete=models.PROTECT, related_name="+"
+    )
+    reference_no = models.CharField(
+        _("reference number"), max_length=140, blank=True, default=""
+    )
+
+    class Meta:
+        ordering = ["-posting_date", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                check=Q(amount__gt=0),
+                name="check_expense_reimbursement_amount_positive",
+            )
+        ]
+
+    def validate_before_submit(self):
+        from hr.services import expense_claims
+
+        expense_claims.validate_reimbursement(self)
+
+    def on_submit(self):
+        from hr.services import expense_claims
+
+        expense_claims.post_reimbursement(self)
+
+    def on_cancel(self):
+        from hr.services import expense_claims
+
+        expense_claims.cancel_reimbursement(self)
 
     def __str__(self):
         return f"{self.name} ({self.employee_id})"

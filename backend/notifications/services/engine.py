@@ -8,7 +8,9 @@ from notifications.services.mail import queue_email
 logger = logging.getLogger(__name__)
 
 
-def evaluate_rule(rule_key, message_key, params=None, link="", dedupe_key=None, recipients=None):
+def evaluate_rule(
+    rule_key, message_key, params=None, link="", dedupe_key=None, recipients=None
+):
     """
     Evaluate an alert rule:
     - Checks if AlertRule with key=rule_key is active. If inactive (or not found), does nothing.
@@ -52,18 +54,18 @@ def evaluate_rule(rule_key, message_key, params=None, link="", dedupe_key=None, 
                 created_notifications.append(notif)
         except IntegrityError:
             # Notification with this user and dedupe_key already exists
-            notif = Notification.objects.filter(user=user, dedupe_key=base_dedupe).first()
+            notif = Notification.objects.filter(
+                user=user, dedupe_key=base_dedupe
+            ).first()
 
         # Queue email if user has an email
         user_email = getattr(user, "email", None)
         if user_email:
-            subject = f"ERP Alert: {message_key}"
-            body_parts = [f"Rule: {rule_key}"]
-            for k, v in params.items():
-                body_parts.append(f"{k}: {v}")
-            if link:
-                body_parts.append(f"\nLink: {link}")
-            body = "\n".join(body_parts)
+            from notifications.messages import render_email
+
+            subject, body = render_email(
+                rule_key, params, link, language=getattr(user, "language", None)
+            )
 
             email_dedupe_key = f"email_{user.pk}_{base_dedupe}"
             queue_email(
@@ -107,7 +109,10 @@ def check_raw_material_shortage(company=None):
                 getattr(company, "ready_warehouse_id", None),
             ]
             wh_candidates = [w for w in wh_candidates if w]
-            if wh_candidates and bins_qs.filter(warehouse_id__in=wh_candidates).exists():
+            if (
+                wh_candidates
+                and bins_qs.filter(warehouse_id__in=wh_candidates).exists()
+            ):
                 bins_qs = bins_qs.filter(warehouse_id__in=wh_candidates)
         else:
             stage_wh_bins = bins_qs.filter(

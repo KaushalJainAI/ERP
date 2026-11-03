@@ -46,9 +46,7 @@ def create_advance_request(employee, amount, reason, user):
             if AdvanceRequest.objects.filter(
                 employee=employee, status=AdvanceRequestStatus.PENDING
             ).exists():
-                raise ValidationError(
-                    _("You already have a pending advance request.")
-                )
+                raise ValidationError(_("You already have a pending advance request."))
             req = AdvanceRequest.objects.create(
                 employee=employee,
                 company=employee.company,

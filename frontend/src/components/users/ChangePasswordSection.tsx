@@ -48,7 +48,13 @@ export const ChangePasswordSection: React.FC = () => {
     setFieldErrors({});
     setGeneral([]);
     try {
-      await apiClient.post("/auth/me/change-password/", { old_password: oldPw, new_password: newPw });
+      const res = await apiClient.post("/auth/me/change-password/", {
+        old_password: oldPw,
+        new_password: newPw,
+      });
+      // The server signs out every other device and returns a fresh pair for this one.
+      if (res.data?.access) localStorage.setItem("access_token", res.data.access);
+      if (res.data?.refresh) localStorage.setItem("refresh_token", res.data.refresh);
       setOldPw("");
       setNewPw("");
       setConfirm("");

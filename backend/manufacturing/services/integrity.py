@@ -25,6 +25,8 @@ def check():
         .filter(stock_entry_type__in=MANUFACTURING_TYPES)
         .select_related("work_order", "bom")
     ):
+        # Quantize to the field's 2 dp, as the Bin check does: SQLite sums
+        # DECIMAL columns as floats, which leaves ~1e-14 noise on a true zero.
         total = (
             StockLedgerEntry.objects.filter(
                 voucher_type="stock.StockEntry",
@@ -32,7 +34,7 @@ def check():
                 is_cancelled=False,
             ).aggregate(total=Sum("stock_value_difference"))["total"]
             or Decimal("0.00")
-        )
+        ).quantize(Decimal("0.01"))
         if total != Decimal("0.00"):
             errors.append(
                 f"Manufacturing value drift in {entry.name}: ledger value "

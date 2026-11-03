@@ -301,6 +301,11 @@ class SalesInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
     def validate_before_submit(self):
         if not self.due_date:
             raise ValidationError(_("Due date is required at submit."))
+        # Normalise: objects built in code (imports, scripts) may still hold ISO strings.
+        self.due_date = self._meta.get_field("due_date").to_python(self.due_date)
+        self.posting_date = self._meta.get_field("posting_date").to_python(
+            self.posting_date
+        )
         if self.due_date < self.posting_date:
             raise ValidationError(_("Due date cannot be before posting date."))
         items = self.items.all()

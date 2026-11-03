@@ -1807,6 +1807,43 @@ const ur: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "اخراجات کے دعوے",
+      "claim": "اخراجات کا دعویٰ",
+      "reimbursements": "ادائیگیاں",
+      "reimbursement": "ادائیگی",
+      "owed_nav": "عملے کے واجبات",
+      "owed_title": "عملے کے واجبات",
+      "owed_subtitle": "ادائیگیوں کے بعد، وہ اخراجات جو عملے نے اپنی جیب سے ادا کیے اور کمپنی ابھی تک واپس دینی ہے۔",
+      "owed_empty": "عملے کا کوئی واجب الادا بقایا نہیں ہے۔",
+      "owed_total": "کل",
+      "owed_view": "دعوے دیکھیں",
+      "lines": "اخراجات کی تفصیل",
+      "col": {
+        "claimed": "دعویٰ کردہ رقم",
+        "reimbursed": "ادا شدہ رقم"
+      },
+      "fields": {
+        "expense_date": "خرچ کی تاریخ",
+        "expense_category": "خرچ کی قسم",
+        "sanctioned": "منظور شدہ رقم",
+        "total_sanctioned": "کل منظور شدہ",
+        "payable_account": "قابلِ ادائیگی کھاتہ"
+      },
+      "status": {
+        "draft": "مسودہ",
+        "unpaid": "غیر ادا شدہ",
+        "partly_paid": "جزوی ادا شدہ",
+        "paid": "ادا شدہ",
+        "cancelled": "منسوخ"
+      },
+      "help": {
+        "proof": "نیچے رسید کی تصویر منسلک کریں۔ رسید کے بغیر دعویٰ جمع نہیں ہو سکتا۔",
+        "payable_account": "خالی چھوڑنے پر ایچ آر سیٹنگز کا اخراجات کے دعوے کا قابلِ ادائیگی کھاتہ استعمال ہوگا۔",
+        "sanctioned_default": "پوری رقم کے برابر",
+        "claim_filter": "صرف اس ملازم کے جمع شدہ دعوے دکھائے جائیں گے۔"
+      }
+    },
     title: "انسانی وسائل",
     res: {
       employees: "ملازمین",
@@ -2717,6 +2754,11 @@ const ur: Record<string, unknown> = {
     "review_banner_title": "AI کا پر کردہ فارم",
     "not_right": "صحیح نہیں ہے؟ مجھے بتائیں کیا تبدیل کرنا ہے",
     "attach_bill": "براہ کرم سپلائر بل کی تصویر یا دستاویز منسلک کریں۔",
+    "bill": {
+      "upload": "سپلائر کے بل کی تصویر بھیجیں",
+      "reading": "بل پڑھا جا رہا ہے...",
+      "failed": "بل کی تصویر پڑھی نہیں جا سکی۔ دوبارہ کوشش کریں، یا فارم میں بل درج کریں۔"
+    },
     "warnings": "انتباہات",
     "ai_filled_hint": "AI کے ذریعے پر کیا گیا",
     "suggested_prompts": "ایسے بول کر دیکھیں",
@@ -2823,6 +2865,7 @@ const ur: Record<string, unknown> = {
       expense_unpaid: { title: "خرچ کی ادائیگی باقی", body: "{{invoice}}، {{supplier}}: {{outstanding}} {{days_unpaid}} دن سے باقی" },
       gst_credit_at_risk: { title: "GST کریڈٹ خطرے میں", body: "{{invoice}}: {{gst_amount}} GST کریڈٹ، {{days_unpaid}} دن سے باقی" },
       integrity_failed: { title: "کھاتوں کی جانچ ناکام", body: "کھاتوں میں {{error_count}} مسائل ملے" },
+      backup_failed: { title: "بیک اپ ناکام", body: "کل رات کا ڈیٹا بیس بیک اپ مکمل نہیں ہوا: {{error}}" },
       overdue_bills_digest: { title: "واجب الادا بل", body: "{{count}} واجب الادا بل، کل {{total_amount}}" },
       daily_summary: { title: "روزانہ خلاصہ", body: "{{money_in}} موصول، {{bills_count}} بل {{bills_total}}، {{pending_dispatches}} آرڈر بھیجنے ہیں" },
       weekly_digest: { title: "ہفتہ وار خلاصہ", body: "اس ہفتے وصول کرنا ہے: {{collections_needed}}۔ واجب الادا بل: {{bills_due}}" },

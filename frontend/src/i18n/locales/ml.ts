@@ -1807,6 +1807,43 @@ const ml: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ചെലവ് ക്ലെയിമുകൾ",
+      "claim": "ചെലവ് ക്ലെയിം",
+      "reimbursements": "തിരിച്ചടവുകൾ",
+      "reimbursement": "തിരിച്ചടവ്",
+      "owed_nav": "ജീവനക്കാർക്ക് നൽകാനുള്ളത്",
+      "owed_title": "ജീവനക്കാർക്ക് നൽകാനുള്ളത്",
+      "owed_subtitle": "തിരിച്ചടവുകൾക്ക് ശേഷം, ജീവനക്കാർ അടച്ച ചെലവുകൾക്കായി കമ്പനി ഇനിയും നൽകാനുള്ള തുക.",
+      "owed_empty": "ജീവനക്കാർക്ക് നൽകാനുള്ള തുകകളൊന്നുമില്ല.",
+      "owed_total": "ആകെ",
+      "owed_view": "ക്ലെയിമുകൾ കാണുക",
+      "lines": "ചെലവ് വിവരങ്ങൾ",
+      "col": {
+        "claimed": "ക്ലെയിം ചെയ്ത തുക",
+        "reimbursed": "തിരിച്ചടച്ച തുക"
+      },
+      "fields": {
+        "expense_date": "ചെലവ് തീയതി",
+        "expense_category": "ചെലവ് വിഭാഗം",
+        "sanctioned": "അനുവദിച്ച തുക",
+        "total_sanctioned": "ആകെ അനുവദിച്ചത്",
+        "payable_account": "നൽകേണ്ട അക്കൗണ്ട്"
+      },
+      "status": {
+        "draft": "ഡ്രാഫ്റ്റ്",
+        "unpaid": "നൽകിയിട്ടില്ല",
+        "partly_paid": "ഭാഗികമായി നൽകി",
+        "paid": "നൽകി",
+        "cancelled": "റദ്ദാക്കി"
+      },
+      "help": {
+        "proof": "താഴെ രസീതിന്റെ ഫോട്ടോ ചേർക്കുക. രസീതില്ലാതെ ക്ലെയിം സമർപ്പിക്കാനാവില്ല.",
+        "payable_account": "ഒഴിവാക്കിയാൽ എച്ച്ആർ ക്രമീകരണങ്ങളിലെ ചെലവ് ക്ലെയിം അക്കൗണ്ട് ഉപയോഗിക്കും.",
+        "sanctioned_default": "മുഴുവൻ തുകയ്ക്കും തുല്യം",
+        "claim_filter": "ഈ ജീവനക്കാരന്റെ സമർപ്പിച്ച ക്ലെയിമുകൾ മാത്രം കാണിക്കും."
+      }
+    },
     title: "എച്ച്ആർ",
     res: {
       employees: "ജീവനക്കാർ",
@@ -2717,6 +2754,11 @@ const ml: Record<string, unknown> = {
     "review_banner_title": "AI പൂരിപ്പിച്ച ഫോം",
     "not_right": "ശരിയല്ലേ? എന്ത് മാറ്റണമെന്ന് പറയൂ",
     "attach_bill": "വിതരണക്കാരന്റെ ബില്ലിന്റെ ഫോട്ടോയോ രേഖയോ അറ്റാച്ചുചെയ്യുക.",
+    "bill": {
+      "upload": "വിതരണക്കാരന്റെ ബില്ലിന്റെ ഫോട്ടോ അയയ്ക്കുക",
+      "reading": "ബിൽ വായിക്കുന്നു...",
+      "failed": "ബില്ലിന്റെ ഫോട്ടോ വായിക്കാൻ കഴിഞ്ഞില്ല. വീണ്ടും ശ്രമിക്കുക, അല്ലെങ്കിൽ ഫോമിൽ ബിൽ നൽകുക."
+    },
     "warnings": "മുന്നറിയിപ്പുകൾ",
     "ai_filled_hint": "AI പൂരിപ്പിച്ചത്",
     "suggested_prompts": "ഇങ്ങനെ പറഞ്ഞുനോക്കൂ",
@@ -2823,6 +2865,7 @@ const ml: Record<string, unknown> = {
       expense_unpaid: { title: "ചെലവ് അടച്ചിട്ടില്ല", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ദിവസമായി കുടിശ്ശിക" },
       gst_credit_at_risk: { title: "GST ക്രെഡിറ്റ് അപകടത്തിൽ", body: "{{invoice}}: {{gst_amount}} GST ക്രെഡിറ്റ്, {{days_unpaid}} ദിവസമായി കുടിശ്ശിക" },
       integrity_failed: { title: "കണക്ക് പരിശോധന പരാജയപ്പെട്ടു", body: "കണക്കുകളിൽ {{error_count}} പ്രശ്നങ്ങൾ കണ്ടെത്തി" },
+      backup_failed: { title: "ബാക്കപ്പ് പരാജയപ്പെട്ടു", body: "ഇന്നലെ രാത്രിയിലെ ഡാറ്റാബേസ് ബാക്കപ്പ് പൂർത്തിയായില്ല: {{error}}" },
       overdue_bills_digest: { title: "കാലാവധി കഴിഞ്ഞ ബില്ലുകൾ", body: "കാലാവധി കഴിഞ്ഞ {{count}} ബില്ലുകൾ, ആകെ {{total_amount}}" },
       daily_summary: { title: "ദൈനംദിന സംഗ്രഹം", body: "{{money_in}} ലഭിച്ചു, {{bills_count}} ബില്ലുകൾ {{bills_total}}, {{pending_dispatches}} ഓർഡറുകൾ അയയ്ക്കാനുണ്ട്" },
       weekly_digest: { title: "പ്രതിവാര സംഗ്രഹം", body: "ഈ ആഴ്ച പിരിക്കാനുള്ളത്: {{collections_needed}}. അടയ്ക്കാനുള്ള ബില്ലുകൾ: {{bills_due}}" },

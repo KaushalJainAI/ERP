@@ -1807,6 +1807,43 @@ const te: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ఖర్చు క్లెయిమ్‌లు",
+      "claim": "ఖర్చు క్లెయిమ్",
+      "reimbursements": "తిరిగి చెల్లింపులు",
+      "reimbursement": "తిరిగి చెల్లింపు",
+      "owed_nav": "ఉద్యోగులకు బాకీ",
+      "owed_title": "ఉద్యోగులకు బాకీ",
+      "owed_subtitle": "తిరిగి చెల్లింపుల తర్వాత, ఉద్యోగులు చెల్లించిన ఖర్చుల కోసం కంపెనీ ఇంకా ఇవ్వాల్సిన మొత్తం.",
+      "owed_empty": "ఉద్యోగులకు ఎటువంటి బాకీ లేదు.",
+      "owed_total": "మొత్తం",
+      "owed_view": "క్లెయిమ్‌లు చూడండి",
+      "lines": "ఖర్చు వివరాలు",
+      "col": {
+        "claimed": "క్లెయిమ్ చేసిన మొత్తం",
+        "reimbursed": "తిరిగి చెల్లించిన మొత్తం"
+      },
+      "fields": {
+        "expense_date": "ఖర్చు తేదీ",
+        "expense_category": "ఖర్చు వర్గం",
+        "sanctioned": "ఆమోదించిన మొత్తం",
+        "total_sanctioned": "మొత్తం ఆమోదం",
+        "payable_account": "చెల్లించాల్సిన ఖాతా"
+      },
+      "status": {
+        "draft": "డ్రాఫ్ట్",
+        "unpaid": "చెల్లించలేదు",
+        "partly_paid": "పాక్షికంగా చెల్లించారు",
+        "paid": "చెల్లించారు",
+        "cancelled": "రద్దు చేయబడింది"
+      },
+      "help": {
+        "proof": "కింద రసీదు ఫోటో జోడించండి. రసీదు లేకుండా క్లెయిమ్ సమర్పించలేరు.",
+        "payable_account": "ఖాళీగా ఉంచితే హెచ్ఆర్ సెట్టింగ్స్‌లోని ఖర్చు క్లెయిమ్ చెల్లింపు ఖాతా వాడతారు.",
+        "sanctioned_default": "పూర్తి మొత్తానికి సమానం",
+        "claim_filter": "ఈ ఉద్యోగి సమర్పించిన క్లెయిమ్‌లు మాత్రమే చూపబడతాయి."
+      }
+    },
     title: "మానవ వనరులు",
     res: {
       employees: "ఉద్యోగులు",
@@ -2717,6 +2754,11 @@ const te: Record<string, unknown> = {
     "review_banner_title": "AI నింపిన ఫారం",
     "not_right": "సరిగా లేదా? ఏమి మార్చాలో చెప్పండి",
     "attach_bill": "దయచేసి సరఫరాదారు బిల్లు ఫోటో లేదా పత్రాన్ని జతచేయండి.",
+    "bill": {
+      "upload": "సరఫరాదారు బిల్లు ఫోటో పంపండి",
+      "reading": "బిల్లు చదువుతోంది...",
+      "failed": "బిల్లు ఫోటో చదవలేకపోయాం. మళ్లీ ప్రయత్నించండి, లేదా ఫారమ్‌లో బిల్లు నమోదు చేయండి."
+    },
     "warnings": "హెచ్చరికలు",
     "ai_filled_hint": "AI నింపినది",
     "suggested_prompts": "ఇలా చెప్పి చూడండి",
@@ -2823,6 +2865,7 @@ const te: Record<string, unknown> = {
       expense_unpaid: { title: "ఖర్చు చెల్లించలేదు", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} రోజులుగా బకాయి" },
       gst_credit_at_risk: { title: "GST క్రెడిట్ ప్రమాదంలో ఉంది", body: "{{invoice}}: {{gst_amount}} GST క్రెడిట్, {{days_unpaid}} రోజులుగా బకాయి" },
       integrity_failed: { title: "ఖాతాల తనిఖీ విఫలమైంది", body: "ఖాతాల్లో {{error_count}} సమస్యలు కనుగొనబడ్డాయి" },
+      backup_failed: { title: "బ్యాకప్ విఫలమైంది", body: "నిన్న రాత్రి డేటాబేస్ బ్యాకప్ పూర్తి కాలేదు: {{error}}" },
       overdue_bills_digest: { title: "గడువు దాటిన బిల్లులు", body: "{{count}} గడువు దాటిన బిల్లులు, మొత్తం {{total_amount}}" },
       daily_summary: { title: "రోజువారీ సారాంశం", body: "{{money_in}} అందింది, {{bills_count}} బిల్లులు {{bills_total}}, {{pending_dispatches}} ఆర్డర్లు పంపాలి" },
       weekly_digest: { title: "వారపు సారాంశం", body: "ఈ వారం వసూలు చేయాల్సింది: {{collections_needed}}. చెల్లించాల్సిన బిల్లులు: {{bills_due}}" },

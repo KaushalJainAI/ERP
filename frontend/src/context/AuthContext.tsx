@@ -70,6 +70,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const logout = useCallback(() => {
+    // Revoke this device's refresh token server-side; a copy can no longer be
+    // used. Fire-and-forget: sign-out must not wait on the network.
+    const refresh = localStorage.getItem("refresh_token");
+    if (refresh) apiClient.post("/auth/logout/", { refresh }).catch(() => undefined);
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     clear(); // ProtectedRoute then redirects to /login

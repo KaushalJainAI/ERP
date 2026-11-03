@@ -47,3 +47,4 @@ media/
 # Local DB backups (contain real books)
 backend/backups/
 frontend/i18n-dump.json
+backend/var/

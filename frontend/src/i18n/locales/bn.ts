@@ -1807,6 +1807,43 @@ const bn: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "খরচের দাবি",
+      "claim": "খরচের দাবি",
+      "reimbursements": "ফেরত প্রদান",
+      "reimbursement": "ফেরত প্রদান",
+      "owed_nav": "কর্মচারীদের বকেয়া",
+      "owed_title": "কর্মচারীদের বকেয়া",
+      "owed_subtitle": "ফেরতের পরে, কর্মচারীরা নিজের পকেট থেকে দেওয়া খরচের জন্য কোম্পানির এখনও দেওয়ার বাকি টাকা।",
+      "owed_empty": "কর্মচারীদের কোনো বকেয়া নেই।",
+      "owed_total": "মোট",
+      "owed_view": "দাবি দেখুন",
+      "lines": "খরচের বিবরণ",
+      "col": {
+        "claimed": "দাবিকৃত অর্থ",
+        "reimbursed": "ফেরত দেওয়া অর্থ"
+      },
+      "fields": {
+        "expense_date": "খরচের তারিখ",
+        "expense_category": "খরচের ধরন",
+        "sanctioned": "অনুমোদিত অর্থ",
+        "total_sanctioned": "মোট অনুমোদিত",
+        "payable_account": "প্রদেয় হিসাব"
+      },
+      "status": {
+        "draft": "খসড়া",
+        "unpaid": "বকেয়া",
+        "partly_paid": "আংশিক পরিশোধিত",
+        "paid": "পরিশোধিত",
+        "cancelled": "বাতিল"
+      },
+      "help": {
+        "proof": "নিচে রসিদের ছবি যুক্ত করুন। রসিদ ছাড়া দাবি জমা দেওয়া যাবে না।",
+        "payable_account": "ফাঁকা রাখলে এইচআর সেটিংসের খরচের দাবির প্রদেয় হিসাব ব্যবহার হবে।",
+        "sanctioned_default": "পুরো অর্থের সমান",
+        "claim_filter": "এই কর্মচারীর জমা দেওয়া দাবিগুলোই দেখানো হবে।"
+      }
+    },
     title: "এইচআর",
     res: {
       employees: "কর্মচারী",
@@ -2717,6 +2754,11 @@ const bn: Record<string, unknown> = {
     "review_banner_title": "এআই দ্বারা পূর্ণ ফর্ম",
     "not_right": "ঠিক নয়? কি পরিবর্তন করতে হবে বলুন",
     "attach_bill": "দয়া করে সরবরাহকারীর বিলের ছবি বা নথি সংযুক্ত করুন।",
+    "bill": {
+      "upload": "সরবরাহকারীর বিলের ছবি পাঠান",
+      "reading": "বিল পড়া হচ্ছে...",
+      "failed": "বিলের ছবি পড়া যায়নি। আবার চেষ্টা করুন, বা ফর্মে বিল লিখুন।"
+    },
     "warnings": "সতর্কতা",
     "ai_filled_hint": "এআই দ্বারা পূরণ করা",
     "suggested_prompts": "এভাবে বলে দেখুন",
@@ -2823,6 +2865,7 @@ const bn: Record<string, unknown> = {
       expense_unpaid: { title: "খরচ অপরিশোধিত", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} দিন ধরে বাকি" },
       gst_credit_at_risk: { title: "GST ক্রেডিট ঝুঁকিতে", body: "{{invoice}}: {{gst_amount}} GST ক্রেডিট, {{days_unpaid}} দিন ধরে বাকি" },
       integrity_failed: { title: "হিসাব যাচাই ব্যর্থ", body: "হিসাবে {{error_count}}টি সমস্যা পাওয়া গেছে" },
+      backup_failed: { title: "ব্যাকআপ ব্যর্থ", body: "গত রাতের ডেটাবেস ব্যাকআপ সম্পূর্ণ হয়নি: {{error}}" },
       overdue_bills_digest: { title: "মেয়াদোত্তীর্ণ বিল", body: "{{count}}টি মেয়াদোত্তীর্ণ বিল, মোট {{total_amount}}" },
       daily_summary: { title: "দৈনিক সারাংশ", body: "{{money_in}} প্রাপ্ত, {{bills_count}}টি বিল {{bills_total}}, {{pending_dispatches}}টি অর্ডার পাঠাতে হবে" },
       weekly_digest: { title: "সাপ্তাহিক সারাংশ", body: "এই সপ্তাহে আদায় করতে হবে: {{collections_needed}}। দেয় বিল: {{bills_due}}" },

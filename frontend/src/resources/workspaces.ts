@@ -132,6 +132,8 @@ export const WORKSPACES: WorkspaceDef[] = [
       { path: "/hr/employees", labelKey: "hrm.res.employees", access: ["hr.Employee"], icon: Users },
       { path: "/hr/attendance", labelKey: "hrm.res.attendance", access: ["hr.Attendance"], icon: ClipboardList },
       { path: "/hr/salary-slips", labelKey: "hrm.res.salary_slips", access: ["hr.SalarySlip"], icon: Wallet },
+      { path: "/hr/expense-claims", labelKey: "hrm.exp.claims", access: ["hr.ExpenseClaim"], icon: Receipt },
+      { path: "/hr/owed-to-staff", labelKey: "hrm.exp.owed_nav", access: ["hr.ExpenseClaim"], icon: Wallet },
     ],
   },
   {

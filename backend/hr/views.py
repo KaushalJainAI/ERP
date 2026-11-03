@@ -1,6 +1,3 @@
-from hr.services import leave as leave_service
-from hr.services import reports as reports_service
-from hr.services import tds_register as tds_register_service
 """HR API: masters, employees, attendance / muster roll, payroll documents."""
 
 import datetime
@@ -17,7 +14,11 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from accounts.models import Account
-from core.company_context import CompanyScopedMixin, resolve_active_company, active_company_id
+from core.company_context import (
+    CompanyScopedMixin,
+    resolve_active_company,
+    active_company_id,
+)
 from core.mixins import AuditLogMixin, SubmittableViewSetMixin, record_audit_log
 from core.models import AuditLog, DocStatus
 from hr.models import (
@@ -29,6 +30,8 @@ from hr.models import (
     EmployeeAdvance,
     EmployeePayment,
     EmployeeWageRate,
+    ExpenseClaim,
+    ExpenseReimbursement,
     HolidayList,
     HRSettings,
     PaymentMode,
@@ -48,6 +51,8 @@ from hr.serializers import (
     EmployeePaymentSerializer,
     EmployeeSerializer,
     EmployeeWageRateSerializer,
+    ExpenseClaimSerializer,
+    ExpenseReimbursementSerializer,
     HolidayListSerializer,
     HRSettingsSerializer,
     MusterUpsertSerializer,
@@ -60,11 +65,19 @@ from hr.serializers import (
 )
 from hr.portal_serializers import SetPortalPinSerializer
 from hr.services import attendance as attendance_service
+from hr.services import leave as leave_service
+from hr.services import reports as reports_service
+from hr.services import tds_register as tds_register_service
+from hr.services import expense_claims as expense_claim_service
 from hr.services import payroll
 from hr.services import portal as portal_service
 from hr.services.setup import ensure_hr_setup
 from hr.services.summary import employee_summary
-from users.permissions import HasRolePermission, require_model_permission, user_has_model_permission
+from users.permissions import (
+    HasRolePermission,
+    require_model_permission,
+    user_has_model_permission,
+)
 
 PERMS = [permissions.IsAuthenticated, HasRolePermission]
 
@@ -169,7 +182,10 @@ class EmployeeViewSet(CompanyScopedMixin, HRMasterViewSet):
     # The portal actions edit credentials: the class-level check only needs
     # ``can_write`` on the employee; the real gate (HR Manager) is the explicit
     # ``hr.EmployeePortalAccess`` check inside each action.
-    action_permission_flags = {"set_portal_pin": "can_write", "disable_portal": "can_write"}
+    action_permission_flags = {
+        "set_portal_pin": "can_write",
+        "disable_portal": "can_write",
+    }
     filterset_fields = [
         "company",
         "department",
@@ -515,6 +531,58 @@ class EmployeePaymentViewSet(
         "company": ["exact"],
         "docstatus": ["exact"],
         "mode": ["exact"],
+        "posting_date": ["exact", "gte", "lte"],
+    }
+    search_fields = [
+        "name",
+        "employee__name",
+        "employee__employee_name",
+        "reference_no",
+    ]
+    ordering_fields = ["posting_date", "name", "amount"]
+
+
+class ExpenseClaimViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = (
+        ExpenseClaim.objects.all()
+        .select_related("employee", "company")
+        .prefetch_related("lines__expense_category")
+    )
+    serializer_class = ExpenseClaimSerializer
+    permission_classes = PERMS
+    filterset_fields = {
+        "employee": ["exact"],
+        "company": ["exact"],
+        "docstatus": ["exact"],
+        "posting_date": ["exact", "gte", "lte"],
+    }
+    search_fields = ["name", "employee__name", "employee__employee_name"]
+    ordering_fields = ["posting_date", "name", "total_claimed", "outstanding_amount"]
+
+    @action(detail=False, methods=["get"])
+    def owed(self, request):
+        """Per employee of the active company: claimed, sanctioned, reimbursed and
+        outstanding, over the submitted claims.  ``?employee=<id>`` narrows it."""
+        employee_id = _int_param(request, "employee")
+        rows = expense_claim_service.owed_by_employee(self.active_company, employee_id)
+        return Response(_jsonable(rows))
+
+
+class ExpenseReimbursementViewSet(
+    CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
+):
+    queryset = ExpenseReimbursement.objects.all().select_related(
+        "employee", "expense_claim"
+    )
+    serializer_class = ExpenseReimbursementSerializer
+    permission_classes = PERMS
+    filterset_fields = {
+        "employee": ["exact"],
+        "company": ["exact"],
+        "expense_claim": ["exact"],
+        "docstatus": ["exact"],
         "posting_date": ["exact", "gte", "lte"],
     }
     search_fields = [

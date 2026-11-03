@@ -392,6 +392,9 @@ class SalesInvoiceSerializer(
                 attrs["due_date"] = terms_service.calculate_due_date(
                     "Customer", customer, posting_date
                 )
+        from accounts.services import terms as terms_service
+
+        terms_service.validate_due_date(self, attrs)
         attrs = super().validate(attrs)
         return pricing_service.apply_line_rates(
             self,

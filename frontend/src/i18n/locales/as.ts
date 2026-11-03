@@ -1807,6 +1807,43 @@ const as: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "খৰচৰ দাবী",
+      "claim": "খৰচৰ দাবী",
+      "reimbursements": "ঘূৰাই দিয়া",
+      "reimbursement": "ঘূৰাই দিয়া",
+      "owed_nav": "কৰ্মচাৰীক দিবলগীয়া",
+      "owed_title": "কৰ্মচাৰীক দিবলগীয়া",
+      "owed_subtitle": "ঘূৰাই দিয়াৰ পিছত, কৰ্মচাৰীসকলে দিয়া খৰচৰ বাবদ কোম্পানীয়ে এতিয়াও দিবলগীয়া টকা।",
+      "owed_empty": "কৰ্মচাৰীক দিবলগীয়া কোনো টকা নাই।",
+      "owed_total": "মুঠ",
+      "owed_view": "দাবীসমূহ চাওক",
+      "lines": "খৰচৰ বিৱৰণ",
+      "col": {
+        "claimed": "দাবী কৰা টকা",
+        "reimbursed": "ঘূৰাই দিয়া টকা"
+      },
+      "fields": {
+        "expense_date": "খৰচৰ তাৰিখ",
+        "expense_category": "খৰচৰ শ্ৰেণী",
+        "sanctioned": "অনুমোদিত টকা",
+        "total_sanctioned": "মুঠ অনুমোদিত",
+        "payable_account": "দিবলগীয়া একাউণ্ট"
+      },
+      "status": {
+        "draft": "ড্ৰাফ্ট",
+        "unpaid": "দিয়া নহ'ল",
+        "partly_paid": "আংশিক দিয়া",
+        "paid": "দিয়া হ'ল",
+        "cancelled": "বাতিল"
+      },
+      "help": {
+        "proof": "তলত ৰচীদৰ ফটো দিয়ক। ৰচীদ নোহোৱাকৈ দাবী দাখিল কৰিব নোৱাৰি।",
+        "payable_account": "খালী এৰিলে এইচআৰ ছেটিঙৰ খৰচৰ দাবী দিবলগীয়া একাউণ্ট ব্যৱহাৰ হ'ব।",
+        "sanctioned_default": "সম্পূৰ্ণ টকাৰ সমান",
+        "claim_filter": "এই কৰ্মচাৰীৰ দাখিল কৰা দাবীসমূহহে দেখুৱাব।"
+      }
+    },
     title: "এইচআৰ",
     res: {
       employees: "কৰ্মচাৰী",
@@ -2717,6 +2754,11 @@ const as: Record<string, unknown> = {
     "review_banner_title": "AI দ্বাৰা পূৰণ কৰা প্ৰপত্ৰ",
     "not_right": "ঠিক নহয় নেকি? কি সলনি কৰিব লাগে কওক",
     "attach_bill": "অনুগ্ৰহ কৰি যোগানকৰ্তাৰ বিলৰ ফটো বা নথি সংলগ্ন কৰক।",
+    "bill": {
+      "upload": "যোগানধাৰৰ বিলৰ ফটো পঠিয়াওক",
+      "reading": "বিল পঢ়ি আছে...",
+      "failed": "বিলৰ ফটো পঢ়িব পৰা নগ'ল। আকৌ চেষ্টা কৰক, বা ফৰ্মত বিল লিখক।"
+    },
     "warnings": "সতৰ্কবাণী",
     "ai_filled_hint": "AI দ্বাৰা পূৰণ কৰা হৈছে",
     "suggested_prompts": "এনেকৈ কৈ চাওক",
@@ -2823,6 +2865,7 @@ const as: Record<string, unknown> = {
       expense_unpaid: { title: "খৰচ অপৰিশোধিত", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} দিন ধৰি বাকী" },
       gst_credit_at_risk: { title: "GST ক্ৰেডিট বিপদত", body: "{{invoice}}: {{gst_amount}} GST ক্ৰেডিট, {{days_unpaid}} দিন ধৰি বাকী" },
       integrity_failed: { title: "হিচাপ পৰীক্ষা বিফল", body: "হিচাপত {{error_count}}টা সমস্যা পোৱা গ'ল" },
+      backup_failed: { title: "বেকআপ বিফল", body: "কালি ৰাতিৰ ডাটাবেছ বেকআপ সম্পূৰ্ণ নহ'ল: {{error}}" },
       overdue_bills_digest: { title: "ম্যাদ উকলি যোৱা বিল", body: "{{count}}খন ম্যাদ উকলি যোৱা বিল, মুঠ {{total_amount}}" },
       daily_summary: { title: "দৈনিক সাৰাংশ", body: "{{money_in}} পোৱা গ'ল, {{bills_count}}খন বিল {{bills_total}}, {{pending_dispatches}}টা অৰ্ডাৰ পঠিয়াব লাগে" },
       weekly_digest: { title: "সাপ্তাহিক সাৰাংশ", body: "এই সপ্তাহত আদায় কৰিব লাগে: {{collections_needed}}। দিবলগীয়া বিল: {{bills_due}}" },

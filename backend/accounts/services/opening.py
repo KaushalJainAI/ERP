@@ -258,12 +258,154 @@ def plan_opening_bills(company, as_on):
     return {"rows": rows, "totals": totals, "problems": problems}
 
 
-def commit_opening_bills(company, as_on):
+# --------------------------------------------------------------- corrections (G-3)
+
+CSV_REQUIRED = ("party_type", "party", "bill_date", "amount")
+
+
+def _parse_date(value):
+    import datetime
+
+    return datetime.date.fromisoformat(str(value).strip())
+
+
+def plan_from_csv(company, as_on, csv_rows):
+    """The accountant's corrected bills, checked like the generated plan.
+
+    ``csv_rows`` are dicts with the columns of ``build_opening_bills --out``
+    (``kind``, ``party_type``, ``party``, ``bill_date``, ``amount``, ``due_date``,
+    ``reference``). Only ``bill`` rows (or rows without a ``kind``) become bills.
+    A blank ``due_date`` is the bill date plus the party's credit days.
+
+    Each party's bills must add up to its ledger balance on ``as_on``, and every
+    party with a balance owed must be covered: the same total checks as the
+    generator, so a commit never leaves the opening bills out of step with the
+    ledger. Returns ``{"rows", "totals", "problems"}`` like
+    :func:`plan_opening_bills`; read-only.
+    """
+    from accounts.services import outstanding as outstanding_service
+    from accounts.services.terms import calculate_due_date
+
+    ledger = _ledger_by_party(company, as_on)
+    rows, problems = [], []
+    per_party = {}
+
+    for line_no, raw in enumerate(csv_rows, start=2):  # row 1 is the header
+        raw = {k.strip(): (v or "").strip() for k, v in raw.items() if k}
+        kind = (raw.get("kind") or KIND_BILL).lower()
+        if kind != KIND_BILL:
+            continue
+        party_type, party = raw.get("party_type", ""), raw.get("party", "")
+
+        def bad(reason, party=party, line_no=line_no):
+            problems.append(
+                _("Row %(row)s (%(party)s): %(reason)s")
+                % {"row": line_no, "party": party or "?", "reason": reason}
+            )
+
+        if party_type not in PARTY_TYPES:
+            bad(_("party type must be Customer or Supplier."))
+            continue
+        master = (
+            _party_model(party_type).objects.filter(company=company, name=party).first()
+        )
+        if master is None:
+            bad(_("not a %(party_type)s of this company.") % {"party_type": party_type})
+            continue
+        try:
+            amount = Decimal(raw.get("amount", "").replace(",", ""))
+        except ArithmeticError:
+            bad(_("amount '%(value)s' is not a number.") % {"value": raw.get("amount")})
+            continue
+        if amount <= 0 or amount != amount.quantize(Decimal("0.01")):
+            bad(_("amount must be above 0 with at most 2 decimals."))
+            continue
+        try:
+            bill_date = _parse_date(raw.get("bill_date", ""))
+            due_date = (
+                _parse_date(raw["due_date"])
+                if raw.get("due_date")
+                else calculate_due_date(party_type, master, bill_date)
+            )
+        except ValueError:
+            bad(_("dates must be YYYY-MM-DD."))
+            continue
+        if bill_date > as_on:
+            bad(_("bill date is after the cutover date %(as_on)s.") % {"as_on": as_on})
+            continue
+        if due_date < bill_date:
+            bad(_("due date is before the bill date."))
+            continue
+        accounts = {ln.account_id for ln in ledger.get((party_type, party), [])}
+        if len(accounts) != 1:
+            bad(_("has no single control account in the ledger. Review by hand."))
+            continue
+        rows.append(
+            {
+                "kind": KIND_BILL,
+                "party_type": party_type,
+                "party": party,
+                "account_id": accounts.pop(),
+                "bill_date": bill_date,
+                "due_date": due_date,
+                "amount": amount,
+                "reference": raw.get("reference") or _("Accountant correction"),
+                "method": _("Accountant correction (CSV row %(row)s)")
+                % {"row": line_no},
+            }
+        )
+        key = (party_type, party)
+        per_party[key] = per_party.get(key, Decimal("0.00")) + amount
+
+    # Same tie-out as the generator: every party owing a balance is covered,
+    # and no party gets bills beyond what the ledger says it owes.
+    expected_total = Decimal("0.00")
+    for party_type, party in sorted(set(ledger) | set(per_party)):
+        balance = outstanding_service.party_balance(
+            party_type, party, company.pk, as_on=as_on
+        )
+        owed = balance if balance > 0 else Decimal("0.00")
+        expected_total += owed
+        bills = per_party.get((party_type, party), Decimal("0.00"))
+        if bills != owed:
+            problems.append(
+                _(
+                    "%(party)s: bills of %(bills)s do not add up to the balance of %(balance)s."
+                )
+                % {"party": party, "bills": bills, "balance": owed}
+            )
+    bill_total = sum((r["amount"] for r in rows), Decimal("0.00"))
+    if bill_total != expected_total:
+        problems.append(
+            _(
+                "Total of the bills (%(bills)s) does not equal the ledger balances (%(balance)s)."
+            )
+            % {"bills": bill_total, "balance": expected_total}
+        )
+    totals = {
+        "bill_count": len(rows),
+        "bills_total": bill_total,
+        "advance_count": 0,
+        "advances_total": Decimal("0.00"),
+        "review_count": 0,
+        "balance_total": expected_total,
+    }
+    return {"rows": rows, "totals": totals, "problems": problems}
+
+
+def commit_opening_bills(company, as_on, csv_rows=None):
     """Re-plan and create the submitted opening bills in one transaction. Refused,
     creating nothing, when the plan has problems or bills already exist for ``as_on``.
+
+    With ``csv_rows`` the bills are the accountant's corrections (G-3,
+    :func:`plan_from_csv`) instead of the generated estimate.
     """
     with transaction.atomic():
-        plan = plan_opening_bills(company, as_on)
+        plan = (
+            plan_opening_bills(company, as_on)
+            if csv_rows is None
+            else plan_from_csv(company, as_on, csv_rows)
+        )
         if plan["problems"]:
             raise ValidationError(plan["problems"])
         if (

@@ -513,6 +513,7 @@ question's recorded answer.
 - [x] E-7 Monthly repeats
 - [x] E-8 Tally mapping check
 - [ ] E-9 Category list (OWNER)
+- [x] E-10 Employee expense claims and reimbursement (backend)
 
 ### 6. Taxes
 - [x] T-1 Input credit flag
@@ -547,14 +548,14 @@ question's recorded answer.
 - [x] L-1 Mark everything
 - [x] L-2 Guard test
 - [x] L-3 Build setup
-- [x] L-4 Hindi
+- [x] L-4 Hindi — redone 2026-11-02: all 1,014 backend msgids translated (`backend/locale/hi/LC_MESSAGES/django.po`), placeholders checked, `core/test_hindi_api.py` proves an API message in Hindi. L-5 owner review still due
 - [ ] L-5 Hindi review (OWNER)
 - [x] L-6 Other languages
 
 ### 9. Go-live
 - [x] G-1 Opening bills
 - [x] G-2 Opening bills generator
-- [ ] G-3 Accountant corrections
+- [x] G-3 Accountant corrections (`build_opening_bills --from-csv`, `accounts/test_opening_bills_build.py::CsvCorrectionTests`)
 - [x] G-4 Integrity check
 - [x] G-5 Keep openings out of Tally
 - [x] G-6 Opening stock template

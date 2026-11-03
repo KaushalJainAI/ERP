@@ -1807,6 +1807,43 @@ const or: Record<string, unknown> = {
     },
   },
   hrm: {
+    exp: {
+      "claims": "ଖର୍ଚ୍ଚ ଦାବି",
+      "claim": "ଖର୍ଚ୍ଚ ଦାବି",
+      "reimbursements": "ପରିଶୋଧ",
+      "reimbursement": "ପରିଶୋଧ",
+      "owed_nav": "କର୍ମଚାରୀଙ୍କ ବକେୟା",
+      "owed_title": "କର୍ମଚାରୀଙ୍କ ବକେୟା",
+      "owed_subtitle": "ପରିଶୋଧ ପରେ, କର୍ମଚାରୀମାନେ ଦେଇଥିବା ଖର୍ଚ୍ଚ ପାଇଁ କମ୍ପାନୀ ଏବେ ବି ଦେବାକୁ ଥିବା ରାଶି।",
+      "owed_empty": "କର୍ମଚାରୀଙ୍କ କୌଣସି ବକେୟା ନାହିଁ।",
+      "owed_total": "ମୋଟ",
+      "owed_view": "ଦାବି ଦେଖନ୍ତୁ",
+      "lines": "ଖର୍ଚ୍ଚ ବିବରଣୀ",
+      "col": {
+        "claimed": "ଦାବି କରାଯାଇଥିବା ରାଶି",
+        "reimbursed": "ପରିଶୋଧିତ ରାଶି"
+      },
+      "fields": {
+        "expense_date": "ଖର୍ଚ୍ଚ ତାରିଖ",
+        "expense_category": "ଖର୍ଚ୍ଚ ଶ୍ରେଣୀ",
+        "sanctioned": "ଅନୁମୋଦିତ ରାଶି",
+        "total_sanctioned": "ମୋଟ ଅନୁମୋଦିତ",
+        "payable_account": "ଦେୟ ଆକାଉଣ୍ଟ"
+      },
+      "status": {
+        "draft": "ଡ୍ରାଫ୍ଟ",
+        "unpaid": "ବକେୟା",
+        "partly_paid": "ଆଂଶିକ ପରିଶୋଧ",
+        "paid": "ପରିଶୋଧିତ",
+        "cancelled": "ବାତିଲ"
+      },
+      "help": {
+        "proof": "ତଳେ ରସିଦର ଫଟୋ ଯୋଡ଼ନ୍ତୁ। ରସିଦ ବିନା ଦାବି ଦାଖଲ ହୋଇପାରିବ ନାହିଁ।",
+        "payable_account": "ଖାଲି ଛାଡ଼ିଲେ ଏଚଆର ସେଟିଙ୍ଗସର ଖର୍ଚ୍ଚ ଦାବି ଦେୟ ଆକାଉଣ୍ଟ ବ୍ୟବହୃତ ହେବ।",
+        "sanctioned_default": "ପୂର୍ଣ୍ଣ ରାଶି ସହିତ ସମାନ",
+        "claim_filter": "ଏହି କର୍ମଚାରୀଙ୍କ ଦାଖଲ ଦାବିଗୁଡ଼ିକ ହିଁ ଦେଖାଯିବ।"
+      }
+    },
     title: "ମାନବ ସମ୍ବଳ",
     res: {
       employees: "କର୍ମଚାରୀ",
@@ -2717,6 +2754,11 @@ const or: Record<string, unknown> = {
     "review_banner_title": "AI ଦ୍ୱାରା ପୂରଣ ହୋଇଥିବା ଫର୍ମ",
     "not_right": "ଠିକ୍ ନାହିଁ କି? କ'ଣ ବଦଳାଇବାକୁ ହେବ କୁହନ୍ତୁ",
     "attach_bill": "ଦୟାକରି ଯୋଗାଣକାରୀ ବିଲ୍ ଫଟୋ କିମ୍ବା ଦଲିଲ ସଂଲଗ୍ନ କରନ୍ତୁ।",
+    "bill": {
+      "upload": "ଯୋଗାଣକାରୀଙ୍କ ବିଲ୍‌ର ଫଟୋ ପଠାନ୍ତୁ",
+      "reading": "ବିଲ୍ ପଢ଼ାଯାଉଛି...",
+      "failed": "ବିଲ୍ ଫଟୋ ପଢ଼ିହେଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ, କିମ୍ବା ଫର୍ମରେ ବିଲ୍ ଲେଖନ୍ତୁ।"
+    },
     "warnings": "ଚେତାବନୀ",
     "ai_filled_hint": "AI ଦ୍ୱାରା ପୂରଣ",
     "suggested_prompts": "ଏପରି କହି ଦେଖନ୍ତୁ",
@@ -2823,6 +2865,7 @@ const or: Record<string, unknown> = {
       expense_unpaid: { title: "ଖର୍ଚ୍ଚ ଅପୈଠ", body: "{{invoice}}, {{supplier}}: {{outstanding}} {{days_unpaid}} ଦିନ ଧରି ବକେୟା" },
       gst_credit_at_risk: { title: "GST କ୍ରେଡିଟ୍ ବିପଦରେ", body: "{{invoice}}: {{gst_amount}} GST କ୍ରେଡିଟ୍, {{days_unpaid}} ଦିନ ଧରି ବକେୟା" },
       integrity_failed: { title: "ହିସାବ ଯାଞ୍ଚ ବିଫଳ", body: "ହିସାବରେ {{error_count}}ଟି ସମସ୍ୟା ମିଳିଲା" },
+      backup_failed: { title: "ବ୍ୟାକଅପ୍ ବିଫଳ", body: "ଗତ ରାତିର ଡାଟାବେସ୍ ବ୍ୟାକଅପ୍ ସମ୍ପୂର୍ଣ୍ଣ ହେଲା ନାହିଁ: {{error}}" },
       overdue_bills_digest: { title: "ଅବଧି ଶେଷ ବିଲ୍", body: "{{count}}ଟି ଅବଧି ଶେଷ ବିଲ୍, ମୋଟ {{total_amount}}" },
       daily_summary: { title: "ଦୈନିକ ସାରାଂଶ", body: "{{money_in}} ମିଳିଲା, {{bills_count}}ଟି ବିଲ୍ {{bills_total}}, {{pending_dispatches}}ଟି ଅର୍ଡର ପଠାଇବାକୁ ଅଛି" },
       weekly_digest: { title: "ସାପ୍ତାହିକ ସାରାଂଶ", body: "ଏହି ସପ୍ତାହରେ ଆଦାୟ କରିବାକୁ: {{collections_needed}}। ଦେୟ ବିଲ୍: {{bills_due}}" },

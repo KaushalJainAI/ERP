@@ -1,5 +1,6 @@
 import logging
 import time
+from django.conf import settings
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -25,7 +26,9 @@ def safe_execute(name, func, *args, **kwargs):
         logger.info("Scheduler: finished job '%s'", name)
         return result
     except Exception as exc:
-        logger.error("Scheduler: job '%s' raised an exception: %s", name, exc, exc_info=True)
+        logger.error(
+            "Scheduler: job '%s' raised an exception: %s", name, exc, exc_info=True
+        )
         return None
 
 
@@ -35,10 +38,12 @@ def run_recurring_expenses():
     """
     try:
         from buying.services.recurring import process_recurring_expenses
+
         return process_recurring_expenses()
     except (ImportError, AttributeError):
         try:
             from buying.services.expenses import generate_due_recurring_expenses
+
             return generate_due_recurring_expenses()
         except (ImportError, AttributeError):
             return None
@@ -50,10 +55,16 @@ def run_all_jobs(force_weekly=False):
     Returns dict with job execution results.
     """
     results = {}
-    results["shortage"] = safe_execute("raw_material_shortage", check_raw_material_shortage)
-    results["recurring_expenses"] = safe_execute("recurring_expenses", run_recurring_expenses)
+    results["shortage"] = safe_execute(
+        "raw_material_shortage", check_raw_material_shortage
+    )
+    results["recurring_expenses"] = safe_execute(
+        "recurring_expenses", run_recurring_expenses
+    )
     results["daily_summary"] = safe_execute("daily_summary", send_daily_summary)
-    results["overdue_bills"] = safe_execute("overdue_bills_digest", send_overdue_bills_digest)
+    results["overdue_bills"] = safe_execute(
+        "overdue_bills_digest", send_overdue_bills_digest
+    )
 
     today = timezone.localdate()
     if force_weekly or today.weekday() == 0:  # Monday is 0
@@ -94,6 +105,7 @@ class Command(BaseCommand):
         last_daily_date = None
         last_weekly_date = None
         last_integrity_date = None
+        last_backup_date = None
 
         while True:
             try:
@@ -116,14 +128,31 @@ class Command(BaseCommand):
                     safe_execute("overdue_bills_digest", send_overdue_bills_digest)
 
                 # 3. Weekly digest on Monday at 08:30
-                if now.weekday() == 0 and hour == 8 and minute == 30 and last_weekly_date != current_date:
+                if (
+                    now.weekday() == 0
+                    and hour == 8
+                    and minute == 30
+                    and last_weekly_date != current_date
+                ):
                     last_weekly_date = current_date
                     safe_execute("weekly_digest", send_weekly_digest)
 
-                # 4. Integrity check at 02:00
+                # 4. Database backup at 01:30, before the integrity check
+                if (
+                    settings.BACKUP_ENABLED
+                    and hour == 1
+                    and minute == 30
+                    and last_backup_date != current_date
+                ):
+                    last_backup_date = current_date
+                    safe_execute("backup_db", lambda: call_command("backup_db"))
+
+                # 5. Integrity check at 02:00
                 if hour == 2 and minute == 0 and last_integrity_date != current_date:
                     last_integrity_date = current_date
-                    safe_execute("verify_integrity", lambda: call_command("verify_integrity"))
+                    safe_execute(
+                        "verify_integrity", lambda: call_command("verify_integrity")
+                    )
 
                 time.sleep(30)
             except KeyboardInterrupt:

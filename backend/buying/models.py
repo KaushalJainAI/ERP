@@ -471,6 +471,11 @@ class PurchaseInvoice(PayableDocument, TaxableDocument, SubmittableDocument):
                 )
         if not self.due_date:
             raise ValidationError(_("Due date is required at submit."))
+        # Normalise: objects built in code (imports, scripts) may still hold ISO strings.
+        for field in ("due_date", "posting_date", "bill_date"):
+            setattr(
+                self, field, self._meta.get_field(field).to_python(getattr(self, field))
+            )
         if self.due_date < self.posting_date:
             raise ValidationError(_("Due date cannot be before posting date."))
         if self.bill_date and self.due_date < self.bill_date:
