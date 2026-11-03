@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { CheckCheck, FilePlus2, Landmark, Sparkles } from "lucide-react";
 import { apiClient } from "@/api/client";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { normaliseError, summariseError } from "@/api/endpoints";
 import { LinkField } from "@/components/doc/LinkField";
 import { Modal } from "@/components/ui/Modal";
@@ -67,6 +68,7 @@ export const BankReconciliationPage: React.FC = () => {
   const [jeFor, setJeFor] = useState<Tx | null>(null);
   const [counter, setCounter] = useState<string | number | null>(null);
   const [error, setError] = useState("");
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const ready = !!bankAccount && !!from && !!to;
   const { data, isFetching, error: loadError } = useReport<ToolData>(
@@ -93,6 +95,30 @@ export const BankReconciliationPage: React.FC = () => {
     mutationFn: async (args: { url: string; body: Record<string, unknown> }) =>
       (await apiClient.post(args.url, args.body)).data,
     onError: (e) => setError(summariseError(normaliseError(e))),
+  });
+
+  // Old statements hold years of lines: confirm every suggestion of the period at once.
+  const suggestionCount = data?.suggestions.length ?? 0;
+  const acceptAll = useMutation({
+    mutationFn: async () =>
+      (
+        await apiClient.post("/accounts/bank-reconciliation/accept-suggestions/", {
+          bank_account: bankAccount,
+          from_date: from,
+          to_date: to,
+        })
+      ).data as { matched: number; skipped: { bank_transaction: number; reason: string }[] },
+    onSuccess: (r) => {
+      setConfirmAll(false);
+      toast.success(t("bank.rec.accepted", { matched: r.matched, skipped: r.skipped.length }));
+      setTxId(null);
+      setPicked(new Set());
+      refresh();
+    },
+    onError: (e) => {
+      setConfirmAll(false);
+      setError(summariseError(normaliseError(e)));
+    },
   });
 
   const doMatch = (txn: Tx, vouchers: { voucher_type: string; voucher_no: string }[]) => {
@@ -159,6 +185,13 @@ export const BankReconciliationPage: React.FC = () => {
           <DateInput id="rec-to" labelKey="bank.to_date" value={to} onChange={setTo} />
           <button className={btnPrimary} disabled={!canMatch || post.isPending} onClick={() => tx && doMatch(tx, chosen)}>
             <CheckCheck className="w-4 h-4" /> {t("bank.rec.match_selected")}
+          </button>
+          <button
+            className={btnPrimary}
+            disabled={suggestionCount === 0 || acceptAll.isPending}
+            onClick={() => setConfirmAll(true)}
+          >
+            <CheckCheck className="w-4 h-4" /> {t("bank.rec.accept_all", { count: suggestionCount })}
           </button>
         </>
       }
@@ -328,6 +361,15 @@ export const BankReconciliationPage: React.FC = () => {
           </div>
         )}
       </Modal>
+      <ConfirmDialog
+        open={confirmAll}
+        title={t("bank.rec.accept_all", { count: suggestionCount })}
+        message={t("bank.rec.accept_all_confirm", { count: suggestionCount })}
+        confirmLabel={t("bank.rec.accept_all_go")}
+        busy={acceptAll.isPending}
+        onConfirm={() => acceptAll.mutate()}
+        onClose={() => setConfirmAll(false)}
+      />
     </ReportShell>
   );
 };

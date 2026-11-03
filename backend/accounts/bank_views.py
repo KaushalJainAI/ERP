@@ -601,6 +601,46 @@ def bank_match(request):
     ]
 )
 @parser_classes([JSONParser])
+def bank_accept_suggestions(request):
+    """Confirm all suggested matches of a period:
+    ``{bank_account, from_date?, to_date?, date_window?, only_reference?}``.
+    Returns ``{matched, skipped: [{bank_transaction, reason}]}``."""
+    data = request.data
+    bank_account = _bank_account(request, data.get("bank_account"))
+    dates = {}
+    for key in ("from_date", "to_date"):
+        raw = data.get(key)
+        if raw:
+            try:
+                dates[key] = datetime.date.fromisoformat(str(raw))
+            except ValueError:
+                raise ValidationError({key: _("Enter a valid date (YYYY-MM-DD).")})
+    try:
+        window = int(data.get("date_window", bank_service.DEFAULT_DATE_WINDOW))
+    except (TypeError, ValueError):
+        raise ValidationError({"date_window": _("Must be a number of days.")})
+    result = _write_view(
+        request,
+        lambda: bank_service.accept_suggestions(
+            request.user,
+            bank_account,
+            dates.get("from_date"),
+            dates.get("to_date"),
+            window,
+            bool(data.get("only_reference")),
+        ),
+    )
+    return Response(result)
+
+
+@api_view(["POST"])
+@permission_classes(
+    [
+        permissions.IsAuthenticated,
+        require_model_permission("accounts.BankClearance", "can_create"),
+    ]
+)
+@parser_classes([JSONParser])
 def bank_unmatch(request):
     """Undo a match: ``{bank_transaction}`` un-clears every voucher linked to it."""
     company = resolve_active_company(request)

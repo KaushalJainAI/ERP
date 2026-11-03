@@ -296,6 +296,49 @@ def match(user, tx, vouchers):
         ]
 
 
+def accept_suggestions(
+    user,
+    bank_account,
+    from_date=None,
+    to_date=None,
+    window=DEFAULT_DATE_WINDOW,
+    only_reference=False,
+):
+    """Confirm every suggested match in the period in one go (old statements
+    hold years of lines). Each suggestion is applied through :func:`match`, so
+    the same checks and one transaction per line apply; one that no longer fits
+    is skipped and reported, not forced. ``only_reference`` keeps only the
+    cheque / reference-number matches, the safest kind.
+
+    Returns ``{"matched": n, "skipped": [{"bank_transaction", "reason"}]}``."""
+    transactions = unreconciled_transactions(bank_account, from_date, to_date)
+    vouchers = uncleared_vouchers(bank_account, to_date)
+    by_pk = {tx.pk: tx for tx in transactions}
+    matched, skipped = 0, []
+    for suggestion in suggest_matches(transactions, vouchers, window):
+        if only_reference and suggestion["basis"] != "reference":
+            continue
+        tx = by_pk[suggestion["bank_transaction"]]
+        voucher = suggestion["voucher"]
+        try:
+            match(
+                user,
+                tx,
+                [
+                    {
+                        "voucher_type": voucher["voucher_type"],
+                        "voucher_no": voucher["voucher_no"],
+                    }
+                ],
+            )
+            matched += 1
+        except ValidationError as exc:
+            skipped.append(
+                {"bank_transaction": tx.pk, "reason": "; ".join(exc.messages)}
+            )
+    return {"matched": matched, "skipped": skipped}
+
+
 def unmatch(user, tx):
     """Undo a match: every voucher linked to the line is un-cleared."""
     with transaction.atomic():

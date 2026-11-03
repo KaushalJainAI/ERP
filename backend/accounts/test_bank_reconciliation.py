@@ -925,3 +925,48 @@ class AccessTests(ReconcileBase):
         # a user cannot pass another company's id in the header either
         stranger.credentials(HTTP_X_COMPANY_ID=str(self.company.id))
         self.assertEqual(stranger.get(f"{BASE}bank-accounts/").status_code, 403)
+
+
+class AcceptSuggestionsTests(ReconcileBase):
+    """Confirming every suggestion at once (old statements: years of lines)."""
+
+    def accept(self, **body):
+        res = self.client.post(
+            f"{BASE}bank-reconciliation/accept-suggestions/",
+            {
+                "bank_account": self.ba.pk,
+                "from_date": "2026-10-01",
+                "to_date": "2026-10-31",
+                **body,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        return res.data
+
+    def test_accepts_every_suggestion_and_leaves_the_rest(self):
+        result = self.accept()
+        self.assertEqual((result["matched"], result["skipped"]), (2, []))
+        data = self.tool()
+        self.assertEqual(
+            [t["id"] for t in data["transactions"]], [self.t_fee.pk]
+        )  # the bank fee has no voucher: still to do by hand
+        self.assertEqual(data["suggestions"], [])
+        self.assertEqual(self.accept()["matched"], 0)  # idempotent
+
+    def test_only_reference_skips_date_guesses(self):
+        extra = self.deposit(D(2026, 10, 18), "777.00")
+        text = "Date,Narration,Withdrawal,Deposit\n20/10/2026,CASH DEPOSIT,,777.00\n"
+        self.upload(text, mapping=bank_import.preview(text.encode())["mapping"])
+        self.assertEqual(self.accept(only_reference=True)["matched"], 2)
+        still = {s["voucher_no"] for s in self.tool()["suggestions"]}
+        self.assertEqual(still, {extra.name})
+        self.assertEqual(self.accept()["matched"], 1)
+
+    def test_bad_date_is_a_400(self):
+        res = self.client.post(
+            f"{BASE}bank-reconciliation/accept-suggestions/",
+            {"bank_account": self.ba.pk, "from_date": "31/10/2026"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)

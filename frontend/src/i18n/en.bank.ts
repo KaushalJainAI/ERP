@@ -72,6 +72,10 @@ export const enBank = {
       },
     },
     rec: {
+      accept_all: "Accept all suggestions ({{count}})",
+      accept_all_confirm: "Confirm all {{count}} suggested matches for this period? Each one can be undone later with Unmatch.",
+      accept_all_go: "Accept all",
+      accepted: "{{matched}} matched, {{skipped}} skipped",
       help: "Pick a bank line, tick the ERP vouchers it covers (their total must equal the line), then Match. Green suggestions match by reference or date.",
       bank_lines: "Bank statement lines",
       erp_vouchers: "ERP vouchers not yet cleared",

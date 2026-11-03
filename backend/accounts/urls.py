@@ -61,7 +61,11 @@ urlpatterns = [
     path("reports/ageing/", ageing, name="ageing"),
     path("reports/expense-summary/", expense_summary_view, name="expense-summary"),
     path("reports/gst-position/", gst_position_view, name="gst-position"),
-    path("reports/gst-credit-at-risk/", gst_credit_at_risk_view, name="gst-credit-at-risk"),
+    path(
+        "reports/gst-credit-at-risk/",
+        gst_credit_at_risk_view,
+        name="gst-credit-at-risk",
+    ),
     path("collections/", collections_view, name="collections"),
     path("bills-to-pay/", bills_to_pay_view, name="bills-to-pay"),
     path("reports/sales-register/", report_views.sales_register, name="sales-register"),
@@ -86,6 +90,11 @@ urlpatterns = [
         "bank-reconciliation/match/",
         bank_views.bank_match,
         name="bank-reconciliation-match",
+    ),
+    path(
+        "bank-reconciliation/accept-suggestions/",
+        bank_views.bank_accept_suggestions,
+        name="bank-reconciliation-accept-suggestions",
     ),
     path(
         "bank-reconciliation/unmatch/",
