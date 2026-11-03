@@ -25,8 +25,6 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
-# Caddy terminates TLS and forwards the original scheme through the frontend proxy.
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # A known or short SECRET_KEY lets anyone forge sessions and JWTs. Refuse to
 # start with one unless this is local development (DEBUG) or the test suite.

@@ -9,9 +9,9 @@ The ERP site is `https://erp.nidhimasala.com`. Its Caddy site block proxies to t
 - App: `/home/kaushaljain7000/ERP`
 - Compose: `docker-compose.prod.yml`, always run with `--env-file .env.production -p erp`
 - Secrets: `.env.production`, mode `600`; start from `.env.production.example`
-- Persistent volumes: `erp_erp_postgres_data`, `erp_erp_media`, `erp_erp_static`
+- Persistent volumes: `erp_erp_postgres_data`, `erp_erp_media`, `erp_erp_static`, `erp_erp_backups`
 - Proxy: `~/edge/Caddyfile`; back it up and edit it in place so the bind-mounted inode stays the same
-- Backups: `~/ERP/backups/`, database and media, 30-day retention via `scripts/backup_erp.sh`
+- Backups: the scheduler writes database dumps into `erp_erp_backups` nightly; `scripts/backup_erp.sh` writes database and media copies to `~/ERP/backups/` with 30-day retention
 
 The scheduled backups currently stay on the VM's disk. Keep an offsite copy as a separate recovery measure; the initial deployment dump is also retained on the development workstation.
 

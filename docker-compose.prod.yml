@@ -32,6 +32,7 @@ services:
     volumes:
       - erp_media:/app/media
       - erp_static:/app/staticfiles
+      - erp_backups:/app/backups
     expose:
       - "8000"
     mem_limit: 768m
@@ -51,6 +52,7 @@ services:
         condition: service_healthy
     volumes:
       - erp_media:/app/media
+      - erp_backups:/app/backups
     mem_limit: 256m
     logging:
       options:
@@ -85,6 +87,7 @@ volumes:
   erp_postgres_data:
   erp_media:
   erp_static:
+  erp_backups:
 
 networks:
   edge:
