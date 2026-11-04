@@ -1,7 +1,7 @@
 import { BarChart3, ClipboardList, Factory, LayoutGrid, Pause, Play, Wrench } from "lucide-react";
 import type { LinkDef, NavLink, ResourceConfig, SelectOption } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { companyField, companyLink, docNoField, itemLink, warehouseLink } from "./selling";
+import { companyField, docNoField, itemLink, warehouseLink } from "./selling";
 import { bomLink, workOrderLink } from "./manufacturingLinks";
 import { hasReadAccess } from "./workspaces";
 
@@ -201,7 +201,6 @@ const productionYield: ReportConfig = {
   titleKey: "mf.res.production_yield",
   icon: Factory,
   filters: [
-    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
     { key: "from_date", labelKey: "mf.fields.from_date", type: "date" },
     { key: "to_date", labelKey: "mf.fields.to_date", type: "date" },
     { key: "work_order", labelKey: "mf.fields.work_order", type: "link", link: workOrderLink },
@@ -236,7 +235,6 @@ const bomCost: ReportConfig = {
   titleKey: "mf.res.bom_cost",
   icon: BarChart3,
   filters: [
-    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
     { key: "item", labelKey: "fields.item", type: "link", link: { ...itemLink, fill: undefined } },
     { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
   ],

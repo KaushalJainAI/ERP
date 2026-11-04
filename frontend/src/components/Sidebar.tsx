@@ -106,7 +106,7 @@ export const Sidebar: React.FC<{ active: ModuleNav }> = ({ active }) => {
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-e border-slate-800 bg-slate-900/40">
-      <div className="sticky top-[calc(6rem_+_env(safe-area-inset-top))] flex max-h-[calc(100vh_-_6rem_-_env(safe-area-inset-top))] flex-col">
+      <div className="sticky top-[calc(6rem_+_env(safe-area-inset-top))] min-[900px]:top-[calc(3rem_+_env(safe-area-inset-top))] flex max-h-[calc(100vh_-_6rem_-_env(safe-area-inset-top))] min-[900px]:max-h-[calc(100vh_-_3rem_-_env(safe-area-inset-top))] flex-col">
         <div className="p-3 pb-2">
           <Link
             to={active.path}

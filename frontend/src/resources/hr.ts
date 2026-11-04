@@ -21,7 +21,7 @@ import {
 import type { LinkDef, NavLink, ResourceConfig, SelectOption } from "@/types";
 import { todayISO } from "@/lib/format";
 import type { ReportConfig } from "@/types/report";
-import { companyField, companyLink } from "./selling";
+import { companyField } from "./selling";
 import { expenseCategoryLink } from "./buying";
 import { claimStatusCell, optCell, optKey } from "./hrOptions";
 import { EmployeePanels } from "@/components/hr/EmployeePanels";
@@ -742,7 +742,6 @@ export const hrReports: ReportConfig[] = [
     icon: CalendarCheck,
     hideInSidebar: true,
     filters: [
-      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
       { key: "employee", labelKey: "hrm.fields.employee", type: "link", link: employeeLink },
       { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
       { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
@@ -765,7 +764,6 @@ export const hrReports: ReportConfig[] = [
     titleKey: "hrm.reports.salary_register",
     icon: FileText,
     filters: [
-      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
       { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
       { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
       { key: "department", labelKey: "hrm.fields.department", type: "link", link: departmentLink },
@@ -792,7 +790,6 @@ export const hrReports: ReportConfig[] = [
     titleKey: "hrm.reports.wage_register",
     icon: IndianRupee,
     filters: [
-      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
       { key: "from_date", labelKey: "hrm.fields.from_date", type: "date" },
       { key: "to_date", labelKey: "hrm.fields.to_date", type: "date" },
       { key: "department", labelKey: "hrm.fields.department", type: "link", link: departmentLink },

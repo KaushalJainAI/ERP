@@ -4,7 +4,7 @@ import { roundDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import type { LinkDef, ResourceConfig } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { companyField, companyLink, docNoField, itemLink, priceListLink, warehouseLink } from "./selling";
+import { companyField, docNoField, itemLink, priceListLink, warehouseLink } from "./selling";
 import { itemGstFields } from "./gst";
 import { bomLink, workOrderLink } from "./manufacturingLinks";
 
@@ -736,7 +736,6 @@ const batchWiseBalance: ReportConfig = {
     { key: "item", labelKey: "fields.item", type: "link", link: { ...itemLink, fill: undefined } },
     { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },
     { key: "batch", labelKey: "bs.fields.batch", type: "link", link: { endpoint: "/stock/batches/", labelField: "batch_no" } },
-    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
     { key: "as_of", labelKey: "bs.fields.as_of", type: "date" },
     { key: "include_zero", labelKey: "bs.fields.include_zero", type: "boolean", defaultValue: false },
   ],
@@ -777,7 +776,6 @@ const expiryReport: ReportConfig = {
   icon: CalendarClock,
   hideInSidebar: true,
   filters: [
-    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
     { key: "warehouse", labelKey: "fields.warehouse", type: "link", link: warehouseLink },
     { key: "within_days", labelKey: "bs.fields.within_days", type: "number", defaultValue: 60 },
     { key: "include_expired", labelKey: "bs.fields.include_expired", type: "boolean", defaultValue: true },
@@ -818,7 +816,6 @@ const stockStages: ReportConfig = {
   titleKey: "bs.res.stock_stages",
   icon: Layers,
   filters: [
-    { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
   ],
   columns: [
     { key: "item_name", labelKey: "bs.fields.item_name" },

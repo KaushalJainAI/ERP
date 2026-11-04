@@ -2,7 +2,6 @@ import { Clock } from "lucide-react";
 import { todayISO } from "@/lib/format";
 import type { SelectOption } from "@/types";
 import type { ReportConfig } from "@/types/report";
-import { companyLink } from "./selling";
 
 /**
  * Accounts receivable / payable ageing (GET /api/accounts/reports/ageing/).
@@ -26,7 +25,6 @@ export const ageingReports: ReportConfig[] = [
     icon: Clock,
     filters: [
       { key: "party_type", labelKey: "ageing.party_type", type: "select", options: PARTY_TYPES, defaultValue: "Customer" },
-      { key: "company", labelKey: "fields.company", type: "link", link: companyLink },
       { key: "as_on", labelKey: "ageing.as_on", type: "date", defaultValue: () => todayISO() },
       { key: "party", labelKey: "ageing.party", type: "text" },
     ],

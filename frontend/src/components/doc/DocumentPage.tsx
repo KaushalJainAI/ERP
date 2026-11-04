@@ -590,9 +590,10 @@ const DocumentForm: React.FC<{
   const btn = "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors";
 
   return (
-    <div className="max-w-6xl mx-auto space-y-5 animate-fade-up">
-      {/* header */}
-      <div className="sticky top-[calc(6rem_+_env(safe-area-inset-top))] z-30 -mt-3 flex flex-wrap items-center justify-between gap-3 bg-slate-950/90 py-2.5 backdrop-blur">
+    <div className="-mt-4 sm:-mt-6 -mx-3 sm:-mx-6 animate-fade-up">
+      {/* Sticky sub-header bar: docked flush under TopBar, full width */}
+      <div className="sticky top-[calc(6rem_+_env(safe-area-inset-top))] min-[900px]:top-[calc(3rem_+_env(safe-area-inset-top))] z-30 border-b border-slate-800 bg-slate-950 px-3 sm:px-6 py-2.5 shadow-sm">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Link to={base} className="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800" aria-label={t("common.back_to_list")}>
             <ArrowLeft className="w-4 h-4" />
@@ -661,7 +662,9 @@ const DocumentForm: React.FC<{
           )}
         </div>
       </div>
+      </div>
 
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-5 space-y-5">
       {/* errors */}
       {banner.length > 0 && (
         <div role="alert" className="flex gap-2 p-3.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-200 text-sm">
@@ -837,6 +840,7 @@ const DocumentForm: React.FC<{
         onConfirm={() => deleteMut.mutate()}
         onClose={() => setConfirm(null)}
       />
+      </div>
     </div>
   );
 };

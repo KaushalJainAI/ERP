@@ -63,6 +63,7 @@ export const CompanySelect: React.FC<{
   onChange: (v: string) => void;
 }> = ({ companies, value, onChange }) => {
   const { t } = useTranslation();
+  if (companies.length <= 1) return null;
   return (
     <div className="space-y-1">
       <label htmlFor="rep-company" className="block text-xs font-medium text-slate-400">
