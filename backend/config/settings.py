@@ -249,6 +249,11 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
+AUTHENTICATION_BACKENDS = [
+    "users.auth.EmailOrUsernameModelBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
 # SimpleJWT settings
 # Short-lived access tokens (the SPA refreshes silently on a 401); a refresh
 # token is single-use (blacklisted on rotation) and revocable (users.auth).

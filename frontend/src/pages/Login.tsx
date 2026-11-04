@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
       navigate("/");
     } catch (err: any) {
       const status = err?.response?.status;
-      if (!err?.response) setError(t("auth.network_error"));
+      if (!err?.response || (status && status >= 500)) setError(t("auth.network_error"));
       else if (status === 429) setError(t("auth.too_many_attempts"));
       else setError(t("auth.invalid_credentials"));
     } finally {

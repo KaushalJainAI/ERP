@@ -1,3 +1,6 @@
+from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import ModelBackend
+from django.db.models import Q
 """JWT session revocation.
 
 SimpleJWT tokens are stateless: deleting them in the browser does not stop a
@@ -21,6 +24,28 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 SESSION_REVOKED = _("Your session has ended. Please sign in again.")
+
+
+class EmailOrUsernameModelBackend(ModelBackend):
+    """Authenticate using either username or email address (case-insensitive)."""
+
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        UserModel = get_user_model()
+        if username is None:
+            username = kwargs.get(UserModel.USERNAME_FIELD)
+        if not username or not password:
+            return None
+        try:
+            user = UserModel.objects.filter(
+                Q(username__iexact=username) | Q(email__iexact=username)
+            ).first()
+        except Exception:
+            return None
+
+        if user and user.check_password(password) and self.user_can_authenticate(user):
+            return user
+        return None
+
 
 
 def check_token_not_revoked(user, token) -> None:

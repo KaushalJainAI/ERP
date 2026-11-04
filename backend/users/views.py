@@ -88,7 +88,7 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
+    def get_object(self):  # type: ignore[override]
         return self.request.user
 
 
