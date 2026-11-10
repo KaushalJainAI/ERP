@@ -21,6 +21,7 @@ ACCOUNTS_PAGE = "/accounts/accounts"
 SUPPLIER_PAGE = "/buying/suppliers"
 EXPENSE_CATEGORY_PAGE = "/buying/expense-categories"
 FISCAL_YEAR_PAGE = "/accounts/fiscal-years"
+TAX_TEMPLATE_PAGE = "/gst/tax-templates"
 
 
 def _item(code, message, fix_path):
@@ -99,6 +100,35 @@ def setup_health(company, today=None):
                 ACCOUNTS_PAGE,
             )
         )
+
+    if (company.gstin or "").strip():
+        from gst.services.supply import INTER, INTRA, default_template
+
+        for direction in ("Sales", "Purchase"):
+            for kind in (INTRA, INTER):
+                if default_template(company, direction, kind) is None:
+                    items.append(
+                        _item(
+                            f"tax_template_{direction.lower()}_{kind.lower()}",
+                            _(
+                                "Choose a default %(direction)s tax template for "
+                                "%(supply)s supplies."
+                            )
+                            % {
+                                "direction": (
+                                    _("sales")
+                                    if direction == "Sales"
+                                    else _("purchase")
+                                ),
+                                "supply": (
+                                    _("in-state")
+                                    if kind == INTRA
+                                    else _("out-of-state")
+                                ),
+                            },
+                            TAX_TEMPLATE_PAGE,
+                        )
+                    )
 
     if not Supplier.objects.filter(
         company=company, is_cash_expense=True, is_active=True

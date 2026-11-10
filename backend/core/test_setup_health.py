@@ -5,7 +5,13 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from accounts.models import Account, AccountRootType, AccountType, BankAccount
+from accounts.models import (
+    Account,
+    AccountRootType,
+    AccountType,
+    BankAccount,
+    TaxTemplate,
+)
 from buying.models import ExpenseCategory, Supplier, SupplierGroup
 from core.models import Company, FiscalYear
 from core.services.setup_health import setup_health
@@ -72,10 +78,35 @@ def _build_fully_set_up_company():
         is_cash_expense=True,
     )
     ExpenseCategory.objects.create(name="Office", company=company, account=expense)
+    for direction in ("Sales", "Purchase"):
+        for supply in ("Intra-State", "Inter-State"):
+            TaxTemplate.objects.create(
+                company=company,
+                title=f"{direction} {supply}",
+                template_type=direction,
+                gst_supply_type=supply,
+                is_default=True,
+            )
     return company
 
 
 class SetupHealthServiceTests(TestCase):
+    def test_missing_default_tax_template_is_listed(self):
+        company = _build_fully_set_up_company()
+        TaxTemplate.objects.filter(
+            company=company, template_type="Sales", gst_supply_type="Inter-State"
+        ).update(is_default=False)
+        codes = [item["code"] for item in setup_health(company)]
+        self.assertEqual(codes, ["tax_template_sales_inter"])
+
+    def test_no_tax_template_check_without_gstin(self):
+        company = _build_fully_set_up_company()
+        TaxTemplate.objects.filter(company=company).delete()
+        Company.objects.filter(pk=company.pk).update(gstin="")
+        company.refresh_from_db()
+        codes = [item["code"] for item in setup_health(company)]
+        self.assertEqual(codes, ["gstin"])
+
     def test_bare_company_lists_every_item(self):
         company = Company.objects.create(
             name="Bare Co", abbr="BARE", default_currency="INR"
