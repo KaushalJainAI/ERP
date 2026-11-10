@@ -9,6 +9,7 @@ from .views import (
     ProposalAbandonedView,
     TranscribeAudioView,
     BillPhotoView,
+    QuickNoteViewSet,
 )
 
 app_name = "assistant"
@@ -22,4 +23,6 @@ urlpatterns = [
     path("proposals/<uuid:pk>/abandoned/", ProposalAbandonedView.as_view(), name="proposal_abandoned"),
     path("transcribe/", TranscribeAudioView.as_view(), name="transcribe"),
     path("bill-photo/", BillPhotoView.as_view(), name="bill_photo"),
+    path("quick-notes/", QuickNoteViewSet.as_view({"get": "list", "post": "create"}), name="quick_notes_list_create"),
+    path("quick-notes/<int:pk>/done/", QuickNoteViewSet.as_view({"post": "done"}), name="quick_note_done"),
 ]

@@ -1,10 +1,13 @@
 """Views for the AI assistant API."""
 
 import logging
+from django.db.models import Case, IntegerField, Value, When
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.translation import gettext as _
-from rest_framework import generics, status
+from rest_framework import generics, mixins, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,12 +16,19 @@ from core import attachments as att_rules
 from core.company_context import resolve_active_company
 
 from .agent import Agent
-from .bill_photo import BILL_KINDS, BILL_MAX_BYTES, run_bill_turn
-from .models import AssistantConversation, AssistantProposal
+from .bill_photo import (
+    BILL_KINDS,
+    BILL_MAX_BYTES,
+    BILL_MAX_FILES,
+    BILL_MAX_TOTAL_BYTES,
+    run_bill_turn,
+)
+from .models import AssistantConversation, AssistantProposal, QuickNote
 from .serializers import (
     AssistantConversationSerializer,
     AssistantMessageSerializer,
     ChatStreamRequestSerializer,
+    QuickNoteSerializer,
 )
 from .stt import TranscriptionUnavailable, transcribe_audio
 from .throttles import (
@@ -197,38 +207,68 @@ class BillPhotoView(APIView):
     throttle_classes = [AssistantBillThrottle]
 
     def post(self, request):
-        upload = request.FILES.get("file")
-        if upload is None:
+        # `file` (one page) or `files` (several pages of one bill), up to BILL_MAX_FILES.
+        uploads = request.FILES.getlist("files")
+        single = request.FILES.get("file")
+        if single is not None:
+            uploads.insert(0, single)
+        if not uploads:
             return Response(
                 {"error": "no_file", "message": _("No bill photo uploaded.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        try:
-            checked = att_rules.validate_upload(upload)
-        except att_rules.AttachmentError as exc:
-            return Response(
-                {"error": exc.code, "message": exc.message}, status=exc.status
-            )
-        if checked.kind not in BILL_KINDS:
+        if len(uploads) > BILL_MAX_FILES:
             return Response(
                 {
-                    "error": "bill_type_not_allowed",
-                    "message": _("Send the bill as a JPG, PNG or WebP photo."),
+                    "error": "bill_too_many_files",
+                    "message": _("Send at most %(count)s files for one bill.")
+                    % {"count": BILL_MAX_FILES},
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if checked.size > BILL_MAX_BYTES:
+        checked_uploads = []
+        for upload in uploads:
+            try:
+                checked = att_rules.validate_upload(upload)
+            except att_rules.AttachmentError as exc:
+                return Response(
+                    {"error": exc.code, "message": exc.message}, status=exc.status
+                )
+            if checked.kind not in BILL_KINDS:
+                return Response(
+                    {
+                        "error": "bill_type_not_allowed",
+                        "message": _("Send the bill as a JPG, PNG, WebP or PDF file."),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if checked.size > BILL_MAX_BYTES:
+                return Response(
+                    {
+                        "error": "bill_too_large",
+                        "message": _(
+                            "The bill photo is too large. The maximum size is %(mb)s MB."
+                        )
+                        % {"mb": f"{BILL_MAX_BYTES / (1024 * 1024):g}"},
+                    },
+                    status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                )
+            checked_uploads.append((checked, upload))
+        if (
+            sum(checked.size for checked, _upload in checked_uploads)
+            > BILL_MAX_TOTAL_BYTES
+        ):
             return Response(
                 {
                     "error": "bill_too_large",
                     "message": _(
-                        "The bill photo is too large. The maximum size is %(mb)s MB."
+                        "The bill is too large. The files together may be at most %(mb)s MB."
                     )
-                    % {"mb": f"{BILL_MAX_BYTES / (1024 * 1024):g}"},
+                    % {"mb": f"{BILL_MAX_TOTAL_BYTES / (1024 * 1024):g}"},
                 },
                 status=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
-        data = upload.read()
+        pages = [(upload.read(), checked) for checked, upload in checked_uploads]
 
         conversation = None
         raw_conv = request.data.get("conversation_id")
@@ -255,10 +295,52 @@ class BillPhotoView(APIView):
         company = resolve_active_company(request, required=False)
         body = run_bill_turn(
             request.user,
-            data=data,
-            checked=checked,
+            uploads=pages,
             company_pk=company.pk if company else None,
             conversation=conversation,
             language=language,
         )
         return Response(body)
+
+
+class QuickNoteViewSet(
+    mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+):
+    """Quick notes of the active company: list (Open first, newest first), create, done.
+
+    A note writes nothing to the books. There is no update or delete; a note is
+    marked Done once its document is approved or dismissed.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = QuickNoteSerializer
+
+    def get_queryset(self):
+        company = resolve_active_company(self.request)
+        return (
+            QuickNote.objects.filter(company=company)
+            .annotate(
+                open_first=Case(
+                    When(status="open", then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("open_first", "-created_at", "-id")
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(
+            company=resolve_active_company(self.request),
+            created_by=self.request.user,
+        )
+
+    @action(detail=True, methods=["post"])
+    def done(self, request, pk=None):
+        note = self.get_object()
+        if note.status == "open":
+            QuickNote.objects.filter(pk=note.pk, status="open").update(
+                status="done", done_at=timezone.now()
+            )
+            note.refresh_from_db()
+        return Response(self.get_serializer(note).data)

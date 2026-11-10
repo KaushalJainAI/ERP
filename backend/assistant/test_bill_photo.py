@@ -17,12 +17,13 @@ from rest_framework.test import APITestCase
 from accounts.models import Account, AccountRootType, AccountType, GLEntry
 from buying.models import PurchaseInvoice
 from core.models import Attachment
-from stock.models import Item
+from stock.models import Item, StockLedgerEntry
 
 from .bill_photo import (
     BillReaderUnavailable,
     BillUnreadable,
     call_vision_model,
+    is_password_protected,
     parse_bill,
 )
 from .models import AssistantConversation, AssistantMessage, AssistantProposal
@@ -32,6 +33,12 @@ User = get_user_model()
 
 URL = "/api/assistant/bill-photo/"
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 200
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 200
+PDF = b"%PDF-1.4\n1 0 obj<< /Type /Catalog >>\nendobj\ntrailer<< /Root 1 0 R >>\n%%EOF"
+PDF_ENCRYPTED = (
+    b"%PDF-1.4\n1 0 obj<< /Type /Catalog >>\nendobj\n"
+    b"trailer<< /Root 1 0 R /Encrypt 2 0 R >>\n%%EOF"
+)
 VISION = "assistant.bill_photo.call_vision_model"
 
 
@@ -63,10 +70,19 @@ class BillPhotoBase(APITestCase):
         upload = SimpleUploadedFile(name, data, content_type=content_type)
         return self.client.post(URL, {"file": upload, **extra}, format="multipart")
 
+    def post_files(self, *files):
+        """Several bill pages, as (name, data, content_type) tuples, in the `files` field."""
+        uploads = [
+            SimpleUploadedFile(name, data, content_type=content_type)
+            for name, data, content_type in files
+        ]
+        return self.client.post(URL, {"files": uploads}, format="multipart")
+
     def snapshot(self):
         return {
             "pi": PurchaseInvoice.objects.count(),
             "gl": GLEntry.objects.count(),
+            "sle": StockLedgerEntry.objects.count(),
             "proposals": AssistantProposal.objects.count(),
             "messages": AssistantMessage.objects.count(),
             "staged": Attachment.objects.filter(
@@ -191,7 +207,12 @@ class BillPhotoFileTests(BillPhotoBase):
                 "image/jpeg",
                 "attachment_content_mismatch",
             ),
-            ("bill.pdf", b"%PDF-1.4 bill", "application/pdf", "bill_type_not_allowed"),
+            (
+                "bill.txt",
+                b"item,qty\nhaldi,10\n",
+                "text/plain",
+                "attachment_type_not_allowed",
+            ),
             ("bill.csv", b"item,qty\nhaldi,10\n", "text/csv", "bill_type_not_allowed"),
             ("bill.jpg", b"", "image/jpeg", "attachment_empty"),
         ]
@@ -223,6 +244,112 @@ class BillPhotoFileTests(BillPhotoBase):
             resp = self.post_bill(conversation_id="abc")
         self.assertEqual(resp.status_code, 400)
         vision.assert_not_called()
+
+
+class BillPdfAndPagesTests(BillPhotoBase):
+    def test_pdf_bill_becomes_purchase_invoice_proposal(self):
+        before = self.snapshot()
+        with mock.patch(VISION, return_value=reading()) as vision:
+            resp = self.post_bill(
+                data=PDF, name="bill.pdf", content_type="application/pdf"
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNone(resp.data["error"])
+        self.assertEqual(resp.data["proposal"]["type"], "proposal")
+        self.assertEqual(resp.data["proposal"]["target"], "buying.PurchaseInvoice")
+        self.assertEqual(vision.call_args.args[0], PDF)
+        self.assertEqual(vision.call_args.args[1], "application/pdf")
+
+        staged = Attachment.objects.get(
+            model_label="assistant.AssistantMessage",
+            object_id=str(resp.data["message_id"]),
+        )
+        self.assertEqual(staged.content_type, "application/pdf")
+        self.assertEqual(staged.original_filename, "bill.pdf")
+
+        # Nothing is saved: no invoice, no ledger rows, no stock rows.
+        after = self.snapshot()
+        self.assertEqual(after["pi"], before["pi"])
+        self.assertEqual(after["gl"], before["gl"])
+        self.assertEqual(after["sle"], before["sle"])
+        self.assertEqual(after["proposals"], before["proposals"] + 1)
+
+    def test_password_protected_pdf_is_refused_before_the_model_is_called(self):
+        before = self.snapshot()
+        with mock.patch(VISION) as vision:
+            resp = self.post_bill(
+                data=PDF_ENCRYPTED, name="bill.pdf", content_type="application/pdf"
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["error"], "bill_pdf_protected")
+        self.assertEqual(
+            resp.data["reply"],
+            "This PDF is password-protected. Send it without a password or as a photo.",
+        )
+        self.assertIsNone(resp.data["proposal"])
+        vision.assert_not_called()
+        self.assertEqual(self.snapshot(), before)
+
+    def test_two_images_make_one_proposal_with_both_pages_staged(self):
+        before = self.snapshot()
+        with mock.patch(VISION, return_value=reading()) as vision:
+            resp = self.post_files(
+                ("bill-1.jpg", JPEG, "image/jpeg"),
+                ("bill-2.png", PNG, "image/png"),
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["proposal"]["type"], "proposal")
+        self.assertEqual(vision.call_count, 1)
+        self.assertEqual(vision.call_args.args[1], "image/jpeg")
+        self.assertEqual(vision.call_args.args[2], [(PNG, "image/png")])
+
+        staged = Attachment.objects.filter(
+            model_label="assistant.AssistantMessage",
+            object_id=str(resp.data["message_id"]),
+        )
+        self.assertEqual(staged.count(), 2)
+        after = self.snapshot()
+        self.assertEqual(after["pi"], before["pi"])
+        self.assertEqual(after["gl"], before["gl"])
+        self.assertEqual(after["proposals"], before["proposals"] + 1)
+
+    def test_too_many_files_is_refused_before_any_read(self):
+        five = [(f"page-{i}.jpg", JPEG + bytes([i]), "image/jpeg") for i in range(5)]
+        before = self.snapshot()
+        with mock.patch(VISION) as vision:
+            resp = self.post_files(*five)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data["error"], "bill_too_many_files")
+        vision.assert_not_called()
+        self.assertEqual(self.snapshot(), before)
+
+    def test_files_over_the_combined_limit_are_refused(self):
+        before = self.snapshot()
+        with mock.patch("assistant.views.BILL_MAX_BYTES", 250), mock.patch(
+            "assistant.views.BILL_MAX_TOTAL_BYTES", 500
+        ), mock.patch(VISION) as vision:
+            resp = self.post_files(
+                *[(f"page-{i}.jpg", JPEG, "image/jpeg") for i in range(3)]
+            )
+        self.assertEqual(resp.status_code, 413)
+        self.assertEqual(resp.data["error"], "bill_too_large")
+        vision.assert_not_called()
+        self.assertEqual(self.snapshot(), before)
+
+
+class PdfProtectionTests(APITestCase):
+    def test_encryption_is_read_from_the_trailer_only(self):
+        self.assertFalse(is_password_protected(PDF))
+        self.assertTrue(is_password_protected(PDF_ENCRYPTED))
+        # A cross-reference stream names the encryption dictionary the same way.
+        self.assertTrue(
+            is_password_protected(b"%PDF-1.5\n<< /Type /XRef /Encrypt 9 0 R >>")
+        )
+        # A word that only starts with the same letters is not encryption.
+        self.assertFalse(is_password_protected(b"%PDF-1.4\n/Encrypted true\n%%EOF"))
 
 
 class BillPhotoFailureTests(BillPhotoBase):
@@ -353,6 +480,31 @@ class BillPhotoSaveTests(BillPhotoBase):
         row = AssistantProposal.objects.get(pk=proposal["proposal_id"])
         self.assertEqual(row.status, "saved")
 
+    def test_saving_a_multi_page_bill_copies_every_page_onto_it(self):
+        with mock.patch(VISION, return_value=reading()):
+            resp = self.post_files(
+                ("bill-1.jpg", JPEG, "image/jpeg"),
+                ("bill-2.pdf", PDF, "application/pdf"),
+            )
+        proposal = resp.data["proposal"]
+
+        saved = self.client.post(
+            "/api/buying/purchase-invoices/",
+            self.purchase_invoice_body(proposal["values"]),
+            format="json",
+            headers={"X-Assistant-Proposal": proposal["proposal_id"]},
+        )
+        self.assertEqual(saved.status_code, 201, saved.data)
+
+        invoice = PurchaseInvoice.objects.get(name=saved.data["name"])
+        proofs = Attachment.objects.filter(
+            model_label="buying.PurchaseInvoice", object_id=str(invoice.pk)
+        )
+        self.assertEqual(
+            sorted(p.content_type for p in proofs),
+            ["application/pdf", "image/jpeg"],
+        )
+
     def test_failed_proof_copy_rolls_the_invoice_save_back(self):
         with mock.patch(VISION, return_value=reading()):
             proposal = self.post_bill().data["proposal"]
@@ -460,3 +612,22 @@ class VisionAdapterTests(APITestCase):
         ):
             with self.assertRaises(BillReaderUnavailable):
                 call_vision_model(JPEG, "image/jpeg")
+
+    def test_pdf_and_extra_pages_are_sent_as_file_and_image_parts(self):
+        body = {"choices": [{"message": {"content": reading()}}]}
+        with mock.patch.dict("os.environ", {"LLM_API_KEY": "test-key"}), mock.patch(
+            "assistant.bill_photo.urllib.request.urlopen",
+            return_value=self.fake_response(body),
+        ) as urlopen:
+            call_vision_model(PDF, "application/pdf", [(JPEG, "image/jpeg")])
+        request = urlopen.call_args.args[0]
+        content = json.loads(request.data.decode("utf-8"))["messages"][0]["content"]
+        self.assertEqual(
+            [part["type"] for part in content], ["text", "file", "image_url"]
+        )
+        self.assertTrue(
+            content[1]["file"]["file_data"].startswith("data:application/pdf;base64,")
+        )
+        self.assertTrue(
+            content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
+        )
