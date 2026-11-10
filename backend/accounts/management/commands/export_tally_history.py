@@ -1,9 +1,23 @@
-"""Export historical Tally vouchers and item lines into a portable JSONL.GZ file.
+"""Export the Tally vouchers, with their item lines, to a portable history file.
 
-Reads from the external tally-pg Postgres extract and maps each voucher to its
-corresponding ERP TLY-* JournalEntry by GUID. The resulting file
-(tally_history.jsonl.gz) can be safely copied to production servers and loaded
-without needing the external tally-pg database there.
+Reads the external ``tally-pg`` Postgres extract (read-only) and writes
+``tally_history.jsonl.gz``: one JSON object per Tally voucher with its type,
+number, date, party, header amount, ledger lines, item lines and the ``TLY-*``
+Journal Entry it became in the ERP. The file is what goes to the server, so
+``import_tally_history`` never needs ``tally-pg`` there.
+
+Matching a voucher to its journal. The Tally import wrote each voucher as a
+``TLY-<yy><yy>-NNNNNN`` Journal Entry whose ``user_remark`` starts with
+``Tally <type> No. <number>`` (see ``accounts/reports/tally.py``). A voucher matches
+the journal with the same financial year (name prefix), voucher type, number and
+date. When that key is not unique the journal whose total equals the voucher's
+total is taken, if exactly one does; otherwise (and when a ``guid`` written in the
+remark identifies it) the voucher is left unmatched with the reason in
+``match_error``. Nothing is guessed: an unmatched voucher is reported and later
+skipped by the import.
+
+Needs the ERP database the journals live in (a local restore of production): the
+journal names written here are the names on the server.
 """
 
 from __future__ import annotations
@@ -12,35 +26,91 @@ import gzip
 import json
 import os
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from decimal import Decimal
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
+
 from accounts.models import JournalEntry
+from accounts.reports.tally import _REMARK, TALLY_PREFIX
+from core.models import Company, DocStatus
 
-try:
-    import psycopg
-except ImportError:
-    psycopg = None  # type: ignore
+_GUID = re.compile(r"\bguid\s+([^\s|]+)")
+CENT = Decimal("0.01")
 
 
-VCH_TYPE_MAP = {
-    "Sales Gst": ("SalesInvoice", False, "Sales"),
-    "TAX INVOICE": ("SalesInvoice", False, "Sales"),
-    "Sales": ("SalesInvoice", False, "Sales"),
-    "Tax Free Sales": ("SalesInvoice", False, "Sales"),
-    "Credit Note": ("SalesInvoice", True, "Credit Note"),
-    "Purchase Gst": ("PurchaseInvoice", False, "Purchase"),
-    "Purchase": ("PurchaseInvoice", False, "Purchase"),
-    "Debit Note": ("PurchaseInvoice", True, "Debit Note"),
-    "Receipt": ("PaymentEntry", False, "Receipt"),
-    "Payment": ("PaymentEntry", False, "Payment"),
-}
+def fy_code(fy: str) -> str:
+    """``"2024-25"`` -> ``"2425"`` (the year part of a ``TLY-2425-...`` name)."""
+    m = re.fullmatch(r"\s*(\d{2})?(\d{2})\s*-\s*(\d{2})?(\d{2})\s*", fy or "")
+    if not m:
+        return ""
+    return m.group(2) + m.group(4)
+
+
+def norm_no(no: str | None) -> str:
+    return (no or "").strip()
+
+
+def _dec(v) -> Decimal:
+    return Decimal(str(v)) if v is not None else Decimal(0)
+
+
+class JournalIndex:
+    """TLY journals of one company, keyed the way a Tally voucher identifies them."""
+
+    def __init__(self, company: Company):
+        self.by_key: dict[tuple, list[dict[str, Any]]] = defaultdict(list)
+        self.by_guid: dict[str, dict[str, Any]] = {}
+        self.unparsed = 0
+        rows = JournalEntry.objects.filter(
+            company=company,
+            name__startswith=TALLY_PREFIX,
+            docstatus=DocStatus.SUBMITTED,
+        ).values_list("name", "posting_date", "user_remark", "total_debit")
+        for name, posting_date, remark, total in rows.iterator(chunk_size=5000):
+            m = _REMARK.match(remark or "")
+            if not m:
+                self.unparsed += 1
+                continue
+            info = {
+                "name": name,
+                "date": str(posting_date),
+                "type": m.group("type").strip(),
+                "no": norm_no(m.group("no")),
+                "total": _dec(total).quantize(CENT),
+            }
+            year = name[len(TALLY_PREFIX) : len(TALLY_PREFIX) + 4]
+            self.by_key[(year, info["type"], info["no"], info["date"])].append(info)
+            g = _GUID.search(remark or "")
+            if g:
+                self.by_guid[g.group(1)] = info
+        self.count = sum(len(v) for v in self.by_key.values())
+
+    def match(self, *, fy, vchtype, number, date, total, guid):
+        """``(journal_name, None)`` or ``(None, reason)``."""
+        if guid and guid in self.by_guid:
+            return self.by_guid[guid]["name"], None
+        key = (fy_code(fy), vchtype.strip(), norm_no(number), date)
+        candidates = self.by_key.get(key, [])
+        if not candidates:
+            return None, "no TLY journal with this type, number and date"
+        if len(candidates) == 1:
+            return candidates[0]["name"], None
+        same_total = [c for c in candidates if c["total"] == total]
+        if len(same_total) == 1:
+            return same_total[0]["name"], None
+        return None, (
+            f"{len(candidates)} TLY journals share this type, number and date "
+            f"({', '.join(c['name'] for c in candidates[:5])})"
+        )
 
 
 class Command(BaseCommand):
-    help = "Export historical Tally vouchers and item lines to tally_history.jsonl.gz."
+    help = (
+        "Export Tally vouchers with item lines and their TLY journal names to "
+        "tally_history.jsonl.gz (reads tally-pg, read-only)."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -48,208 +118,203 @@ class Command(BaseCommand):
             default=os.environ.get(
                 "TALLY_DATABASE_URL", "postgresql://postgres:tally@127.0.0.1:5432/tally"
             ),
-            help="Postgres connection URL for tally-pg database",
+            help="Connection URL of the tally-pg extract (read-only).",
+        )
+        parser.add_argument("--output", default="tally_history.jsonl.gz")
+        parser.add_argument(
+            "--company", help="ERP company name (default: the only one)."
         )
         parser.add_argument(
-            "--output",
-            default="tally_history.jsonl.gz",
-            help="Path to output .jsonl.gz archive (default: tally_history.jsonl.gz)",
-        )
-        parser.add_argument(
-            "--year",
-            help="Filter export to a specific financial year (e.g. 2024-25)",
+            "--year", help="Only this Tally financial year, e.g. 2024-25."
         )
 
     def handle(self, *args, **options):
-        if psycopg is None:
-            raise CommandError("psycopg package is required to connect to tally-pg.")
-
-        tally_url = options["tally_url"]
-        output_path = options["output"]
-        fy_filter = options["year"]
-
-        self.stdout.write(f"Connecting to Tally extract: {tally_url}")
         try:
-            tally_conn = psycopg.connect(tally_url)
-        except Exception as e:
-            raise CommandError(f"Could not connect to tally-pg: {e}")
+            import psycopg
+        except ImportError as exc:  # pragma: no cover - dependency is pinned
+            raise CommandError("psycopg is required to read tally-pg.") from exc
 
-        # 1. Build GUID -> JournalEntry mapping from ERP database
-        self.stdout.write("Indexing ERP TLY-* Journal Entries by GUID...")
-        guid_to_je: dict[str, dict[str, Any]] = {}
-        je_qs = JournalEntry.objects.filter(name__startswith="TLY-").values_list(
-            "id", "name", "user_remark", "posting_date", "total_debit"
+        company = resolve_company(options.get("company"))
+        index = JournalIndex(company)
+        self.stdout.write(
+            f"ERP: {index.count} TLY journals indexed for {company.name}"
+            + (
+                f" ({index.unparsed} without a 'Tally <type> No.' remark)"
+                if index.unparsed
+                else ""
+            )
         )
-        for pk, name, remark, posting_date, total_debit in je_qs:
-            if not remark:
-                continue
-            m = re.search(r"guid\s+([^\s\|]+)", remark)
-            if m:
-                guid = m.group(1).strip()
-                guid_to_je[guid] = {
-                    "id": pk,
-                    "name": name,
-                    "posting_date": str(posting_date),
-                    "total_debit": str(total_debit),
-                }
 
-        self.stdout.write(f"Indexed {len(guid_to_je)} ERP TLY-* Journal Entries.")
+        try:
+            conn = psycopg.connect(options["tally_url"])
+        except Exception as exc:
+            raise CommandError(f"Could not connect to tally-pg: {exc}") from exc
+        conn.read_only = True
+        with conn:
+            records = list(read_tally_pg(conn, options.get("year")))
 
-        # 2. Query Tally vouchers
-        cur_t = tally_conn.cursor()
-        vch_sql = """
-            SELECT 
-                v.row_key, v.guid, v.company_year, c.fy, v.vchtype, 
-                v.vouchernumber, v.reference, v.date, v.partyledgername, 
-                v.narration, v.amount
-            FROM txn_voucher v
-            JOIN company c USING (company_year)
-            WHERE NOT v.iscancelled
-        """
-        params: list[Any] = []
-        if fy_filter:
-            vch_sql += " AND c.fy = %s"
-            params.append(fy_filter)
-        vch_sql += " ORDER BY v.date, v.row_key"
-
-        self.stdout.write("Fetching Tally vouchers...")
-        cur_t.execute(vch_sql, params)
-        vouchers = cur_t.fetchall()
-        self.stdout.write(f"Found {len(vouchers)} non-cancelled Tally vouchers.")
-
-        # 3. Query all inventory lines grouped by voucher_key
-        self.stdout.write("Fetching inventory line items...")
-        inv_sql = """
-            SELECT 
-                voucher_key, stockitemname, actualqty_num, billedqty_num, 
-                rate_num, rate_unit, amount
-            FROM txn_voucher_inventory_entry
-            ORDER BY row_key
-        """
-        cur_t.execute(inv_sql)
-        items_by_vch: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for (
-            v_key,
-            item_name,
-            act_qty,
-            bill_qty,
-            rate,
-            unit,
-            amt,
-        ) in cur_t.fetchall():
-            items_by_vch[v_key].append(
-                {
-                    "stockitemname": item_name.strip() if item_name else "",
-                    "actualqty": str(act_qty) if act_qty is not None else "0.000",
-                    "billedqty": str(bill_qty) if bill_qty is not None else "0.000",
-                    "rate": str(rate) if rate is not None else "0.00",
-                    "rate_unit": unit.strip() if unit else "",
-                    "amount": str(amt) if amt is not None else "0.00",
-                }
-            )
-
-        # 4. Query all ledger lines grouped by voucher_key
-        self.stdout.write("Fetching ledger entries...")
-        led_sql = """
-            SELECT voucher_key, ledgername, amount, isdeemedpositive
-            FROM txn_voucher_ledger_entry
-            ORDER BY row_key
-        """
-        cur_t.execute(led_sql)
-        ledgers_by_vch: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for v_key, lname, lamt, ispos in cur_t.fetchall():
-            ledgers_by_vch[v_key].append(
-                {
-                    "ledgername": lname.strip() if lname else "",
-                    "amount": str(lamt) if lamt is not None else "0.00",
-                    "isdeemedpositive": bool(ispos),
-                }
-            )
-
-        # 5. Write to compressed JSONL
-        self.stdout.write(f"Writing to {output_path}...")
-        stats_by_type: dict[str, int] = defaultdict(int)
-        stats_by_fy: dict[str, int] = defaultdict(int)
-        matched_journals = 0
-        unmatched_journals = 0
-
-        with gzip.open(output_path, "wt", encoding="utf-8") as gz_out:
-            for vch in vouchers:
-                (
-                    row_key,
-                    guid,
-                    company_year,
-                    fy,
-                    vchtype,
-                    vnum,
-                    ref,
-                    vdate,
-                    party,
-                    narration,
-                    v_amt,
-                ) = vch
-
-                clean_guid = guid.strip() if guid else ""
-                je_info = guid_to_je.get(clean_guid)
-                if je_info:
-                    matched_journals += 1
-                    journal_name = je_info["name"]
-                else:
-                    unmatched_journals += 1
-                    journal_name = None
-
-                map_info = VCH_TYPE_MAP.get(vchtype)
-                target_doctype = map_info[0] if map_info else None
-                is_return = map_info[1] if map_info else False
-                category = map_info[2] if map_info else "Other"
-
-                v_items = items_by_vch.get(row_key, [])
-                v_ledgers = ledgers_by_vch.get(row_key, [])
-
-                # Find party line amount from ledger entries
-                party_amount = None
-                clean_party = party.strip() if party else ""
-                for le in v_ledgers:
-                    if le["ledgername"] == clean_party:
-                        party_amount = str(abs(Decimal(le["amount"])))
-                        break
-
-                record = {
-                    "guid": clean_guid,
-                    "voucher_key": row_key,
-                    "company_year": company_year,
-                    "fy": fy,
-                    "vchtype": vchtype,
-                    "category": category,
-                    "target_doctype": target_doctype,
-                    "is_return": is_return,
-                    "vouchernumber": vnum.strip() if vnum else "",
-                    "reference": ref.strip() if ref else "",
-                    "date": str(vdate),
-                    "party": clean_party,
-                    "journal_name": journal_name,
-                    "narration": narration.strip() if narration else "",
-                    "header_amount": str(v_amt) if v_amt is not None else "0.00",
-                    "party_amount": party_amount,
-                    "inventory_entries": v_items,
-                    "ledger_entries": v_ledgers,
-                }
-
-                gz_out.write(json.dumps(record, ensure_ascii=False) + "\n")
-                stats_by_type[vchtype] += 1
-                stats_by_fy[fy] += 1
-
+        stats = write_history(records, index, options["output"])
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nSuccessfully exported {len(vouchers)} vouchers to {output_path}!\n"
-                f"  Matched to ERP JournalEntry: {matched_journals}\n"
-                f"  Unmatched: {unmatched_journals}\n"
+                f"Wrote {stats['total']} vouchers to {options['output']}"
             )
         )
-        self.stdout.write("Vouchers by type:")
-        for vt, cnt in sorted(stats_by_type.items(), key=lambda x: -x[1]):
-            self.stdout.write(f"  {vt}: {cnt}")
+        self.stdout.write(f"  matched to a TLY journal: {stats['matched']}")
+        self.stdout.write(f"  unmatched:                {stats['unmatched']}")
+        for reason, n in stats["reasons"].most_common():
+            self.stdout.write(f"    {n:6}  {reason}")
+        self.stdout.write("Vouchers by Tally type:")
+        for vt, n in stats["types"].most_common():
+            self.stdout.write(f"  {n:6}  {vt}")
 
-        self.stdout.write("\nVouchers by FY:")
-        for y, cnt in sorted(stats_by_fy.items()):
-            self.stdout.write(f"  {y}: {cnt}")
+
+def resolve_company(name: str | None) -> Company:
+    if name:
+        try:
+            return Company.objects.get(name=name)
+        except Company.DoesNotExist as exc:
+            raise CommandError(f"Company '{name}' not found.") from exc
+    companies = list(Company.objects.all()[:2])
+    if len(companies) != 1:
+        raise CommandError("Pass --company: the database has more than one company.")
+    return companies[0]
+
+
+def read_tally_pg(conn, fy_filter: str | None):
+    """Yield one dict per non-cancelled voucher of the tally-pg extract."""
+    cur = conn.cursor()
+    sql = """
+        SELECT v.row_key, v.guid, c.fy, v.vchtype, v.vouchernumber, v.reference,
+               v.date, v.partyledgername, v.narration, v.amount
+        FROM txn_voucher v JOIN company c USING (company_year)
+        WHERE NOT v.iscancelled
+    """
+    params: list[Any] = []
+    if fy_filter:
+        sql += " AND c.fy = %s"
+        params.append(fy_filter)
+    sql += " ORDER BY v.date, v.row_key"
+    cur.execute(sql, params)
+    vouchers = cur.fetchall()
+
+    items: dict[Any, list[dict[str, str]]] = defaultdict(list)
+    cur.execute("""
+        SELECT voucher_key, stockitemname, actualqty_num, billedqty_num,
+               rate_num, rate_unit, amount
+        FROM txn_voucher_inventory_entry ORDER BY row_key
+        """)
+    for key, name, act, billed, rate, unit, amt in cur.fetchall():
+        items[key].append(
+            {
+                "stockitemname": (name or "").strip(),
+                "actualqty": "" if act is None else str(act),
+                "billedqty": "" if billed is None else str(billed),
+                "rate": "" if rate is None else str(rate),
+                "rate_unit": (unit or "").strip(),
+                "amount": "" if amt is None else str(amt),
+            }
+        )
+
+    ledgers: dict[Any, list[dict[str, Any]]] = defaultdict(list)
+    cur.execute("""
+        SELECT voucher_key, ledgername, amount, isdeemedpositive
+        FROM txn_voucher_ledger_entry ORDER BY row_key
+        """)
+    for key, name, amt, positive in cur.fetchall():
+        ledgers[key].append(
+            {
+                "ledgername": (name or "").strip(),
+                "amount": "" if amt is None else str(amt),
+                "isdeemedpositive": bool(positive),
+            }
+        )
+
+    for (
+        row_key,
+        guid,
+        fy,
+        vchtype,
+        vno,
+        ref,
+        vdate,
+        party,
+        narration,
+        amount,
+    ) in vouchers:
+        yield {
+            "guid": (guid or "").strip(),
+            "voucher_key": row_key,
+            "fy": fy,
+            "vchtype": (vchtype or "").strip(),
+            "vouchernumber": norm_no(vno),
+            "reference": (ref or "").strip(),
+            "date": str(vdate),
+            "party": (party or "").strip(),
+            "narration": (narration or "").strip(),
+            "header_amount": "" if amount is None else str(amount),
+            "inventory_entries": items.get(row_key, []),
+            "ledger_entries": ledgers.get(row_key, []),
+        }
+
+
+def voucher_total(rec: dict[str, Any]) -> Decimal:
+    """Debit side of the voucher: half the sum of its absolute ledger amounts."""
+    total = sum(
+        (abs(_dec(le["amount"] or 0)) for le in rec["ledger_entries"]), Decimal(0)
+    )
+    return (total / 2).quantize(CENT)
+
+
+def party_amount(rec: dict[str, Any]) -> str | None:
+    """Absolute amount of the voucher's party ledger line(s), or None."""
+    lines = [
+        le
+        for le in rec["ledger_entries"]
+        if le["ledgername"] and le["ledgername"] == rec["party"]
+    ]
+    if not lines:
+        return None
+    return str(
+        abs(sum((_dec(le["amount"] or 0) for le in lines), Decimal(0))).quantize(CENT)
+    )
+
+
+def write_history(records, index: JournalIndex, output: str) -> dict[str, Any]:
+    """Match each record to its journal and write the JSONL.GZ file."""
+    stats: dict[str, Any] = {
+        "total": 0,
+        "matched": 0,
+        "unmatched": 0,
+        "reasons": Counter(),
+        "types": Counter(),
+    }
+    used: dict[str, str] = {}
+    with gzip.open(output, "wt", encoding="utf-8") as out:
+        for rec in records:
+            name, reason = index.match(
+                fy=rec["fy"],
+                vchtype=rec["vchtype"],
+                number=rec["vouchernumber"],
+                date=rec["date"],
+                total=voucher_total(rec),
+                guid=rec.get("guid"),
+            )
+            if name and name in used:
+                reason = f"journal {name} already matched to voucher {used[name]}"
+                name = None
+            if name:
+                used[name] = str(rec.get("voucher_key"))
+                stats["matched"] += 1
+            else:
+                stats["unmatched"] += 1
+                stats["reasons"][reason] += 1
+            stats["total"] += 1
+            stats["types"][rec["vchtype"]] += 1
+            rec = {
+                **rec,
+                "journal_name": name,
+                "match_error": reason,
+                "party_amount": party_amount(rec),
+            }
+            out.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+    return stats
