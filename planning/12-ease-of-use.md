@@ -530,6 +530,6 @@ Do the `S` cards first where a `U` card depends on them. Follow
 |---|---|---|---|
 | Q7 | Do staff share bills with customers on WhatsApp today, or only on paper? | Owner | Priority of U-10 |
 | Q8 | Is cash received kept separate from the bank until deposited? Customers pay in cash or by bank transfer, not UPI (owner, 2026-11-10) | Accountant | Default in S-6 |
-| Q11 | Do suppliers send bills on paper, as PDFs, or both? | Accountant | Priority of U-14 and U-16 |
+| Q11 | Do suppliers send bills on paper, as PDFs, or both? **Answered 2026-11-10: both.** U-14 and U-16 are needed as written | Owner | – |
 | Q9 | Are there prices with more than two decimals (per kg or per gram)? | Owner | Priority of S-4 (a) |
 | Q10 | Which phones do staff use (Android version, screen size)? | Owner | U-8 testing |
