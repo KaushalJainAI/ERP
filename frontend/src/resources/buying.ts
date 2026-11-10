@@ -284,6 +284,7 @@ const purchaseInvoices: ResourceConfig = {
   singularKey: "bs.res.purchase_invoice",
   icon: Receipt,
   submittable: true,
+  oneStepApprove: true,
   ordering: "-posting_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },
@@ -305,7 +306,7 @@ const purchaseInvoices: ResourceConfig = {
     { key: "price_list", labelKey: "pl.fields.price_list", type: "link", link: buyingPriceListLink, helpKey: "pl.help.document_list", advanced: true },
     { key: "posting_date", labelKey: "fields.posting_date", type: "date", required: true, defaultValue: todayISO },
     // The supplier's own invoice number / date: the reference the accountant needs in Tally.
-    { key: "bill_no", labelKey: "chg.bill_no", type: "text", helpKey: "chg.bill_no_help" },
+    { key: "bill_no", labelKey: "chg.bill_no", type: "text", helpKey: "chg.bill_no_help", requiredIf: (v) => !v.is_return },
     { key: "bill_date", labelKey: "chg.bill_date", type: "date" },
     { key: "due_date", labelKey: "fields.due_date", type: "date", advanced: true },
     {

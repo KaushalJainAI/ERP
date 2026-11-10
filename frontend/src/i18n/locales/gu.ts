@@ -806,6 +806,13 @@ const gu: Record<string, unknown> = {
   doc: {
     more_details: "વધુ વિગતો ({{n}})",
     fewer_details: "ઓછી વિગતો",
+    approve: "Approve",
+    save_for_later: "Save for later",
+    fix_this: "Fix this",
+    confirm_fix_title: "Fix this {{item}}?",
+    confirm_fix_message: "The old entry will be cancelled and a corrected copy opened.",
+    continue_draft: "Continue where you left off",
+    discard_draft: "Discard",
     help: {
       default_account: "ખાલી રાખો: કંપનીનું સામાન્ય ખાતું વપરાશે.",
     },

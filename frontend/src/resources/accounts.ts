@@ -252,6 +252,7 @@ const paymentEntries: ResourceConfig = {
   singularKey: "acc.res.payment_entry",
   icon: Wallet,
   submittable: true,
+  oneStepApprove: true,
   ordering: "-posting_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },

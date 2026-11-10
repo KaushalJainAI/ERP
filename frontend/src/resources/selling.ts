@@ -300,6 +300,7 @@ const salesOrders: ResourceConfig = {
   singularKey: "res.sales_order",
   icon: ShoppingCart,
   submittable: true,
+  oneStepApprove: true,
   ordering: "-transaction_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },
@@ -356,6 +357,7 @@ const salesInvoices: ResourceConfig = {
   singularKey: "res.sales_invoice",
   icon: Receipt,
   submittable: true,
+  oneStepApprove: true,
   ordering: "-posting_date,-created_at",
   columns: [
     { key: "name", labelKey: "fields.docno" },

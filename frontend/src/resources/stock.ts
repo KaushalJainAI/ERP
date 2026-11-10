@@ -316,6 +316,7 @@ const stockEntries: ResourceConfig = {
   singularKey: "bs.res.stock_entry",
   icon: ArrowLeftRight,
   submittable: true,
+  oneStepApprove: true,
   hideInSidebar: true,
   ordering: "-posting_date,-created_at",
   columns: [
