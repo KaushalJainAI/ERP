@@ -1,8 +1,17 @@
 """Serializers for assistant conversation, message, and proposal models."""
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from .models import AssistantConversation, AssistantMessage, AssistantProposal
+from core.attachments import AttachmentError
+
+from .models import (
+    AssistantConversation,
+    AssistantMessage,
+    AssistantProposal,
+    QuickNote,
+)
+from .quick_notes import validate_note_upload
 
 
 class AssistantProposalSerializer(serializers.ModelSerializer):
@@ -68,3 +77,46 @@ class ChatStreamRequestSerializer(serializers.Serializer):
     conversation_id = serializers.IntegerField(required=False, allow_null=True)
     input_mode = serializers.ChoiceField(choices=["text", "voice"], default="text")
     language = serializers.CharField(max_length=10, default="en")
+
+
+class QuickNoteSerializer(serializers.ModelSerializer):
+    """A quick note. The file is write-only: the note shows only that one exists."""
+
+    has_attachment = serializers.SerializerMethodField()
+
+    class Meta:
+        model = QuickNote
+        fields = [
+            "id",
+            "text",
+            "attachment",
+            "has_attachment",
+            "status",
+            "proposal",
+            "created_at",
+            "done_at",
+        ]
+        read_only_fields = ["id", "status", "proposal", "created_at", "done_at"]
+        extra_kwargs = {
+            "text": {"required": False},
+            "attachment": {"required": False, "write_only": True},
+        }
+
+    def get_has_attachment(self, obj) -> bool:
+        return bool(obj.attachment)
+
+    def validate_attachment(self, value):
+        if not value:
+            return value
+        try:
+            validate_note_upload(value)
+        except AttachmentError as exc:
+            raise serializers.ValidationError(exc.message)
+        return value
+
+    def validate(self, attrs):
+        if not (attrs.get("text") or attrs.get("attachment")):
+            raise serializers.ValidationError(
+                {"text": _("Write a note, or add a photo or voice clip.")}
+            )
+        return attrs

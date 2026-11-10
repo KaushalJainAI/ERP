@@ -119,3 +119,78 @@ class AssistantProposal(models.Model):
 
     def __str__(self):
         return f"AssistantProposal {self.pk} ({self.target} - {self.status})"
+
+
+def quick_note_upload_to(instance, filename):
+    """``quick_notes/YYYY/MM/DD/<uuid>.<ext>``: an opaque name, as core attachments use."""
+    import os
+    import uuid
+
+    from django.utils import timezone
+
+    ext = os.path.splitext(filename)[1].lower()
+    today = timezone.localdate()
+    return f"quick_notes/{today:%Y/%m/%d}/{uuid.uuid4().hex}{ext}"
+
+
+class QuickNote(models.Model):
+    """A line of text, voice clip or photo saved to be entered later.
+
+    A note writes nothing to the books. It is a job for the accountant until it is
+    marked Done, which happens when the document it leads to is approved or dismissed.
+    """
+
+    STATUS_CHOICES = [
+        ("open", "Open"),
+        ("done", "Done"),
+    ]
+
+    company = models.ForeignKey(
+        "core.Company",
+        on_delete=models.PROTECT,
+        related_name="quick_notes",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="quick_notes",
+    )
+    text = models.TextField(blank=True, default="")
+    attachment = models.FileField(
+        upload_to=quick_note_upload_to, max_length=255, blank=True, default=""
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="open")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    done_at = models.DateTimeField(null=True, blank=True)
+    proposal = models.ForeignKey(
+        AssistantProposal,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="quick_notes",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Quick Note"
+        verbose_name_plural = "Quick Notes"
+        constraints = [
+            models.CheckConstraint(
+                check=~Q(text="") | ~Q(attachment=""),
+                name="quick_note_has_content",
+            ),
+            models.CheckConstraint(
+                check=Q(status__in=["open", "done"]),
+                name="quick_note_status_valid",
+            ),
+            models.CheckConstraint(
+                check=(
+                    Q(status="done", done_at__isnull=False)
+                    | Q(status="open", done_at__isnull=True)
+                ),
+                name="quick_note_done_at_matches_status",
+            ),
+        ]
+
+    def __str__(self):
+        return f"QuickNote {self.pk} ({self.status})"

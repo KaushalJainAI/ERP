@@ -21,7 +21,7 @@ import os
 import re
 import urllib.request
 from decimal import Decimal, InvalidOperation
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -38,15 +38,22 @@ from .tools import find_item, find_party, wrap_data
 logger = logging.getLogger(__name__)
 
 STAGING_LABEL = "assistant.AssistantMessage"
-#: Kinds a vision model reads. PDFs and spreadsheets are attachments, not bill photos.
-BILL_KINDS = frozenset({"jpeg", "png", "webp"})
+#: Kinds a vision model reads: photos, and PDFs (sent to the model as documents).
+#: Spreadsheets and other attachments are not bills.
+BILL_KINDS = frozenset({"jpeg", "png", "webp", "pdf"})
 BILL_MAX_BYTES = 5 * 1024 * 1024
+#: A bill that runs over pages may be sent as several files, within these limits.
+BILL_MAX_FILES = 4
+BILL_MAX_TOTAL_BYTES = 2 * BILL_MAX_BYTES
+#: An encrypted PDF names its /Encrypt dictionary in the trailer (or the xref stream).
+_PDF_ENCRYPT_REF = re.compile(rb"/Encrypt\s*(?:\d+\s+\d+\s+R|<<)")
 #: Below this the model's reading is not trusted; the user is asked for a clearer photo.
 MIN_CONFIDENCE = Decimal("0.6")
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 VISION_TIMEOUT_SECONDS = int(os.getenv("ASSISTANT_VISION_TIMEOUT", "45"))
 
-BILL_PROMPT = """You read photos of supplier bills (Indian purchase bills, often in Hindi, English or Hinglish).
+BILL_PROMPT = """You read photos or PDF scans of supplier bills (Indian purchase bills, often in Hindi, English or Hinglish).
+Several parts after this text may be the pages of ONE bill: read them together as one bill.
 Reply with one JSON object and nothing else:
 {"readable": true or false, "confidence": 0.0 to 1.0, "supplier_name": "", "bill_no": "",
  "bill_date": "YYYY-MM-DD or empty", "total": number or null,
@@ -64,9 +71,25 @@ class BillReaderUnavailable(Exception):
     """The vision model could not be reached or gave no answer."""
 
 
-def call_vision_model(image_bytes: bytes, mime: str) -> str:
+def is_password_protected(data: bytes) -> bool:
+    """True when a PDF is encrypted. A heuristic: owner-only restrictions also count."""
+    return _PDF_ENCRYPT_REF.search(data) is not None
+
+
+def _content_part(data: bytes, mime: str) -> Dict[str, Any]:
+    """One bill file as an OpenAI-style content part: an image, or a PDF file part."""
+    url = f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}"
+    if mime == "application/pdf":
+        return {"type": "file", "file": {"filename": "bill.pdf", "file_data": url}}
+    return {"type": "image_url", "image_url": {"url": url}}
+
+
+def call_vision_model(
+    image_bytes: bytes, mime: str, more: Sequence[Tuple[bytes, str]] = ()
+) -> str:
     """One vision call through the chat's endpoint and key. Returns the model's text.
 
+    `more` holds the further pages of the same bill, as (bytes, mime) pairs.
     Every failure (no key, timeout, HTTP error, empty answer) is raised as
     BillReaderUnavailable, so the caller can give a friendly reply.
     """
@@ -79,16 +102,13 @@ def call_vision_model(image_bytes: bytes, mime: str) -> str:
         raise BillReaderUnavailable("No LLM API key configured.")
 
     endpoint = os.getenv("ASSISTANT_LLM_ENDPOINT") or DEFAULT_ENDPOINT
-    image_url = f"data:{mime};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+    parts = [_content_part(data, kind) for data, kind in [(image_bytes, mime), *more]]
     payload = {
         "model": os.getenv("ASSISTANT_VISION_MODEL") or DEFAULT_MODEL,
         "messages": [
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": BILL_PROMPT},
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ],
+                "content": [{"type": "text", "text": BILL_PROMPT}, *parts],
             }
         ],
         "temperature": 0,
@@ -281,7 +301,7 @@ def _propose(user, matched: Dict[str, Any], bill: Dict[str, Any], company_pk, me
 
 
 def _stage_photo(message: AssistantMessage, data: bytes, checked, user) -> None:
-    """Keep the bill photo as proof, parented to the reply that proposes the invoice."""
+    """Keep one bill file (photo or PDF) as proof, parented to the reply that proposes the invoice."""
     att = Attachment(
         model_label=STAGING_LABEL,
         object_id=str(message.pk),
@@ -339,17 +359,18 @@ def _failure(error: str, reply: str) -> Dict[str, Any]:
 def run_bill_turn(
     user,
     *,
-    data: bytes,
-    checked,
+    uploads: Sequence[Tuple[bytes, Any]],
     company_pk: Optional[int],
     conversation: Optional[AssistantConversation],
     language: str,
-    read: Optional[Callable[[bytes, str], str]] = None,
+    read: Optional[Callable[..., str]] = None,
 ) -> Dict[str, Any]:
-    """Read one bill photo and record the assistant turn it produces.
+    """Read one bill (one or more pages) and record the assistant turn it produces.
 
-    `checked` is the att_rules.ValidatedUpload of `data`. `read` is the vision call;
-    it defaults to call_vision_model and is looked up at call time, so tests can stub it.
+    `uploads` is a non-empty list of (data, checked) pairs, where `checked` is the
+    att_rules.ValidatedUpload of `data`; the pages are read together as one bill.
+    `read` is the vision call, called as read(first_data, first_mime, more_pages); it
+    defaults to call_vision_model and is looked up at call time, so tests can stub it.
     """
     if not user_has_model_permission(user, "buying.PurchaseInvoice", "can_create"):
         return _failure(
@@ -357,8 +378,23 @@ def run_bill_turn(
             _("You do not have permission to create Purchase Invoices."),
         )
 
+    if any(
+        checked.kind == "pdf" and is_password_protected(data)
+        for data, checked in uploads
+    ):
+        return _failure(
+            "bill_pdf_protected",
+            _(
+                "This PDF is password-protected. Send it without a password or as a photo."
+            ),
+        )
+
+    first_data, first_checked = uploads[0]
+    more = [(data, checked.content_type) for data, checked in uploads[1:]]
     try:
-        bill = parse_bill((read or call_vision_model)(data, checked.content_type))
+        bill = parse_bill(
+            (read or call_vision_model)(first_data, first_checked.content_type, more)
+        )
     except BillUnreadable:
         return _failure(
             "bill_unreadable",
@@ -380,7 +416,9 @@ def run_bill_turn(
                 user=user, language=language
             )
         AssistantMessage.objects.create(
-            conversation=conversation, role="user", content=checked.filename
+            conversation=conversation,
+            role="user",
+            content=", ".join(checked.filename for _data, checked in uploads),
         )
         reply_row = AssistantMessage.objects.create(
             conversation=conversation, role="assistant", content="", steps=[]
@@ -396,7 +434,8 @@ def run_bill_turn(
             outcome = _propose(user, matched, bill, company_pk, reply_row)
             if outcome.get("type") == "proposal":
                 proposal = outcome
-                _stage_photo(reply_row, data, checked, user)
+                for data, checked in uploads:
+                    _stage_photo(reply_row, data, checked, user)
                 reply = _(
                     "Check the prefilled Purchase Invoice and save it. The bill photo is attached as proof."
                 )
