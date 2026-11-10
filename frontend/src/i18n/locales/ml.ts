@@ -141,7 +141,21 @@ const ml: Record<string, unknown> = {
   created_at: "സൃഷ്ടിച്ച തീയതി",
   no_records: "രേഖകളൊന്നും കണ്ടെത്തിയില്ല.",
   acc: {
-    nav: {
+
+    names: {
+      nav: "Names to complete",
+      title: "Names to complete",
+      subtitle: "Customers, suppliers and items saved with details still missing. Tap one to complete it.",
+      empty: "Nothing to complete.",
+      kind_customer: "Customers",
+      kind_supplier: "Suppliers",
+      kind_item: "Items",
+      missing_state: "State",
+      missing_gstin: "GSTIN",
+      missing_group: "Group",
+      missing_hsn: "HSN code",
+      missing_tax_template: "GST rate",
+    },    nav: {
       reports: "റിപ്പോർട്ടുകൾ",
       gl_entries: "GL എൻട്രികൾ",
       trial_balance: "ട്രയൽ ബാലൻസ്",
@@ -757,6 +771,16 @@ const ml: Record<string, unknown> = {
     not_granted: "നൽകിയിട്ടില്ല",
     expand: "അനുമതികൾ കാണിക്കുക",
     collapse: "അനുമതികൾ മറയ്ക്കുക",
+  },
+  link: {
+    quick_add: "Add \"{{text}}\"",
+    quick_add_title: "New \"{{text}}\"",
+    gst_label: "GST %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
   },
   common: {
     close: "അടയ്ക്കുക",

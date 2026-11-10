@@ -26,6 +26,7 @@ export const supplierLink: LinkDef = {
   display: (v) => v.supplier_name,
   filters: (_row, form) => ({ company: form.company, is_active: true }),
   fill: (r) => ({ supplier_name: r.name, gst_category: r.gst_category ?? "", party_gstin: r.gstin ?? "" }),
+  quickCreate: { endpoint: "/buying/suppliers/", payload: (text) => ({ name: text }) },
 };
 
 const supplierGroupLink: LinkDef = {

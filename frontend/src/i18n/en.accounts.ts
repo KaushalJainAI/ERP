@@ -29,7 +29,21 @@ export const enAccounts = {
     },
   },
   acc: {
-    nav: {
+
+    names: {
+      nav: "Names to complete",
+      title: "Names to complete",
+      subtitle: "Customers, suppliers and items saved with details still missing. Tap one to complete it.",
+      empty: "Nothing to complete.",
+      kind_customer: "Customers",
+      kind_supplier: "Suppliers",
+      kind_item: "Items",
+      missing_state: "State",
+      missing_gstin: "GSTIN",
+      missing_group: "Group",
+      missing_hsn: "HSN code",
+      missing_tax_template: "GST rate",
+    },    nav: {
       reports: "Reports",
       collections: "Money to Collect",
       bills_to_pay: "Bills to Pay",

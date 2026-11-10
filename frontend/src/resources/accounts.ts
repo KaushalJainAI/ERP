@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { BarChart3, BookOpen, FileCheck, FileSpreadsheet, FileText, Landmark, Library, Receipt, Scale, ScrollText, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, FileCheck, FileSpreadsheet, FileText, Landmark, Library, ListChecks, Receipt, Scale, ScrollText, TrendingUp, Wallet } from "lucide-react";
 import i18n from "i18next";
 import { apiClient } from "@/api/client";
 import { JournalBalanceBanner, negDec, totalsOf } from "@/components/accounts/BalanceBanner";
@@ -16,6 +16,7 @@ import type {
 } from "@/types";
 import { companyField, docNoField } from "./selling";
 import { accountGstFields, gstOptionCell } from "./gst";
+import { hasReadAccess } from "./workspaces";
 
 /* ---- option lists (values are the backend's TextChoices) ---- */
 
@@ -357,6 +358,13 @@ export const accountsLinks: NavLink[] = [
   { path: "/accounts/bills-to-pay", labelKey: "acc.nav.bills_to_pay", icon: FileSpreadsheet, group: "transactions" },
   { path: "/accounts/expenses", labelKey: "acc.nav.expenses", icon: Receipt, group: "transactions" },
   { path: "/accounts/gst-position", labelKey: "acc.nav.gst_position", icon: FileCheck, group: "transactions" },
+  {
+    path: "/accounts/names-to-complete",
+    labelKey: "acc.names.nav",
+    icon: ListChecks,
+    group: "transactions",
+    visible: (user) => hasReadAccess(user.readable_models, ["selling.Customer"]),
+  },
   { path: "/accounts/gl-entries", labelKey: "acc.nav.gl_entries", icon: Library, group: "reports" },
   { path: "/accounts/reports/trial-balance", labelKey: "acc.nav.trial_balance", icon: Scale },
   { path: "/accounts/reports/general-ledger", labelKey: "acc.nav.general_ledger", icon: BarChart3 },

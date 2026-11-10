@@ -44,6 +44,7 @@ import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
 import { NewExpensePage } from "@/pages/accounts/NewExpensePage";
 import { GstPositionPage } from "@/pages/accounts/GstPositionPage";
+import { NamesToCompletePage } from "@/pages/accounts/NamesToCompletePage";
 import { AlertSettingsPage } from "@/pages/notifications/AlertSettingsPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -227,6 +228,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <GstPositionPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/accounts/names-to-complete"
+        element={
+          <ProtectedRoute>
+            <NamesToCompletePage />
           </ProtectedRoute>
         }
       />
