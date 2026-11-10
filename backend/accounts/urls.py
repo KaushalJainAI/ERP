@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from accounts import bank_views, report_views
+from accounts.cash_views import cash_in_hand
 from accounts.closing_views import FiscalYearViewSet, PeriodClosingVoucherViewSet
 from accounts.views import (
     AccountViewSet,
@@ -66,6 +67,7 @@ urlpatterns = [
         gst_credit_at_risk_view,
         name="gst-credit-at-risk",
     ),
+    path("cash-in-hand/", cash_in_hand, name="cash-in-hand"),
     path("collections/", collections_view, name="collections"),
     path("bills-to-pay/", bills_to_pay_view, name="bills-to-pay"),
     path("reports/sales-register/", report_views.sales_register, name="sales-register"),

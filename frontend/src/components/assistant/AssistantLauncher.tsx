@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Sparkles } from "lucide-react";
 import { AssistantPanel } from "./AssistantPanel";
+import { QuickNoteButton } from "./QuickNoteButton";
 
 /** Window event that opens the assistant sheet from anywhere (see openAssistant). */
 export const ASSISTANT_OPEN_EVENT = "assistant:open";
@@ -24,6 +25,7 @@ export const AssistantLauncher: React.FC = () => {
   return (
     <>
       <div className="assistant-fab fixed bottom-[calc(5rem_+_env(safe-area-inset-bottom))] end-4 z-30 flex items-center gap-2 sm:end-6 md:bottom-6">
+        <QuickNoteButton />
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}

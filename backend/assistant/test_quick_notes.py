@@ -265,3 +265,54 @@ class QuickNoteDoneTests(QuickNoteBase):
         self.assertIn(resp.status_code, (404, 405))
         note.refresh_from_db()
         self.assertEqual(note.text, "Gupta bill")
+
+
+def file_url(pk):
+    return f"{URL}{pk}/file/"
+
+
+class QuickNoteFileTests(QuickNoteBase):
+    def make_photo_note(self, company):
+        return QuickNote.objects.create(
+            company=company,
+            created_by=self.user,
+            attachment=SimpleUploadedFile("bill.jpg", JPEG, "image/jpeg"),
+        )
+
+    def test_owner_company_gets_the_bytes_inline(self):
+        note = self.make_photo_note(self.company)
+        resp = self.client.get(
+            file_url(note.pk), headers={"X-Company-ID": str(self.company.pk)}
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(b"".join(resp.streaming_content), JPEG)
+        self.assertEqual(resp["Content-Type"], "image/jpeg")
+        self.assertTrue(resp["Content-Disposition"].startswith("inline"))
+        self.assertEqual(resp["Cache-Control"], "private, no-store")
+
+    def test_another_company_gets_404(self):
+        note = self.make_photo_note(self.company)
+        resp = self.client.get(
+            file_url(note.pk), headers={"X-Company-ID": str(self.other_company.pk)}
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_note_without_a_file_is_404(self):
+        note = QuickNote.objects.create(
+            company=self.company, created_by=self.user, text="Gupta bill"
+        )
+        resp = self.client.get(
+            file_url(note.pk), headers={"X-Company-ID": str(self.company.pk)}
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    def test_file_request_writes_nothing(self):
+        note = self.make_photo_note(self.company)
+        before = self.snapshot()
+        resp = self.client.get(
+            file_url(note.pk), headers={"X-Company-ID": str(self.company.pk)}
+        )
+        self.assertEqual(resp.status_code, 200)
+        resp.close()
+        self.assertEqual(self.snapshot(), before)
