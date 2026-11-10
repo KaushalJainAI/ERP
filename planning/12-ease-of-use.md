@@ -529,6 +529,33 @@ Do the `S` cards first where a `U` card depends on them. Follow
 - **Test:** a sample QR payload overrides a deliberately wrong read total and shows the
   mismatch.
 
+## Build notes (2026-11-11)
+
+Built by a team of implementers with lead review; each merge was tested, and the whole
+backend suite passes apart from five tests this sandbox cannot run (gettext, DEBUG).
+
+- **Numbering (S-2):** every series now carries the financial year, e.g. `SO-2627-0001`.
+  Orders, payments and journals that were `SO-2026-NNNN` start again at 0001 under the new
+  prefix; names cannot clash because the prefix differs. `MAT-RECO` became `SRECO` to fit
+  the 16-character GST limit.
+- **Fiscal years (S-1):** `ensure_fiscal_years` runs daily from the scheduler. Overlapping
+  years are reported by `verify_integrity` as a warning, not an error (the test harness
+  uses a wide year that overlaps real ones).
+- **Warehouse fallback (S-4):** with no Ready warehouse set, a sale takes the warehouse that
+  holds the most of the item; the Process Loss store is never chosen (found in a phone
+  walk-through).
+- **Payment mode (S-6):** Cash, Bank transfer, Cheque (no UPI). "Cash put in bank" is an
+  internal transfer from the cash account to the default bank.
+- **Pre-deploy checks:** `check_constraint_candidates` and `check_accounts_constraints`
+  count existing rows that would break the new database rules. Run them before migrating.
+- **Day summary (U-7 d):** a new alert rule `day_summary`; it sends nothing until
+  `seed_defaults` has created it and an admin has chosen its recipients. "Spent" is the
+  money paid out that day.
+- **Not done:** U-10's Share button (the print view is browser HTML; sharing a PDF or an
+  image needs a renderer the app does not have; staff can use Print, then "Save as PDF" in
+  Android Chrome and share that file). U-7's "bills with no proof" home row. U-17 stays
+  deferred. U-12 and U-13 are owner work.
+
 ## Open questions
 
 | # | Question | Who | Blocks |

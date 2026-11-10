@@ -571,32 +571,32 @@ Design, findings and full card instructions are in
 **S-1 and S-2 must be live before 2027-04-01**: no fiscal year exists after 2026-27.
 
 ### 1. Schema and what we fill
-- [ ] S-1 Fiscal years never run out
-- [ ] S-2 Numbers follow the financial year
-- [ ] S-3 Database rules for lines and money
-- [ ] S-4 The warehouse is never asked
-- [ ] S-5 Setup health, shown before it hurts
-- [ ] S-6 How the money moved
-- [ ] S-7 An item needs only a name, a unit, a GST % and a price
-- [ ] S-8 One party, one record
+- [x] S-1 Fiscal years never run out
+- [x] S-2 Numbers follow the financial year
+- [x] S-3 Database rules for lines and money
+- [x] S-4 The warehouse is never asked
+- [x] S-5 Setup health, shown before it hurts
+- [x] S-6 How the money moved
+- [x] S-7 An item needs only a name, a unit, a GST % and a price
+- [x] S-8 One party, one record
 
 ### 2. Ease of use
-- [ ] U-1 Add a name from inside the form
-- [ ] U-2 Names to complete
-- [ ] U-3 Approve in one step, and never lose typing
-- [ ] U-4 Fix this
-- [ ] U-5 Plain words everywhere, errors that say what to do
-- [ ] U-6 Required means required up front
-- [ ] U-7 Today's work, four verbs, and the day summary
-- [ ] U-8 Install on the phone
-- [ ] U-9 Quick note
-- [ ] U-10 Share the bill, and one page per party
-- [ ] U-11 Bring the lists in at once
+- [x] U-1 Add a name from inside the form
+- [x] U-2 Names to complete
+- [x] U-3 Approve in one step, and never lose typing
+- [x] U-4 Fix this
+- [x] U-5 Plain words everywhere, errors that say what to do
+- [x] U-6 Required means required up front
+- [x] U-7 Today's work, four verbs, and the day summary (the "bills with no proof" row is not added yet)
+- [x] U-8 Install on the phone
+- [x] U-9 Quick note
+- [ ] U-10 Share the bill, and one page per party (done: bank details on the bill, party page; open: a Share button, which needs a PDF or image renderer the app does not have, see doc 12)
+- [x] U-11 Bring the lists in at once
 - [ ] U-12 Hindi that sounds like the shop floor (OWNER)
 - [ ] U-13 Two-week pilot and the four numbers (OWNER)
 
 ### 3. Documents in
-- [ ] U-14 Read any bill, not only a photo
-- [ ] U-15 Other papers become entries
-- [ ] U-16 Send a bill to the ERP from WhatsApp
+- [x] U-14 Read any bill, not only a photo
+- [x] U-15 Other papers become entries
+- [x] U-16 Send a bill to the ERP from WhatsApp
 - [ ] U-17 Scan the QR on a supplier's e-invoice (later)

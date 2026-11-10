@@ -48,6 +48,40 @@ docker compose --env-file .env.production -p erp -f docker-compose.prod.yml ps
 
 Run `./scripts/backup_erp.sh` before a database-changing deploy. A container image rollback does not undo a migration; restore the pre-deploy dump into a scratch database first.
 
+## Release: ease of use and schema safety (2026-11-11)
+
+This release adds database rules, so follow the order. `C` below is the compose prefix
+`docker compose --env-file .env.production -p erp -f docker-compose.prod.yml`.
+
+1. Back up: `./scripts/backup_erp.sh`.
+2. Build and load the new `backend` and `frontend` images as in "Updating the app" (new
+   tags in `.env.production`). `requirements.txt` now lists `openpyxl` (bulk import).
+3. Before migrating, count rows that would break the new rules. Both commands only read:
+   ```bash
+   $C run --rm -T --no-deps backend python manage.py check_constraint_candidates
+   $C run --rm -T --no-deps backend python manage.py check_accounts_constraints
+   ```
+   Every count must be 0. If one is not, stop: the migration would fail (and roll back).
+   Fix or report those rows first; a duplicate customer or supplier name (ignoring case)
+   is for the accountant to merge.
+4. Migrate, then seed (adds the `day_summary` alert rule; idempotent), then make sure the
+   next fiscal years exist:
+   ```bash
+   $C run --rm -T --no-deps backend python manage.py migrate --noinput
+   $C run --rm -T --no-deps backend python manage.py seed_defaults
+   $C run --rm -T --no-deps backend python manage.py ensure_fiscal_years
+   $C run --rm -T --no-deps backend python manage.py collectstatic --noinput
+   $C run --rm -T --no-deps backend python manage.py verify_integrity
+   ```
+   `verify_integrity` must report 0 drifts. Its `[setup warning]` lines list what the
+   company still lacks (default accounts, Ready / Unprocessed warehouses, tax templates);
+   the same list shows on the Admin home.
+5. Start: `$C up -d --no-build backend scheduler frontend`. The scheduler now also creates
+   fiscal years ahead and sends the evening day summary.
+6. After the deploy: in Alert settings choose who receives the day summary. Document numbers
+   now carry the financial year (`SO-2627-0001`), so orders, payments and journals start
+   again at 0001 under the new prefix.
+
 ## Caddy and HTTPS
 
 Add the host-specific site to the shared Caddyfile, leaving the NGU, AIAAS, and `:80` sites intact:
