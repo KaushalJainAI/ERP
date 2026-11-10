@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -312,9 +313,13 @@ export const BillsToPayPage: React.FC = () => {
                     {/* Bill Info */}
                     <div className="flex-1 space-y-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-white text-base">
+                        <Link
+                          to={`/selling/party/supplier/${bill.supplier_id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-semibold text-white text-base hover:underline"
+                        >
                           {bill.supplier_name}
-                        </span>
+                        </Link>
                         {bill.bill_no && (
                           <span className="px-2 py-0.5 rounded text-xs font-mono bg-slate-800 text-slate-300 border border-slate-700">
                             Bill #{bill.bill_no}

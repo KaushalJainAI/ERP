@@ -26,6 +26,7 @@ import { enPayRecon } from "./en.payrecon";
 import { enSalesKpi } from "./en.sales_kpi";
 import { enAssistant } from "./en.assistant";
 import { enSelling } from "./en.selling";
+import { enEase } from "./en.ease";
 
 export const SUPPORTED_LANGUAGES = [
   { code: "en", name: "English", rtl: false },
@@ -107,6 +108,7 @@ const resources = {
       ...enSalesKpi,
       ...enAssistant,
       ...enSelling,
+      ...enEase,
     },
   },
 };

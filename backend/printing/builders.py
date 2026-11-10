@@ -15,7 +15,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from django.db.models import Sum
 
-from accounts.models import AccountType, GLEntry, PaymentType
+from accounts.models import AccountType, BankAccount, GLEntry, PaymentType
 from accounts.services import outstanding as outstanding_service
 from core.models import DocStatus
 from printing.words import amount_in_words
@@ -75,8 +75,9 @@ def state_block(state):
 
 
 def company_block(company):
-    """Letterhead data. ``getattr`` keeps optional fields (bank, logo, terms, FSSAI,
-    signatory) out of the payload until the Company master has them."""
+    """Letterhead data. ``getattr`` keeps optional fields (logo, terms, FSSAI, signatory)
+    out of the payload until the Company master has them. Bank details: ``bank_block``.
+    """
     block = {
         "id": company.pk,
         "name": company.name,
@@ -103,16 +104,28 @@ def company_block(company):
     logo = getattr(company, "logo", None)
     if logo:
         block["logo_url"] = getattr(logo, "url", str(logo))
-    bank = {
-        "bank_name": getattr(company, "bank_name", ""),
-        "account_no": getattr(company, "bank_account_no", ""),
-        "ifsc": getattr(company, "bank_ifsc", ""),
-        "branch": getattr(company, "bank_branch", ""),
-        "upi_id": getattr(company, "upi_id", ""),
-    }
-    if any(bank.values()):
-        block["bank"] = {k: v for k, v in bank.items() if v}
     return block
+
+
+def bank_block(company):
+    """The company's default active bank account, for a customer to pay by transfer.
+
+    None when there is no such account, so the bill shows nothing rather than a blank box.
+    The account holder is the company's legal name: BankAccount does not store one.
+    """
+    account = (
+        BankAccount.objects.filter(company=company, is_default=True, is_active=True)
+        .order_by("pk")
+        .first()
+    )
+    if account is None:
+        return None
+    return {
+        "bank_name": account.bank_name,
+        "account_holder": company.legal_name or company.name,
+        "account_no": account.account_number,
+        "ifsc": account.ifsc_code,
+    }
 
 
 def _address_block(address):
@@ -402,6 +415,10 @@ def sales_invoice(doc, params):
     bill, ship = party_blocks(doc.customer, "Customer")
     lines = _lines(doc)
     credit = doc.is_return
+    company = company_block(doc.company)
+    bank = bank_block(doc.company)
+    if bank:
+        company["bank"] = bank
     return {
         **_meta(
             doc,
@@ -414,7 +431,7 @@ def sales_invoice(doc, params):
             is_return=credit,
             return_against=_return_reference(doc),
         ),
-        "company": company_block(doc.company),
+        "company": company,
         "bill_to": bill,
         "ship_to": ship,
         "place_of_supply": _place_of_supply(doc, doc.customer),

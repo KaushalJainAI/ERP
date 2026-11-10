@@ -39,6 +39,8 @@ import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
 import { SalesAnalyticsPage } from "@/pages/selling/SalesAnalyticsPage";
 import { PendingOrdersPage } from "@/pages/selling/PendingOrdersPage";
+import { PartyPage } from "@/pages/selling/PartyPage";
+import { ShareTargetPage } from "@/pages/ShareTargetPage";
 import { CollectionsPage } from "@/pages/accounts/CollectionsPage";
 import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
@@ -176,6 +178,26 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <PrintPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* A bill shared to the app from WhatsApp or another app (service worker: public/sw.js). */}
+      <Route
+        path="/share-target"
+        element={
+          <ProtectedRoute>
+            <ShareTargetPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* One customer or supplier: balance, open bills, payments, last orders. */}
+      <Route
+        path="/selling/party/:kind/:id"
+        element={
+          <ProtectedRoute>
+            <PartyPage />
           </ProtectedRoute>
         }
       />

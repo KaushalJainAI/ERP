@@ -10,6 +10,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useActiveModule, useModuleNav } from "@/resources/nav";
 import { INLINE_SEARCH_QUERY } from "./SearchBar";
 import { AssistantLauncher } from "./assistant/AssistantLauncher";
+import { OfflineBanner } from "./OfflineBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -39,6 +40,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-200">
+      <OfflineBanner />
       {/* The top bar and the search row under it stay pinned together. On
           wide screens the search sits inside the top bar instead. */}
       <div className="sticky top-0 z-40">

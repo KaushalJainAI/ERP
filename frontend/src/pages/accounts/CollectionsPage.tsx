@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   AlertCircle,
@@ -254,9 +255,13 @@ export const CollectionsPage: React.FC = () => {
                         className="cursor-pointer flex-1 space-y-1.5"
                       >
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-white text-base">
+                          <Link
+                            to={`/selling/party/customer/${cust.customer_id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-semibold text-white text-base hover:underline"
+                          >
                             {cust.customer_name}
-                          </span>
+                          </Link>
                           {cust.days_late > 0 && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
                               <Clock className="w-3 h-3" />

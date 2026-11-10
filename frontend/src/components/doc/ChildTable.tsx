@@ -199,7 +199,7 @@ export const ChildTable: React.FC<ChildTableProps> = ({
                   <button
                     type="button"
                     onClick={() => removeRow(idx)}
-                    className="rounded-md p-1.5 text-slate-500 hover:bg-slate-800 hover:text-rose-400"
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-md p-1.5 text-slate-500 hover:bg-slate-800 hover:text-rose-400"
                     aria-label={t("common.remove_row")}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -277,7 +277,7 @@ export const ChildTable: React.FC<ChildTableProps> = ({
                     <button
                       type="button"
                       onClick={() => removeRow(idx)}
-                      className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-slate-800"
                       aria-label={t("common.remove_row")}
                     >
                       <Trash2 className="w-4 h-4" />
