@@ -28,6 +28,10 @@ export interface MessageBubble {
   role: "user" | "assistant";
   content: string;
   questionOptions?: string[];
+  /** "What is this paper?" buttons: a tap re-reads the kept file as that kind. */
+  kindChoices?: { kind: string; label: string }[];
+  /** The server's id for the reply that asked (sent back with the chosen kind). */
+  replyMessageId?: number;
   proposal?: any;
 }
 
@@ -323,21 +327,30 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
     );
   };
 
-  /** A supplier bill photo: the server reads it into a Purchase Invoice proposal. */
-  const handleBillPhoto = async (file: File) => {
+  /** A paper (bill, order, payment slip, receipt): the server reads it into a proposal. */
+  const handleBillPhoto = (file: File) => postToReader(file.name, (form) => form.append("file", file));
+
+  /** The person said what the paper is: the server re-reads the file it kept, as that kind. */
+  const handleKindChoice = (replyMessageId: number, choice: { kind: string; label: string }) =>
+    postToReader(choice.label, (form) => {
+      form.append("reply_message_id", String(replyMessageId));
+      form.append("kind", choice.kind);
+    });
+
+  const postToReader = async (userText: string, fill: (form: FormData) => void) => {
     if (isStreaming || readingBill) return;
     setReadingBill(true);
     setStreamError(null);
     setMessages((prev) => [
       ...prev,
-      { id: `bill-${Date.now()}`, role: "user", content: file.name },
+      { id: `bill-${Date.now()}`, role: "user", content: userText },
     ]);
 
     // Same auth and company headers as a chat turn. A photo goes as multipart,
     // so the Content-Type is left to the browser.
     const postBill = (token: string | null) => {
       const form = new FormData();
-      form.append("file", file);
+      fill(form);
       form.append("language", i18n.language || "en");
       if (conversationId) form.append("conversation_id", String(conversationId));
       const companyId = getActiveCompanyId();
@@ -366,6 +379,8 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
           role: "assistant",
           content: data?.reply ?? data?.message ?? t("assistant.bill.failed"),
           questionOptions: data?.question?.options,
+          kindChoices: data?.question?.choices?.length ? data.question.choices : undefined,
+          replyMessageId: typeof data?.message_id === "number" ? data.message_id : undefined,
           proposal: data?.proposal ?? undefined,
         },
       ]);
@@ -487,7 +502,22 @@ export const AssistantPanel: React.FC<AssistantPanelProps> = ({
                   )}
 
                   {/* Tappable question options */}
-                  {m.questionOptions && m.questionOptions.length > 0 && (
+                  {m.kindChoices && m.replyMessageId != null && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex flex-wrap gap-2">
+                      {m.kindChoices.map((choice) => (
+                        <button
+                          key={choice.kind}
+                          type="button"
+                          disabled={readingBill || isStreaming}
+                          onClick={() => void handleKindChoice(m.replyMessageId!, choice)}
+                          className="min-h-[44px] px-3 py-1.5 text-xs font-medium bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 rounded-xl transition text-left disabled:opacity-50"
+                        >
+                          {choice.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!m.kindChoices && m.questionOptions && m.questionOptions.length > 0 && (
                     <div className="mt-3 pt-2.5 border-t border-slate-700/60 flex flex-wrap gap-2">
                       {m.questionOptions.map((opt, oIdx) => (
                         <button
