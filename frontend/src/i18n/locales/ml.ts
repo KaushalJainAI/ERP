@@ -855,6 +855,7 @@ const ml: Record<string, unknown> = {
     items: "ഇനങ്ങൾ",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "രേഖ നമ്പർ",
     docno_help: "സ്വയം നമ്പർ ഇടാൻ ഒഴിച്ചിടുക.",
     company: "കമ്പനി",

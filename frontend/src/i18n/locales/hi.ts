@@ -855,6 +855,7 @@ const hi: Record<string, unknown> = {
     items: "वस्तुएं",
   },
   fields: {
+    warehouse_auto: "अपने आप भरेगा",
     docno: "दस्तावेज़ संख्या",
     docno_help: "स्वतः क्रमांकन के लिए खाली छोड़ें।",
     company: "कंपनी",

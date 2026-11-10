@@ -855,6 +855,7 @@ const as: Record<string, unknown> = {
     items: "সামগ্ৰী",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "নথি নম্বৰ",
     docno_help: "স্বয়ংক্ৰিয় নম্বৰৰ বাবে খালী এৰি দিয়ক।",
     company: "কোম্পানী",

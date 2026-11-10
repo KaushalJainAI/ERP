@@ -855,6 +855,7 @@ const te: Record<string, unknown> = {
     items: "వస్తువులు",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "పత్రం సంఖ్య",
     docno_help: "ఆటో నంబరింగ్ కోసం ఖాళీగా వదలండి.",
     company: "కంపెనీ",

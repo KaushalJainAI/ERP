@@ -855,6 +855,7 @@ const kn: Record<string, unknown> = {
     items: "ವಸ್ತುಗಳು",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "ದಾಖಲೆ ಸಂಖ್ಯೆ",
     docno_help: "ಸ್ವಯಂ ಸಂಖ್ಯೆಗಾಗಿ ಖಾಲಿ ಬಿಡಿ.",
     company: "ಕಂಪನಿ",

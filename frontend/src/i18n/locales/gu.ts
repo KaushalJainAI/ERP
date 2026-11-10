@@ -855,6 +855,7 @@ const gu: Record<string, unknown> = {
     items: "વસ્તુઓ",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "દસ્તાવેજ નંબર",
     docno_help: "આપમેળે નંબર આપવા માટે ખાલી રાખો.",
     company: "કંપની",

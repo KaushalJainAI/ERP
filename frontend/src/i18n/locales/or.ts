@@ -855,6 +855,7 @@ const or: Record<string, unknown> = {
     items: "ସାମଗ୍ରୀ",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "ଦଲିଲ ସଂଖ୍ୟା",
     docno_help: "ସ୍ୱୟଂଚାଳିତ ସଂଖ୍ୟା ପାଇଁ ଖାଲି ଛାଡ଼ନ୍ତୁ।",
     company: "କମ୍ପାନୀ",

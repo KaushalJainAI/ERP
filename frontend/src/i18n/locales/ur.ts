@@ -855,6 +855,7 @@ const ur: Record<string, unknown> = {
     items: "اشیاء",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "دستاویز نمبر",
     docno_help: "خودکار نمبر کے لیے خالی چھوڑیں۔",
     company: "کمپنی",

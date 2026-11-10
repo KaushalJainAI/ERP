@@ -855,6 +855,7 @@ const pa: Record<string, unknown> = {
     items: "ਵਸਤਾਂ",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "ਦਸਤਾਵੇਜ਼ ਨੰਬਰ",
     docno_help: "ਆਪਣੇ-ਆਪ ਨੰਬਰ ਲਈ ਖਾਲੀ ਛੱਡੋ।",
     company: "ਕੰਪਨੀ",

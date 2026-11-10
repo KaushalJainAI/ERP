@@ -146,7 +146,7 @@ const itemColumns: ChildColumnDef[] = [
     labelKey: "fields.warehouse",
     type: "link",
     link: warehouseLink,
-    placeholderKey: "org.fields.ready_warehouse",
+    placeholderKey: "fields.warehouse_auto",
     widthClass: "min-w-[11rem]",
   },
   {

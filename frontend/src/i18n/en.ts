@@ -93,6 +93,7 @@ export const enExtra = {
     items: "Items",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "Document No.",
     docno_help: "Leave empty to auto-number.",
     company: "Company",

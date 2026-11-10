@@ -855,6 +855,7 @@ const ta: Record<string, unknown> = {
     items: "பொருட்கள்",
   },
   fields: {
+    warehouse_auto: "Filled automatically",
     docno: "ஆவண எண்",
     docno_help: "தானாக எண்ணிட காலியாக விடவும்.",
     company: "நிறுவனம்",
