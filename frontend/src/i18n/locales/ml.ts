@@ -796,6 +796,13 @@ const ml: Record<string, unknown> = {
   doc: {
     more_details: "കൂടുതൽ വിവരങ്ങൾ ({{n}})",
     fewer_details: "കുറച്ച് വിവരങ്ങൾ",
+    approve: "Approve",
+    save_for_later: "Save for later",
+    fix_this: "Fix this",
+    confirm_fix_title: "Fix this {{item}}?",
+    confirm_fix_message: "The old entry will be cancelled and a corrected copy opened.",
+    continue_draft: "Continue where you left off",
+    discard_draft: "Discard",
     help: {
       default_account: "ഒഴിച്ചിടുക: കമ്പനിയുടെ സാധാരണ അക്കൗണ്ട് ഉപയോഗിക്കും.",
     },

@@ -110,6 +110,8 @@ export interface FieldDef {
   labelKey: string;
   type: FieldType;
   required?: boolean;
+  /** Required only when this returns true (e.g. not on a return). Checked like `required`. */
+  requiredIf?: (values: Record<string, any>, isNew: boolean) => boolean;
   /** Never editable (server computed). */
   readOnly?: boolean;
   /** Editable on create only. */
@@ -350,6 +352,11 @@ export interface ResourceConfig {
   icon?: ComponentType<{ className?: string }>;
   /** Uses the Draft/Submitted/Cancelled lifecycle (submit/cancel/amend). */
   submittable?: boolean;
+  /**
+   * With `submittable`: a draft shows one primary "Approve" button (saves if dirty, then
+   * submits, no confirm); "Save for later" becomes the secondary button.
+   */
+  oneStepApprove?: boolean;
   columns: ListColumnDef[];
   fields: FieldDef[];
   childTables?: ChildTableDef[];

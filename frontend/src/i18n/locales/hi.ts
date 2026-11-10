@@ -796,6 +796,13 @@ const hi: Record<string, unknown> = {
   doc: {
     more_details: "और विवरण ({{n}})",
     fewer_details: "कम विवरण",
+    approve: "मंज़ूर करें",
+    save_for_later: "बाद के लिए रखें",
+    fix_this: "ठीक करें",
+    confirm_fix_title: "यह {{item}} ठीक करें?",
+    confirm_fix_message: "पुरानी प्रविष्टि रद्द कर दी जाएगी और उसकी सुधरी हुई प्रति खोल दी जाएगी।",
+    continue_draft: "जहाँ छोड़ा था वहीं से जारी रखें",
+    discard_draft: "हटाएँ",
     help: {
       default_account: "खाली छोड़ें: कंपनी का सामान्य खाता लगेगा।",
     },

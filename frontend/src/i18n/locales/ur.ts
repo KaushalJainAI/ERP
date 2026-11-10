@@ -796,6 +796,13 @@ const ur: Record<string, unknown> = {
   doc: {
     more_details: "مزید تفصیلات ({{n}})",
     fewer_details: "کم تفصیلات",
+    approve: "Approve",
+    save_for_later: "Save for later",
+    fix_this: "Fix this",
+    confirm_fix_title: "Fix this {{item}}?",
+    confirm_fix_message: "The old entry will be cancelled and a corrected copy opened.",
+    continue_draft: "Continue where you left off",
+    discard_draft: "Discard",
     help: {
       default_account: "خالی چھوڑیں: کمپنی کا معمول کا کھاتہ استعمال ہوگا۔",
     },

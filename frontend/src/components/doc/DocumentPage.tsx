@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { AlertCircle, ArrowLeft, Ban, CheckCircle2, ChevronDown, Loader2, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Ban, CheckCircle2, ChevronDown, Loader2, RotateCcw, Save, ShieldAlert, Trash2, Wrench } from "lucide-react";
 import { useDebounced } from "@/hooks/useDebounced";
+import { useAuth } from "@/hooks/useAuth";
 import { Layout } from "@/components/Layout";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -73,6 +74,43 @@ function buildInitial(config: ResourceConfig, doc: ApiRecord | undefined, seed: 
 }
 
 const isEmpty = (v: unknown) => v === "" || v === null || v === undefined;
+
+/* Unsaved form of a NEW document, kept per user and resource in sessionStorage. Every access
+   can throw (private window, blocked storage, quota), so every one is guarded. */
+const draftStorageKey = (endpoint: string, userId: number) => `draft:${endpoint}:${userId}`;
+
+interface StoredDraft {
+  values: Values;
+  tables: Record<string, Omit<Row, "_key" | "_srv">[]>;
+}
+
+function readDraft(key: string): StoredDraft | null {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(key) ?? "null") as StoredDraft | null;
+    return parsed && typeof parsed === "object" && parsed.values ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(key: string, values: Values, tables: Tables) {
+  try {
+    const stripped = Object.fromEntries(
+      Object.entries(tables).map(([k, rows]) => [k, rows.map(({ _key, _srv, ...rest }) => rest)])
+    );
+    sessionStorage.setItem(key, JSON.stringify({ values, tables: stripped }));
+  } catch {
+    // Storage full or blocked: typing still works, it just is not kept.
+  }
+}
+
+function clearDraftKey(key: string) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Nothing to clear if storage is unavailable.
+  }
+}
 
 function cleanValue(f: { type: string }, v: any, isNew: boolean) {
   if (f.type === "boolean") return !!v;
@@ -185,7 +223,7 @@ export const DocumentPage: React.FC<{ config: ResourceConfig }> = ({ config }) =
 /* the form                                                            */
 /* ------------------------------------------------------------------ */
 
-type Confirm = null | "submit" | "cancel" | "delete" | "amend";
+type Confirm = null | "submit" | "cancel" | "delete" | "amend" | "fix";
 
 const DocumentForm: React.FC<{
   config: ResourceConfig;
@@ -205,10 +243,24 @@ const DocumentForm: React.FC<{
   const base = `/${config.module}/${config.key}`;
   const childKeys = useMemo(() => (config.childTables ?? []).map((c) => c.key), [config]);
 
+  const { user } = useAuth();
+  const draftKey = isNew && user ? draftStorageKey(config.endpoint, user.id) : null;
+
   const initial = useMemo(() => buildInitial(config, doc, seed), [config, doc, seed]);
-  const [values, setValues] = useState<Values>(initial.values);
-  const [tables, setTables] = useState<Tables>(initial.tables);
+  // A new document opened without a seed resumes the draft kept for it, if any.
+  const [resumable] = useState<StoredDraft | null>(() => (draftKey && !seed ? readDraft(draftKey) : null));
+  const [values, setValues] = useState<Values>(() => (resumable ? { ...initial.values, ...resumable.values } : initial.values));
+  const [tables, setTables] = useState<Tables>(() =>
+    resumable
+      ? Object.fromEntries(
+          Object.entries(resumable.tables ?? {}).map(([k, rows]) => [k, rows.map((r) => ({ ...r, _key: newRowKey() }))])
+        )
+      : initial.tables
+  );
+  const [resumed, setResumed] = useState(!!resumable);
   const [initialSnap] = useState(() => snapshot(initial.values, initial.tables));
+  // Set once a new document has been created (approve created it, then submit failed): later saves update it.
+  const createdIdRef = useRef<number | string | null>(null);
   const [serverErr, setServerErr] = useState<NormalisedError | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [clientErr, setClientErr] = useState<Record<string, string>>({});
@@ -234,6 +286,42 @@ const DocumentForm: React.FC<{
   }, [assistantState?.proposalId, isNew]);
 
   const dirty = snapshot(values, tables) !== initialSnap;
+
+  // Keep a new document's unsaved form (debounced).
+  const formState = useMemo(() => ({ values, tables }), [values, tables]);
+  const debouncedForm = useDebounced(formState, 500);
+  useEffect(() => {
+    if (!draftKey || createdIdRef.current !== null) return;
+    if (snapshot(debouncedForm.values, debouncedForm.tables) === initialSnap) return;
+    writeDraft(draftKey, debouncedForm.values, debouncedForm.tables);
+  }, [debouncedForm, draftKey, initialSnap]);
+
+  // Closing the tab or reloading with unsaved typing asks the browser to confirm.
+  // In-app navigation is not blocked: the app uses BrowserRouter, where useBlocker is unavailable.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const clearDraft = () => {
+    if (draftKey) clearDraftKey(draftKey);
+  };
+
+  const discardDraft = () => {
+    clearDraft();
+    setValues(initial.values);
+    setTables(initial.tables);
+    setResumed(false);
+    setServerErr(null);
+    setClientErr({});
+  };
+
+  const oneStep = !!config.oneStepApprove && submittable && editable;
 
   /* ---- server-side preview (config.preview) ---- */
   const pv = config.preview;
@@ -359,11 +447,13 @@ const DocumentForm: React.FC<{
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const isRequiredField = (f: FieldDef, vals: Values) => !!f.required || !!f.requiredIf?.(vals, isNew);
+
   const validateClient = (): boolean => {
     const errs: Record<string, string> = {};
     config.fields.forEach((f) => {
       if (f.readOnly || f.preview || (f.readOnlyAfterCreate && !isNew) || f.hidden?.(values, isNew)) return;
-      if (f.required && f.type !== "boolean" && isEmpty(values[f.key])) errs[f.key] = t("common.required");
+      if (isRequiredField(f, values) && f.type !== "boolean" && isEmpty(values[f.key])) errs[f.key] = t("common.required");
     });
     (config.childTables ?? []).forEach((tb) => {
       (tables[tb.key] ?? []).forEach((row, idx) => {
@@ -385,12 +475,18 @@ const DocumentForm: React.FC<{
 
   const persist = async (): Promise<ApiRecord> => {
     const omit = new Set(derivedKeys.filter((k) => !manual.has(k)));
-    const payload = buildPayload(config, values, tables, isNew, omit);
+    const existingId = doc?.id ?? createdIdRef.current;
+    if (existingId != null) {
+      return updateRecord(config.endpoint, existingId, buildPayload(config, values, tables, false, omit));
+    }
+    const payload = buildPayload(config, values, tables, true, omit);
     const headers =
-      assistantState?.proposalId && isNew
-        ? { "X-Assistant-Proposal": assistantState.proposalId }
-        : undefined;
-    return isNew ? createRecord(config.endpoint, payload, headers) : updateRecord(config.endpoint, doc!.id!, payload);
+      assistantState?.proposalId ? { "X-Assistant-Proposal": assistantState.proposalId } : undefined;
+    const saved = await createRecord(config.endpoint, payload, headers);
+    savedRef.current = true;
+    createdIdRef.current = saved.id ?? null;
+    clearDraft();
+    return saved;
   };
 
   const saveMut = useMutation({
@@ -401,6 +497,7 @@ const DocumentForm: React.FC<{
       toast.success(t("common.saved"));
       qc.setQueryData(["doc", config.endpoint, String(saved.id)], saved);
       invalidate(saved.id);
+      clearDraft();
       if (isNew) navigate(`${base}/${saved.id}`, { replace: true });
     },
     onError,
@@ -408,8 +505,9 @@ const DocumentForm: React.FC<{
 
   const submitMut = useMutation({
     mutationFn: async () => {
-      let id = doc!.id!;
-      if (dirty) id = (await persist()).id!; // never submit something other than what is on screen
+      let id = doc?.id ?? createdIdRef.current;
+      // Save first when nothing is saved yet or something is unsaved: never submit something other than what is on screen.
+      if (id == null || dirty) id = (await persist()).id!;
       return docAction(config.endpoint, id, "submit");
     },
     onSuccess: (saved) => {
@@ -421,6 +519,8 @@ const DocumentForm: React.FC<{
       ((saved as { notices?: string[] }).notices ?? []).forEach((n) => toast.info(n));
       qc.setQueryData(["doc", config.endpoint, String(saved.id)], saved);
       invalidate(saved.id);
+      clearDraft();
+      if (isNew) navigate(`${base}/${saved.id}`, { replace: true });
     },
     onError: (e) => {
       // A failed submit may still have saved the edits: refresh the doc.
@@ -454,6 +554,26 @@ const DocumentForm: React.FC<{
     onError,
   });
 
+  // Fix this: cancel the submitted document, then open a corrected draft. If the cancel is
+  // refused nothing else happens. If the amend fails, the cancelled document stays on screen
+  // with its own Amend button.
+  const fixMut = useMutation({
+    mutationFn: async () => {
+      const cancelled = await docAction(config.endpoint, doc!.id!, "cancel");
+      qc.setQueryData(["doc", config.endpoint, String(cancelled.id)], cancelled);
+      invalidate(cancelled.id);
+      return docAction(config.endpoint, doc!.id!, "amend");
+    },
+    onSuccess: (draft) => {
+      setConfirm(null);
+      toast.success(t("common.amended_ok"));
+      qc.setQueryData(["doc", config.endpoint, String(draft.id)], draft);
+      invalidate(draft.id);
+      navigate(`${base}/${draft.id}`);
+    },
+    onError,
+  });
+
   const deleteMut = useMutation({
     mutationFn: () => deleteRecord(config.endpoint, doc!.id!),
     onSuccess: () => {
@@ -479,7 +599,7 @@ const DocumentForm: React.FC<{
   });
 
   const busy =
-    saveMut.isPending || submitMut.isPending || cancelMut.isPending || amendMut.isPending || deleteMut.isPending;
+    saveMut.isPending || submitMut.isPending || cancelMut.isPending || amendMut.isPending || fixMut.isPending || deleteMut.isPending;
 
   const onSave = () => {
     if (!validateClient()) return;
@@ -490,6 +610,12 @@ const DocumentForm: React.FC<{
   const onAskSubmit = () => {
     if (!validateClient()) return;
     setConfirm("submit");
+  };
+
+  const onApprove = () => {
+    if (!validateClient()) return;
+    setServerErr(null);
+    submitMut.mutate();
   };
 
   /* ---- error plumbing for rendering ---- */
@@ -542,7 +668,7 @@ const DocumentForm: React.FC<{
           <>
             <label htmlFor={`f-${f.key}`} className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
               {t(f.labelKey)}
-              {f.required && editable && <span className="text-rose-400"> *</span>}
+              {isRequiredField(f, formValues) && editable && <span className="text-rose-400"> *</span>}
             </label>
             <FieldInput
               id={`f-${f.key}`}
@@ -632,6 +758,12 @@ const DocumentForm: React.FC<{
           )}
 
           {submittable && !isNew && docstatus === DocStatus.SUBMITTED && (
+            <button type="button" disabled={busy} onClick={() => setConfirm("fix")} className={`${btn} bg-indigo-600 hover:bg-indigo-500 text-white`}>
+              <Wrench className="w-4 h-4" /> {t("doc.fix_this")}
+            </button>
+          )}
+
+          {submittable && !isNew && docstatus === DocStatus.SUBMITTED && (
             <button type="button" disabled={busy} onClick={() => setConfirm("cancel")} className={`${btn} bg-rose-600 hover:bg-rose-500 text-white`}>
               <Ban className="w-4 h-4" /> {t("cancel")}
             </button>
@@ -643,7 +775,7 @@ const DocumentForm: React.FC<{
             </button>
           )}
 
-          {editable && (
+          {editable && !oneStep && (
             <button
               type="button"
               disabled={busy || (!isNew && !dirty)}
@@ -655,7 +787,26 @@ const DocumentForm: React.FC<{
             </button>
           )}
 
-          {submittable && !isNew && docstatus === DocStatus.DRAFT && (
+          {oneStep && (
+            <button
+              type="button"
+              disabled={busy || (!isNew && !dirty)}
+              onClick={onSave}
+              className="inline-flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 disabled:opacity-50"
+            >
+              {saveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {t("doc.save_for_later")}
+            </button>
+          )}
+
+          {oneStep && (
+            <button type="button" disabled={busy} onClick={onApprove} className={`${btn} bg-emerald-600 hover:bg-emerald-500 text-white`}>
+              {submitMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {t("doc.approve")}
+            </button>
+          )}
+
+          {submittable && !isNew && docstatus === DocStatus.DRAFT && !oneStep && (
             <button type="button" disabled={busy} onClick={onAskSubmit} className={`${btn} bg-emerald-600 hover:bg-emerald-500 text-white`}>
               <CheckCircle2 className="w-4 h-4" /> {t("submit")}
             </button>
@@ -665,6 +816,15 @@ const DocumentForm: React.FC<{
       </div>
 
       <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-5 space-y-5">
+      {resumed && (
+        <div role="status" className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-indigo-950/40 border border-indigo-800/60 text-indigo-200 text-sm">
+          <span>{t("doc.continue_draft")}</span>
+          <button type="button" onClick={discardDraft} className="text-indigo-300 underline hover:text-indigo-100">
+            {t("doc.discard_draft")}
+          </button>
+        </div>
+      )}
+
       {/* errors */}
       {banner.length > 0 && (
         <div role="alert" className="flex gap-2 p-3.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-200 text-sm">
@@ -819,6 +979,16 @@ const DocumentForm: React.FC<{
         tone="danger"
         busy={cancelMut.isPending}
         onConfirm={() => cancelMut.mutate()}
+        onClose={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === "fix"}
+        title={t("doc.confirm_fix_title", { item: t(config.singularKey) })}
+        message={t("doc.confirm_fix_message")}
+        confirmLabel={t("doc.fix_this")}
+        tone="danger"
+        busy={fixMut.isPending}
+        onConfirm={() => fixMut.mutate()}
         onClose={() => setConfirm(null)}
       />
       <ConfirmDialog
