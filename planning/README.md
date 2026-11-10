@@ -55,6 +55,7 @@ Admin has all three.
 | Salary TDS follows the government rules for salaried (Monthly) staff above the taxable limit: new regime by default, old regime as an opt-in per employee, rates kept in a dated table the accountant edits. Daily wagers get none | 2026-10-31 |
 | Opening balances for accounts and stock are required | 2026-10-31 |
 | Operators enter in the ERP; Tally stays the official books | 2026-10-28 |
+| Cash is kept apart from the bank; the owner holds it and records cash entries personally | 2026-11-10 |
 | Supplier bills arrive both on paper and as PDFs; the ERP must read both | 2026-11-10 |
 | Customers pay in cash or by bank transfer, not UPI; no UPI QR on bills | 2026-11-10 |
 | The system must suit non-technical, disorganised staff: no unnecessary entries, and each job has a field budget (doc 12) | 2026-11-10 |

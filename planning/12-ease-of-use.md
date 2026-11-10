@@ -293,8 +293,12 @@ Do the `S` cards first where a `U` card depends on them. Follow
   account. `reference_no` is required for Cheque only. In Record Money and the expense
   "paid now" step, replace the account picker with three large mode buttons, remembering
   the last one used; keep the account picker under More details. Record the difference
-  from ERPNext's Mode of Payment master.
-- **Test:** Cash posts to the cash account; Bank transfer to the default bank; a cheque with no
+  from ERPNext's Mode of Payment master. Add a fourth action to Record Money, "Cash put
+  in bank": amount and date only, posted as the existing `PaymentType.INTERNAL_TRANSFER`
+  from the company cash account to the default bank account, so the cash in hand figure
+  stays true. The owner holds the cash and records cash entries personally.
+- **Test:** Cash posts to the cash account; Bank transfer to the default bank; "Cash put
+  in bank" moves the amount from cash to bank and touches no party; a cheque with no
   number is refused with a translated message; historical rows are untouched.
 
 ### S-7 An item needs only a name, a unit, a GST % and a price
@@ -529,7 +533,7 @@ Do the `S` cards first where a `U` card depends on them. Follow
 | # | Question | Who | Blocks |
 |---|---|---|---|
 | Q7 | Do staff share bills with customers on WhatsApp today, or only on paper? | Owner | Priority of U-10 |
-| Q8 | Is cash received kept separate from the bank until deposited? Customers pay in cash or by bank transfer, not UPI (owner, 2026-11-10) | Accountant | Default in S-6 |
+| Q8 | Is cash received kept separate from the bank until deposited? **Answered 2026-11-10: yes. The owner holds the cash and records cash entries personally.** Customers pay in cash or by bank transfer, not UPI | Owner | – |
 | Q11 | Do suppliers send bills on paper, as PDFs, or both? **Answered 2026-11-10: both.** U-14 and U-16 are needed as written | Owner | – |
 | Q9 | Are there prices with more than two decimals (per kg or per gram)? | Owner | Priority of S-4 (a) |
 | Q10 | Which phones do staff use (Android version, screen size)? | Owner | U-8 testing |
