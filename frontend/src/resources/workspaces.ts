@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Factory,
   FileText,
+  FileUp,
   HardDrive,
   Layers,
   Package,
@@ -146,6 +147,7 @@ export const WORKSPACES: WorkspaceDef[] = [
     links: [
       { path: "/organisation/company", labelKey: "organisation.company", access: ["core.Company"], icon: Building2 },
       { path: "/organisation/drive", labelKey: "organisation.drive", access: ["core.Company"], icon: HardDrive },
+      { path: "/organisation/import", labelKey: "organisation.import_nav", access: ["stock.Item", "selling.Customer", "buying.Supplier"], icon: FileUp },
     ],
   },
   {

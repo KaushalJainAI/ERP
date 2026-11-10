@@ -22,6 +22,9 @@ redis==5.0.7
 python-dateutil==2.9.0.post0
 Pillow==10.4.0
 
+# ─── Spreadsheets (bulk import templates, U-11) ───
+openpyxl==3.1.5
+
 # ─── Server ───
 gunicorn==22.0.0
 

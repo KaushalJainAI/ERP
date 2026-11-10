@@ -64,6 +64,10 @@ const RULE_DESCRIPTIONS: Record<string, { label: string; desc: string }> = {
     label: "Daily Operations Summary",
     desc: "Morning digest of collections, dispatches, and short stock.",
   },
+  day_summary: {
+    label: "Day Summary",
+    desc: "Evening summary for Admins: sold, collected, spent, to collect, to pay and low stock.",
+  },
   weekly_digest: {
     label: "Weekly Financial Summary",
     desc: "Monday digest of collections needed, bills due, and tax deadlines.",

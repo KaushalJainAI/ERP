@@ -5230,3 +5230,9 @@ msgstr "पासवर्ड अपडेट हो गया।"
 
 #~ msgid "Cancelled"
 #~ msgstr "रद्द कर दिया"
+
+msgid "Day summary"
+msgstr "दिन का सारांश"
+
+msgid "Sold ₹%(sold)s, collected ₹%(collected)s, spent ₹%(spent)s. To collect ₹%(to_collect)s, to pay ₹%(to_pay)s. Low stock: %(low_stock)s items."
+msgstr "बिक्री ₹%(sold)s, वसूली ₹%(collected)s, खर्च ₹%(spent)s। वसूलना बाकी ₹%(to_collect)s, देना बाकी ₹%(to_pay)s। कम स्टॉक: %(low_stock)s आइटम।"

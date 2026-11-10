@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from notifications.management.commands.send_outbox import process_outbox
 from notifications.services.digests import (
+    send_day_summaries,
     send_daily_summary,
     send_overdue_bills_digest,
     send_weekly_digest,
@@ -14,6 +15,9 @@ from notifications.services.digests import (
 from notifications.services.engine import check_raw_material_shortage
 
 logger = logging.getLogger(__name__)
+
+# The evening day summary goes out at 19:00 local time (and in a one-off pass after it).
+EVENING_HOUR = 19
 
 
 def safe_execute(name, func, *args, **kwargs):
@@ -65,6 +69,8 @@ def run_all_jobs(force_weekly=False):
     results["overdue_bills"] = safe_execute(
         "overdue_bills_digest", send_overdue_bills_digest
     )
+    if timezone.localtime().hour >= EVENING_HOUR:
+        results["day_summary"] = safe_execute("day_summary", send_day_summaries)
 
     today = timezone.localdate()
     if force_weekly or today.weekday() == 0:  # Monday is 0
@@ -106,6 +112,7 @@ class Command(BaseCommand):
 
         last_min = -1
         last_daily_date = None
+        last_evening_date = None
         last_weekly_date = None
         last_integrity_date = None
         last_backup_date = None
@@ -133,6 +140,15 @@ class Command(BaseCommand):
                         "ensure_fiscal_years",
                         lambda: call_command("ensure_fiscal_years"),
                     )
+
+                # 2b. Evening day summary at 19:00
+                if (
+                    hour == EVENING_HOUR
+                    and minute == 0
+                    and last_evening_date != current_date
+                ):
+                    last_evening_date = current_date
+                    safe_execute("day_summary", send_day_summaries)
 
                 # 3. Weekly digest on Monday at 08:30
                 if (

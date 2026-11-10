@@ -6,6 +6,9 @@ from core.views import (
     CompanyViewSet,
     StateViewSet,
     dashboard,
+    import_confirm,
+    import_preview,
+    import_template,
     setup_health_view,
 )
 
@@ -19,5 +22,8 @@ router.register("attachments", AttachmentViewSet, basename="attachment")
 urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),
     path("setup-health/", setup_health_view, name="setup-health"),
+    path("import/template/", import_template, name="import-template"),
+    path("import/preview/", import_preview, name="import-preview"),
+    path("import/confirm/", import_confirm, name="import-confirm"),
     path("", include(router.urls)),
 ]
