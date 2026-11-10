@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Lock, User as UserIcon, ArrowRight } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -13,6 +13,10 @@ export const Login: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Only a path inside this app ("/x", never "//host" or a full URL) is followed.
+  const from = (location.state as { from?: unknown } | null)?.from;
+  const returnTo = typeof from === "string" && from.startsWith("/") && !from.startsWith("//") ? from : "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +24,7 @@ export const Login: React.FC = () => {
     setSubmitting(true);
     try {
       await login(username, password);
-      navigate("/");
+      navigate(returnTo, { replace: true });
     } catch (err: any) {
       const status = err?.response?.status;
       if (!err?.response || (status && status >= 500)) setError(t("auth.network_error"));

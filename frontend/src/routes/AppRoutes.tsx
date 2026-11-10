@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/context/CompanyContext";
 import { Login } from "@/pages/Login";
@@ -39,6 +39,8 @@ import { MODULES, REPORTS, RESOURCES } from "@/resources/registry";
 import { ModulePage } from "@/pages/ModulePage";
 import { SalesAnalyticsPage } from "@/pages/selling/SalesAnalyticsPage";
 import { PendingOrdersPage } from "@/pages/selling/PendingOrdersPage";
+import { PartyPage } from "@/pages/selling/PartyPage";
+import { ShareTargetPage } from "@/pages/ShareTargetPage";
 import { CollectionsPage } from "@/pages/accounts/CollectionsPage";
 import { BillsToPayPage } from "@/pages/accounts/BillsToPayPage";
 import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
@@ -75,6 +77,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireCompany?: boo
 }) => {
   const { t } = useTranslation();
   const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
@@ -83,7 +86,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; requireCompany?: boo
     );
   }
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    // Come back here after signing in (a shared bill, a link from an alert email).
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   }
   if (requireCompany) return <CompanyRequired>{children}</CompanyRequired>;
   return <>{children}</>;
@@ -177,6 +181,26 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <PrintPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* A bill shared to the app from WhatsApp or another app (service worker: public/sw.js). */}
+      <Route
+        path="/share-target"
+        element={
+          <ProtectedRoute>
+            <ShareTargetPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* One customer or supplier: balance, open bills, payments, last orders. */}
+      <Route
+        path="/selling/party/:kind/:id"
+        element={
+          <ProtectedRoute>
+            <PartyPage />
           </ProtectedRoute>
         }
       />

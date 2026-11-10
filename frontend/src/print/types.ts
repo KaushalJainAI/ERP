@@ -24,7 +24,14 @@ export interface CompanyBlock {
   terms?: string;
   authorised_signatory?: string;
   logo_url?: string;
-  bank?: { bank_name?: string; account_no?: string; ifsc?: string; branch?: string; upi_id?: string };
+  bank?: {
+    bank_name?: string;
+    account_holder?: string;
+    account_no?: string;
+    ifsc?: string;
+    branch?: string;
+    upi_id?: string;
+  };
 }
 
 export interface PartyBlock {

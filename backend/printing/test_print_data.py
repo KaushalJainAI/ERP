@@ -9,7 +9,12 @@ from decimal import Decimal
 
 from rest_framework.test import APIClient
 
-from accounts.models import PaymentEntry, PaymentEntryReference, PaymentType
+from accounts.models import (
+    BankAccount,
+    PaymentEntry,
+    PaymentEntryReference,
+    PaymentType,
+)
 from contacts.models import Address
 from core.models import Company, NamingSeries, UserCompany
 from gst.tests import test_posting
@@ -142,7 +147,7 @@ class SalesInvoicePrintTests(PrintBase):
         self.assertEqual(co["gstin"], self.company.gstin)
         self.assertEqual(co["state"], {"code": "27", "name": co["state"]["name"]})
         self.assertEqual((co["address_line1"], co["city"]), ("12 Spice Road", "Bhopal"))
-        # No bank / logo / terms on the Company master yet: nothing is invented.
+        # No default bank account / logo / terms yet: nothing is invented.
         for missing in ("bank", "logo_url", "terms", "fssai_license_no"):
             self.assertNotIn(missing, co)
         bill, ship = data["bill_to"], data["ship_to"]
@@ -152,6 +157,51 @@ class SalesInvoicePrintTests(PrintBase):
         self.assertEqual(ship["address"]["city"], "Nagpur")
         self.assertFalse(ship["same_as_billing"])
         self.assertEqual(data["place_of_supply"]["code"], "27")
+
+    def test_bank_details_come_from_the_default_bank_account(self):
+        BankAccount.objects.create(
+            company=self.company,
+            account=self.bank,
+            bank_name="State Bank of India",
+            account_number="123456789012",
+            ifsc_code="SBIN0001234",
+            is_default=True,
+        )
+        data = self.get(url("sales-invoice", self.inv["id"]))
+        self.assertEqual(
+            data["company"]["bank"],
+            {
+                "bank_name": "State Bank of India",
+                "account_holder": "Tax Company Pvt Ltd",
+                "account_no": "123456789012",
+                "ifsc": "SBIN0001234",
+            },
+        )
+
+    def test_no_bank_block_when_the_account_is_not_default(self):
+        BankAccount.objects.create(
+            company=self.company,
+            account=self.bank,
+            bank_name="HDFC Bank",
+            account_number="999",
+            ifsc_code="HDFC0001234",
+            is_default=False,
+        )
+        data = self.get(url("sales-invoice", self.inv["id"]))
+        self.assertNotIn("bank", data["company"])
+
+    def test_no_bank_block_when_the_default_account_is_inactive(self):
+        BankAccount.objects.create(
+            company=self.company,
+            account=self.bank,
+            bank_name="HDFC Bank",
+            account_number="999",
+            ifsc_code="HDFC0001234",
+            is_default=True,
+            is_active=False,
+        )
+        data = self.get(url("sales-invoice", self.inv["id"]))
+        self.assertNotIn("bank", data["company"])
 
     def test_ship_to_falls_back_to_billing(self):
         d = self.sale(self.cust_inter, (self.item18, 1, 100))

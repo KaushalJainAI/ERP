@@ -357,6 +357,7 @@ const InvoiceDocument: React.FC<{ d: DocPrint; copy: string }> = ({ d, copy }) =
           <div className="pdoc-box">
             <h3>{t("prt.bank_details")}</h3>
             <Field label={t("prt.bank")} value={bank.bank_name} />
+            <Field label={t("ease.bank.holder")} value={bank.account_holder} />
             <Field label={t("prt.account_no")} value={bank.account_no} />
             <Field label={t("prt.ifsc")} value={bank.ifsc} />
             <Field label={t("prt.branch")} value={bank.branch} />

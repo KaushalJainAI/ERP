@@ -115,7 +115,7 @@ const ThemeToggle: React.FC = () => {
       onClick={toggle}
       title={label}
       aria-label={label}
-      className="p-1.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-slate-800/70 transition-colors"
+      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center p-1.5 sm:p-2 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-slate-800/70 transition-colors"
     >
       {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </button>
@@ -413,7 +413,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMenu }) => {
         <button
           type="button"
           onClick={handleMenuClick}
-          className="md:hidden p-1.5 -ms-1 rounded-lg text-slate-400 hover:bg-slate-800/70"
+          className="md:hidden min-h-[44px] min-w-[44px] inline-flex items-center justify-center p-1.5 -ms-1 rounded-lg text-slate-400 hover:bg-slate-800/70"
           aria-label={t("shell.menu")}
         >
           <Menu className="w-5 h-5" />
