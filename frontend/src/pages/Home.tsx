@@ -7,10 +7,13 @@ import {
   Mic,
   Percent,
   Receipt,
+  StickyNote,
   Truck,
+  UserRound,
   Users,
   Wallet,
   Warehouse,
+  Wrench,
 } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { openAssistant } from "@/components/assistant/AssistantLauncher";
@@ -33,11 +36,12 @@ import {
 import { useHomeData, type HomeNeeds } from "./home/useHomeData";
 
 type FigureKey =
-  | "sales" | "owed_to_us" | "we_owe" | "stock_value" | "expenses"
+  | "sales" | "owed_to_us" | "we_owe" | "stock_value" | "expenses" | "cash"
   | "today_orders" | "open_orders" | "dispatch" | "batches" | "ready_items";
 type AttentionKey =
   | "approve" | "dispatch" | "batches" | "low_stock"
-  | "overdue_in" | "overdue_out" | "expenses" | "gst" | "drafts";
+  | "overdue_in" | "overdue_out" | "expenses" | "gst" | "drafts"
+  | "notes" | "names" | "setup";
 type ChartKey = "sales" | "ageing" | "ready";
 type ShortcutKey =
   | "speak" | "dispatch" | "batches" | "ready" | "workers"
@@ -50,8 +54,8 @@ const ROLE_VIEW: Record<
 > = {
   admin: {
     shortcuts: [],
-    figures: ["sales", "owed_to_us", "we_owe", "stock_value"],
-    attention: ["low_stock", "overdue_in", "overdue_out", "approve", "dispatch", "gst", "expenses", "drafts"],
+    figures: ["sales", "owed_to_us", "we_owe", "cash", "stock_value"],
+    attention: ["notes", "names", "setup", "low_stock", "overdue_in", "overdue_out", "approve", "dispatch", "gst", "expenses", "drafts"],
     charts: ["sales", "ageing", "ready"],
   },
   orders: {
@@ -69,7 +73,7 @@ const ROLE_VIEW: Record<
   accounts: {
     shortcuts: ["collections", "bills", "expenses", "gst"],
     figures: ["owed_to_us", "we_owe", "expenses", "sales"],
-    attention: ["overdue_in", "overdue_out", "gst", "expenses", "drafts"],
+    attention: ["notes", "names", "setup", "overdue_in", "overdue_out", "gst", "expenses", "drafts"],
     charts: ["ageing", "sales"],
   },
 };
@@ -109,9 +113,13 @@ const HomeBody: React.FC = () => {
     gst: shows.attention("gst"),
     sales: shows.figure("sales") || shows.chart("sales"),
     ageing: shows.chart("ageing"),
+    cash: shows.figure("cash"),
+    setup: shows.attention("setup"),
+    names: shows.attention("names"),
+    notes: shows.attention("notes"),
   };
   const data = useHomeData(needs);
-  const { dashboard, stages, collections, bills, expenses, gst } = data;
+  const { dashboard, stages, collections, bills, expenses, gst, cash, setup, names, notes } = data;
   const drafts = dashboard.data?.draft_documents;
 
   const workspaces = useMemo(() => visibleWorkspaces(readableModels), [readableModels]);
@@ -153,6 +161,7 @@ const HomeBody: React.FC = () => {
     sales: { key: "sales", label: t("home.dash.sales_month"), value: figureText(data.sales, () => formatIndianCompact(thisMonth?.amount)), to: "/selling/analytics" },
     owed_to_us: { key: "owed_to_us", label: t("home.dash.owed_to_us"), value: figureText(collections, (d) => formatIndianCompact(d.total_receivables)), to: "/accounts/collections" },
     we_owe: { key: "we_owe", label: t("home.dash.we_owe"), value: figureText(bills, (d) => formatIndianCompact(d.total_payables)), to: "/accounts/bills-to-pay" },
+    cash: { key: "cash", label: t("home.dash.cash_in_hand"), value: figureText(cash, (d) => formatIndianCompact(d.amount)), to: "/accounts/reports/cash-book" },
     stock_value: { key: "stock_value", label: t("dash.kpi.stock_value"), value: figureText(dashboard, (d) => (d.stock_value === null ? "–" : formatIndianCompact(d.stock_value))), to: "/stock/bins" },
     expenses: { key: "expenses", label: t("acc.nav.expenses"), value: figureText(expenses, (d) => formatIndianCompact(d.total)), to: "/accounts/expenses" },
     today_orders: { key: "today_orders", label: t("home.ws.orders.today"), value: figureText(data.todayOrders, String), to: "/selling/sales-orders" },
@@ -166,7 +175,13 @@ const HomeBody: React.FC = () => {
   const otherDrafts = (drafts?.total ?? 0) - (drafts?.sales_orders ?? 0);
   const gstDue = gst.data?.status === "Due" ? Number(gst.data.net_payable) : 0;
 
-  const attention: Record<AttentionKey, AttentionRow | null> = {
+  const noteCount = notes.data?.length ?? 0;
+  const nameCount = names.data ?? 0;
+
+  const attention: Record<AttentionKey, AttentionRow | AttentionRow[] | null> = {
+    notes: noteCount > 0 ? { key: "notes", label: t("home.dash.notes_to_enter", { count: noteCount }), to: "/accounts/quick-notes", icon: StickyNote } : null,
+    names: nameCount > 0 ? { key: "names", label: t("home.dash.names_to_complete", { count: nameCount }), to: "/accounts/names-to-complete", icon: UserRound } : null,
+    setup: (setup.data ?? []).map((item) => ({ key: `setup-${item.code}`, label: item.message, to: item.fix_path || "/", icon: Wrench })),
     low_stock: lowStock > 0 ? { key: "low_stock", label: t("home.dash.low_stock"), value: String(lowStock), to: "/stock/reports/stages", icon: Warehouse, urgent: true } : null,
     overdue_in: Number(collections.data?.total_overdue) > 0 ? { key: "overdue_in", label: t("home.dash.overdue_collect"), value: formatIndianCompact(collections.data?.total_overdue), to: "/accounts/collections", icon: Wallet, urgent: true } : null,
     overdue_out: Number(bills.data?.total_overdue) > 0 ? { key: "overdue_out", label: t("home.dash.overdue_bills"), value: formatIndianCompact(bills.data?.total_overdue), to: "/accounts/bills-to-pay", icon: Receipt, urgent: true } : null,
@@ -177,7 +192,10 @@ const HomeBody: React.FC = () => {
     expenses: Number(expenses.data?.due) > 0 ? { key: "expenses", label: t("home.dash.expenses_unpaid"), value: formatIndianCompact(expenses.data?.due), to: "/accounts/expenses", icon: FileText } : null,
     drafts: otherDrafts > 0 ? { key: "drafts", label: t("home.dash.other_drafts"), value: String(otherDrafts), to: "/all-modules", icon: FileText } : null,
   };
-  const attentionRows = view.attention.flatMap((key) => attention[key] ?? []);
+  const attentionRows = view.attention.flatMap((key) => {
+    const entry = attention[key];
+    return Array.isArray(entry) ? entry : entry ? [entry] : [];
+  });
 
   const queries = Object.values(data);
   const displayName = user?.first_name || user?.username || "";

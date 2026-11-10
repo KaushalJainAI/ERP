@@ -25,4 +25,5 @@ urlpatterns = [
     path("bill-photo/", BillPhotoView.as_view(), name="bill_photo"),
     path("quick-notes/", QuickNoteViewSet.as_view({"get": "list", "post": "create"}), name="quick_notes_list_create"),
     path("quick-notes/<int:pk>/done/", QuickNoteViewSet.as_view({"post": "done"}), name="quick_note_done"),
+    path("quick-notes/<int:pk>/file/", QuickNoteViewSet.as_view({"get": "file"}), name="quick_note_file"),
 ]

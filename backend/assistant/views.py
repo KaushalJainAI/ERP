@@ -1,13 +1,17 @@
 """Views for the AI assistant API."""
 
 import logging
+import mimetypes
+import os
+
 from django.db.models import Case, IntegerField, Value, When
-from django.http import StreamingHttpResponse
+from django.http import FileResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import generics, mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -344,3 +348,26 @@ class QuickNoteViewSet(
             )
             note.refresh_from_db()
         return Response(self.get_serializer(note).data)
+
+    @action(detail=True, methods=["get"])
+    def file(self, request, pk=None):
+        """Stream the note's photo or voice clip inline. Company scoped; 404 without a file."""
+        note = self.get_object()
+        if not note.attachment:
+            raise NotFound(_("This note has no file."))
+        name = note.attachment.name
+        content_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        try:
+            handle = note.attachment.open("rb")
+        except (OSError, ValueError):
+            raise NotFound(_("The stored file is missing."))
+        response = FileResponse(
+            handle,
+            content_type=content_type,
+            as_attachment=False,
+            filename=os.path.basename(name),
+        )
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Content-Security-Policy"] = "default-src 'none'; sandbox"
+        response["Cache-Control"] = "private, no-store"
+        return response

@@ -99,8 +99,10 @@ export const FigureStrip: React.FC<{ figures: HomeFigure[] }> = ({ figures }) =>
 
 export interface AttentionRow {
   key: string;
+  /** The job and its count, e.g. "3 notes to enter". */
   label: string;
-  value: string;
+  /** Optional figure at the end of the row, when the label does not carry the count. */
+  value?: string;
   to: string;
   icon: LucideIcon;
   /** Money or stock already in trouble, not just work waiting its turn. */
@@ -128,7 +130,9 @@ export const AttentionList: React.FC<{ rows: AttentionRow[]; loading: boolean; f
                   <span className="min-w-0 flex-1 truncate text-sm text-slate-300 group-hover:text-slate-100">
                     {row.label}
                   </span>
-                  <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-100">{row.value}</span>
+                  {row.value && (
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-100">{row.value}</span>
+                  )}
                   <ChevronRight className="h-4 w-4 shrink-0 text-slate-600 group-hover:text-indigo-400 rtl:rotate-180" />
                 </Link>
               </li>
@@ -145,7 +149,7 @@ export const AttentionList: React.FC<{ rows: AttentionRow[]; loading: boolean; f
       {!loading && !failed && rows.length === 0 && (
         <p className="mt-2 flex items-center gap-2 text-sm text-slate-400">
           <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-          {t("home.dash.all_clear")}
+          {t("home.dash.all_done")}
         </p>
       )}
       {failed && <p className="mt-2 text-xs text-rose-400">{t("home.dash.partial")}</p>}

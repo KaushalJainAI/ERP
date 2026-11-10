@@ -7,6 +7,13 @@ import type { Paginated } from "@/types";
 import type { DashboardData } from "@/types/dashboard";
 import type { RevenueAndVolume } from "@/types/analytics";
 import { useCanRead } from "../workspaces/WorkspaceShell";
+import { useOpenQuickNotes } from "@/components/assistant/quickNotes";
+
+export interface SetupItem {
+  code: string;
+  message: string;
+  fix_path: string;
+}
 
 export interface StageRow {
   item_name: string;
@@ -43,6 +50,10 @@ export interface HomeNeeds {
   gst: boolean;
   sales: boolean;
   ageing: boolean;
+  cash: boolean;
+  setup: boolean;
+  names: boolean;
+  notes: boolean;
 }
 
 /** Every number on the home page. Each stays a query, so a failure shows as a dash, never a zero. */
@@ -192,6 +203,30 @@ export function useHomeData(needs: HomeNeeds) {
     enabled: on(needs.ageing, canGl),
   });
 
+  const cash = useQuery({
+    ...options,
+    queryKey: ["home", "accounts", "cash-in-hand", companyId],
+    queryFn: async () => (await apiClient.get<{ amount: string }>("/accounts/cash-in-hand/")).data,
+    enabled: on(needs.cash, canGl),
+  });
+
+  const setup = useQuery({
+    ...options,
+    queryKey: ["home", "setup-health", companyId],
+    queryFn: async () => (await apiClient.get<{ items: SetupItem[] }>("/core/setup-health/")).data.items,
+    enabled: on(needs.setup, true),
+  });
+
+  const names = useQuery({
+    ...options,
+    queryKey: ["home", "contacts", "names-to-complete", companyId],
+    queryFn: async () =>
+      (await apiClient.get<{ count: number }>("/contacts/names-to-complete/")).data.count,
+    enabled: on(needs.names, true),
+  });
+
+  const notes = useOpenQuickNotes(needs.notes);
+
   return {
     dashboard,
     todayOrders,
@@ -204,6 +239,10 @@ export function useHomeData(needs: HomeNeeds) {
     gst,
     sales,
     ageing,
+    cash,
+    setup,
+    names,
+    notes,
   };
 }
 

@@ -45,6 +45,7 @@ import { ExpensesPage } from "@/pages/accounts/ExpensesPage";
 import { NewExpensePage } from "@/pages/accounts/NewExpensePage";
 import { GstPositionPage } from "@/pages/accounts/GstPositionPage";
 import { NamesToCompletePage } from "@/pages/accounts/NamesToCompletePage";
+import { QuickNotesPage } from "@/pages/accounts/QuickNotesPage";
 import { AlertSettingsPage } from "@/pages/notifications/AlertSettingsPage";
 
 const CompanyRequired: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -191,6 +192,14 @@ export const AppRoutes: React.FC = () => {
       />
 
       {/* Accounts: Collections, Bills to Pay, GL Entries, etc. */}
+      <Route
+        path="/accounts/quick-notes"
+        element={
+          <ProtectedRoute>
+            <QuickNotesPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/accounts/collections"
         element={
