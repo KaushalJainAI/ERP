@@ -562,3 +562,35 @@ question's recorded answer.
 - [x] G-7 Backups
 - [ ] G-8 Cutover (OWNER)
 
+---
+
+## Phase 11 — Ease of use and schema safety (2026-11-10)
+
+Design, findings and full card instructions are in
+[planning/12-ease-of-use.md](planning/12-ease-of-use.md). Do the `S` cards first.
+**S-1 and S-2 must be live before 2027-04-01**: no fiscal year exists after 2026-27.
+
+### 1. Schema and what we fill
+- [ ] S-1 Fiscal years never run out
+- [ ] S-2 Numbers follow the financial year
+- [ ] S-3 Database rules for lines and money
+- [ ] S-4 Rates to six decimals, and the warehouse is never asked
+- [ ] S-5 Setup health, shown before it hurts
+- [ ] S-6 How the money moved
+- [ ] S-7 An item needs only a name, a unit, a GST % and a price
+- [ ] S-8 One party, one record
+
+### 2. Ease of use
+- [ ] U-1 Add a name from inside the form
+- [ ] U-2 Names to complete
+- [ ] U-3 Approve in one step, and never lose typing
+- [ ] U-4 Fix this
+- [ ] U-5 Plain words everywhere, errors that say what to do
+- [ ] U-6 Required means required up front
+- [ ] U-7 Today's work, four verbs, and the day summary
+- [ ] U-8 Install on the phone
+- [ ] U-9 Quick note
+- [ ] U-10 Share the bill, and one page per party
+- [ ] U-11 Bring the lists in at once
+- [ ] U-12 Hindi that sounds like the shop floor (OWNER)
+- [ ] U-13 Two-week pilot and the four numbers (OWNER)

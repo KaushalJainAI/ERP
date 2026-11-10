@@ -35,6 +35,8 @@ Admin has all three.
 | 8 | [Hindi agent and translation](08-hindi-agent-and-translation.md) | Voice orders, prefilled pages, translated messages | H, L |
 | 9 | [Go-live](09-go-live.md) | Opening balances, stock count, cutover | G |
 | 10 | [Subagent prompt](10-subagent-prompt.md) | The prompt that runs this whole plan | – |
+| 11 | [Tally history import](11-tally-history-import.md) | Owner steps and agent prompt for the ten Tally years | – |
+| 12 | [Ease of use](12-ease-of-use.md) | Field budgets per job, add-as-you-go, one-step approve, schema fixes | U, S |
 
 ## Owner decisions
 
@@ -53,6 +55,7 @@ Admin has all three.
 | Salary TDS follows the government rules for salaried (Monthly) staff above the taxable limit: new regime by default, old regime as an opt-in per employee, rates kept in a dated table the accountant edits. Daily wagers get none | 2026-10-31 |
 | Opening balances for accounts and stock are required | 2026-10-31 |
 | Operators enter in the ERP; Tally stays the official books | 2026-10-28 |
+| The system must suit non-technical, disorganised staff: no unnecessary entries, and each job has a field budget (doc 12) | 2026-11-10 |
 
 ## Build order
 
@@ -68,8 +71,10 @@ Cards may run in parallel only within the same wave.
 | 6 Agent | H-1 to H-6, L-4 | Check no other session is editing `assistant/` |
 | 7 Go-live tools | G-1 to G-7, A-4, A-6, T-6, T-7 | T-6 and T-7 need Q5 |
 | 8 Last | L-6, then OWNER cards | |
+| 9 Schema safety | S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8 | S-1 and S-2 must ship before 2027-04-01. One at a time: shared models |
+| 10 Ease of use | U-2, U-1, U-3, U-4, U-5, U-6, U-9, U-7, U-8, U-10, U-11 | U-3 and U-4 share `DocumentPage.tsx`; U-7 after U-9 |
 
-OWNER cards: A-7, O-7, P-7, E-9, T-8, N-10, H-7, L-5, G-8.
+OWNER cards: A-7, O-7, P-7, E-9, T-8, N-10, H-7, L-5, G-8, U-12, U-13.
 
 ## Open questions
 
@@ -81,6 +86,7 @@ OWNER cards: A-7, O-7, P-7, E-9, T-8, N-10, H-7, L-5, G-8.
 | Q4 | What is the standard supplier payment period? (Customers: 90 days, answered) | Owner | Default in M-1 |
 | Q5 | Which staff, if any, are above the income tax limit? | Accountant | T-6, T-7 |
 | Q6 | Which email account sends alerts, and what is each staff member's address? | Owner | N-10 |
+| Q7–Q10 | Sharing bills on WhatsApp, cash kept apart from bank, prices beyond two decimals, staff phones | Owner, Accountant | See [doc 12](12-ease-of-use.md) |
 
 Record each answer here, with the date, when it is given.
 
