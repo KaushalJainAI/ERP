@@ -136,7 +136,9 @@ export function normaliseError(err: any, childKeys: string[] = []): NormalisedEr
 
   const data = err?.response?.data;
   if (!err?.response) {
-    out.general.push(i18n.t("errors.network"));
+    // No response: a lost connection, or a bug in our own code (keep its message).
+    const network = !!err?.request || err?.code === "ERR_NETWORK" || err?.message === "Network Error";
+    out.general.push(network || !err?.message ? i18n.t("errors.network") : String(err.message));
     return out;
   }
   if (typeof data === "string" || data === undefined || data === null) {
