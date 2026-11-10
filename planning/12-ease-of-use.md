@@ -73,7 +73,7 @@ confirmed are left out.
 | F5 | The generic forms still speak accounting: Submit Document, Debit To (Receivable), Income Account, Update Stock, Party Type, Entry Type, Stock Balance (Bins) | `en.core.ts`, `resources/selling.ts`, `resources/accounts.ts` |
 | F6 | Admin sees 78 sidebar links in 10 modules. The phone bottom bar's "Reports" opens the General Ledger, and two of its labels use keys that do not exist | `resources/registry.ts`, `BottomBar.tsx:101,120` |
 | F7 | Error toasts show raw field keys ("customer: ..."); network errors are English only | `api/endpoints.ts:124,176` |
-| F8 | No way to say how money moved (cash, UPI, cheque, bank). The system picks the default bank account, so cash received lands in the bank | `accounts/mapping.py` `default_bank_or_cash_account`; `PaymentEntry` has no mode |
+| F8 | No way to say how money moved (cash, bank transfer, cheque). The system picks the default bank account, so cash received lands in the bank | `accounts/mapping.py` `default_bank_or_cash_account`; `PaymentEntry` has no mode |
 | F9 | An item has no GST rate field. The rate exists only through a tax template; HSN is optional until a bill fails at submit | `stock/models.py:72-77`, `gst/services/supply.py:426` |
 | F10 | Not installable and no weak-network safety: no manifest, no service worker | `frontend/index.html`, `frontend/public/` |
 | F11 | All 12 Indian locale files are machine-generated and unreviewed; some pages have hardcoded English | file headers in `i18n/locales/`; `GstPositionPage.tsx`, `CollectionsPage.tsx` |
@@ -107,7 +107,7 @@ defect. Counts exclude taps on Approve.
 |---|---|---|---|---|
 | Take an order | Customer; per line item and quantity | Company, date, number, price, warehouse, tax, place of supply | Met by voice; by hand a new customer breaks it | U-1, U-2 |
 | Dispatch and bill | One tick (or the sent quantity) | Bill, stock out, receivable, due date in 90 days | Met | – |
-| Money received | Customer, amount, how it came | Account from the mode, oldest bills first, date | Mode missing | S-6 |
+| Money received | Customer, amount, cash or bank (or a photo of the slip) | Account from the mode, oldest bills first, date | Mode missing | S-6 |
 | Purchase bill | Photo or: supplier, bill number, item, quantity (rate if new) | Warehouse (Unprocessed), accounts, tax, due date | Warehouse asked; bill number error comes late | S-4, U-6 |
 | Pay a supplier | Supplier, amount, how it went | Account, oldest bills first | Mode missing | S-6 |
 | Expense | Category, amount, proof photo, paid or due | Supplier (cash), account, tax, number | Met where a cash supplier exists | S-5 |
@@ -187,6 +187,11 @@ Add to the existing assistant metrics. All are derivable from `AuditLog`,
 | Names waiting in "Names to complete" older than 7 days | 0 |
 
 ## Deliberately not doing
+
+- **UPI QR on bills.** Customers pay in cash or by bank transfer (owner, 2026-11-10).
+  Print the company's bank account details on the bill instead (part of U-10).
+- **QR or barcode labels on packets.** Revisit only if the pilot shows wrong items being
+  picked.
 
 - **A one-step cash sale or POS.** Selling here is on 90-day credit; retail runs in NGU.
 - **A setup wizard.** There is one company and it is already set up. A setup health
@@ -282,14 +287,14 @@ Do the `S` cards first where a `U` card depends on them. Follow
   `accounts/mapping.py`, migration, `frontend/src/components/accounts/RecordMoneySheet.tsx`,
   `frontend/src/resources/accounts.ts`, `buying/services/expenses.py`,
   `backend/docs/erpnext_divergences.md`.
-- **Do:** add `PaymentEntry.mode` with choices Cash, UPI, Bank transfer, Cheque (nullable
+- **Do:** add `PaymentEntry.mode` with choices Cash, Bank transfer, Cheque (nullable
   for historical rows, with a CHECK on the allowed values). When the bank-side account is
   not sent: Cash picks the company cash account; the others pick the default bank
   account. `reference_no` is required for Cheque only. In Record Money and the expense
-  "paid now" step, replace the account picker with four large mode buttons, remembering
+  "paid now" step, replace the account picker with three large mode buttons, remembering
   the last one used; keep the account picker under More details. Record the difference
   from ERPNext's Mode of Payment master.
-- **Test:** Cash posts to the cash account; UPI to the default bank; a cheque with no
+- **Test:** Cash posts to the cash account; Bank transfer to the default bank; a cheque with no
   number is refused with a translated message; historical rows are untouched.
 
 ### S-7 An item needs only a name, a unit, a GST % and a price
@@ -444,7 +449,9 @@ Do the `S` cards first where a `U` card depends on them. Follow
 ### U-10 Share the bill, and one page per party
 - **Files:** `frontend/src/print/PrintButton.tsx`, `frontend/src/pages/selling/` (new
   party page), `frontend/src/pages/accounts/CollectionsPage.tsx`, i18n.
-- **Do:** add Share beside Print on approved bills and on the party statement, using the
+- **Do:** print the company's bank account name, number and IFSC on the bill (from the
+  default `BankAccount`), so a customer can pay by transfer. Add Share beside Print on
+  approved bills and on the party statement, using the
   Web Share API with the PDF file, falling back to download. Add a party page reached by
   tapping a customer or supplier anywhere: amount owed, open bills, recent payments, last
   five orders, with Call (`tel:`), Share statement and Record Money. Use existing
@@ -472,11 +479,57 @@ Do the `S` cards first where a `U` card depends on them. Follow
   The implementer adds a read-only report of the measures in "What we measure" under
   Admin, built from `AuditLog` and document timestamps.
 
+### U-14 Read any bill, not only a photo
+- **Files:** `backend/assistant/bill_photo.py`, `assistant/views.py`, `assistant/tests.py`,
+  `frontend/src/components/assistant/AssistantPanel.tsx`, i18n, `backend/docs/API.md`.
+- **Do:** `BillPhotoView` accepts JPG, PNG and WebP today. Accept PDF as well (read the
+  first pages within the existing size limit; refuse password-protected files with a
+  translated message), and several photos for a bill that runs over pages. Keep the
+  contract: the result is a proposal the person checks; nothing is saved. Show the
+  document beside the prefilled form on the review page so each figure can be compared,
+  and attach it as the bill's proof on save.
+- **Test:** a PDF bill yields a Purchase Invoice proposal; an unreadable or protected
+  file returns the friendly 200 failure; the no-write test covers the new path.
+
+### U-15 Other papers become entries
+- **Depends:** U-14, S-6. **Files:** `backend/assistant/bill_photo.py` (generalise to a
+  document reader), `assistant/proposals.py`, `prompts.py`, `tests.py`,
+  `AssistantPanel.tsx`.
+- **Do:** let the reader decide what the document is, then build the matching proposal
+  that already exists: a supplier bill (Purchase Invoice), a customer's written or typed
+  order (Sales Order), a bank transfer slip, cheque or deposit receipt (Payment Entry,
+  with the mode and reference number filled), an expense receipt (expense). When the
+  kind is unclear it asks, with the choices as buttons. A slip that names no known party
+  asks for the party; it never guesses.
+- **Test:** one fixture per kind gives the right proposal type; an ambiguous document
+  asks; an unknown party asks.
+
+### U-16 Send a bill to the ERP from WhatsApp
+- **Depends:** U-8, U-9, U-14. **Files:** `frontend/public/` manifest (`share_target`),
+  service worker, a small receiving route in `frontend/src/routes/`.
+- **Do:** register the installed app as a share target for images and PDFs. A shared
+  file opens the assistant's document reader directly; if the person is not signed in or
+  the read fails, the file is kept as a quick note (U-9) so it is never lost.
+- **Test:** build passes and the manifest declares the share target; manual check on an
+  Android phone noted in the handover.
+
+### U-17 Scan the QR on a supplier's e-invoice (later)
+- **Depends:** U-14. **Files:** `frontend/src/components/assistant/`, a decoder helper in
+  `frontend/src/lib/`, `backend/assistant/bill_photo.py`.
+- **Do:** only after the pilot shows wrong totals or bill numbers from document reads.
+  When a bill photo contains a GST e-invoice QR, decode it (supplier GSTIN, bill number,
+  date, total value) and use those exact values in the proposal in place of the read
+  ones, flagging any mismatch for the person. The QR carries no line items, so it
+  supplements the read and never replaces it. Do not verify the signature online.
+- **Test:** a sample QR payload overrides a deliberately wrong read total and shows the
+  mismatch.
+
 ## Open questions
 
 | # | Question | Who | Blocks |
 |---|---|---|---|
 | Q7 | Do staff share bills with customers on WhatsApp today, or only on paper? | Owner | Priority of U-10 |
-| Q8 | Is cash received kept separate from the bank until deposited? | Accountant | Default in S-6 |
+| Q8 | Is cash received kept separate from the bank until deposited? Customers pay in cash or by bank transfer, not UPI (owner, 2026-11-10) | Accountant | Default in S-6 |
+| Q11 | Do suppliers send bills on paper, as PDFs, or both? | Accountant | Priority of U-14 and U-16 |
 | Q9 | Are there prices with more than two decimals (per kg or per gram)? | Owner | Priority of S-4 (a) |
 | Q10 | Which phones do staff use (Android version, screen size)? | Owner | U-8 testing |

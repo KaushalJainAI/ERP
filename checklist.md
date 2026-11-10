@@ -594,3 +594,9 @@ Design, findings and full card instructions are in
 - [ ] U-11 Bring the lists in at once
 - [ ] U-12 Hindi that sounds like the shop floor (OWNER)
 - [ ] U-13 Two-week pilot and the four numbers (OWNER)
+
+### 3. Documents in
+- [ ] U-14 Read any bill, not only a photo
+- [ ] U-15 Other papers become entries
+- [ ] U-16 Send a bill to the ERP from WhatsApp
+- [ ] U-17 Scan the QR on a supplier's e-invoice (later)
