@@ -10,9 +10,7 @@ from django.db.models.functions import Lower
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from buying.models import Supplier
 from core.models import GSTCategory
-from selling.models import Customer
 
 #: Registered categories: the party must have a state (place of supply).
 REGISTERED_CATEGORIES = (
@@ -28,19 +26,17 @@ GST_FIELDS = {"gst_category", "gstin", "state"}
 
 
 def gstin_twins(party):
-    """Other active parties of the same company with the same GSTIN (branches share
-    one). Customers and suppliers are both checked."""
+    """Other active parties of the same kind and company with the same GSTIN
+    (branches share one). A business that is both a customer and a supplier is
+    normal, so the other kind is not compared."""
     if not party.gstin:
         return []
-    twins = []
-    for model in (Customer, Supplier):
-        qs = model.objects.filter(
-            company_id=party.company_id, gstin=party.gstin, is_active=True
-        )
-        if model is type(party):
-            qs = qs.exclude(pk=party.pk)
-        twins.extend(qs.order_by("pk"))
-    return twins
+    return list(
+        type(party)
+        .objects.filter(company_id=party.company_id, gstin=party.gstin, is_active=True)
+        .exclude(pk=party.pk)
+        .order_by("pk")
+    )
 
 
 class PartyRecordSerializerMixin:

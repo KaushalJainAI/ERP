@@ -94,3 +94,12 @@ class NamesToCompleteTest(BaseAPITest):
         self.assertIn(
             res.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN)
         )
+
+    def test_inactive_party_is_not_listed(self):
+        res = self.client.post(
+            "/api/selling/customers/",
+            {"name": "Closed Shop", "company": self.company.id},
+            format="json",
+        )
+        Customer.objects.filter(pk=res.data["id"]).update(is_active=False)
+        self.assertEqual(self._rows("customer", res.data["id"]), [])

@@ -89,3 +89,22 @@ class OnePartyAPITest(BaseAPITest):
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
         self.assertEqual(res.data["warnings"], [])
+
+    def test_supplier_with_the_same_gstin_is_not_a_duplicate(self):
+        """A business can be both a customer and a supplier."""
+        from buying.models import Supplier, SupplierGroup
+
+        Supplier.objects.create(
+            name="Head Office Supplies",
+            company=self.company,
+            supplier_group=SupplierGroup.objects.get_or_create(
+                name="All Supplier Groups", defaults={"is_group": True}
+            )[0],
+            gstin=REG_GSTIN,
+            gst_category="Registered Regular",
+        )
+        res = self._customer(
+            name="Head Office", gst_category="Registered Regular", gstin=REG_GSTIN
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
+        self.assertEqual(res.data["warnings"], [])

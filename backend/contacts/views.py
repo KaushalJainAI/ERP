@@ -63,7 +63,7 @@ class AddressViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
 class NamesToCompleteView(APIView):
     """Masters with a field still missing (U-2). Derived on every call, no stored flag.
 
-    Parties of the active company: no state; a registered party with no GSTIN; a
+    Active parties of the active company: no state; a registered party with no GSTIN; a
     party still in the seeded root group. Active stock items: no HSN code; no item
     tax template. Each kind is listed only when the caller can read its model.
     """
@@ -93,7 +93,7 @@ class NamesToCompleteView(APIView):
             Q(gstin__isnull=True) | Q(gstin="")
         )
         qs = (
-            model.objects.filter(company=company)
+            model.objects.filter(company=company, is_active=True)
             .filter(
                 Q(state__isnull=True)
                 | registered_no_gstin
