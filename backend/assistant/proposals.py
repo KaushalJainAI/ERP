@@ -155,6 +155,21 @@ def _company_of(company: Optional[Any], party) -> Any:
     return co or party.company or Company.objects.first()
 
 
+def _payment_mode_value(mode_of_payment: Optional[str]) -> Optional[str]:
+    """The PaymentEntry mode a free-text mode means (Cash, Bank Transfer or Cheque), else None.
+
+    The chat says "Bank" or "cash"; the form takes only the three fixed modes.
+    """
+    text = (mode_of_payment or "").strip().lower()
+    if "cash" in text:
+        return "Cash"
+    if "cheque" in text or "check" in text:
+        return "Cheque"
+    if "bank" in text or "transfer" in text:
+        return "Bank Transfer"
+    return None
+
+
 def _cash_or_bank_account(co, mode_of_payment: Optional[str]):
     """(account, usual_found) for a payment. "cash" must land on a cash account;
     anything else (cheque, UPI) goes through the bank. When the usual kind is
@@ -768,9 +783,12 @@ def propose_payment_entry(
     remarks: Optional[str] = None,
     company: Optional[Any] = None,
     message: Optional[AssistantMessage] = None,
+    reference_no: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build a proposal for a New Payment Entry.
 
+    `mode_of_payment` is the mode of the payment (Cash, Bank Transfer, Cheque); it also
+    picks the cash or bank account. `reference_no` is the UTR or cheque number.
     Never saves a PaymentEntry row. Dry-runs PaymentEntrySerializer.is_valid().
     """
     if not user_has_model_permission(user, "accounts.PaymentEntry", "can_create"):
@@ -842,6 +860,11 @@ def propose_payment_entry(
         "paid_to": paid_to,
         "remarks": remarks or "",
     }
+    mode = _payment_mode_value(mode_of_payment)
+    if mode:
+        initial_values["mode"] = mode
+    if reference_no:
+        initial_values["reference_no"] = reference_no
 
     ai_filled_keys = [
         "payment_type",
@@ -866,6 +889,10 @@ def propose_payment_entry(
         "paid_from": paid_from,
         "paid_to": paid_to,
     }
+    if mode:
+        serializer_payload["mode"] = mode
+    if reference_no:
+        serializer_payload["reference_no"] = reference_no
 
     factory = APIRequestFactory()
     req = factory.post("/api/accounts/payment-entries/")

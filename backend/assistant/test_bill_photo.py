@@ -14,9 +14,16 @@ from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 
-from accounts.models import Account, AccountRootType, AccountType, GLEntry
-from buying.models import PurchaseInvoice
+from accounts.models import (
+    Account,
+    AccountRootType,
+    AccountType,
+    GLEntry,
+    PaymentEntry,
+)
+from buying.models import ExpenseCategory, PurchaseInvoice, Supplier
 from core.models import Attachment
+from selling.models import Customer, SalesOrder
 from stock.models import Item, StockLedgerEntry
 
 from .bill_photo import (
@@ -25,6 +32,7 @@ from .bill_photo import (
     call_vision_model,
     is_password_protected,
     parse_bill,
+    parse_document,
 )
 from .models import AssistantConversation, AssistantMessage, AssistantProposal
 from .tests import setup_test_masters
@@ -631,3 +639,374 @@ class VisionAdapterTests(APITestCase):
         self.assertTrue(
             content[2]["image_url"]["url"].startswith("data:image/jpeg;base64,")
         )
+
+
+def reading_kind(kind, **overrides):
+    """The model's JSON reply for one paper of the given kind; fields come in overrides."""
+    data = {
+        "kind": kind,
+        "readable": True,
+        "confidence": 0.9,
+        "bill_date": "2026-10-22",
+    }
+    data.update(overrides)
+    return json.dumps(data)
+
+
+class DocumentKindTests(BillPhotoBase):
+    """Each kind of paper becomes its own proposal, or asks. Nothing is saved."""
+
+    def setUp(self):
+        super().setUp()
+        Account.objects.create(
+            name="HDFC Bank",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.BANK,
+        )
+        Account.objects.create(
+            name="Cash in hand",
+            company=self.company,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.CASH,
+        )
+        expense_account = Account.objects.create(
+            name="Tea and Snacks",
+            company=self.company,
+            root_type=AccountRootType.EXPENSE,
+        )
+        self.tea = ExpenseCategory.objects.create(
+            company=self.company, name="Tea", account=expense_account
+        )
+        Supplier.objects.create(
+            name="Cash Expenses",
+            company=self.company,
+            supplier_group=self.supp_grp,
+            is_active=True,
+            is_cash_expense=True,
+        )
+
+    def document_snapshot(self):
+        """Counts of every document and ledger row a kind could write."""
+        return {
+            "pi": PurchaseInvoice.objects.count(),
+            "so": SalesOrder.objects.count(),
+            "pe": PaymentEntry.objects.count(),
+            "gl": GLEntry.objects.count(),
+            "sle": StockLedgerEntry.objects.count(),
+            "customers": Customer.objects.count(),
+            "suppliers": Supplier.objects.count(),
+            "categories": ExpenseCategory.objects.count(),
+        }
+
+    def test_customer_order_becomes_a_sales_order_proposal(self):
+        before = self.document_snapshot()
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "customer_order",
+                party_name="Sharma Traders",
+                items=[{"name": "Haldi Powder", "qty": 5}],
+            ),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["error"])
+        proposal = resp.data["proposal"]
+        self.assertEqual(proposal["target"], "selling.SalesOrder")
+        self.assertEqual(proposal["route"], "/selling/sales-orders/new")
+        self.assertEqual(proposal["values"]["customer"], self.customer.pk)
+        self.assertEqual(proposal["values"]["items"][0]["item"], self.item.pk)
+        self.assertEqual(proposal["values"]["items"][0]["qty"], "5.000")
+        self.assertEqual(proposal["values"]["transaction_date"], "2026-10-22")
+        self.assertEqual(self.document_snapshot(), before)
+
+    def test_customer_bank_transfer_slip_becomes_a_receipt_with_utr(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "payment_proof",
+                party_name="Sharma Traders",
+                payment_type="Receive",
+                amount=2500,
+                mode="Bank Transfer",
+                reference_no="UTR123456789012",
+            ),
+        ):
+            resp = self.post_bill()
+
+        proposal = resp.data["proposal"]
+        self.assertEqual(proposal["target"], "accounts.PaymentEntry")
+        self.assertEqual(proposal["route"], "/accounts/payment-entries/new")
+        values = proposal["values"]
+        self.assertEqual(values["payment_type"], "Receive")
+        self.assertEqual(values["party_type"], "Customer")
+        self.assertEqual(values["party"], self.customer.pk)
+        self.assertEqual(values["paid_amount"], "2500.00")
+        self.assertEqual(values["mode"], "Bank Transfer")
+        self.assertEqual(values["reference_no"], "UTR123456789012")
+        self.assertEqual(values["posting_date"], "2026-10-22")
+
+    def test_cheque_fills_mode_cheque_and_its_number(self):
+        before = self.document_snapshot()
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "payment_proof",
+                party_name="Gupta Suppliers",
+                payment_type="Pay",
+                amount=8000,
+                mode="Cheque",
+                reference_no="004512",
+            ),
+        ):
+            resp = self.post_bill()
+
+        values = resp.data["proposal"]["values"]
+        self.assertEqual(values["payment_type"], "Pay")
+        self.assertEqual(values["party_type"], "Supplier")
+        self.assertEqual(values["party"], self.supplier.pk)
+        self.assertEqual(values["mode"], "Cheque")
+        self.assertEqual(values["reference_no"], "004512")
+        self.assertEqual(self.document_snapshot(), before)
+
+    def test_cheque_without_its_number_is_a_warning_not_a_save(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "payment_proof",
+                party_name="Gupta Suppliers",
+                payment_type="Pay",
+                amount=8000,
+                mode="Cheque",
+                reference_no="",
+            ),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNotNone(resp.data["proposal"])
+        self.assertIn("reference_no", " ".join(resp.data["proposal"]["warnings"]))
+
+    def test_expense_receipt_becomes_a_paid_expense_in_cash(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind("expense_receipt", category="Tea", amount=120),
+        ):
+            resp = self.post_bill()
+
+        proposal = resp.data["proposal"]
+        self.assertEqual(proposal["target"], "buying.PurchaseInvoice")
+        self.assertEqual(proposal["route"], "/accounts/expenses/new")
+        values = proposal["values"]
+        self.assertEqual(values["category"], self.tea.pk)
+        self.assertEqual(values["amount"], "120.00")
+        self.assertTrue(values["paid_now"])
+        self.assertEqual(values["date"], "2026-10-22")
+
+    def test_unknown_expense_category_asks_with_the_known_ones(self):
+        before = self.document_snapshot()
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "expense_receipt", category="Zxqv Imaginary", amount=120
+            ),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["proposal"])
+        self.assertIn("Tea", resp.data["question"]["options"])
+        self.assertEqual(self.document_snapshot(), before)
+
+    def test_unknown_kind_asks_with_the_four_kinds_as_choices(self):
+        with mock.patch(VISION, return_value=reading_kind("unknown")):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["proposal"])
+        question = resp.data["question"]
+        self.assertEqual(
+            [choice["kind"] for choice in question["choices"]],
+            ["supplier_bill", "customer_order", "payment_proof", "expense_receipt"],
+        )
+        self.assertEqual(
+            question["options"], [choice["label"] for choice in question["choices"]]
+        )
+        # The paper is kept on the asking reply, so the choice needs no new upload.
+        staged = Attachment.objects.get(
+            model_label="assistant.AssistantMessage",
+            object_id=str(resp.data["message_id"]),
+        )
+        self.assertEqual(staged.sha256, hashlib.sha256(JPEG).hexdigest())
+
+    def test_low_confidence_on_a_non_bill_also_asks(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind("payment_proof", confidence=0.3, amount=10),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["proposal"])
+        self.assertEqual(len(resp.data["question"]["choices"]), 4)
+
+    def test_chosen_kind_rereads_the_kept_paper_without_an_upload(self):
+        with mock.patch(VISION, return_value=reading_kind("unknown")):
+            asked = self.post_bill()
+
+        reading_text = reading_kind(
+            "payment_proof",
+            party_name="Sharma Traders",
+            payment_type="Receive",
+            amount=2500,
+            mode="Bank Transfer",
+            reference_no="UTR9",
+        )
+        with mock.patch(VISION, return_value=reading_text) as vision:
+            resp = self.client.post(
+                URL,
+                {"reply_message_id": asked.data["message_id"], "kind": "payment_proof"},
+                format="multipart",
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["proposal"]["target"], "accounts.PaymentEntry")
+        self.assertEqual(vision.call_args.kwargs, {"kind_hint": "payment_proof"})
+        self.assertEqual(vision.call_args.args[0], JPEG)
+
+    def test_chosen_kind_must_be_one_of_the_four(self):
+        with mock.patch(VISION, return_value=reading_kind("unknown")):
+            asked = self.post_bill()
+        with mock.patch(VISION) as vision:
+            resp = self.client.post(
+                URL,
+                {"reply_message_id": asked.data["message_id"], "kind": "invoice"},
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data["error"], "bill_kind_invalid")
+        vision.assert_not_called()
+
+    def test_kept_paper_is_not_reachable_by_another_user(self):
+        with mock.patch(VISION, return_value=reading_kind("unknown")):
+            asked = self.post_bill()
+        other = User.objects.create_superuser(
+            username="nosyclerk", email="nosy@erp.local", password="password"
+        )
+        self.client.force_authenticate(user=other)
+        with mock.patch(VISION) as vision:
+            resp = self.client.post(
+                URL,
+                {"reply_message_id": asked.data["message_id"], "kind": "payment_proof"},
+                format="multipart",
+            )
+        self.assertEqual(resp.status_code, 404)
+        vision.assert_not_called()
+
+    def test_unknown_customer_asks_top_matches_and_someone_else(self):
+        Customer.objects.create(
+            name="Sharma Stores",
+            company=self.company,
+            customer_group=self.cust_grp,
+            is_active=True,
+        )
+        before = self.document_snapshot()
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "customer_order",
+                party_name="Sharma Shop",
+                items=[{"name": "Haldi Powder", "qty": 5}],
+            ),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["proposal"])
+        options = resp.data["question"]["options"]
+        self.assertIn("Sharma Stores", options)
+        self.assertEqual(options[-1], "Someone else")
+        self.assertLessEqual(len(options), 4)
+        self.assertEqual(self.document_snapshot(), before)
+
+    def test_unknown_payer_for_a_slip_asks_and_creates_no_party(self):
+        before = self.document_snapshot()
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "payment_proof",
+                party_name="Zxqv Imaginary Traders",
+                payment_type="Receive",
+                amount=900,
+                mode="Cash",
+            ),
+        ):
+            resp = self.post_bill()
+
+        self.assertIsNone(resp.data["proposal"])
+        self.assertEqual(resp.data["question"]["options"], ["Someone else"])
+        self.assertEqual(self.document_snapshot(), before)
+
+    def test_missing_party_name_asks_for_it(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "customer_order",
+                party_name="",
+                items=[{"name": "Haldi Powder", "qty": 1}],
+            ),
+        ):
+            resp = self.post_bill()
+        self.assertIsNone(resp.data["proposal"])
+        self.assertIn("customer", resp.data["question"]["text"])
+
+    def test_slip_without_a_direction_is_unreadable(self):
+        with mock.patch(
+            VISION,
+            return_value=reading_kind(
+                "payment_proof", party_name="Sharma Traders", amount=5
+            ),
+        ):
+            resp = self.post_bill()
+        self.assertEqual(resp.data["error"], "bill_unreadable")
+        self.assertIsNone(resp.data["proposal"])
+
+    def test_no_kind_writes_a_document_or_a_ledger_row(self):
+        cases = [
+            reading_kind(
+                "customer_order",
+                party_name="Sharma Traders",
+                items=[{"name": "Haldi Powder", "qty": 5}],
+            ),
+            reading_kind(
+                "payment_proof",
+                party_name="Sharma Traders",
+                payment_type="Receive",
+                amount=2500,
+                mode="Bank Transfer",
+                reference_no="UTR1",
+            ),
+            reading_kind("expense_receipt", category="Tea", amount=120),
+            reading_kind("unknown"),
+            reading_kind(
+                "customer_order", party_name="Zxqv", items=[{"name": "Haldi", "qty": 1}]
+            ),
+        ]
+        for text in cases:
+            with self.subTest(reply=text[:60]):
+                before = self.document_snapshot()
+                with mock.patch(VISION, return_value=text):
+                    self.post_bill()
+                self.assertEqual(self.document_snapshot(), before)
+
+
+class DocumentReplyParsingTests(APITestCase):
+    def test_reply_without_a_kind_is_a_supplier_bill(self):
+        document = parse_document(reading())
+        self.assertEqual(document["kind"], "supplier_bill")
+        self.assertEqual(document["supplier_name"], "Gupta Suppliers")
+
+    def test_unrecognised_kind_is_unknown(self):
+        self.assertEqual(parse_document(reading_kind("invoice-ish"))["kind"], "unknown")
+
+    def test_forced_kind_with_a_poor_reading_is_unreadable(self):
+        with self.assertRaises(BillUnreadable):
+            parse_document(
+                reading_kind("unknown", confidence=0.2), forced_kind="expense_receipt"
+            )

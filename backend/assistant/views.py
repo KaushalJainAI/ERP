@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 from core import attachments as att_rules
 from core.company_context import resolve_active_company
+from core.models import Attachment
 
 from .agent import Agent
 from .bill_photo import (
@@ -25,9 +26,17 @@ from .bill_photo import (
     BILL_MAX_BYTES,
     BILL_MAX_FILES,
     BILL_MAX_TOTAL_BYTES,
+    KINDS,
+    STAGING_LABEL,
+    StagedFile,
     run_bill_turn,
 )
-from .models import AssistantConversation, AssistantProposal, QuickNote
+from .models import (
+    AssistantConversation,
+    AssistantMessage,
+    AssistantProposal,
+    QuickNote,
+)
 from .serializers import (
     AssistantConversationSerializer,
     AssistantMessageSerializer,
@@ -200,7 +209,12 @@ class TranscribeAudioView(APIView):
 
 
 class BillPhotoView(APIView):
-    """A supplier bill photo read into a Purchase Invoice proposal.
+    """A paper or PDF read into the proposal it makes: a supplier bill, a customer's
+    order, a payment slip or cheque, or an expense receipt.
+
+    A paper the reader cannot place returns a `question` whose `choices` are the four
+    kinds. The person's choice is sent back as `reply_message_id` (the reply that asked)
+    with `kind`; the kept file is then read again as that kind, with no new upload.
 
     Read failures (model down, unreadable photo, permission) come back as 200 with a
     friendly `reply` and an `error` code, and write nothing. Only a rejected file is
@@ -211,6 +225,8 @@ class BillPhotoView(APIView):
     throttle_classes = [AssistantBillThrottle]
 
     def post(self, request):
+        if request.data.get("reply_message_id") not in (None, ""):
+            return self._read_kept_file(request)
         # `file` (one page) or `files` (several pages of one bill), up to BILL_MAX_FILES.
         uploads = request.FILES.getlist("files")
         single = request.FILES.get("file")
@@ -303,6 +319,64 @@ class BillPhotoView(APIView):
             company_pk=company.pk if company else None,
             conversation=conversation,
             language=language,
+        )
+        return Response(body)
+
+    def _read_kept_file(self, request):
+        """Read the file a reply kept, again, as the kind the person chose."""
+        kind = request.data.get("kind")
+        if kind not in KINDS:
+            return Response(
+                {
+                    "error": "bill_kind_invalid",
+                    "message": _(
+                        "Choose what the paper is: a supplier bill, a customer's order, a payment slip or cheque, or an expense receipt."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            reply = AssistantMessage.objects.select_related("conversation").get(
+                pk=int(request.data.get("reply_message_id")),
+                role="assistant",
+                conversation__user=request.user,
+            )
+        except (TypeError, ValueError, AssistantMessage.DoesNotExist):
+            reply = None
+        staged = (
+            list(
+                Attachment.objects.filter(
+                    model_label=STAGING_LABEL, object_id=str(reply.pk)
+                ).order_by("pk")
+            )
+            if reply is not None
+            else []
+        )
+        if not staged:
+            return Response(
+                {"error": "bill_not_found", "message": _("That paper was not found.")},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        pages = []
+        for att in staged:
+            with att.file.open("rb") as handle:
+                data = handle.read()
+            checked = StagedFile(
+                filename=att.original_filename,
+                content_type=att.content_type,
+                size=att.size,
+                sha256=att.sha256,
+            )
+            pages.append((data, checked))
+
+        company = resolve_active_company(request, required=False)
+        body = run_bill_turn(
+            request.user,
+            uploads=pages,
+            company_pk=company.pk if company else None,
+            conversation=reply.conversation,
+            language=getattr(request.user, "language", "en") or "en",
+            kind=kind,
         )
         return Response(body)
 

@@ -5230,3 +5230,67 @@ msgstr "पासवर्ड अपडेट हो गया।"
 
 #~ msgid "Cancelled"
 #~ msgstr "रद्द कर दिया"
+
+#: assistant/bill_photo.py
+msgid "Someone else"
+msgstr "कोई और"
+
+#: assistant/bill_photo.py
+msgid "I could not match %(query)s to one party in the books. Which one is it?"
+msgstr "%(query)s को किताबों में किसी एक पार्टी से नहीं मिला पाया। यह कौन है?"
+
+#: assistant/bill_photo.py
+msgid "Supplier bill"
+msgstr "सप्लायर का बिल"
+
+#: assistant/bill_photo.py
+msgid "Customer's order"
+msgstr "ग्राहक का ऑर्डर"
+
+#: assistant/bill_photo.py
+msgid "Payment slip or cheque"
+msgstr "पेमेंट की पर्ची या चेक"
+
+#: assistant/bill_photo.py
+msgid "Expense receipt"
+msgstr "खर्च की रसीद"
+
+#: assistant/bill_photo.py
+msgid "I could not tell what this paper is. What is it?"
+msgstr "यह कागज़ क्या है, यह मैं पहचान नहीं पाया। यह क्या है?"
+
+#: assistant/bill_photo.py
+msgid "Which customer is this order from?"
+msgstr "यह ऑर्डर किस ग्राहक का है?"
+
+#: assistant/bill_photo.py
+msgid "Which party is this payment for?"
+msgstr "यह भुगतान किस पार्टी का है?"
+
+#: assistant/bill_photo.py
+msgid "Check the prefilled Sales Order and save it."
+msgstr "भरा हुआ सेल्स ऑर्डर जाँचकर सेव करें।"
+
+#: assistant/bill_photo.py
+msgid "Check the prefilled Payment Entry and save it."
+msgstr "भरी हुई पेमेंट एंट्री जाँचकर सेव करें।"
+
+#: assistant/bill_photo.py
+msgid "Check the prefilled expense and save it."
+msgstr "भरा हुआ खर्च जाँचकर सेव करें।"
+
+#: assistant/bill_photo.py
+msgid "Which expense is this? I could not find %(query)s in the books."
+msgstr "यह कौन सा खर्च है? किताबों में %(query)s नहीं मिला।"
+
+#: assistant/bill_photo.py
+msgid "Which expense is this?"
+msgstr "यह कौन सा खर्च है?"
+
+#: assistant/bill_photo.py
+msgid "That paper was not found."
+msgstr "यह कागज़ नहीं मिला।"
+
+#: assistant/bill_photo.py
+msgid "Choose what the paper is: a supplier bill, a customer's order, a payment slip or cheque, or an expense receipt."
+msgstr "बताएं यह कागज़ क्या है: सप्लायर का बिल, ग्राहक का ऑर्डर, पेमेंट की पर्ची या चेक, या खर्च की रसीद।"
