@@ -149,3 +149,44 @@ class SalesDefaultWarehouseTest(BaseAPITest):
         )
         self.assertEqual(submit.status_code, status.HTTP_200_OK, submit.content)
         self.assertEqual(self._stock(self.ready), Decimal("7.000"))
+
+
+class SalesFallbackWarehouseTest(SalesDefaultWarehouseTest):
+    """No Ready warehouse set: the sale takes the warehouse that holds the item, and
+    never the Process Loss store (found by a phone walk-through on demo data)."""
+
+    # Reuse the parent's helpers, not its tests (they assume a Ready warehouse).
+    test_sales_invoice_without_warehouse_submits_from_ready_warehouse = None
+    test_sales_invoice_keeps_a_warehouse_the_user_sent = None
+    test_non_stock_item_line_keeps_no_warehouse = None
+    test_sales_order_blank_warehouse_gets_ready_warehouse = None
+    test_sales_order_then_invoice_without_warehouse_takes_stock_from_ready = None
+
+    def setUp(self):
+        super().setUp()
+        Warehouse.objects.create(
+            name="Process Loss", company=self.company, is_group=False
+        )
+        self._seed_ready()  # 10 units into "Ready WH"
+        Company.objects.filter(pk=self.company.pk).update(ready_warehouse=None)
+        self.company.refresh_from_db()
+
+    def test_sale_without_ready_warehouse_uses_the_warehouse_holding_stock(self):
+        res = self._si([{"item": self.item.id, "qty": "2", "rate": "80.00"}])
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED, res.content)
+        self.assertEqual(res.data["items"][0]["warehouse"], self.ready.id)
+
+    def test_system_warehouse_is_never_the_fallback(self):
+        from accounts.mapping import default_stock_warehouse
+
+        other = Item.objects.create(
+            code="NO-STOCK",
+            name="No stock item",
+            item_group=self.item.item_group,
+            stock_uom=self.item.stock_uom,
+        )
+        chosen = default_stock_warehouse(self.company, "ready_warehouse", other)
+        self.assertIsNotNone(chosen)
+        self.assertNotEqual(chosen.name, "Process Loss")
+        chosen = default_stock_warehouse(self.company, "unprocessed_warehouse")
+        self.assertNotEqual(chosen.name, "Process Loss")

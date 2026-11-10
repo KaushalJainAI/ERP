@@ -361,36 +361,54 @@ def lines_update_stock(lines):
     )
 
 
-def default_stock_warehouse(company, preferred_field):
-    """The warehouse a blank stock line falls back to: ``company.<preferred_field>``
-    (Ready for sales, Unprocessed for purchases), else the first leaf warehouse."""
+#: System warehouses that never receive or ship ordinary stock lines.
+_SYSTEM_WAREHOUSE_NAMES = ("Process Loss",)
+
+
+def _ordinary_leaf_warehouses(company):
     from stock.models import Warehouse
 
+    return Warehouse.objects.filter(company=company, is_group=False).exclude(
+        name__in=_SYSTEM_WAREHOUSE_NAMES
+    )
+
+
+def default_stock_warehouse(company, preferred_field, item=None):
+    """The warehouse a blank stock line falls back to.
+
+    ``company.<preferred_field>`` (Ready for sales, Unprocessed for purchases) when
+    set. Otherwise, for a sale (``item`` given and ``preferred_field`` is the Ready
+    warehouse), the ordinary warehouse holding the most of that item, so the sale
+    can be filled; else the first ordinary leaf warehouse. A system warehouse such
+    as Process Loss is never chosen."""
     warehouse = getattr(company, preferred_field, None)
-    if warehouse is None:
-        warehouse = (
-            Warehouse.objects.filter(company=company, is_group=False)
-            .order_by("pk")
+    if warehouse is not None:
+        return warehouse
+    leaves = _ordinary_leaf_warehouses(company)
+    if item is not None and preferred_field == "ready_warehouse":
+        from stock.models import Bin
+
+        best = (
+            Bin.objects.filter(item=item, warehouse__in=leaves, actual_qty__gt=0)
+            .order_by("-actual_qty", "warehouse_id")
+            .select_related("warehouse")
             .first()
         )
-    return warehouse
+        if best is not None:
+            return best.warehouse
+    return leaves.order_by("pk").first()
 
 
 def fill_blank_stock_warehouses(company, lines, preferred_field):
     """Set the default warehouse on every line that names none and whose item is a
     stock item. Lines the user filled, and non-stock lines, are left alone."""
-    blank = [
-        line
-        for line in lines
-        if not line.get("warehouse")
-        and line.get("item") is not None
-        and line["item"].is_stock_item
-    ]
-    if blank:
-        default = default_stock_warehouse(company, preferred_field)
+    for line in lines:
+        item = line.get("item")
+        if line.get("warehouse") or item is None or not item.is_stock_item:
+            continue
+        default = default_stock_warehouse(company, preferred_field, item)
         if default is not None:
-            for line in blank:
-                line["warehouse"] = default
+            line["warehouse"] = default
     return lines
 
 
