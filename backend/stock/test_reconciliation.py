@@ -643,6 +643,49 @@ class ApiTests(RecoBase):
         self.assertEqual(self.bin(self.haldi).actual_qty, D("10"))
         self.verify()
 
+    def opening_payload(self):
+        # Mirch has no stock in this fixture, so the entry is a true opening.
+        return self.payload(
+            purpose="Opening Stock",
+            items=[
+                {
+                    "item": self.mirch.id,
+                    "warehouse": self.wh.id,
+                    "qty": "8",
+                    "valuation_rate": "50",
+                }
+            ],
+        )
+
+    def test_opening_without_account_submits_to_temporary_opening(self):
+        r = self.c.post(
+            "/api/stock/stock-reconciliations/", self.opening_payload(), format="json"
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.data["expense_account"], self.opening.id)
+        pk = r.data["id"]
+        r = self.c.post(f"/api/stock/stock-reconciliations/{pk}/submit/")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(self.bin(self.mirch).actual_qty, D("8"))
+        self.assertEqual(
+            self.gl(StockReconciliation.objects.get(pk=pk)),
+            {
+                "Stock In Hand": (D("400.00"), D("0")),
+                "Temporary Opening": (D("0"), D("400.00")),
+            },
+        )
+        self.verify()
+
+    def test_opening_without_account_or_temporary_opening_is_refused(self):
+        self.opening.name = "Opening Balance"
+        self.opening.save()
+        r = self.c.post(
+            "/api/stock/stock-reconciliations/", self.opening_payload(), format="json"
+        )
+        # Falls back to the Stock Adjustment (expense) account, which an opening refuses.
+        self.assertEqual(r.status_code, 400, r.content)
+        self.assertEqual(StockReconciliation.objects.count(), 0)
+
     def test_draft_update_replaces_lines_and_delete_draft(self):
         r = self.c.post(
             "/api/stock/stock-reconciliations/", self.payload(), format="json"
@@ -691,12 +734,14 @@ class ApiTests(RecoBase):
                 format="json",
             )
             self.assertEqual(r.status_code, 400, items)
+        # No account sent: an opening entry defaults to "Temporary Opening" (S-4 c).
         r = self.c.post(
             "/api/stock/stock-reconciliations/",
             self.payload(purpose="Opening Stock"),
             format="json",
         )
-        self.assertEqual(r.status_code, 400)  # default Stock Adjustment is P&L
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.data["expense_account"], self.opening.id)
         r = self.c.post(
             "/api/stock/stock-reconciliations/",
             self.payload(purpose="Opening Stock", expense_account=self.opening.id),

@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.utils.translation import gettext as _
 
+from accounts.models import Account, AccountRootType
 from stock.models import (
     Bin,
     Item,
@@ -39,6 +40,25 @@ def _lines(doc) -> List[Any]:
 # --------------------------------------------------------------------------- #
 # Difference account
 # --------------------------------------------------------------------------- #
+
+#: The opening-balance account ERPNext calls "Temporary Opening".
+OPENING_ACCOUNT_NAME = "Temporary Opening"
+
+
+def default_opening_account(company):
+    """The company's opening account for an Opening Stock reconciliation: the
+    non-group Asset / Liability / Equity account named "Temporary Opening", or
+    None when the company has none (the caller then keeps its usual default)."""
+    return Account.objects.filter(
+        company=company,
+        name__iexact=OPENING_ACCOUNT_NAME,
+        is_group=False,
+        root_type__in=[
+            AccountRootType.ASSET,
+            AccountRootType.LIABILITY,
+            AccountRootType.EQUITY,
+        ],
+    ).first()
 
 
 def is_opening(company, purpose: str) -> bool:

@@ -550,6 +550,7 @@ const kn: Record<string, unknown> = {
       valuation_method: "ಮೌಲ್ಯಮಾಪನ ವಿಧಾನ",
       valuation_rate: "ಮೌಲ್ಯಮಾಪನ ದರ",
       standard_rate: "ಪ್ರಮಾಣಿತ ದರ",
+      selling_price: "Selling Price",
       is_stock_item: "ಸ್ಟಾಕ್ ನಿರ್ವಹಿಸಿ",
       description: "ವಿವರಣೆ",
       parent_warehouse: "ಮೂಲ ಗೋದಾಮು",
@@ -915,6 +916,13 @@ const kn: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "ಮಾನ್ಯ GSTIN",
     res: {

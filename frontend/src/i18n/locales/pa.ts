@@ -550,6 +550,7 @@ const pa: Record<string, unknown> = {
       valuation_method: "ਮੁਲਾਂਕਣ ਵਿਧੀ",
       valuation_rate: "ਮੁਲਾਂਕਣ ਦਰ",
       standard_rate: "ਮਿਆਰੀ ਦਰ",
+      selling_price: "Selling Price",
       is_stock_item: "ਸਟਾਕ ਸੰਭਾਲੋ",
       description: "ਵੇਰਵਾ",
       parent_warehouse: "ਮੂਲ ਗੋਦਾਮ",
@@ -915,6 +916,13 @@ const pa: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "ਵੈਧ GSTIN",
     res: {

@@ -550,6 +550,7 @@ const ml: Record<string, unknown> = {
       valuation_method: "മൂല്യനിർണയ രീതി",
       valuation_rate: "മൂല്യനിർണയ നിരക്ക്",
       standard_rate: "സ്റ്റാൻഡേർഡ് നിരക്ക്",
+      selling_price: "Selling Price",
       is_stock_item: "സ്റ്റോക്ക് പരിപാലിക്കുക",
       description: "വിവരണം",
       parent_warehouse: "മാതൃ ഗോഡൗൺ",
@@ -915,6 +916,13 @@ const ml: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "സാധുവായ GSTIN",
     res: {

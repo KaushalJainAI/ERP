@@ -68,6 +68,15 @@ const rateCell = fmt(2, 6);
 /** Quantities carry up to 3 decimals. */
 const qtyCell = fmt(0, 3);
 
+/** GST % choices for an item; the server maps each to its seeded item tax template. */
+const GST_RATE_OPTIONS = [
+  { value: "0", labelKey: "gst.rate_options.r0" },
+  { value: "5", labelKey: "gst.rate_options.r5" },
+  { value: "12", labelKey: "gst.rate_options.r12" },
+  { value: "18", labelKey: "gst.rate_options.r18" },
+  { value: "28", labelKey: "gst.rate_options.r28" },
+];
+
 const VALUATION_OPTIONS = [
   { value: "FIFO", labelKey: "bs.res.valuation_fifo" },
   { value: "Moving Average", labelKey: "bs.res.valuation_moving_average" },
@@ -163,10 +172,16 @@ const items: ResourceConfig = {
     { key: "is_active", labelKey: "fields.is_active", type: "boolean" },
   ],
   fields: [
-    { key: "code", labelKey: "bs.fields.item_code", type: "text", required: true },
+    // The main form: name, unit, GST %, selling price and HSN. Everything else sits under "More details".
     { key: "name", labelKey: "bs.fields.item_name", type: "text", required: true },
-    { key: "item_group", labelKey: "bs.fields.item_group", type: "link", required: true, link: itemGroupLink },
     { key: "stock_uom", labelKey: "bs.fields.stock_uom", type: "link", required: true, link: uomLink },
+    // Write-only on the server: an existing item shows this blank; choosing a rate sets its item tax template.
+    { key: "gst_rate", labelKey: "gst.fields.gst_rate", type: "select", options: GST_RATE_OPTIONS },
+    { key: "standard_rate", labelKey: "bs.fields.selling_price", type: "decimal", decimals: 6, defaultValue: "0" },
+    ...itemGstFields().map((f) => (f.key === "gst_hsn_code" ? f : { ...f, advanced: true })),
+    // Optional on input: the server generates the code and defaults the group.
+    { key: "code", labelKey: "bs.fields.item_code", type: "text", advanced: true },
+    { key: "item_group", labelKey: "bs.fields.item_group", type: "link", link: itemGroupLink, advanced: true },
     {
       key: "valuation_method",
       labelKey: "bs.fields.valuation_method",
@@ -174,13 +189,13 @@ const items: ResourceConfig = {
       required: true,
       options: VALUATION_OPTIONS,
       defaultValue: "FIFO",
+      advanced: true,
     },
-    { key: "standard_rate", labelKey: "bs.fields.standard_rate", type: "decimal", decimals: 6, defaultValue: "0" },
-    { key: "critical_stock", labelKey: "bs.fields.critical_stock", type: "decimal", decimals: 3, defaultValue: "0" },
+    { key: "critical_stock", labelKey: "bs.fields.critical_stock", type: "decimal", decimals: 3, defaultValue: "0", advanced: true },
     // A template groups variants and is never stocked: the server forces this off.
-    { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true, hidden: (v) => !!v.has_variants },
+    { key: "is_stock_item", labelKey: "bs.fields.is_stock_item", type: "boolean", defaultValue: true, hidden: (v) => !!v.has_variants, advanced: true },
     // Variants (ERPNext Item Variants): a template varies by attributes; a variant is made with "Create Variant".
-    { key: "has_variants", labelKey: "vr.fields.has_variants", type: "boolean", defaultValue: false, helpKey: "vr.help.has_variants", hidden: (v) => !!v.variant_of },
+    { key: "has_variants", labelKey: "vr.fields.has_variants", type: "boolean", defaultValue: false, helpKey: "vr.help.has_variants", hidden: (v) => !!v.variant_of, advanced: true },
     {
       key: "template_attributes",
       labelKey: "vr.fields.template_attributes",
@@ -189,11 +204,12 @@ const items: ResourceConfig = {
       helpKey: "vr.help.template_attributes",
       hidden: (v) => !v.has_variants,
       link: { endpoint: "/stock/item-attributes/", valueField: "id", labelField: "name" },
+      advanced: true,
     },
-    { key: "variant_of_code", labelKey: "vr.fields.variant_of", type: "text", readOnly: true, hidden: (v) => !v.variant_of },
-    { key: "variant_label", labelKey: "vr.fields.variant_label", type: "text", readOnly: true, hidden: (v) => !v.variant_of },
+    { key: "variant_of_code", labelKey: "vr.fields.variant_of", type: "text", readOnly: true, hidden: (v) => !v.variant_of, advanced: true },
+    { key: "variant_label", labelKey: "vr.fields.variant_label", type: "text", readOnly: true, hidden: (v) => !v.variant_of, advanced: true },
     // Batch tracking is frozen by the server once the item has ledger entries.
-    { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean", defaultValue: false, helpKey: "bs.help.has_batch_no" },
+    { key: "has_batch_no", labelKey: "bs.fields.has_batch_no", type: "boolean", defaultValue: false, helpKey: "bs.help.has_batch_no", advanced: true },
     {
       key: "has_expiry_date",
       labelKey: "bs.fields.has_expiry_date",
@@ -201,6 +217,7 @@ const items: ResourceConfig = {
       defaultValue: false,
       hidden: (v) => !v.has_batch_no,
       helpKey: "bs.help.has_expiry_date",
+      advanced: true,
     },
     {
       key: "shelf_life_in_days",
@@ -208,10 +225,10 @@ const items: ResourceConfig = {
       type: "number",
       hidden: (v) => !v.has_expiry_date,
       helpKey: "bs.help.shelf_life_in_days",
+      advanced: true,
     },
-    ...itemGstFields(),
-    { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true },
-    { key: "description", labelKey: "bs.fields.description", type: "textarea" },
+    { key: "is_active", labelKey: "fields.is_active", type: "boolean", defaultValue: true, advanced: true },
+    { key: "description", labelKey: "bs.fields.description", type: "textarea", advanced: true },
   ],
   actions: [
     {

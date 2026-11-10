@@ -550,6 +550,7 @@ const mr: Record<string, unknown> = {
       valuation_method: "मूल्यांकन पद्धत",
       valuation_rate: "मूल्यांकन दर",
       standard_rate: "प्रमाण दर",
+      selling_price: "Selling Price",
       is_stock_item: "स्टॉक ठेवा",
       description: "वर्णन",
       parent_warehouse: "मूळ गोदाम",
@@ -915,6 +916,13 @@ const mr: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "वैध GSTIN",
     res: {

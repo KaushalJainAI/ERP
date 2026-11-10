@@ -144,6 +144,10 @@ class Item(TimeStampedModel):
                 check=models.Q(critical_stock__gte=0),
                 name="check_item_critical_stock_non_negative",
             ),
+            models.CheckConstraint(
+                check=models.Q(standard_rate__gte=0),
+                name="check_item_standard_rate_non_negative",
+            ),
         ]
 
     def save(self, *args, **kwargs):
@@ -932,6 +936,14 @@ class StockEntryItem(models.Model):
                     & models.Q(cost_allocation_per__lte=100)
                 ),
                 name="check_stockentryitem_cost_allocation_per",
+            ),
+            models.CheckConstraint(
+                check=models.Q(qty__gt=0),
+                name="check_stockentryitem_qty_positive",
+            ),
+            models.CheckConstraint(
+                check=models.Q(valuation_rate__gte=0),
+                name="check_stockentryitem_valuation_rate_non_negative",
             ),
         ]
 

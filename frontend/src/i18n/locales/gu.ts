@@ -550,6 +550,7 @@ const gu: Record<string, unknown> = {
       valuation_method: "મૂલ્યાંકન પદ્ધતિ",
       valuation_rate: "મૂલ્યાંકન દર",
       standard_rate: "પ્રમાણભૂત દર",
+      selling_price: "Selling Price",
       is_stock_item: "સ્ટોક જાળવો",
       description: "વર્ણન",
       parent_warehouse: "મૂળ ગોડાઉન",
@@ -915,6 +916,13 @@ const gu: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "માન્ય GSTIN",
     res: {
