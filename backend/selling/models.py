@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Lower
 from django.utils.translation import gettext as _
 from core.models import (
     Company,
@@ -96,8 +97,9 @@ class Customer(TimeStampedModel):
 
     class Meta:
         constraints = [
+            # One party per name, ignoring case: "sharma traders" is "Sharma Traders".
             models.UniqueConstraint(
-                fields=["company", "name"], name="unique_customer_per_company"
+                Lower("name"), "company", name="unique_customer_name_per_company_ci"
             ),
             models.CheckConstraint(
                 check=models.Q(credit_limit__gte=0),
@@ -218,6 +220,17 @@ class SalesOrderItem(TaxableLine):
         on_delete=models.PROTECT,
         related_name="so_items",
     )
+
+    class Meta(TaxableLine.Meta):
+        constraints = [
+            *TaxableLine.Meta.constraints,
+            models.CheckConstraint(
+                check=models.Q(qty__gt=0), name="check_salesorderitem_qty_gt_0"
+            ),
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0), name="check_salesorderitem_rate_gte_0"
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if (
@@ -579,6 +592,13 @@ class SalesInvoiceItem(TaxableLine):
             models.CheckConstraint(
                 check=~models.Q(sales_invoice_item=models.F("id")),
                 name="check_salesinvoiceitem_not_its_own_return",
+            ),
+            # Returns carry a negative quantity, so only zero is refused.
+            models.CheckConstraint(
+                check=~models.Q(qty=0), name="check_salesinvoiceitem_qty_not_zero"
+            ),
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0), name="check_salesinvoiceitem_rate_gte_0"
             ),
         ]
 

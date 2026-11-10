@@ -317,6 +317,39 @@ def lines_update_stock(lines):
     )
 
 
+def default_stock_warehouse(company, preferred_field):
+    """The warehouse a blank stock line falls back to: ``company.<preferred_field>``
+    (Ready for sales, Unprocessed for purchases), else the first leaf warehouse."""
+    from stock.models import Warehouse
+
+    warehouse = getattr(company, preferred_field, None)
+    if warehouse is None:
+        warehouse = (
+            Warehouse.objects.filter(company=company, is_group=False)
+            .order_by("pk")
+            .first()
+        )
+    return warehouse
+
+
+def fill_blank_stock_warehouses(company, lines, preferred_field):
+    """Set the default warehouse on every line that names none and whose item is a
+    stock item. Lines the user filled, and non-stock lines, are left alone."""
+    blank = [
+        line
+        for line in lines
+        if not line.get("warehouse")
+        and line.get("item") is not None
+        and line["item"].is_stock_item
+    ]
+    if blank:
+        default = default_stock_warehouse(company, preferred_field)
+        if default is not None:
+            for line in blank:
+                line["warehouse"] = default
+    return lines
+
+
 # ------------------------------------------------------------ invoice -> payment
 
 

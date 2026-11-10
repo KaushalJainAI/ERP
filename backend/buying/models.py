@@ -81,8 +81,9 @@ class Supplier(TimeStampedModel):
 
     class Meta:
         constraints = [
+            # One party per name, ignoring case: "sharma traders" is "Sharma Traders".
             models.UniqueConstraint(
-                fields=["company", "name"], name="unique_supplier_per_company"
+                Lower("name"), "company", name="unique_supplier_name_per_company_ci"
             )
         ]
 
@@ -279,6 +280,17 @@ class PurchaseOrderItem(TaxableLine):
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
+
+    class Meta(TaxableLine.Meta):
+        constraints = [
+            *TaxableLine.Meta.constraints,
+            models.CheckConstraint(
+                check=models.Q(qty__gt=0), name="check_purchaseorderitem_qty_gt_0"
+            ),
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0), name="check_purchaseorderitem_rate_gte_0"
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         self.amount = self.compute_amount()
@@ -825,6 +837,13 @@ class PurchaseInvoiceItem(TaxableLine):
                 | models.Q(manufacturing_date__isnull=True)
                 | models.Q(expiry_date__gte=models.F("manufacturing_date")),
                 name="check_purchaseinvoiceitem_expiry_after_manufacturing",
+            ),
+            # Returns carry a negative quantity, so only zero is refused.
+            models.CheckConstraint(
+                check=~models.Q(qty=0), name="check_purchaseinvoiceitem_qty_not_zero"
+            ),
+            models.CheckConstraint(
+                check=models.Q(rate__gte=0), name="check_purchaseinvoiceitem_rate_gte_0"
             ),
         ]
 
