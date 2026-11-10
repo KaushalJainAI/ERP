@@ -25,6 +25,7 @@ from accounts.models import (
     AccountType,
     PaymentEntry,
     PaymentEntryReference,
+    PaymentMode,
     PaymentType,
 )
 from core.models import DocStatus, NamingSeries
@@ -151,8 +152,8 @@ def default_expense_account(company, update_stock):
     return _require(account, "Expense / Stock", company)
 
 
-def default_bank_or_cash_account(company):
-    """Bank account if the company has one, else a cash account (ERPNext order)."""
+def _designated_bank_account(company):
+    """The bank account marked default on the company's BankAccount rows, if usable."""
     from accounts.models import BankAccount
 
     default_ba = (
@@ -167,6 +168,13 @@ def default_bank_or_cash_account(company):
         and not default_ba.account.is_group
     ):
         return default_ba.account
+    return None
+
+
+def default_bank_or_cash_account(company):
+    """Bank account if the company has one, else a cash account (ERPNext order)."""
+    if account := _designated_bank_account(company):
+        return account
     for account_type, words in (
         (AccountType.BANK, ("bank",)),
         (AccountType.CASH, ("cash",)),
@@ -180,6 +188,42 @@ def default_bank_or_cash_account(company):
         _("No Bank or Cash account is configured for company '%(company)s'.")
         % {"company": company.name}
     )
+
+
+def default_cash_account(company):
+    """The company's postable cash-in-hand account."""
+    qs = _postable_accounts(company).filter(account_type=AccountType.CASH)
+    account = _pick(qs, ("cash",))
+    if account is None:
+        raise ValidationError(
+            _("No Cash account is configured for company '%(company)s'.")
+            % {"company": company.name}
+        )
+    return account
+
+
+def default_bank_account(company):
+    """The company's default bank account, or its first postable bank account.
+    Unlike ``default_bank_or_cash_account`` it never falls back to cash."""
+    if account := _designated_bank_account(company):
+        return account
+    account = _pick(
+        _postable_accounts(company).filter(account_type=AccountType.BANK), ("bank",)
+    )
+    if account is None:
+        raise ValidationError(
+            _("No Bank account is configured for company '%(company)s'.")
+            % {"company": company.name}
+        )
+    return account
+
+
+def default_account_for_mode(company, mode):
+    """The bank-side account for a payment mode: the cash account for Cash, else the
+    default bank (or cash) account."""
+    if mode == PaymentMode.CASH:
+        return default_cash_account(company)
+    return default_bank_or_cash_account(company)
 
 
 def party_account_for(company, party_type):

@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from core.models import DocStatus, TimeStampedModel, SubmittableDocument, Company
 from gst.constants import (
     AddDeduct,
@@ -284,6 +285,22 @@ class JournalEntryLine(models.Model):
     party_type = models.CharField(max_length=20, null=True, blank=True)
     party = models.CharField(max_length=200, null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(debit__gte=0),
+                name="accounts_journalentryline_debit_gte_0",
+            ),
+            models.CheckConstraint(
+                check=models.Q(credit__gte=0),
+                name="accounts_journalentryline_credit_gte_0",
+            ),
+            models.CheckConstraint(
+                check=~(models.Q(debit__gt=0) & models.Q(credit__gt=0)),
+                name="accounts_journalentryline_not_both_sides",
+            ),
+        ]
+
     def __str__(self):
         return f"{self.journal_entry.name} line: {self.account.name} (Dr:{self.debit}/Cr:{self.credit})"
 
@@ -292,6 +309,15 @@ class PaymentType(models.TextChoices):
     RECEIVE = "Receive", "Receive"
     PAY = "Pay", "Pay"
     INTERNAL_TRANSFER = "Internal Transfer", "Internal Transfer"
+
+
+class PaymentMode(models.TextChoices):
+    """How the money moved. A fixed list, not ERPNext's Mode of Payment master
+    (see docs/erpnext_divergences.md). Null on historical rows."""
+
+    CASH = "Cash", gettext_lazy("Cash")
+    BANK_TRANSFER = "Bank Transfer", gettext_lazy("Bank Transfer")
+    CHEQUE = "Cheque", gettext_lazy("Cheque")
 
 
 class PaymentEntry(SubmittableDocument):
@@ -316,6 +342,21 @@ class PaymentEntry(SubmittableDocument):
                 | models.Q(source_journal__isnull=False, docstatus=1),
                 name="accounts_paymententry_historical_is_submitted_record",
             ),
+            # Historical Tally receipts can carry a zero amount; new entries cannot.
+            models.CheckConstraint(
+                check=models.Q(is_historical=True) | models.Q(paid_amount__gt=0),
+                name="accounts_paymententry_paid_amount_gt_0",
+            ),
+            models.CheckConstraint(
+                check=models.Q(mode__isnull=True)
+                | models.Q(mode__in=[choice for choice, _label in PaymentMode.choices]),
+                name="accounts_paymententry_mode_valid",
+            ),
+            models.CheckConstraint(
+                check=~models.Q(mode=PaymentMode.CHEQUE)
+                | (models.Q(reference_no__isnull=False) & ~models.Q(reference_no="")),
+                name="accounts_paymententry_cheque_has_reference",
+            ),
         ]
     company = models.ForeignKey(
         Company, on_delete=models.PROTECT, related_name="payment_entries"
@@ -335,6 +376,9 @@ class PaymentEntry(SubmittableDocument):
         max_digits=18, decimal_places=2, default=Decimal("0.00")
     )
     reference_no = models.CharField(max_length=100, null=True, blank=True)
+    mode = models.CharField(
+        max_length=20, choices=PaymentMode.choices, null=True, blank=True
+    )
 
     # ------------------------------------------------------------- allocation
 

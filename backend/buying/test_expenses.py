@@ -556,6 +556,44 @@ class ExpenseServiceTests(TestCase):
         self.assertEqual(invoice.payment_label, "Paid")
         self.assertEqual(invoice.payment_status, "Paid")
 
+    def test_paid_now_with_mode_uses_the_mode_account(self):
+        """paid_now with a mode and no paid_from pays from the cash account (Cash)."""
+        cash = Account.objects.create(
+            name="Cash in Hand",
+            company=self.company,
+            parent=self.asset_group,
+            root_type=AccountRootType.ASSET,
+            account_type=AccountType.CASH,
+            is_group=False,
+        )
+        invoice, pe = create_expense(
+            company=self.company,
+            category=self.category,
+            supplier=self.supplier,
+            amount=Decimal("300.00"),
+            bill_no="BILL-CASH-01",
+            paid_now=True,
+            mode="Cash",
+        )
+        self.assertEqual(pe.paid_from_id, cash.id)
+        self.assertEqual(pe.mode, "Cash")
+        self.assertEqual(invoice.outstanding_amount, Decimal("0.00"))
+
+    def test_paid_now_cheque_needs_a_number_and_leaves_nothing_behind(self):
+        before = PurchaseInvoice.objects.count()
+        with self.assertRaises(ValidationError):
+            create_expense(
+                company=self.company,
+                category=self.category,
+                supplier=self.supplier,
+                amount=Decimal("300.00"),
+                bill_no="BILL-CHQ-01",
+                paid_now=True,
+                mode="Cheque",
+                paid_from=self.bank_account,
+            )
+        self.assertEqual(PurchaseInvoice.objects.count(), before)
+
     def test_pay_later_creates_invoice_with_outstanding(self):
         """Pay later creates invoice with outstanding == amount (status=Due)."""
         future_due = datetime.date.today() + datetime.timedelta(days=30)

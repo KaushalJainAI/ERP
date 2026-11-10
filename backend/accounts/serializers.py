@@ -14,13 +14,16 @@ from accounts.models import (
     JournalEntryLine,
     PaymentEntry,
     PaymentEntryReference,
+    PaymentMode,
     PaymentType,
     TaxTemplate,
     TaxTemplateRow,
     TaxPayment,
 )
 from accounts.mapping import (
-    default_bank_or_cash_account,
+    default_account_for_mode,
+    default_bank_account,
+    default_cash_account,
     infer_party_type,
     party_account_for,
 )
@@ -153,6 +156,20 @@ class JournalEntryLineSerializer(serializers.ModelSerializer):
             "party",
         )
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        debit = attrs.get("debit") or Decimal("0.00")
+        credit = attrs.get("credit") or Decimal("0.00")
+        if debit < 0 or credit < 0:
+            raise serializers.ValidationError(
+                _("Debit and credit cannot be negative.")
+            )
+        if debit > 0 and credit > 0:
+            raise serializers.ValidationError(
+                _("A line cannot have both a debit and a credit.")
+            )
+        return attrs
+
 
 class JournalEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
     children_field = "lines"
@@ -228,6 +245,7 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
             "paid_amount",
             "received_amount",
             "reference_no",
+            "mode",
             "is_historical",
             "source_journal",
             "source_journal_name",
@@ -282,8 +300,21 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
                 attrs["party_type"] = None
         party_type = current("party_type")
 
+        mode = current("mode")
         need_from, need_to = blank("paid_from"), blank("paid_to")
-        if payment_type == PaymentType.INTERNAL_TRANSFER:
+        if payment_type == PaymentType.INTERNAL_TRANSFER and mode == PaymentMode.CASH:
+            # Cash put in bank: the cash in hand goes to the company's default bank.
+            if need_from:
+                try:
+                    attrs["paid_from"] = default_cash_account(company)
+                except DjangoValidationError as exc:
+                    errors["paid_from"] = exc.messages[0]
+            if need_to:
+                try:
+                    attrs["paid_to"] = default_bank_account(company)
+                except DjangoValidationError as exc:
+                    errors["paid_to"] = exc.messages[0]
+        elif payment_type == PaymentType.INTERNAL_TRANSFER:
             for name, needed in (("paid_from", need_from), ("paid_to", need_to)):
                 if needed:
                     errors[name] = _("This field is required for an internal transfer.")
@@ -303,7 +334,7 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
                     ) % {"party_type": party_type or _("this")}
                 else:
                     try:
-                        bank = default_bank_or_cash_account(company)
+                        bank = default_account_for_mode(company, mode)
                     except DjangoValidationError as exc:
                         bank_field = (
                             "paid_to"
@@ -318,6 +349,10 @@ class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer)
                             attrs["paid_from"] = party_account if receive else bank
                         if need_to:
                             attrs["paid_to"] = bank if receive else party_account
+        if (current("paid_amount") or Decimal("0.00")) <= 0:
+            errors["paid_amount"] = _("Paid amount must be greater than zero.")
+        if mode == PaymentMode.CHEQUE and not current("reference_no"):
+            errors["reference_no"] = _("A cheque needs its number.")
         if errors:
             raise serializers.ValidationError(errors)
 
