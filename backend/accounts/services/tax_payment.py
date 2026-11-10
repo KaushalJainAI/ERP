@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 
+from accounts.mapping import financial_year_series
 from accounts.models import Account, JournalEntry, JournalEntryLine
 from core.models import DocStatus, NamingSeries
 from gst.constants import GSTComponent, GSTDirection
@@ -84,7 +85,9 @@ def submit_tax_payment(tax_payment):
             raise ValidationError(_("Paid From account cannot be a group account."))
 
     je = JournalEntry.objects.create(
-        name=NamingSeries.next("JV-2026-"),
+        name=NamingSeries.next(
+            financial_year_series("JV", tax_payment.posting_date)
+        ),
         company=tax_payment.company,
         posting_date=tax_payment.posting_date,
         voucher_type=(

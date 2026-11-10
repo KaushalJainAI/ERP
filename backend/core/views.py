@@ -30,6 +30,7 @@ from core.company_context import (
     resolve_active_company,
 )
 from core.mixins import record_audit_log
+from core.services.setup_health import setup_health
 from core.models import Attachment, Company, DocStatus, State, SystemHealthCheck
 from selling.models import SalesInvoice, SalesOrder
 from stock.models import Bin, StockEntry
@@ -645,3 +646,11 @@ class AttachmentViewSet(
         response["Content-Security-Policy"] = "default-src 'none'; sandbox"
         response["Cache-Control"] = "private, no-store"
         return response
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, CanEditCompany])
+def setup_health_view(request):
+    """Missing setup pieces for the active company (read-only, empty when complete)."""
+    company = resolve_active_company(request)
+    return Response({"items": setup_health(company)})

@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -24,6 +25,7 @@ from accounts.mapping import (
     default_account_for_mode,
     default_bank_account,
     default_cash_account,
+    financial_year_series,
     infer_party_type,
     party_account_for,
 )
@@ -173,7 +175,7 @@ class JournalEntryLineSerializer(serializers.ModelSerializer):
 
 class JournalEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
     children_field = "lines"
-    name_prefix = "JV-2026-"
+    name_series_prefix = "JV"
 
     lines = JournalEntryLineSerializer(many=True)
 
@@ -219,7 +221,7 @@ class PaymentEntryReferenceSerializer(serializers.ModelSerializer):
 
 class PaymentEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
     children_field = "references"
-    name_prefix = "PE-2026-"
+    name_series_prefix = "PE"
 
     references = PaymentEntryReferenceSerializer(many=True, required=False)
     paid_from_name = serializers.CharField(source="paid_from.name", read_only=True)
@@ -831,7 +833,10 @@ class ReturnSerializerMixin:
         from core.models import NamingSeries
 
         if validated_data.get("is_return") and not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next(self.return_name_prefix)
+            posting = validated_data.get("posting_date") or datetime.date.today()
+            validated_data["name"] = NamingSeries.next(
+                financial_year_series(self.return_name_prefix, posting)
+            )
         return super().create(validated_data)
 
 
@@ -909,7 +914,7 @@ class TaxCalculateSerializer(serializers.Serializer):
 
 
 class TaxPaymentSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
-    name_prefix = "TAX-2026-"
+    name_series_prefix = "TAX"
 
     paid_from_name = serializers.CharField(source="paid_from.name", read_only=True)
     journal_entry_name = serializers.CharField(

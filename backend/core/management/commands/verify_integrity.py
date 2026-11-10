@@ -1,9 +1,12 @@
+import datetime
 from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Sum, Q, F
+from django.utils import timezone
 from accounts.models import GLEntry
 from stock.models import StockLedgerEntry, Bin
-from core.models import Company, SystemHealthCheck
+from core.models import Company, FiscalYear, SystemHealthCheck
+from core.services.setup_health import setup_health
 from accounts.services import outstanding as outstanding_service
 from stock.services import batches as batch_service
 from gst.services import integrity as gst_integrity
@@ -374,6 +377,42 @@ class Command(BaseCommand):
         for warning in opening_warnings:
             self.stdout.write(self.style.WARNING(f"[opening bill warning] {warning}"))
 
+        # 10. Fiscal years: overlapping years and an open year missing for today + 30
+        #     days are warnings (the test database carries a wide TEST-FY that
+        #     overlaps seeded years; the daily ensure_fiscal_years job covers the rest).
+        fy_errors, fy_warnings = self._check_fiscal_years()
+        SystemHealthCheck.objects.create(
+            check_name="fiscal_years",
+            status="alert" if fy_errors else "ok",
+            details={
+                "errors": fy_errors,
+                "warnings": fy_warnings,
+                "message": "" if fy_warnings else "Fiscal years do not overlap.",
+            },
+        )
+        errors.extend(fy_errors)
+        for warning in fy_warnings:
+            self.stdout.write(self.style.WARNING(f"[fiscal year warning] {warning}"))
+
+        # 11. Setup health: missing company, bank, warehouse, supplier and fiscal
+        #     setup items are warnings only.
+        setup_warnings = [
+            f"{company.name}: {item['message']}"
+            for company in Company.objects.all()
+            for item in setup_health(company)
+        ]
+        SystemHealthCheck.objects.create(
+            check_name="setup_health",
+            status="ok",
+            details={
+                "errors": [],
+                "warnings": setup_warnings,
+                "message": "" if setup_warnings else "Company setup is complete.",
+            },
+        )
+        for warning in setup_warnings:
+            self.stdout.write(self.style.WARNING(f"[setup warning] {warning}"))
+
         # Record Health Status
         status_str = "alert" if errors else "ok"
         details_payload = (
@@ -404,6 +443,27 @@ class Command(BaseCommand):
                 "[OK] ERP System Ledger & Inventory Integrity Verified (0 Drifts)"
             )
         )
+
+    def _check_fiscal_years(self):
+        """Return (errors, warnings) for fiscal-year coverage and overlaps."""
+        errors = []
+        warnings = []
+        years = list(FiscalYear.objects.order_by("start_date", "pk"))
+        for index, year in enumerate(years):
+            for other in years[index + 1 :]:
+                if other.start_date <= year.end_date and other.end_date >= year.start_date:
+                    warnings.append(
+                        f"Fiscal years {year.name} and {other.name} overlap."
+                    )
+        horizon = timezone.localdate() + datetime.timedelta(days=30)
+        if not FiscalYear.objects.filter(
+            start_date__lte=horizon, end_date__gte=horizon, is_closed=False
+        ).exists():
+            warnings.append(
+                f"No open fiscal year covers {horizon}; "
+                "posting after that date will be refused."
+            )
+        return errors, warnings
 
     def _check_perpetual_inventory_balance(self):
         """GL balance per effective warehouse account equals its Bin value.

@@ -1,10 +1,11 @@
+import datetime
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models, transaction
-from django.db.models import F, Q
+from django.db.models import F, Min, Q
 from django.db.models.functions import Length
 from django.db.models.lookups import Exact
 from django.utils.translation import gettext as _
@@ -653,9 +654,52 @@ class FiscalYear(TimeStampedModel):
             )
         return fy
 
+    @classmethod
+    def ensure_for_date(cls, date):
+        """Create the Indian April-to-March year containing ``date`` if none covers it.
+
+        Returns the covering FiscalYear (existing or new), or ``None`` when nothing
+        is created: the year would start before the earliest existing year, its
+        name is taken by a year that does not cover ``date``, or it would overlap
+        an existing year. Idempotent. Not called from posting: a typo'd date must
+        not create a year.
+        """
+        covering = (
+            cls.objects.filter(start_date__lte=date, end_date__gte=date)
+            .order_by("-start_date", "-pk")
+            .first()
+        )
+        if covering is not None:
+            return covering
+
+        start_year = date.year if date.month >= 4 else date.year - 1
+        start = datetime.date(start_year, 4, 1)
+        end = datetime.date(start_year + 1, 3, 31)
+        earliest = cls.objects.aggregate(first=Min("start_date"))["first"]
+        if earliest is not None and start < earliest:
+            return None
+        name = f"{start_year}-{str(start_year + 1)[2:]}"
+        if cls.objects.filter(name=name).exists():
+            return None
+        if cls.objects.filter(start_date__lte=end, end_date__gte=start).exists():
+            return None
+        with transaction.atomic():
+            return cls.objects.create(
+                name=name, start_date=start, end_date=end, is_closed=False
+            )
+
     def clean(self):
         if self.start_date and self.end_date and self.end_date <= self.start_date:
             raise ValidationError({"end_date": _("End date must be after start date.")})
+        if self.start_date and self.end_date:
+            overlapping = FiscalYear.objects.filter(
+                start_date__lte=self.end_date, end_date__gte=self.start_date
+            ).exclude(pk=self.pk)
+            other = overlapping.first()
+            if other is not None:
+                raise ValidationError(
+                    _("Fiscal year overlaps %(name)s.") % {"name": other.name}
+                )
 
     def __str__(self):
         return self.name
@@ -665,6 +709,14 @@ class NamingSeries(TimeStampedModel):
     prefix = models.CharField(max_length=40, unique=True)
     current = models.IntegerField(default=0)
     padding = models.SmallIntegerField(default=4)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=Q(current__gte=0),
+                name="check_naming_series_current_nonneg",
+            )
+        ]
 
     @classmethod
     def next(cls, prefix: str, padding: int = 4) -> str:

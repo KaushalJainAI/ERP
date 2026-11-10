@@ -160,7 +160,9 @@ def create_expense(
             company, "default_payable_account", None
         ) or account_mapping.default_payable_account(company)
 
-        invoice_name = NamingSeries.next("PINV-2026-")
+        invoice_name = NamingSeries.next(
+            account_mapping.financial_year_series("PINV", date)
+        )
 
         invoice = PurchaseInvoice.objects.create(
             name=invoice_name,
@@ -241,7 +243,9 @@ def create_expense(
 
         pe = None
         if paid_now and not is_draft:
-            pe_name = NamingSeries.next("PE-2026-")
+            pe_name = NamingSeries.next(
+                account_mapping.financial_year_series("PE", date)
+            )
             party_name = supplier.name if hasattr(supplier, "name") else str(supplier)
             if paid_from is None:
                 paid_from = account_mapping.default_account_for_mode(company, mode)

@@ -204,7 +204,8 @@ class PurchaseOrderSerializer(
     TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
 ):
     children_field = "items"
-    name_prefix = "PO-2026-"
+    name_series_prefix = "PO"
+    name_date_field = "transaction_date"
 
     items = PurchaseOrderItemSerializer(many=True)
     taxes = PurchaseOrderTaxSerializer(many=True, required=False)
@@ -411,8 +412,8 @@ class PurchaseInvoiceSerializer(
 ):
     children_field = "items"
     extra_children_fields = ("taxes", "charges")
-    name_prefix = "PINV-2026-"
-    return_name_prefix = "PRET-2026-"
+    name_series_prefix = "PINV"
+    return_name_prefix = "PRET"
 
     items = PurchaseInvoiceItemSerializer(many=True)
     taxes = PurchaseInvoiceTaxSerializer(many=True, required=False)

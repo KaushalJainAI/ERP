@@ -21,6 +21,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
+from accounts.mapping import financial_year_series
 from accounts.models import (
     Account,
     BankAccount,
@@ -314,7 +315,7 @@ def _draft_journal_for(tx, account_id):
     deposit = tx.amount > 0
     with transaction.atomic():
         je = JournalEntry.objects.create(
-            name=NamingSeries.next("JV-2026-"),
+            name=NamingSeries.next(financial_year_series("JV", tx.transaction_date)),
             posting_date=tx.transaction_date,
             company_id=tx.company_id,
             voucher_type="Bank Entry",

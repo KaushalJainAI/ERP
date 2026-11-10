@@ -25,6 +25,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils.translation import gettext as _
 
+from accounts.mapping import financial_year_series
 from core.models import DocStatus, NamingSeries
 from manufacturing.models import BOM, Batch, BatchStage, BatchStatus, WorkOrder
 from manufacturing.services import work_orders as wo_service
@@ -147,7 +148,7 @@ def start_grinding(company, bulk_item: Item, bulk_qty, user=None) -> Batch:
 
     with transaction.atomic():
         wo = WorkOrder.objects.create(
-            name=NamingSeries.next("WO-2026-"),
+            name=NamingSeries.next(financial_year_series("WO", datetime.date.today())),
             company=company,
             production_item=bulk_item,
             bom=bom,
@@ -159,7 +160,9 @@ def start_grinding(company, bulk_item: Item, bulk_qty, user=None) -> Batch:
         )
         wo.submit(user=user)
         return Batch.objects.create(
-            name=NamingSeries.next("BATCH-2026-"),
+            name=NamingSeries.next(
+                financial_year_series("BATCH", datetime.date.today())
+            ),
             company=company,
             bulk_item=bulk_item,
             grinding_work_order=wo,
@@ -234,7 +237,7 @@ def _post_packing_loss(batch: Batch, grinding: WorkOrder, in_process, qty, user)
     """Move the packing loss out of In Process into the Process Loss warehouse."""
     loss_warehouse = ensure_loss_warehouse(batch.company)
     entry = StockEntry.objects.create(
-        name=NamingSeries.next("STE-2026-"),
+        name=NamingSeries.next(financial_year_series("STE", datetime.date.today())),
         stock_entry_type=StockEntryType.MATERIAL_TRANSFER,
         posting_date=datetime.date.today(),
         company=batch.company,
@@ -255,7 +258,7 @@ def _pack_one_sku(batch: Batch, sku: Item, bom: BOM, packets, warehouses, user):
     """One packing Work Order and its Manufacture entry for one SKU."""
     unprocessed, in_process, ready = warehouses
     wo = WorkOrder.objects.create(
-        name=NamingSeries.next("WO-2026-"),
+        name=NamingSeries.next(financial_year_series("WO", datetime.date.today())),
         company=batch.company,
         production_item=sku,
         bom=bom,

@@ -14,6 +14,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils.translation import gettext as _
 
+from accounts.mapping import financial_year_series
 from core.models import DocStatus, NamingSeries
 from manufacturing.models import (
     BOM,
@@ -364,7 +365,7 @@ def make_stock_entry(
 
     with transaction.atomic():
         entry = StockEntry.objects.create(
-            name=NamingSeries.next("STE-2026-"),
+            name=NamingSeries.next(financial_year_series("STE", posting_date)),
             stock_entry_type=stock_entry_type,
             posting_date=posting_date,
             company=wo.company,

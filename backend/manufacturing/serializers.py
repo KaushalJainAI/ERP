@@ -5,10 +5,13 @@ computed on read by ``manufacturing.services.costing`` and are never stored.
 The Work Order's ``required_items`` are server-generated read-only rows.
 """
 
+import datetime
+
 from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
+from accounts.mapping import financial_year_series
 from core.mixins import NestedMasterWriteMixin
 from core.models import NamingSeries
 from manufacturing.models import (
@@ -355,7 +358,10 @@ class WorkOrderSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         if not validated_data.get("name"):
-            validated_data["name"] = NamingSeries.next("WO-2026-")
+            posting = validated_data.get("planned_start_date") or datetime.date.today()
+            validated_data["name"] = NamingSeries.next(
+                financial_year_series("WO", posting)
+            )
         return super().create(validated_data)
 
 
