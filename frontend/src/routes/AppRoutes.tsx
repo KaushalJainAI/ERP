@@ -16,6 +16,7 @@ import { TallyExportPage } from "@/pages/TallyExportPage";
 import { PaymentReconciliationPage } from "@/pages/PaymentReconciliationPage";
 import { CompanyPage } from "@/pages/organisation/CompanyPage";
 import { DrivePage } from "@/pages/organisation/DrivePage";
+import { ImportPage } from "@/pages/organisation/ImportPage";
 import { TrialBalancePage } from "@/pages/reports/TrialBalancePage";
 import { GeneralLedgerPage } from "@/pages/reports/GeneralLedgerPage";
 import { ProfitLossPage } from "@/pages/reports/ProfitLossPage";
@@ -433,6 +434,14 @@ export const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <DrivePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/organisation/import"
+        element={
+          <ProtectedRoute>
+            <ImportPage />
           </ProtectedRoute>
         }
       />

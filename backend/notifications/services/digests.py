@@ -58,6 +58,115 @@ def send_overdue_bills_digest(company=None):
     )
 
 
+def _ready_stock_short_count(company=None):
+    """Items whose stock (outside WIP and scrap) is below their critical level."""
+    from stock.models import Bin, Item
+
+    crit_items = Item.objects.filter(
+        is_stock_item=True, critical_stock__gt=Decimal("0.000")
+    )
+    short_count = 0
+    for item in crit_items:
+        bins = Bin.objects.filter(item=item)
+        if company is not None:
+            bins = bins.filter(warehouse__company=company)
+        bins = bins.exclude(warehouse__name__icontains="wip").exclude(
+            warehouse__name__icontains="scrap"
+        )
+        total_qty = bins.aggregate(total=Sum("actual_qty"))["total"] or Decimal("0.000")
+        if total_qty < item.critical_stock:
+            short_count += 1
+    return short_count
+
+
+def _money(value):
+    return Decimal(str(value or "0")).quantize(Decimal("0.01"))
+
+
+def send_day_summary(company):
+    """
+    Evening summary for one company's day: sold, collected, spent, still to collect,
+    still to pay and low stock. Goes only to the rule's recipients who belong to
+    the company (a company's figures never reach a user of another company).
+    Dedupe key: day_summary_<company id>_YYYY-MM-DD, so each company gets one a day.
+    Does nothing when the day_summary rule is off or missing.
+    """
+    from accounts.models import PaymentEntry, PaymentType
+    from buying.models import PurchaseInvoice
+    from notifications.models import AlertRule
+    from selling.models import SalesInvoice
+
+    rule = AlertRule.objects.filter(key="day_summary", is_active=True).first()
+    if rule is None:
+        return []
+    recipients = list(
+        rule.recipients.filter(
+            company_memberships__company=company,
+            company_memberships__is_active=True,
+        ).distinct()
+    )
+    if not recipients:
+        return []
+
+    today = timezone.localdate()
+    paid_out = PaymentEntry.objects.filter(
+        docstatus=DocStatus.SUBMITTED,
+        company=company,
+        payment_type=PaymentType.PAY,
+        posting_date=today,
+    ).aggregate(total=Sum("paid_amount"))["total"]
+    collected = PaymentEntry.objects.filter(
+        docstatus=DocStatus.SUBMITTED,
+        company=company,
+        payment_type=PaymentType.RECEIVE,
+        posting_date=today,
+    ).aggregate(total=Sum("paid_amount"))["total"]
+    sold = SalesInvoice.objects.filter(
+        docstatus=DocStatus.SUBMITTED, company=company, posting_date=today
+    ).aggregate(total=Sum("grand_total"))["total"]
+    to_collect = SalesInvoice.objects.filter(
+        docstatus=DocStatus.SUBMITTED,
+        company=company,
+        outstanding_amount__gt=Decimal("0.00"),
+    ).aggregate(total=Sum("outstanding_amount"))["total"]
+    to_pay = PurchaseInvoice.objects.filter(
+        docstatus=DocStatus.SUBMITTED,
+        company=company,
+        outstanding_amount__gt=Decimal("0.00"),
+    ).aggregate(total=Sum("outstanding_amount"))["total"]
+
+    params = {
+        "date": today.isoformat(),
+        "sold": str(_money(sold)),
+        "collected": str(_money(collected)),
+        # Money that left today. An expense paid at once already has its Pay entry,
+        # and one still due is not spent yet, so expense bills are not added again.
+        "spent": str(_money(paid_out)),
+        "to_collect": str(_money(to_collect)),
+        "to_pay": str(_money(to_pay)),
+        "low_stock": str(_ready_stock_short_count(company)),
+    }
+
+    return evaluate_rule(
+        rule_key="day_summary",
+        message_key="digest.day_summary",
+        params=params,
+        link="/dashboard",
+        dedupe_key=f"day_summary_{company.pk}_{today.isoformat()}",
+        recipients=recipients,
+    )
+
+
+def send_day_summaries():
+    """The evening day summary for every company."""
+    from core.models import Company
+
+    sent = []
+    for company in Company.objects.all():
+        sent.extend(send_day_summary(company))
+    return sent
+
+
 def send_daily_summary(company=None):
     """
     Money in, bills issued, pending dispatches, ready stock short.
@@ -65,7 +174,6 @@ def send_daily_summary(company=None):
     """
     from accounts.models import PaymentEntry, PaymentType
     from selling.models import SalesInvoice, SalesOrder, DispatchStatus
-    from stock.models import Item, Bin
 
     today = timezone.localdate()
 
@@ -108,18 +216,7 @@ def send_daily_summary(company=None):
     pending_dispatches = order_qs.count()
 
     # 4. Ready stock short
-    crit_items = Item.objects.filter(is_stock_item=True, critical_stock__gt=Decimal("0.000"))
-    short_count = 0
-    for item in crit_items:
-        bins = Bin.objects.filter(item=item)
-        if company is not None:
-            bins = bins.filter(warehouse__company=company)
-        bins = bins.exclude(warehouse__name__icontains="wip").exclude(
-            warehouse__name__icontains="scrap"
-        )
-        total_qty = bins.aggregate(total=Sum("actual_qty"))["total"] or Decimal("0.000")
-        if total_qty < item.critical_stock:
-            short_count += 1
+    short_count = _ready_stock_short_count(company)
 
     params = {
         "date": today.isoformat(),

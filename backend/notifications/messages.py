@@ -62,6 +62,13 @@ EMAILS = {
             "%(pending_dispatches)s orders to dispatch."
         ),
     ),
+    "day_summary": (
+        _("Day summary"),
+        _(
+            "Sold ₹%(sold)s, collected ₹%(collected)s, spent ₹%(spent)s. "
+            "To collect ₹%(to_collect)s, to pay ₹%(to_pay)s. Low stock: %(low_stock)s items."
+        ),
+    ),
     "weekly_digest": (
         _("Weekly summary"),
         _("To collect this week: ₹%(collections_needed)s. Bills due: ₹%(bills_due)s."),

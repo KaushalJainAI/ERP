@@ -14,16 +14,24 @@ from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.utils.translation import gettext as _
 from rest_framework import mixins, permissions, serializers, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    parser_classes,
+    permission_classes,
+)
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from accounts.models import AccountType, GLEntry, JournalEntry, PaymentEntry
 from buying.models import PurchaseInvoice, PurchaseOrder
 from core import attachments as att_rules
+from core import imports as import_service
 from core.company_context import (
     companies_for,
     object_company_id,
@@ -654,3 +662,89 @@ def setup_health_view(request):
     """Missing setup pieces for the active company (read-only, empty when complete)."""
     company = resolve_active_company(request)
     return Response({"items": setup_health(company)})
+
+
+def _import_kind(request):
+    kind = request.query_params.get("kind") or request.data.get("kind")
+    if kind not in import_service.KINDS:
+        raise DRFValidationError({"kind": _("Choose items, customers or suppliers.")})
+    return kind
+
+
+def _import_company(request, kind):
+    """The active company, once the user is allowed to create this kind of record."""
+    company = resolve_active_company(request)
+    permission = import_service.KINDS[kind]["permission"]
+    if not user_has_model_permission(request.user, permission, "can_create"):
+        raise PermissionDenied(_("You do not have permission to add these records."))
+    return company
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def import_template(request):
+    """Header-only .xlsx for ``?kind=items|customers|suppliers``."""
+    kind = _import_kind(request)
+    _import_company(request, kind)
+    response = HttpResponse(
+        import_service.build_template(kind),
+        content_type=import_service.XLSX_CONTENT_TYPE,
+    )
+    response["Content-Disposition"] = f'attachment; filename="{kind}-template.xlsx"'
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def import_preview(request):
+    """Validate an uploaded sheet row by row. Writes nothing."""
+    kind = _import_kind(request)
+    company = _import_company(request, kind)
+    upload = request.FILES.get("file")
+    if upload is None:
+        raise DRFValidationError({"file": _("Choose a file to upload.")})
+    plan = import_service.plan_import(kind, upload, company, request)
+    return Response(import_service.preview_payload(plan))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def import_confirm(request):
+    """Save every ready row, or nothing if any row has an error."""
+    kind = _import_kind(request)
+    company = _import_company(request, kind)
+    upload = request.FILES.get("file")
+    if upload is None:
+        raise DRFValidationError({"file": _("Choose a file to upload.")})
+    plan = import_service.plan_import(kind, upload, company, request)
+    if plan.count(import_service.ERROR):
+        return Response(
+            {
+                **import_service.preview_payload(plan),
+                "detail": _(
+                    "Nothing was imported. Fix the rows marked as errors and upload again."
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    try:
+        created = import_service.commit_import(plan)
+    except import_service.ImportAborted as exc:
+        return Response(
+            {
+                **import_service.preview_payload(exc.plan),
+                "detail": _(
+                    "Nothing was imported. Fix the rows marked as errors and upload again."
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(
+        {
+            "created": created,
+            "skipped": plan.count(import_service.SKIP),
+            "kind": kind,
+        }
+    )

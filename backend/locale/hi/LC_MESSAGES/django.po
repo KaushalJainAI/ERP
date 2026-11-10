@@ -5294,3 +5294,9 @@ msgstr "यह कागज़ नहीं मिला।"
 #: assistant/bill_photo.py
 msgid "Choose what the paper is: a supplier bill, a customer's order, a payment slip or cheque, or an expense receipt."
 msgstr "बताएं यह कागज़ क्या है: सप्लायर का बिल, ग्राहक का ऑर्डर, पेमेंट की पर्ची या चेक, या खर्च की रसीद।"
+
+msgid "Day summary"
+msgstr "दिन का सारांश"
+
+msgid "Sold ₹%(sold)s, collected ₹%(collected)s, spent ₹%(spent)s. To collect ₹%(to_collect)s, to pay ₹%(to_pay)s. Low stock: %(low_stock)s items."
+msgstr "बिक्री ₹%(sold)s, वसूली ₹%(collected)s, खर्च ₹%(spent)s। वसूलना बाकी ₹%(to_collect)s, देना बाकी ₹%(to_pay)s। कम स्टॉक: %(low_stock)s आइटम।"

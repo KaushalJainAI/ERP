@@ -3,6 +3,7 @@ from notifications.models import AlertRule
 DEFAULT_ALERT_RULES = [
     "overdue_bills_digest",
     "daily_summary",
+    "day_summary",
     "weekly_digest",
     "raw_material_shortage",
     "ready_low",

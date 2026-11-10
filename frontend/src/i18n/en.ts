@@ -163,6 +163,7 @@ export const enExtra = {
       backup_failed: { title: "Backup failed", body: "Last night's database backup did not complete: {{error}}" },
       overdue_bills_digest: { title: "Overdue bills", body: "{{count}} overdue bills, {{total_amount}} in total" },
       daily_summary: { title: "Daily summary", body: "{{money_in}} received, {{bills_count}} bills worth {{bills_total}}, {{pending_dispatches}} orders to dispatch" },
+      day_summary: { title: "Day summary", body: "Sold {{sold}}, collected {{collected}}, spent {{spent}}. To collect {{to_collect}}, to pay {{to_pay}}. Low stock: {{low_stock}} items." },
       weekly_digest: { title: "Weekly summary", body: "To collect this week: {{collections_needed}}. Bills due: {{bills_due}}" },
     },
   },
