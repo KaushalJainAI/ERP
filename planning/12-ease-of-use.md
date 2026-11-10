@@ -85,7 +85,7 @@ confirmed are left out.
 |---|---|---|---|
 | R1 | Only one fiscal year exists and there is no way to add one outside Django admin. Posting into a date with no fiscal year is refused | `core/models.py:632-650`, `closing_views.py:139` | **Every posting fails on 2027-04-01** |
 | R2 | Order, payment, journal and tax numbers are hardcoded `SO-2026-`, `PO-2026-`, `PE-2026-`, `JV-2026-`, `TAX-2026-`. Invoices already use the financial year | `selling/serializers.py:144`, `buying/serializers.py:190`, `accounts/serializers.py:159,205,877`, `buying/services/expenses.py:237` | Wrong year printed from April 2027 |
-| R3 | Line `rate` on orders and invoices is `(18,2)`; the project rule is `(18,6)`. A rate of 12.345 per kg is rejected. Not recorded as a divergence | `selling/models.py:204,549`, `buying/models.py:275,787` | Real prices cannot be entered |
+| R3 | Line `rate` on orders and invoices is `(18,2)`; the project rule is `(18,6)`. The owner confirmed two decimals are enough (2026-11-10), so this stays, but it is not yet recorded as a divergence | `selling/models.py:204,549`, `buying/models.py:275,787` | Docs and code disagree; fixed by recording it (S-4 a) |
 | R4 | No database CHECK on line quantity and rate, payment amount, or journal line signs. Only serializers guard them | `selling`, `buying`, `accounts` models | Violates "the DB is the guarantee" |
 | R5 | `FiscalYear` allows overlapping years | `core/models.py:618-630` | Ambiguous posting year |
 | R6 | Customer and supplier names are unique only by exact case; GSTIN can repeat | `buying/models.py:84`, `selling/models.py:67` | Duplicate parties split one balance in two |
@@ -244,15 +244,15 @@ Do the `S` cards first where a `U` card depends on them. Follow
 - **Test:** each constraint has a test that a direct ORM write violating it raises
   `IntegrityError`.
 
-### S-4 Rates to six decimals, and the warehouse is never asked
+### S-4 The warehouse is never asked
 - **Files:** `backend/selling/models.py`, `selling/serializers.py`, `buying/models.py`,
   `buying/serializers.py`, `accounts/mapping.py`, `stock/serializers.py`,
   `frontend/src/resources/selling.ts`, `buying.ts`, `stock.ts`,
   `backend/docs/erpnext_divergences.md`.
-- **Do:** (a) change line `rate` and `price_list_rate` on `SalesOrderItem`,
-  `SalesInvoiceItem`, `PurchaseOrderItem`, `PurchaseInvoiceItem` to `(18,6)`. `amount`
-  stays `(18,2)`, half-up, through `compute_amount`. Confirm the identity CHECKs on
-  totals still hold and prints show two decimals unless more are present. (b) In the
+- **Do:** (a) the owner confirmed prices never need more than two decimals
+  (2026-11-10). Do not change the line `rate` columns; record in
+  `backend/docs/erpnext_divergences.md` that line `rate` and `price_list_rate` on order and
+  invoice lines are `(18,2)` by owner decision, while valuation rates stay `(18,6)`. (b) In the
   Sales Invoice and Purchase Invoice serializers, default a blank line warehouse the way
   `SalesOrderSerializer.validate` does: `Company.ready_warehouse` for sales,
   `Company.unprocessed_warehouse` for purchases, else the first leaf warehouse. Apply the
@@ -261,7 +261,7 @@ Do the `S` cards first where a `U` card depends on them. Follow
   the company's opening account when one exists. (d) In the frontend mark line warehouse
   `advanced` when the company has both defaults set, and fix the buying placeholder that
   says "Ready warehouse".
-- **Test:** a rate of 12.345678 saves and the amount rounds half-up; a purchase bill sent
+- **Test:** a purchase bill sent
   with no warehouse posts stock into Unprocessed; a bill from an order with blank
   warehouses still moves stock.
 
@@ -455,8 +455,9 @@ Do the `S` cards first where a `U` card depends on them. Follow
   party page), `frontend/src/pages/accounts/CollectionsPage.tsx`, i18n.
 - **Do:** print the company's bank account name, number and IFSC on the bill (from the
   default `BankAccount`), so a customer can pay by transfer. Add Share beside Print on
-  approved bills and on the party statement, using the
-  Web Share API with the PDF file, falling back to download. Add a party page reached by
+  approved bills and on the party statement, using the Web Share API. Offer two choices:
+  PDF, and image (the first page rendered as a PNG, for customers who only open photos);
+  fall back to download. Paper stays the Print button. Add a party page reached by
   tapping a customer or supplier anywhere: amount owed, open bills, recent payments, last
   five orders, with Call (`tel:`), Share statement and Record Money. Use existing
   endpoints (party statement, collections); add none unless one is missing, and report it.
@@ -532,8 +533,8 @@ Do the `S` cards first where a `U` card depends on them. Follow
 
 | # | Question | Who | Blocks |
 |---|---|---|---|
-| Q7 | Do staff share bills with customers on WhatsApp today, or only on paper? | Owner | Priority of U-10 |
+| Q7 | Do staff share bills with customers on WhatsApp today, or only on paper? **Answered 2026-11-10: any format (paper, PDF or photo).** U-10 offers PDF and image | Owner | – |
 | Q8 | Is cash received kept separate from the bank until deposited? **Answered 2026-11-10: yes. The owner holds the cash and records cash entries personally.** Customers pay in cash or by bank transfer, not UPI | Owner | – |
 | Q11 | Do suppliers send bills on paper, as PDFs, or both? **Answered 2026-11-10: both.** U-14 and U-16 are needed as written | Owner | – |
-| Q9 | Are there prices with more than two decimals (per kg or per gram)? | Owner | Priority of S-4 (a) |
-| Q10 | Which phones do staff use (Android version, screen size)? | Owner | U-8 testing |
+| Q9 | Are there prices with more than two decimals (per kg or per gram)? **Answered 2026-11-10: no; two decimals are enough.** S-4 (a) records this instead of changing columns | Owner | – |
+| Q10 | Which phones do staff use? **Answered 2026-11-10: ordinary Android phones.** Test U-8, U-10 and U-16 in Chrome on Android; the WhatsApp share target (U-16) works there | Owner | – |

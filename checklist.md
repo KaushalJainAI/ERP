@@ -574,7 +574,7 @@ Design, findings and full card instructions are in
 - [ ] S-1 Fiscal years never run out
 - [ ] S-2 Numbers follow the financial year
 - [ ] S-3 Database rules for lines and money
-- [ ] S-4 Rates to six decimals, and the warehouse is never asked
+- [ ] S-4 The warehouse is never asked
 - [ ] S-5 Setup health, shown before it hurts
 - [ ] S-6 How the money moved
 - [ ] S-7 An item needs only a name, a unit, a GST % and a price

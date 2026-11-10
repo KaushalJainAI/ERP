@@ -55,6 +55,9 @@ Admin has all three.
 | Salary TDS follows the government rules for salaried (Monthly) staff above the taxable limit: new regime by default, old regime as an opt-in per employee, rates kept in a dated table the accountant edits. Daily wagers get none | 2026-10-31 |
 | Opening balances for accounts and stock are required | 2026-10-31 |
 | Operators enter in the ERP; Tally stays the official books | 2026-10-28 |
+| Prices need no more than two decimals | 2026-11-10 |
+| Staff use ordinary Android phones | 2026-11-10 |
+| Bills may be shared in any format: paper, PDF or photo | 2026-11-10 |
 | Cash is kept apart from the bank; the owner holds it and records cash entries personally | 2026-11-10 |
 | Supplier bills arrive both on paper and as PDFs; the ERP must read both | 2026-11-10 |
 | Customers pay in cash or by bank transfer, not UPI; no UPI QR on bills | 2026-11-10 |
@@ -90,7 +93,6 @@ OWNER cards: A-7, O-7, P-7, E-9, T-8, N-10, H-7, L-5, G-8, U-12, U-13.
 | Q4 | What is the standard supplier payment period? (Customers: 90 days, answered) | Owner | Default in M-1 |
 | Q5 | Which staff, if any, are above the income tax limit? | Accountant | T-6, T-7 |
 | Q6 | Which email account sends alerts, and what is each staff member's address? | Owner | N-10 |
-| Q7–Q11 | Sharing bills on WhatsApp, cash kept apart from bank, prices beyond two decimals, staff phones, how supplier bills arrive | Owner, Accountant | See [doc 12](12-ease-of-use.md) |
 
 Record each answer here, with the date, when it is given.
 
