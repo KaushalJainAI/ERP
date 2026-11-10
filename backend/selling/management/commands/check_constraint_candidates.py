@@ -11,7 +11,9 @@ from django.db.models import Count
 from django.db.models.functions import Lower
 
 from buying.models import PurchaseInvoiceItem, PurchaseOrderItem, Supplier
+from core.models import NamingSeries
 from selling.models import Customer, SalesInvoiceItem, SalesOrderItem
+from stock.models import Item, StockEntryItem
 
 SAMPLE_LIMIT = 20
 
@@ -50,6 +52,22 @@ def _line_checks():
         (
             "buying.PurchaseInvoiceItem rate must be >= 0",
             PurchaseInvoiceItem.objects.filter(rate__lt=0),
+        ),
+        (
+            "stock.Item standard_rate must be >= 0",
+            Item.objects.filter(standard_rate__lt=0),
+        ),
+        (
+            "stock.StockEntryItem qty must be > 0",
+            StockEntryItem.objects.filter(qty__lte=0),
+        ),
+        (
+            "stock.StockEntryItem valuation_rate must be >= 0",
+            StockEntryItem.objects.filter(valuation_rate__lt=0),
+        ),
+        (
+            "core.NamingSeries current must be >= 0",
+            NamingSeries.objects.filter(current__lt=0),
         ),
     ]
 
