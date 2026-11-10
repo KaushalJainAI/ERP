@@ -313,7 +313,7 @@ export const CollectionsPage: React.FC = () => {
                             type="button"
                             onClick={() => toggleExpand(cust.customer_id)}
                             className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                            aria-label="Toggle bills list"
+                            aria-label={t("acc.collections.toggle_bills")}
                           >
                             {isExpanded ? (
                               <ChevronUp className="w-4 h-4" />

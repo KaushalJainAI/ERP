@@ -5,6 +5,9 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const ta: Record<string, unknown> = {
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
   selling_kpi: {
     title: "விற்பனை மற்றும் சந்தைப்படுத்தல் பகுப்பாய்வு",
     nav_title: "விற்பனை மற்றும் சந்தைப்படுத்தல் KPI",
@@ -289,6 +292,7 @@ const ta: Record<string, unknown> = {
       reset: "வடிகட்டிகளை மீட்டமை",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "வசூலிக்க வேண்டிய பணம்",
       subtitle: "திறந்த வாடிக்கையாளர் நிலுவைகளையும் தாமதத் தொகைகளையும் கண்காணித்து, பெற்ற பணத்தைப் பதிவு செய்யுங்கள்",
       record_receipt: "ரசீதைப் பதிவு செய்",
@@ -392,6 +396,12 @@ const ta: Record<string, unknown> = {
       submit_deposit: "Save & Submit Deposit",
     },
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST நிலவரம்",
       subtitle: "மாதாந்திர GST பொறுப்பு, தகுதியான ITC மற்றும் செலுத்தல் கண்காணிப்பு",
       month: "மாதம்",
@@ -2880,6 +2890,7 @@ const ta: Record<string, unknown> = {
     total_dispatch_units: "அனுப்ப வேண்டிய {{units}} அலகுகள்",
   },
   notifications: {
+    no_users: "No users found",
     title: "அறிவிப்புகள்",
     unread: "புதியது",
     mark_all_read: "அனைத்தையும் படித்ததாகக் குறி",

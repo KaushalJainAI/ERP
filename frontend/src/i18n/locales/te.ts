@@ -5,6 +5,9 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const te: Record<string, unknown> = {
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
   selling_kpi: {
     title: "మార్కెటింగ్ మరియు అమ్మకాల విశ్లేషణ",
     nav_title: "అమ్మకాలు మరియు మార్కెటింగ్ KPI",
@@ -289,6 +292,7 @@ const te: Record<string, unknown> = {
       reset: "ఫిల్టర్లను రీసెట్ చేయండి",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "వసూలు చేయాల్సిన డబ్బు",
       subtitle: "తెరిచి ఉన్న కస్టమర్ బకాయిలు, గడువు మించిన మొత్తాలను ట్రాక్ చేసి రసీదులను నమోదు చేయండి",
       record_receipt: "రసీదు నమోదు చేయి",
@@ -392,6 +396,12 @@ const te: Record<string, unknown> = {
       submit_deposit: "Save & Submit Deposit",
     },
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST స్థితి",
       subtitle: "నెలవారీ GST బాధ్యత, అర్హత గల ITC మరియు చెల్లింపు ట్రాకింగ్",
       month: "నెల",
@@ -2880,6 +2890,7 @@ const te: Record<string, unknown> = {
     total_dispatch_units: "పంపాల్సిన {{units}} యూనిట్లు",
   },
   notifications: {
+    no_users: "No users found",
     title: "నోటిఫికేషన్లు",
     unread: "కొత్తది",
     mark_all_read: "అన్నీ చదివినట్లు గుర్తించు",

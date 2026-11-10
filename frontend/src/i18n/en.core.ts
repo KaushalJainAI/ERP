@@ -11,9 +11,9 @@ export const enCore = {
   logout: "Sign Out",
   email: "Email Address",
   password: "Password",
-  submit: "Submit Document",
-  cancel: "Cancel Document",
-  amend: "Amend",
+  submit: "Approve",
+  cancel: "Cancel",
+  amend: "Correct",
   save: "Save Draft",
   delete: "Delete Draft",
   draft: "Draft",
@@ -25,4 +25,7 @@ export const enCore = {
   name: "Document No.",
   created_at: "Created Date",
   no_records: "No records found.",
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
 };

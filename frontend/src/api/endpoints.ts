@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import { apiClient } from "./client";
 import type { ApiRecord, Paginated } from "@/types";
 
@@ -108,6 +109,20 @@ const asMessages = (v: unknown): string[] => {
 };
 
 /**
+ * Human label for a field key: its translation under `fields.<key>` when one exists,
+ * otherwise the key in sentence case ("customer_group" -> "Customer group").
+ */
+export function fieldLabel(key: string): string {
+  const k = `fields.${key}`;
+  if (i18n.exists(k)) {
+    const label = i18n.t(k);
+    if (typeof label === "string" && label) return label;
+  }
+  const words = key.replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
  * Turn a thrown axios error (or any error) into something the form can render.
  * Handles DRF validation dicts (`{field: [msgs]}`, nested `{items: [{qty: [..]}]}`)
  * and `{detail}` / `{error}` envelopes (the latter may itself be a dict or list -
@@ -121,7 +136,7 @@ export function normaliseError(err: any, childKeys: string[] = []): NormalisedEr
 
   const data = err?.response?.data;
   if (!err?.response) {
-    out.general.push(err?.message || "Network error");
+    out.general.push(i18n.t("errors.network"));
     return out;
   }
   if (typeof data === "string" || data === undefined || data === null) {
@@ -176,8 +191,8 @@ export function normaliseError(err: any, childKeys: string[] = []): NormalisedEr
 export function summariseError(e: NormalisedError): string {
   if (e.general.length) return e.general.join(" ");
   const first = Object.entries(e.fields)[0];
-  if (first) return `${first[0]}: ${first[1][0]}`;
+  if (first) return `${fieldLabel(first[0])}: ${first[1][0]}`;
   const tbl = Object.entries(e.tables)[0];
-  if (tbl) return `${tbl[0]}: ${tbl[1][0]}`;
+  if (tbl) return `${fieldLabel(tbl[0])}: ${tbl[1][0]}`;
   return "";
 }

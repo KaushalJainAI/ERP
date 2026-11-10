@@ -5,6 +5,9 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const kn: Record<string, unknown> = {
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
   selling_kpi: {
     title: "ಮಾರ್ಕೆಟಿಂಗ್ ಮತ್ತು ಮಾರಾಟ ವಿಶ್ಲೇಷಣೆ",
     nav_title: "ಮಾರಾಟ ಮತ್ತು ಮಾರ್ಕೆಟಿಂಗ್ KPI",
@@ -289,6 +292,7 @@ const kn: Record<string, unknown> = {
       reset: "ಫಿಲ್ಟರ್‌ಗಳನ್ನು ಮರುಹೊಂದಿಸಿ",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "ಸಂಗ್ರಹಿಸಬೇಕಾದ ಹಣ",
       subtitle: "ತೆರೆದಿರುವ ಗ್ರಾಹಕ ಬಾಕಿ, ಅವಧಿ ಮೀರಿದ ಮೊತ್ತ ಟ್ರ್ಯಾಕ್ ಮಾಡಿ ಮತ್ತು ಸ್ವೀಕೃತಿ ದಾಖಲಿಸಿ",
       record_receipt: "ಸ್ವೀಕೃತಿ ದಾಖಲಿಸಿ",
@@ -392,6 +396,12 @@ const kn: Record<string, unknown> = {
       submit_deposit: "Save & Submit Deposit",
     },
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST ಸ್ಥಿತಿ",
       subtitle: "ಮಾಸಿಕ GST ಹೊಣೆಗಾರಿಕೆ, ಅರ್ಹ ITC ಮತ್ತು ಪಾವತಿ ಟ್ರ್ಯಾಕಿಂಗ್",
       month: "ತಿಂಗಳು",
@@ -2880,6 +2890,7 @@ const kn: Record<string, unknown> = {
     total_dispatch_units: "ಕಳುಹಿಸಬೇಕಾದ {{units}} ಘಟಕಗಳು",
   },
   notifications: {
+    no_users: "No users found",
     title: "ಅಧಿಸೂಚನೆಗಳು",
     unread: "ಹೊಸದು",
     mark_all_read: "ಎಲ್ಲವನ್ನೂ ಓದಿದಂತೆ ಗುರುತಿಸಿ",

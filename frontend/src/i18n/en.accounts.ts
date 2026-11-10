@@ -173,6 +173,7 @@ export const enAccounts = {
       view_gl: "View in General Ledger",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "Money to Collect",
       subtitle: "Track open customer balances, overdue amounts, and record receipts",
       record_receipt: "Record Receipt",
@@ -284,6 +285,12 @@ export const enAccounts = {
     },
 
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST Position",
       subtitle: "Monthly GST liability, eligible ITC, and payment tracking",
       month: "Month",
