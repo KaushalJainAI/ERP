@@ -774,7 +774,8 @@ class AutoNameAndLookupTests(BaseAPITest):
         url, create, _e, _c, _t = self._spec()["pi"]
         create["items"][0]["warehouse"] = None
         res = self.client.post(url, create, format="json")
-        self.assertIsNone(res.data["items"][0]["warehouse_name"])
+        # S-4: a blank stock-item line takes the company's default warehouse.
+        self.assertEqual(res.data["items"][0]["warehouse_name"], self.warehouse.name)
         url, create, _e, _c, _t = self._spec()["je"]
         res = self.client.post(url, create, format="json")
         self.assertEqual(res.data["lines"][0]["account_name"], self.bank.name)

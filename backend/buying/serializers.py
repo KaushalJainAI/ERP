@@ -2,7 +2,12 @@ import datetime
 from rest_framework import serializers
 from decimal import Decimal
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_noop
 from gst.serializers import PartyGSTSerializerMixin
+from contacts.parties import (
+    ROOT_SUPPLIER_GROUP,
+    PartyRecordSerializerMixin,
+)
 from buying.models import (
     SupplierGroup,
     Supplier,
@@ -55,12 +60,22 @@ class SupplierGroupSerializer(serializers.ModelSerializer):
 
 
 class SupplierSerializer(
-    PartyGSTSerializerMixin, TranslatedSerializerMixin, serializers.ModelSerializer
+    PartyRecordSerializerMixin,
+    PartyGSTSerializerMixin,
+    TranslatedSerializerMixin,
+    serializers.ModelSerializer,
 ):
+    party_model = Supplier
+    group_field = "supplier_group"
+    group_model = SupplierGroup
+    root_group_name = ROOT_SUPPLIER_GROUP
+    name_taken_message = gettext_noop("A supplier named %(name)s already exists.")
+
     company_name = serializers.CharField(source="company.name", read_only=True)
     supplier_group_name = serializers.CharField(
         source="supplier_group.name", read_only=True
     )
+    warnings = serializers.SerializerMethodField()
     state_name = serializers.CharField(
         source="state.name", read_only=True, allow_null=True
     )
@@ -77,6 +92,7 @@ class SupplierSerializer(
             "company_name",
             "supplier_group",
             "supplier_group_name",
+            "warnings",
             "gstin",
             "gst_category",
             "state",
@@ -93,6 +109,7 @@ class SupplierSerializer(
             "modified_at",
         )
         translatable_fields = ["name"]
+        extra_kwargs = {"supplier_group": {"required": False}}
 
 
 class ExpenseCategorySerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
@@ -237,6 +254,11 @@ class PurchaseOrderSerializer(
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        company = attrs.get("company") or getattr(self.instance, "company", None)
+        if company and "items" in attrs:
+            account_mapping.fill_blank_stock_warehouses(
+                company, attrs["items"], "unprocessed_warehouse"
+            )
         return pricing_service.apply_line_rates(
             self,
             attrs,
@@ -552,6 +574,11 @@ class PurchaseInvoiceSerializer(
 
         terms_service.validate_due_date(self, attrs)
         attrs = super().validate(attrs)
+        company = attrs.get("company", getattr(self.instance, "company", None))
+        if company and "items" in attrs:
+            account_mapping.fill_blank_stock_warehouses(
+                company, attrs["items"], "unprocessed_warehouse"
+            )
         is_expense = attrs.get(
             "is_expense", getattr(self.instance, "is_expense", False)
         )

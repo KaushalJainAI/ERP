@@ -1,7 +1,12 @@
 import datetime
 from rest_framework import serializers
 from decimal import Decimal
+from django.utils.translation import gettext_noop
 from gst.serializers import PartyGSTSerializerMixin
+from contacts.parties import (
+    ROOT_CUSTOMER_GROUP,
+    PartyRecordSerializerMixin,
+)
 from selling.models import (
     CustomerGroup,
     Customer,
@@ -54,12 +59,22 @@ class CustomerGroupSerializer(serializers.ModelSerializer):
 
 
 class CustomerSerializer(
-    PartyGSTSerializerMixin, TranslatedSerializerMixin, serializers.ModelSerializer
+    PartyRecordSerializerMixin,
+    PartyGSTSerializerMixin,
+    TranslatedSerializerMixin,
+    serializers.ModelSerializer,
 ):
+    party_model = Customer
+    group_field = "customer_group"
+    group_model = CustomerGroup
+    root_group_name = ROOT_CUSTOMER_GROUP
+    name_taken_message = gettext_noop("A customer named %(name)s already exists.")
+
     company_name = serializers.CharField(source="company.name", read_only=True)
     customer_group_name = serializers.CharField(
         source="customer_group.name", read_only=True
     )
+    warnings = serializers.SerializerMethodField()
     state_name = serializers.CharField(
         source="state.name", read_only=True, allow_null=True
     )
@@ -76,6 +91,7 @@ class CustomerSerializer(
             "company_name",
             "customer_group",
             "customer_group_name",
+            "warnings",
             "gstin",
             "gst_category",
             "state",
@@ -93,6 +109,7 @@ class CustomerSerializer(
             "modified_at",
         )
         translatable_fields = ["name"]
+        extra_kwargs = {"customer_group": {"required": False}}
 
 
 class SalesOrderItemSerializer(
@@ -195,19 +212,9 @@ class SalesOrderSerializer(
         attrs = super().validate(attrs)
         company = attrs.get("company") or getattr(self.instance, "company", None)
         if company and "items" in attrs:
-            from stock.models import Warehouse
-
-            default_wh = getattr(company, "ready_warehouse", None)
-            if not default_wh:
-                default_wh = (
-                    Warehouse.objects.filter(company=company, is_group=False)
-                    .order_by("pk")
-                    .first()
-                )
-            if default_wh:
-                for line in attrs["items"]:
-                    if not line.get("warehouse"):
-                        line["warehouse"] = default_wh
+            account_mapping.fill_blank_stock_warehouses(
+                company, attrs["items"], "ready_warehouse"
+            )
 
         return pricing_service.apply_line_rates(
             self,
@@ -399,6 +406,11 @@ class SalesInvoiceSerializer(
 
         terms_service.validate_due_date(self, attrs)
         attrs = super().validate(attrs)
+        company = attrs.get("company") or getattr(self.instance, "company", None)
+        if company and "items" in attrs:
+            account_mapping.fill_blank_stock_warehouses(
+                company, attrs["items"], "ready_warehouse"
+            )
         return pricing_service.apply_line_rates(
             self,
             attrs,
