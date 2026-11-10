@@ -1,7 +1,13 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from core.views import AttachmentViewSet, CompanyViewSet, StateViewSet, dashboard
+from core.views import (
+    AttachmentViewSet,
+    CompanyViewSet,
+    StateViewSet,
+    dashboard,
+    setup_health_view,
+)
 
 app_name = "core"
 
@@ -12,5 +18,6 @@ router.register("attachments", AttachmentViewSet, basename="attachment")
 
 urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),
+    path("setup-health/", setup_health_view, name="setup-health"),
     path("", include(router.urls)),
 ]

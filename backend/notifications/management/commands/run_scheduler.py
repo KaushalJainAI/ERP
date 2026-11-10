@@ -70,6 +70,9 @@ def run_all_jobs(force_weekly=False):
     if force_weekly or today.weekday() == 0:  # Monday is 0
         results["weekly_digest"] = safe_execute("weekly_digest", send_weekly_digest)
 
+    results["fiscal_years"] = safe_execute(
+        "ensure_fiscal_years", lambda: call_command("ensure_fiscal_years")
+    )
     results["outbox"] = safe_execute("send_outbox", process_outbox)
     return results
 
@@ -126,6 +129,10 @@ class Command(BaseCommand):
                     safe_execute("recurring_expenses", run_recurring_expenses)
                     safe_execute("daily_summary", send_daily_summary)
                     safe_execute("overdue_bills_digest", send_overdue_bills_digest)
+                    safe_execute(
+                        "ensure_fiscal_years",
+                        lambda: call_command("ensure_fiscal_years"),
+                    )
 
                 # 3. Weekly digest on Monday at 08:30
                 if (

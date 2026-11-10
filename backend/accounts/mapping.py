@@ -381,7 +381,7 @@ def build_payment_entry(
 
     with transaction.atomic():
         entry = PaymentEntry.objects.create(
-            name=NamingSeries.next("PE-2026-"),
+            name=NamingSeries.next(financial_year_series("PE", datetime.date.today())),
             payment_type=payment_type,
             posting_date=datetime.date.today(),
             company=invoice.company,

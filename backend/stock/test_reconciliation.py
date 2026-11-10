@@ -615,7 +615,7 @@ class ApiTests(RecoBase):
         )
         self.assertEqual(r.status_code, 201, r.content)
         self.assertEqual(r.data["expense_account"], self.adjustment.id)
-        self.assertTrue(r.data["name"].startswith("MAT-RECO-2026-"))
+        self.assertTrue(r.data["name"].startswith("SRECO-2627-"))
         row = r.data["items"][0]
         self.assertEqual(row["current_qty"], "10.000")
         self.assertEqual(row["current_valuation_rate"], "100.000000")

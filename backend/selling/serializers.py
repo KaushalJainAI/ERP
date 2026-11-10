@@ -141,7 +141,8 @@ class SalesOrderSerializer(
     TaxableSerializerMixin, DraftNestedWriteMixin, serializers.ModelSerializer
 ):
     children_field = "items"
-    name_prefix = "SO-2026-"
+    name_series_prefix = "SO"
+    name_date_field = "transaction_date"
 
     items = SalesOrderItemSerializer(many=True)
     taxes = SalesOrderTaxSerializer(many=True, required=False)
@@ -268,8 +269,8 @@ class SalesInvoiceSerializer(
     serializers.ModelSerializer,
 ):
     children_field = "items"
-    name_prefix = "SINV-2026-"
-    return_name_prefix = "SRET-2026-"
+    name_series_prefix = "SINV"
+    return_name_prefix = "SRET"
 
     items = SalesInvoiceItemSerializer(many=True)
     taxes = SalesInvoiceTaxSerializer(many=True, required=False)

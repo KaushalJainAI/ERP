@@ -1,3 +1,4 @@
+import datetime
 import logging
 from decimal import Decimal
 
@@ -59,6 +60,11 @@ class DraftNestedWriteMixin:
     #: written after ``children_field``.
     extra_children_fields = ()
     name_prefix = ""
+    #: Preferred over ``name_prefix``: a series code such as ``"SO"``. The number is
+    #: ``<code>-<FY>-NNNN`` (``SO-2728-0001``), FY being the financial year of
+    #: ``name_date_field`` (today when blank); see ``accounts.mapping``.
+    name_series_prefix = ""
+    name_date_field = "posting_date"
 
     def get_extra_kwargs(self):
         # ``name`` is optional on create: when omitted it is auto-numbered from
@@ -236,9 +242,20 @@ class DraftNestedWriteMixin:
             return {"reconcile": True}
         return {}
 
-    def create(self, validated_data):
+    def _auto_name(self, validated_data):
+        """Next name from the NamingSeries: FY series when ``name_series_prefix`` is set."""
         from core.models import NamingSeries
 
+        if not self.name_series_prefix:
+            return NamingSeries.next(self.name_prefix)
+        from accounts.mapping import financial_year_series
+
+        posting = validated_data.get(self.name_date_field) or datetime.date.today()
+        return NamingSeries.next(
+            financial_year_series(self.name_series_prefix, posting)
+        )
+
+    def create(self, validated_data):
         supplied = self._pop_children(validated_data)
         flags = (
             self._tax_flags_for(validated_data, supplied, True)
@@ -247,7 +264,7 @@ class DraftNestedWriteMixin:
         )
         with transaction.atomic():
             if not validated_data.get("name"):
-                validated_data["name"] = NamingSeries.next(self.name_prefix)
+                validated_data["name"] = self._auto_name(validated_data)
             instance = self.Meta.model.objects.create(**validated_data)
             for field in self._all_child_fields():
                 if field in supplied:

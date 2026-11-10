@@ -660,7 +660,7 @@ class StockEntryItemSerializer(PositiveQtyLineItemMixin, serializers.ModelSerial
 
 class StockEntrySerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
     children_field = "items"
-    name_prefix = "STE-2026-"
+    name_series_prefix = "STE"
 
     items = StockEntryItemSerializer(many=True)
 
@@ -787,7 +787,7 @@ class StockReconciliationItemSerializer(serializers.ModelSerializer):
 
 class StockReconciliationSerializer(DraftNestedWriteMixin, serializers.ModelSerializer):
     children_field = "items"
-    name_prefix = "MAT-RECO-2026-"
+    name_series_prefix = "SRECO"
 
     items = StockReconciliationItemSerializer(many=True)
     expense_account_name = serializers.CharField(

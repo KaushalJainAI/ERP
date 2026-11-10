@@ -566,7 +566,7 @@ semantics: negative quantities, lines, tax rows and totals; optional `return_aga
   Pay/Customer, Receive/Supplier), also built by `make-payment-entry`. **Not done:** netting a
   standalone credit note against *other* invoices (ERPNext Payment Reconciliation / Journal Entry
   "Credit Note" allocation); use `update_outstanding_for_self` off on the return, or a refund.
-- **Naming.** Returns are numbered `SRET-2026-` / `PRET-2026-` (GST caps the document number at 16
+- **Naming.** Returns are numbered `SRET-<FY>-` / `PRET-<FY>-` (FY as in `SO-2728-0001`; GST caps the document number at 16
   characters, `SINV-RET-2026-0001` is 18), which also gives GSTR-1 table 13 a separate series.
 - **GSTR-1.** New `cdnr` / `cdnur` sections (signed, negative values, `note_type` "C"); other
   unregistered credit notes net into `b2cs`; HSN, nil / exempt and the summary are net of returns.

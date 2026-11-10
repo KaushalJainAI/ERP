@@ -162,7 +162,7 @@ class Command(BaseCommand):
             stock_adj_acc, _ = Account.objects.get_or_create(
                 company=company,
                 name="Stock Adjustment",
-                defaults={"parent": root_nodes[AccountRootType.EXPENSE], "root_type": AccountRootType.EXPENSE, "account_type": AccountType.STOCK_ADJUSTMENT},
+                defaults={"parent": root_nodes[AccountRootType.EXPENSE], "root_type": AccountRootType.EXPENSE},
             )
             round_off_acc, _ = Account.objects.get_or_create(
                 company=company,

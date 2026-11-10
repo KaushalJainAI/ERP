@@ -94,6 +94,8 @@ class CoreModelTests(TestCase):
 
     def test_fiscal_year_valid(self):
         """GOOD: FiscalYear with end_date > start_date saves properly."""
+        # clean() now refuses overlap; drop the harness's wide TEST-FY (rolled back).
+        FiscalYear.objects.all().delete()
         fy = FiscalYear(
             name="2026-2027",
             start_date=datetime.date(2026, 4, 1),
