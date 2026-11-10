@@ -96,6 +96,25 @@ export interface LinkDef {
     row: Record<string, any>,
     parentValues: Record<string, any>
   ) => Promise<Record<string, any>>;
+  /**
+   * Lets the person add a missing record from inside the dropdown ("Add '<text>'").
+   * The new record is selected exactly like a picked one, so `fill` runs.
+   */
+  quickCreate?: {
+    /** Create (POST) endpoint, e.g. "/selling/customers/". */
+    endpoint: string;
+    /** Body for the POST, built from the typed text and the extra fields (blank strings when unset). */
+    payload: (text: string, extra: Record<string, string>) => Record<string, unknown>;
+    /** Optional small fields shown in a sheet before saving. No fields = save at once. */
+    extraFields?: Array<{
+      key: string;
+      /** i18n key */
+      labelKey: string;
+      type: "text" | "select";
+      options?: { value: string; labelKey: string }[];
+      defaultValue?: string;
+    }>;
+  };
 }
 
 export interface SelectOption {

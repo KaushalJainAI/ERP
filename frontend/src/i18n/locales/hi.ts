@@ -138,7 +138,21 @@ const hi: Record<string, unknown> = {
   created_at: "निर्माण तिथि",
   no_records: "कोई रिकॉर्ड नहीं मिला।",
   acc: {
-    nav: {
+
+    names: {
+      nav: "नाम पूरे करें",
+      title: "नाम पूरे करें",
+      subtitle: "ग्राहक, सप्लायर और वस्तुएं जिनकी जानकारी अभी अधूरी है। किसी एक पर टैप करके पूरा करें।",
+      empty: "पूरा करने को कुछ नहीं।",
+      kind_customer: "ग्राहक",
+      kind_supplier: "सप्लायर",
+      kind_item: "वस्तुएं",
+      missing_state: "राज्य",
+      missing_gstin: "GSTIN",
+      missing_group: "समूह",
+      missing_hsn: "HSN कोड",
+      missing_tax_template: "GST दर",
+    },    nav: {
       reports: "रिपोर्ट",
       collections: "वसूल करने योग्य राशि",
       bills_to_pay: "भुगतान योग्य बिल",
@@ -747,6 +761,16 @@ const hi: Record<string, unknown> = {
     not_granted: "नहीं दी गई",
     expand: "अनुमतियां दिखाएं",
     collapse: "अनुमतियां छिपाएं",
+  },
+  link: {
+    quick_add: "\"{{text}}\" जोड़ें",
+    quick_add_title: "नया: \"{{text}}\"",
+    gst_label: "जीएसटी %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
   },
   common: {
     close: "बंद करें",

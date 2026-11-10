@@ -33,6 +33,8 @@ export const customerLink: LinkDef = {
   filters: (_row, form) => ({ company: form.company, is_active: true }),
   // The GST snapshot (category / GSTIN) is read-only on the document; shown at once, re-derived by the server.
   fill: (r) => ({ customer_name: r.name, gst_category: r.gst_category ?? "", party_gstin: r.gstin ?? "" }),
+  // Name only: company is the active one, group and state are completed later (Names to complete).
+  quickCreate: { endpoint: "/selling/customers/", payload: (text) => ({ name: text }) },
 };
 
 export const itemLink: LinkDef = {
@@ -41,6 +43,19 @@ export const itemLink: LinkDef = {
   subLabel: (r) => r.item_group_name,
   display: (row) => (row.item_code ? `${row.item_code} - ${row.item_name}` : undefined),
   filters: () => ({ is_active: true }),
+  // Name plus GST %. Code, group and unit are filled by the server.
+  quickCreate: {
+    endpoint: "/stock/items/",
+    payload: (text, extra) => ({ name: text, ...(extra.gst_rate ? { gst_rate: extra.gst_rate } : {}) }),
+    extraFields: [
+      {
+        key: "gst_rate",
+        labelKey: "link.gst_label",
+        type: "select",
+        options: ["0", "5", "12", "18", "28"].map((v) => ({ value: v, labelKey: `link.gst_${v}` })),
+      },
+    ],
+  },
   // Item metadata only. The line rate stays blank so the server can resolve it
   // from the price list (falling back to standard_rate when no list applies).
   fill: (r, row) => ({

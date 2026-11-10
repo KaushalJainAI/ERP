@@ -138,7 +138,21 @@ const pa: Record<string, unknown> = {
   created_at: "ਬਣਾਉਣ ਦੀ ਮਿਤੀ",
   no_records: "ਕੋਈ ਰਿਕਾਰਡ ਨਹੀਂ ਮਿਲਿਆ।",
   acc: {
-    nav: {
+
+    names: {
+      nav: "Names to complete",
+      title: "Names to complete",
+      subtitle: "Customers, suppliers and items saved with details still missing. Tap one to complete it.",
+      empty: "Nothing to complete.",
+      kind_customer: "Customers",
+      kind_supplier: "Suppliers",
+      kind_item: "Items",
+      missing_state: "State",
+      missing_gstin: "GSTIN",
+      missing_group: "Group",
+      missing_hsn: "HSN code",
+      missing_tax_template: "GST rate",
+    },    nav: {
       reports: "ਰਿਪੋਰਟਾਂ",
       gl_entries: "GL ਇੰਦਰਾਜ",
       trial_balance: "ਤਲਪਟ (ਟ੍ਰਾਇਲ ਬੈਲੇਂਸ)",
@@ -747,6 +761,16 @@ const pa: Record<string, unknown> = {
     not_granted: "ਨਹੀਂ ਦਿੱਤੀ ਗਈ",
     expand: "ਇਜਾਜ਼ਤਾਂ ਦਿਖਾਓ",
     collapse: "ਇਜਾਜ਼ਤਾਂ ਲੁਕਾਓ",
+  },
+  link: {
+    quick_add: "Add \"{{text}}\"",
+    quick_add_title: "New \"{{text}}\"",
+    gst_label: "GST %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
   },
   common: {
     close: "ਬੰਦ ਕਰੋ",

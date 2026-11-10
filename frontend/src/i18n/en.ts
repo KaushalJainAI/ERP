@@ -8,6 +8,16 @@
  *   common.*, doc.*       framework strings
  */
 export const enExtra = {
+  link: {
+    quick_add: "Add \"{{text}}\"",
+    quick_add_title: "New \"{{text}}\"",
+    gst_label: "GST %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
+  },
   common: {
     close: "Close",
     select: "Select...",

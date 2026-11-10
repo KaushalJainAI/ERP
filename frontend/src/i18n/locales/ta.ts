@@ -138,7 +138,21 @@ const ta: Record<string, unknown> = {
   created_at: "உருவாக்கிய தேதி",
   no_records: "பதிவுகள் எதுவும் இல்லை.",
   acc: {
-    nav: {
+
+    names: {
+      nav: "Names to complete",
+      title: "Names to complete",
+      subtitle: "Customers, suppliers and items saved with details still missing. Tap one to complete it.",
+      empty: "Nothing to complete.",
+      kind_customer: "Customers",
+      kind_supplier: "Suppliers",
+      kind_item: "Items",
+      missing_state: "State",
+      missing_gstin: "GSTIN",
+      missing_group: "Group",
+      missing_hsn: "HSN code",
+      missing_tax_template: "GST rate",
+    },    nav: {
       reports: "அறிக்கைகள்",
       gl_entries: "GL பதிவுகள்",
       trial_balance: "இருப்பாய்வு (டிரையல் பேலன்ஸ்)",
@@ -747,6 +761,16 @@ const ta: Record<string, unknown> = {
     not_granted: "வழங்கப்படவில்லை",
     expand: "அனுமதிகளைக் காட்டு",
     collapse: "அனுமதிகளை மறை",
+  },
+  link: {
+    quick_add: "Add \"{{text}}\"",
+    quick_add_title: "New \"{{text}}\"",
+    gst_label: "GST %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
   },
   common: {
     close: "மூடு",

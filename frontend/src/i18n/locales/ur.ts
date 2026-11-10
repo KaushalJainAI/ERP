@@ -138,7 +138,21 @@ const ur: Record<string, unknown> = {
   created_at: "تخلیق کی تاریخ",
   no_records: "کوئی ریکارڈ نہیں ملا۔",
   acc: {
-    nav: {
+
+    names: {
+      nav: "Names to complete",
+      title: "Names to complete",
+      subtitle: "Customers, suppliers and items saved with details still missing. Tap one to complete it.",
+      empty: "Nothing to complete.",
+      kind_customer: "Customers",
+      kind_supplier: "Suppliers",
+      kind_item: "Items",
+      missing_state: "State",
+      missing_gstin: "GSTIN",
+      missing_group: "Group",
+      missing_hsn: "HSN code",
+      missing_tax_template: "GST rate",
+    },    nav: {
       reports: "رپورٹس",
       gl_entries: "GL اندراجات",
       trial_balance: "ٹرائل بیلنس (تلپٹ)",
@@ -747,6 +761,16 @@ const ur: Record<string, unknown> = {
     not_granted: "نہیں دی گئی",
     expand: "اجازتیں دکھائیں",
     collapse: "اجازتیں چھپائیں",
+  },
+  link: {
+    quick_add: "Add \"{{text}}\"",
+    quick_add_title: "New \"{{text}}\"",
+    gst_label: "GST %",
+    gst_0: "0%",
+    gst_5: "5%",
+    gst_12: "12%",
+    gst_18: "18%",
+    gst_28: "28%",
   },
   common: {
     close: "بند کریں",
