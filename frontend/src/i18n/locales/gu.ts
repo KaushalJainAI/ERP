@@ -1585,6 +1585,13 @@ const gu: Record<string, unknown> = {
     advance: "એડવાન્સ / સમાયોજિત નહીં",
   },
   ret: {
+    historical_badge: "ઐતિહાસિક",
+    historical_filter: {
+      label: "ટેલી ઇતિહાસ",
+      all: "બધા રેકોર્ડ",
+      only: "ઐતિહાસિક (ટેલી)",
+      exclude: "વર્તમાન (ERP)",
+    },
     create_credit_note: "ક્રેડિટ નોટ બનાવો",
     create_debit_note: "ડેબિટ નોટ બનાવો",
     credit_note: "ક્રેડિટ નોટ",

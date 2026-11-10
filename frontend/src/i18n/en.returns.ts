@@ -4,6 +4,13 @@
  */
 export const enReturns = {
   ret: {
+    historical_badge: "Historical",
+    historical_filter: {
+      label: "Tally history",
+      all: "All records",
+      only: "Historical (Tally)",
+      exclude: "Current (ERP)",
+    },
     create_credit_note: "Create Credit Note",
     create_debit_note: "Create Debit Note",
     credit_note: "Credit Note",

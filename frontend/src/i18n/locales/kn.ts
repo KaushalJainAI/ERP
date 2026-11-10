@@ -1585,6 +1585,13 @@ const kn: Record<string, unknown> = {
     advance: "ಮುಂಗಡ / ಹೊಂದಿಸದ್ದು",
   },
   ret: {
+    historical_badge: "ಐತಿಹಾಸಿಕ",
+    historical_filter: {
+      label: "ಟ್ಯಾಲಿ ಇತಿಹಾಸ",
+      all: "ಎಲ್ಲಾ ದಾಖಲೆಗಳು",
+      only: "ಐತಿಹಾಸಿಕ (ಟ್ಯಾಲಿ)",
+      exclude: "ಪ್ರಸ್ತುತ (ERP)",
+    },
     create_credit_note: "ಕ್ರೆಡಿಟ್ ನೋಟ್ ರಚಿಸಿ",
     create_debit_note: "ಡೆಬಿಟ್ ನೋಟ್ ರಚಿಸಿ",
     credit_note: "ಕ್ರೆಡಿಟ್ ನೋಟ್",

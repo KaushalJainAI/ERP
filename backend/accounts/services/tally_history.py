@@ -945,9 +945,9 @@ def party_report(
                 "party_type": party_type,
                 "party": name,
                 "as_of": str(as_of),
-                "documents_net": documents,
-                "ledger_balance": ledger,
-                "difference": ledger - documents,
+                "documents_net": money(documents),
+                "ledger_balance": money(ledger),
+                "difference": money(ledger - documents),
             }
         )
     return rows

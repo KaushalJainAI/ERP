@@ -1585,6 +1585,13 @@ const te: Record<string, unknown> = {
     advance: "అడ్వాన్స్ / కేటాయించనిది",
   },
   ret: {
+    historical_badge: "చారిత్రక",
+    historical_filter: {
+      label: "టాలీ చరిత్ర",
+      all: "అన్ని రికార్డులు",
+      only: "చారిత్రక (టాలీ)",
+      exclude: "ప్రస్తుత (ERP)",
+    },
     create_credit_note: "క్రెడిట్ నోట్ సృష్టించండి",
     create_debit_note: "డెబిట్ నోట్ సృష్టించండి",
     credit_note: "క్రెడిట్ నోట్",

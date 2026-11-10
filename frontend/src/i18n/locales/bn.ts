@@ -1585,6 +1585,13 @@ const bn: Record<string, unknown> = {
     advance: "অগ্রিম / অসমন্বিত",
   },
   ret: {
+    historical_badge: "ঐতিহাসিক",
+    historical_filter: {
+      label: "ট্যালি ইতিহাস",
+      all: "সব রেকর্ড",
+      only: "ঐতিহাসিক (ট্যালি)",
+      exclude: "বর্তমান (ERP)",
+    },
     create_credit_note: "ক্রেডিট নোট তৈরি করুন",
     create_debit_note: "ডেবিট নোট তৈরি করুন",
     credit_note: "ক্রেডিট নোট",

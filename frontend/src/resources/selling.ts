@@ -257,6 +257,25 @@ const customers: ResourceConfig = {
   icon: UserSquare2,
   titleField: "name",
   ordering: "name",
+  // The party's documents, Tally-era (historical) ones included.
+  actions: [
+    {
+      key: "sales_invoices",
+      labelKey: "res.sales_invoices",
+      icon: Receipt,
+      kind: "navigate",
+      navigate: (d) => ({ to: `/selling/sales-invoices?customer=${d.id}` }),
+    },
+    {
+      key: "payments",
+      labelKey: "acc.res.payment_entries",
+      icon: Wallet,
+      kind: "navigate",
+      navigate: (d) => ({
+        to: `/accounts/payment-entries?party_type=Customer&party_name=${encodeURIComponent(String(d.name ?? ""))}`,
+      }),
+    },
+  ],
   columns: [
     { key: "name", labelKey: "fields.customer" },
     { key: "customer_group_name", labelKey: "fields.customer_group" },
@@ -357,6 +376,8 @@ const salesInvoices: ResourceConfig = {
   icon: Receipt,
   submittable: true,
   ordering: "-posting_date,-created_at",
+  urlFilters: ["customer"],
+  historicalFilter: true,
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "customer_name", labelKey: "fields.customer" },

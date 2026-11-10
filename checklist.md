@@ -561,4 +561,5 @@ question's recorded answer.
 - [x] G-6 Opening stock template
 - [x] G-7 Backups
 - [ ] G-8 Cutover (OWNER)
+- [ ] G-9 Tally history as documents (planning/11): `export_tally_history` / `import_tally_history` built and tested (`accounts/test_tally_history_import.py`); invoice / payment lists filter "Tally history", customer / supplier pages link to their invoices and payments. Still due: run `export_tally_history` against tally-pg + a local restore of production, review the dry-run report with the owner (unmatched items, item-less vouchers, cash sales), then `--commit` (OWNER)
 

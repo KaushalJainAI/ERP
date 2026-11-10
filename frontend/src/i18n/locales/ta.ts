@@ -1585,6 +1585,13 @@ const ta: Record<string, unknown> = {
     advance: "முன்பணம் / ஒதுக்கப்படாதது",
   },
   ret: {
+    historical_badge: "வரலாற்று",
+    historical_filter: {
+      label: "டேலி வரலாறு",
+      all: "அனைத்து பதிவுகள்",
+      only: "வரலாற்று (டேலி)",
+      exclude: "தற்போதைய (ERP)",
+    },
     create_credit_note: "கிரெடிட் நோட் உருவாக்கு",
     create_debit_note: "டெபிட் நோட் உருவாக்கு",
     credit_note: "கிரெடிட் நோட்",

@@ -1585,6 +1585,13 @@ const as: Record<string, unknown> = {
     advance: "অগ্ৰিম / সমন্বয়হীন",
   },
   ret: {
+    historical_badge: "ঐতিহাসিক",
+    historical_filter: {
+      label: "টেলি ইতিহাস",
+      all: "সকলো ৰেকৰ্ড",
+      only: "ঐতিহাসিক (টেলি)",
+      exclude: "বৰ্তমান (ERP)",
+    },
     create_credit_note: "ক্ৰেডিট নোট সৃষ্টি কৰক",
     create_debit_note: "ডেবিট নোট সৃষ্টি কৰক",
     credit_note: "ক্ৰেডিট নোট",

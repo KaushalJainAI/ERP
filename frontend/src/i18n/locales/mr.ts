@@ -1585,6 +1585,13 @@ const mr: Record<string, unknown> = {
     advance: "आगाऊ / समायोजित नसलेली",
   },
   ret: {
+    historical_badge: "ऐतिहासिक",
+    historical_filter: {
+      label: "टॅली इतिहास",
+      all: "सर्व नोंदी",
+      only: "ऐतिहासिक (टॅली)",
+      exclude: "सध्याचे (ERP)",
+    },
     create_credit_note: "क्रेडिट नोट तयार करा",
     create_debit_note: "डेबिट नोट तयार करा",
     credit_note: "क्रेडिट नोट",

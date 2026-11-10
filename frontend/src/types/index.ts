@@ -369,6 +369,11 @@ export interface ResourceConfig {
    * `?employee=12` -> `employee=12`). Lets other pages link to a filtered list.
    */
   urlFilters?: string[];
+  /**
+   * Adds the "Tally history" list filter (`?is_historical=true|false`): all records,
+   * only the documents imported from Tally, or only those made in the ERP.
+   */
+  historicalFilter?: boolean;
   /** Hide from the sidebar (still routable). */
   hideInSidebar?: boolean;
   /** Sidebar group override. Default: submittable → transactions, listOnly → reports, else masters. */

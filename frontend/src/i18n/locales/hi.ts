@@ -1585,6 +1585,13 @@ const hi: Record<string, unknown> = {
     advance: "अग्रिम / असमायोजित",
   },
   ret: {
+    historical_badge: "ऐतिहासिक",
+    historical_filter: {
+      label: "टैली इतिहास",
+      all: "सभी रिकॉर्ड",
+      only: "ऐतिहासिक (टैली)",
+      exclude: "वर्तमान (ERP)",
+    },
     create_credit_note: "क्रेडिट नोट बनाएं",
     create_debit_note: "डेबिट नोट बनाएं",
     credit_note: "क्रेडिट नोट",

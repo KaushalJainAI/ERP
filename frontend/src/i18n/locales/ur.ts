@@ -1585,6 +1585,13 @@ const ur: Record<string, unknown> = {
     advance: "پیشگی / غیر مختص",
   },
   ret: {
+    historical_badge: "تاریخی",
+    historical_filter: {
+      label: "ٹیلی تاریخ",
+      all: "تمام ریکارڈ",
+      only: "تاریخی (ٹیلی)",
+      exclude: "موجودہ (ERP)",
+    },
     create_credit_note: "کریڈٹ نوٹ بنائیں",
     create_debit_note: "ڈیبٹ نوٹ بنائیں",
     credit_note: "کریڈٹ نوٹ",

@@ -15,7 +15,7 @@ const STYLES: Record<string, { key: string; cls: string }> = {
   Return: { key: "ret.status.return", cls: "bg-fuchsia-950/50 text-fuchsia-300 border-fuchsia-800/50" },
   "Credit Note Issued": { key: "ret.status.credit_note_issued", cls: "bg-fuchsia-950/50 text-fuchsia-300 border-fuchsia-800/50" },
   "Debit Note Issued": { key: "ret.status.debit_note_issued", cls: "bg-fuchsia-950/50 text-fuchsia-300 border-fuchsia-800/50" },
-  Historical: { key: "status.historical", cls: "bg-indigo-950/60 text-indigo-300 border-indigo-800/60" },
+  Historical: { key: "ret.historical_badge", cls: "bg-indigo-950/60 text-indigo-300 border-indigo-800/60" },
 };
 
 /** Payment status of a Sales / Purchase Invoice (from the API's `display_status`, falling back to `status`). */

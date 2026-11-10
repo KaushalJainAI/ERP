@@ -1585,6 +1585,13 @@ const or: Record<string, unknown> = {
     advance: "ଅଗ୍ରିମ / ଅସମନ୍ୱିତ",
   },
   ret: {
+    historical_badge: "ଐତିହାସିକ",
+    historical_filter: {
+      label: "ଟ୍ୟାଲି ଇତିହାସ",
+      all: "ସମସ୍ତ ରେକର୍ଡ",
+      only: "ଐତିହାସିକ (ଟ୍ୟାଲି)",
+      exclude: "ବର୍ତ୍ତମାନ (ERP)",
+    },
     create_credit_note: "କ୍ରେଡିଟ୍ ନୋଟ୍ ତିଆରି କରନ୍ତୁ",
     create_debit_note: "ଡେବିଟ୍ ନୋଟ୍ ତିଆରି କରନ୍ତୁ",
     credit_note: "କ୍ରେଡିଟ୍ ନୋଟ୍",

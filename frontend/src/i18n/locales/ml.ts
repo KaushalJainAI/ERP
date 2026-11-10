@@ -1585,6 +1585,13 @@ const ml: Record<string, unknown> = {
     advance: "അഡ്വാൻസ് / വകയിരുത്താത്തത്",
   },
   ret: {
+    historical_badge: "ചരിത്രപരം",
+    historical_filter: {
+      label: "ടാലി ചരിത്രം",
+      all: "എല്ലാ രേഖകളും",
+      only: "ചരിത്രപരം (ടാലി)",
+      exclude: "നിലവിലുള്ളത് (ERP)",
+    },
     create_credit_note: "ക്രെഡിറ്റ് നോട്ട് സൃഷ്ടിക്കുക",
     create_debit_note: "ഡെബിറ്റ് നോട്ട് സൃഷ്ടിക്കുക",
     credit_note: "ക്രെഡിറ്റ് നോട്ട്",

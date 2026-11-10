@@ -3,6 +3,7 @@ import { BarChart3, BookOpen, FileCheck, FileSpreadsheet, FileText, Landmark, Li
 import i18n from "i18next";
 import { apiClient } from "@/api/client";
 import { JournalBalanceBanner, negDec, totalsOf } from "@/components/accounts/BalanceBanner";
+import { PaymentStatusBadge } from "@/components/ui/PaymentStatusBadge";
 import { sumDec } from "@/lib/decimal";
 import { todayISO } from "@/lib/format";
 import type {
@@ -253,6 +254,8 @@ const paymentEntries: ResourceConfig = {
   icon: Wallet,
   submittable: true,
   ordering: "-posting_date,-created_at",
+  urlFilters: ["party_type", "party_name"],
+  historicalFilter: true,
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "payment_type", labelKey: "acc.fields.payment_type", render: optionCell },
@@ -261,6 +264,11 @@ const paymentEntries: ResourceConfig = {
     { key: "paid_amount", labelKey: "acc.fields.paid_amount", type: "money" },
     { key: "reference_no", labelKey: "acc.fields.reference_no" },
     { key: "docstatus", labelKey: "status", type: "status" },
+    {
+      key: "is_historical",
+      labelKey: "ret.historical_filter.label",
+      render: (v) => (v ? createElement(PaymentStatusBadge, { status: "Historical" }) : ""),
+    },
   ],
   fields: [
     docNoField,

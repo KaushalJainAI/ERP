@@ -1585,6 +1585,13 @@ const pa: Record<string, unknown> = {
     advance: "ਪੇਸ਼ਗੀ / ਅਨਿਯਤ",
   },
   ret: {
+    historical_badge: "ਇਤਿਹਾਸਕ",
+    historical_filter: {
+      label: "ਟੈਲੀ ਇਤਿਹਾਸ",
+      all: "ਸਾਰੇ ਰਿਕਾਰਡ",
+      only: "ਇਤਿਹਾਸਕ (ਟੈਲੀ)",
+      exclude: "ਮੌਜੂਦਾ (ERP)",
+    },
     create_credit_note: "ਕ੍ਰੈਡਿਟ ਨੋਟ ਬਣਾਓ",
     create_debit_note: "ਡੈਬਿਟ ਨੋਟ ਬਣਾਓ",
     credit_note: "ਕ੍ਰੈਡਿਟ ਨੋਟ",

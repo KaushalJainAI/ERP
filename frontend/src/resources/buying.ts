@@ -191,6 +191,25 @@ const suppliers: ResourceConfig = {
   icon: Truck,
   titleField: "name",
   ordering: "name",
+  // The party's documents, Tally-era (historical) ones included.
+  actions: [
+    {
+      key: "purchase_invoices",
+      labelKey: "bs.res.purchase_invoices",
+      icon: Receipt,
+      kind: "navigate",
+      navigate: (d) => ({ to: `/buying/purchase-invoices?supplier=${d.id}` }),
+    },
+    {
+      key: "payments",
+      labelKey: "acc.res.payment_entries",
+      icon: Wallet,
+      kind: "navigate",
+      navigate: (d) => ({
+        to: `/accounts/payment-entries?party_type=Supplier&party_name=${encodeURIComponent(String(d.name ?? ""))}`,
+      }),
+    },
+  ],
   columns: [
     { key: "name", labelKey: "bs.fields.supplier" },
     { key: "supplier_group_name", labelKey: "bs.fields.supplier_group" },
@@ -285,6 +304,8 @@ const purchaseInvoices: ResourceConfig = {
   icon: Receipt,
   submittable: true,
   ordering: "-posting_date,-created_at",
+  urlFilters: ["supplier"],
+  historicalFilter: true,
   columns: [
     { key: "name", labelKey: "fields.docno" },
     { key: "supplier_name", labelKey: "bs.fields.supplier" },

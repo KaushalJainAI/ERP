@@ -23,6 +23,12 @@ import { formatDate, formatIndianCurrency, formatIndianNumber } from "@/lib/form
 import type { ApiRecord, ListColumnDef, ResourceConfig } from "@/types";
 import { Select } from "@/components/ui/Select";
 
+const HISTORICAL_FILTERS = [
+  { value: "", labelKey: "ret.historical_filter.all" },
+  { value: "true", labelKey: "ret.historical_filter.only" },
+  { value: "false", labelKey: "ret.historical_filter.exclude" },
+];
+
 const DOCSTATUS_FILTERS = [
   { value: "", labelKey: "common.all_statuses" },
   { value: "0", labelKey: "draft" },
@@ -59,6 +65,21 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
     const v = searchParams.get(k);
     if (v) urlFilterValues[k] = v;
   });
+  // Tally history filter (ResourceConfig.historicalFilter): ?is_historical=true|false.
+  const rawHistorical = searchParams.get("is_historical") ?? "";
+  const historical =
+    config.historicalFilter && HISTORICAL_FILTERS.some((f) => f.value === rawHistorical) ? rawHistorical : "";
+  if (historical) urlFilterValues.is_historical = historical;
+  const setHistorical = (value: string) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set("is_historical", value);
+        else next.delete("is_historical");
+        return next;
+      },
+      { replace: true }
+    );
   const urlFilterKey = JSON.stringify(urlFilterValues);
 
   // Back to page 1 whenever the query changes.
@@ -284,6 +305,15 @@ export const ListPage: React.FC<{ config: ResourceConfig }> = ({ config }) => {
                 aria-label={t("status")}
                 className="w-full sm:w-40"
                 options={DOCSTATUS_FILTERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+              />
+            )}
+            {config.historicalFilter && (
+              <Select
+                value={historical}
+                onChange={setHistorical}
+                aria-label={t("ret.historical_filter.label")}
+                className="w-full sm:w-44"
+                options={HISTORICAL_FILTERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
               />
             )}
             {tree && (

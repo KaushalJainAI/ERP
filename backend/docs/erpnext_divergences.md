@@ -745,3 +745,14 @@ and are left out of GSTR-1 / GSTR-3B / GST position (those periods were filed fr
 Tally). What a party still owes from that period is carried by the opening bills
 (G-1), which reference the same Tally bill numbers. Enforced by a CHECK on each
 table (`*_historical_is_settled_record`).
+
+Import rules (`accounts/services/tally_history.py`, 2026-11-10). The journal is the
+truth for money, party, accounts and date. The Tally file only adds item lines and
+the supplier bill no. Tax = the journal's `Tax` accounts, rounding = its `Round Off`
+accounts. A voucher whose items do not tie to the journal's sales / purchase lines
+to the paisa is skipped and listed, never adjusted. The same applies to an unknown
+item or party, a voucher with no item lines, a cash sale with no party, or a receipt
+with more than the party and one bank / cash line. Receipts and payments carry
+**display-only** references to the party's historical invoices, oldest first. They
+cannot change any outstanding: historical invoices always derive 0, and opening
+bills are never referenced. What is still owed stays on the opening bills.

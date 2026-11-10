@@ -46,7 +46,6 @@ from users.permissions import (
     user_has_model_permission,
 )
 
-
 ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
 
@@ -211,6 +210,8 @@ class PaymentEntryViewSet(
     filterset_fields = [
         "company",
         "payment_type",
+        "party_type",
+        "party_name",
         "posting_date",
         "docstatus",
         "is_historical",
@@ -763,7 +764,6 @@ def expense_summary_view(request):
     return Response(data)
 
 
-
 class TaxPaymentViewSet(
     CompanyScopedMixin, SubmittableViewSetMixin, viewsets.ModelViewSet
 ):
@@ -773,7 +773,6 @@ class TaxPaymentViewSet(
     filterset_fields = ["company", "tax_type", "period", "posting_date", "docstatus"]
     search_fields = ["name", "challan_no"]
     ordering_fields = ["posting_date", "period", "created_at"]
-
 
 
 @api_view(["GET"])
@@ -796,7 +795,6 @@ def gst_position_view(request):
     except (ValueError, DjangoValidationError, Company.DoesNotExist) as exc:
         raise ValidationError({"detail": str(exc)})
     return Response(data)
-
 
 
 @api_view(["GET"])

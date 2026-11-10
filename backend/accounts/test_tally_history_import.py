@@ -678,6 +678,32 @@ class TallyHistoryImportTests(TestCase):
             (D("-210.00"), D("-210.00")),
         )
 
+    def test_payment_list_filters_by_party_and_history(self):
+        from rest_framework.test import APIClient
+
+        from users.models import User
+
+        self.commit()
+        client = APIClient()
+        client.force_authenticate(User.objects.create_superuser("root", "r@x.com", "x"))
+        res = client.get(
+            "/api/accounts/payment-entries/",
+            {
+                "party_type": "Customer",
+                "party_name": "Ram Traders",
+                "is_historical": "true",
+            },
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        rows = res.json().get("results", res.json())
+        self.assertEqual([r["name"] for r in rows], [self.j_receipt.name])
+        self.assertTrue(rows[0]["is_historical"])
+        res = client.get(
+            "/api/selling/sales-invoices/",
+            {"customer": self.ram.pk, "is_historical": "false"},
+        )
+        self.assertEqual(res.json().get("results", res.json()), [])
+
 
 class ExportMatchingTests(TestCase):
     """export_tally_history: voucher -> TLY journal by FY, type, number and date."""
