@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
@@ -9,6 +10,7 @@ from stock.models import (
     UOM,
     ItemGroup,
     Item,
+    ReconciliationPurpose,
     ItemAttribute,
     ItemAttributeValue,
     Warehouse,
@@ -23,6 +25,7 @@ from stock.models import (
     StockReconciliationItem,
 )
 from stock.services import batches as batch_service
+from stock.services import item_defaults
 from stock.services import reconciliation as reconciliation_service
 from stock.services import variants as variant_service
 from core.mixins import (
@@ -71,6 +74,15 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     template_attributes = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
+    # Write only: the GST % picks the matching seeded item tax template. Nothing
+    # is stored for it; the template stays the single source.
+    gst_rate = serializers.ChoiceField(
+        choices=item_defaults.GST_RATE_CHOICES,
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Item
@@ -94,6 +106,7 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
             "item_tax_template",
             "item_tax_template_name",
             "item_tax_rate",
+            "gst_rate",
             "has_batch_no",
             "has_expiry_date",
             "shelf_life_in_days",
@@ -109,10 +122,21 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
         # Variants are made only through ``create-variant`` (which keeps the
         # combination unique); a plain write can never re-parent an item.
         read_only_fields = ("variant_of",)
+        # Optional on input: create fills code, group and unit (see ``create``).
+        extra_kwargs = {
+            "code": {"required": False, "allow_blank": True},
+            "item_group": {"required": False},
+            "stock_uom": {"required": False},
+        }
         translatable_fields = ["name", "description"]
 
     def get_variant_label(self, obj):
         return variant_service.variant_label(obj)
+
+    def validate_standard_rate(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError(_("Price cannot be negative."))
+        return value
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
@@ -148,6 +172,22 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     def validate(self, attrs):
         attrs = super().validate(attrs)
         inst = self.instance
+
+        # A blank code means "generate one" on create and "keep it" on update.
+        if "code" in attrs and not attrs["code"]:
+            attrs.pop("code")
+        # An explicit template wins; otherwise the GST % picks the seeded template.
+        gst_rate = attrs.pop("gst_rate", None)
+        if gst_rate and not attrs.get("item_tax_template"):
+            template = item_defaults.item_tax_template_for_rate(Decimal(gst_rate))
+            if template is None:
+                raise serializers.ValidationError(
+                    {
+                        "gst_rate": _("No item tax template exists for GST %(rate)s%%.")
+                        % {"rate": gst_rate}
+                    }
+                )
+            attrs["item_tax_template"] = template
 
         def current(name):
             return attrs[name] if name in attrs else getattr(inst, name, False)
@@ -228,6 +268,12 @@ class ItemSerializer(TranslatedSerializerMixin, serializers.ModelSerializer):
     def create(self, validated_data):
         ids = validated_data.pop("template_attributes", None)
         with transaction.atomic():
+            if not validated_data.get("code"):
+                validated_data["code"] = item_defaults.next_item_code()
+            if validated_data.get("item_group") is None:
+                validated_data["item_group"] = item_defaults.default_item_group()
+            if validated_data.get("stock_uom") is None:
+                validated_data["stock_uom"] = item_defaults.default_stock_uom()
             item = super().create(validated_data)
             if ids is not None:
                 self._apply_template_attributes(item, ids)
@@ -808,8 +854,13 @@ class StockReconciliationSerializer(DraftNestedWriteMixin, serializers.ModelSeri
         else:
             account = instance.expense_account if instance else None
         if account is None and company is not None:
-            # ERPNext defaults the difference account to the Stock Adjustment account.
-            account = company.stock_adjustment_account
+            # An opening entry uses the company's "Temporary Opening" account when it
+            # has one. Otherwise, as ERPNext, the difference account is the Stock
+            # Adjustment account.
+            if purpose == ReconciliationPurpose.OPENING_STOCK:
+                account = reconciliation_service.default_opening_account(company)
+            if account is None:
+                account = company.stock_adjustment_account
             attrs["expense_account"] = account
         if company is not None:
             try:

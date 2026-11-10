@@ -550,6 +550,7 @@ const or: Record<string, unknown> = {
       valuation_method: "ମୂଲ୍ୟାୟନ ପଦ୍ଧତି",
       valuation_rate: "ମୂଲ୍ୟାୟନ ହାର",
       standard_rate: "ମାନକ ହାର",
+      selling_price: "Selling Price",
       is_stock_item: "ଷ୍ଟକ୍ ରକ୍ଷଣାବେକ୍ଷଣ କରନ୍ତୁ",
       description: "ବିବରଣୀ",
       parent_warehouse: "ମୂଳ ଗୋଦାମ",
@@ -915,6 +916,13 @@ const or: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "ବୈଧ GSTIN",
     res: {

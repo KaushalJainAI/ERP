@@ -550,6 +550,7 @@ const ur: Record<string, unknown> = {
       valuation_method: "تخمینہ کا طریقہ",
       valuation_rate: "تخمینہ کی شرح",
       standard_rate: "معیاری شرح",
+      selling_price: "Selling Price",
       is_stock_item: "اسٹاک برقرار رکھیں",
       description: "تفصیل",
       parent_warehouse: "بنیادی گودام",
@@ -915,6 +916,13 @@ const ur: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "درست GSTIN",
     res: {

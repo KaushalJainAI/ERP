@@ -550,6 +550,7 @@ const ta: Record<string, unknown> = {
       valuation_method: "மதிப்பீட்டு முறை",
       valuation_rate: "மதிப்பீட்டு விகிதம்",
       standard_rate: "நிலையான விகிதம்",
+      selling_price: "Selling Price",
       is_stock_item: "இருப்பைப் பராமரி",
       description: "விவரம்",
       parent_warehouse: "தாய்க் கிடங்கு",
@@ -915,6 +916,13 @@ const ta: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "சரியான GSTIN",
     res: {

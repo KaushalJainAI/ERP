@@ -550,6 +550,7 @@ const te: Record<string, unknown> = {
       valuation_method: "విలువ కట్టే పద్ధతి",
       valuation_rate: "విలువ కట్టే రేటు",
       standard_rate: "ప్రామాణిక రేటు",
+      selling_price: "Selling Price",
       is_stock_item: "స్టాక్ నిర్వహించండి",
       description: "వివరణ",
       parent_warehouse: "మాతృ గోదాము",
@@ -915,6 +916,13 @@ const te: Record<string, unknown> = {
     },
   },
   gst: {
+    rate_options: {
+      r0: "0%",
+      r5: "5%",
+      r12: "12%",
+      r18: "18%",
+      r28: "28%",
+    },
     title: "GST",
     gstin_valid: "చెల్లుబాటు అయ్యే GSTIN",
     res: {
