@@ -9,6 +9,7 @@ from accounts import mapping as account_mapping
 from accounts.models import (
     PaymentEntry,
     PaymentEntryReference,
+    PaymentMode,
     PaymentType,
     TaxTemplate,
 )
@@ -38,6 +39,8 @@ def create_expense(
     as_draft=False,
     docstatus=None,
     recurring_expense=None,
+    mode=None,
+    reference_no=None,
 ):
     """Create and submit an expense invoice, optionally with immediate payment.
 
@@ -67,10 +70,14 @@ def create_expense(
     if amount <= Decimal("0.00"):
         raise ValidationError(_("Expense amount must be greater than zero."))
 
-    if paid_now and not paid_from:
+    if paid_now and not paid_from and not mode:
         raise ValidationError(
             _("Paid from account is required when paid now is selected.")
         )
+    if paid_now and mode and mode not in PaymentMode.values:
+        raise ValidationError(_("Unknown payment mode."))
+    if paid_now and mode == PaymentMode.CHEQUE and not reference_no:
+        raise ValidationError(_("A cheque needs its number."))
 
     if isinstance(date, str):
         try:
@@ -236,6 +243,8 @@ def create_expense(
         if paid_now and not is_draft:
             pe_name = NamingSeries.next("PE-2026-")
             party_name = supplier.name if hasattr(supplier, "name") else str(supplier)
+            if paid_from is None:
+                paid_from = account_mapping.default_account_for_mode(company, mode)
             pe = PaymentEntry.objects.create(
                 name=pe_name,
                 company=company,
@@ -247,6 +256,8 @@ def create_expense(
                 paid_amount=amount,
                 received_amount=amount,
                 posting_date=date,
+                mode=mode or None,
+                reference_no=reference_no or None,
             )
             PaymentEntryReference.objects.create(
                 payment_entry=pe,

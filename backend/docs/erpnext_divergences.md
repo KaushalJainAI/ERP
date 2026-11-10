@@ -745,3 +745,28 @@ and are left out of GSTR-1 / GSTR-3B / GST position (those periods were filed fr
 Tally). What a party still owes from that period is carried by the opening bills
 (G-1), which reference the same Tally bill numbers. Enforced by a CHECK on each
 table (`*_historical_is_settled_record`).
+
+## How the money moved: payment mode (2026-11-10, planning 12 card S-6, app `accounts`)
+
+**ERPNext:** a Payment Entry names its payment method through a *Mode of Payment*
+master (Cash, Wire, Cheque, UPI, ...), each mapped to a default account per company.
+
+**Here:** `PaymentEntry.mode` is a fixed choice (`Cash`, `Bank Transfer`, `Cheque`), not a
+master. The list is small on purpose: an operator picks one of three large buttons, and
+the choice fills the bank-side account (Cash picks the company cash account; the others
+pick the default bank account). Nullable, because historical Tally rows have no mode.
+A Cheque needs `reference_no`, enforced by a CHECK. A new mode means a migration, not a
+data entry. "Cash put in bank" is an ordinary `Internal Transfer` with `mode=Cash` and
+no party, so the cash in hand figure stays true.
+
+## Line rates on orders and invoices (2026-11-10, planning 12 card S-4 a)
+
+**ERPNext:** line rates are currency-precision fields. This is a deliberate deviation in
+precision only; the lines are otherwise the same.
+
+**Here:** on sales and purchase order and invoice lines, `rate` is `DecimalField(18,2)`,
+by owner decision (2026-11-10): prices never need more than two decimals. The line's
+`price_list_rate` snapshot is still `DecimalField(18,6)` (it is not a price the operator
+types, and the column was not changed in this entry). Valuation rates (stock ledger,
+bins, item valuation) stay `(18,6)`, as the project rule requires. No columns were changed
+for this entry.

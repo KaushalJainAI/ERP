@@ -396,18 +396,21 @@ class AccountsAppTests(TestCase):
         self.assertEqual(GLEntry.objects.filter(voucher_no="PE-2026-0001").count(), 4)
 
     def test_payment_entry_invalid_amount_fails(self):
-        """BAD: Submitting PaymentEntry with zero or negative paid_amount raises ValidationError."""
-        pe = PaymentEntry.objects.create(
-            name="PE-BAD-001",
-            payment_type=PaymentType.RECEIVE,
-            posting_date=datetime.date(2026, 4, 1),
-            company=self.company,
-            paid_from=self.sales_acc,
-            paid_to=self.bank_acc,
-            paid_amount=Decimal("0.00"),
-        )
-        with self.assertRaises(ValidationError):
-            pe.submit()
+        """BAD: A PaymentEntry with a zero or negative paid_amount cannot be saved.
+        The DB CHECK (accounts_paymententry_paid_amount_gt_0, planning S-3) now refuses
+        the row before submit() can see it; submit()'s own check is the second line."""
+        from django.db import IntegrityError, transaction
+
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            PaymentEntry.objects.create(
+                name="PE-BAD-001",
+                payment_type=PaymentType.RECEIVE,
+                posting_date=datetime.date(2026, 4, 1),
+                company=self.company,
+                paid_from=self.sales_acc,
+                paid_to=self.bank_acc,
+                paid_amount=Decimal("0.00"),
+            )
 
     def test_financial_reports_endpoints(self):
         """GOOD: Financial report endpoints (GL, P&L, Balance Sheet) return accurate aggregate metrics."""

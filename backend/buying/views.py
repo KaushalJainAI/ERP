@@ -396,6 +396,8 @@ class ExpenseViewSet(CompanyScopedMixin, AuditLogMixin, viewsets.ModelViewSet):
                 due_date=due_date,
                 user=request.user,
                 proof=proof,
+                mode=str(data.get("mode") or "").strip() or None,
+                reference_no=str(data.get("reference_no") or "").strip() or None,
             )
         except ValidationError as exc:
             if hasattr(exc, "message_dict"):
