@@ -5,6 +5,9 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const pa: Record<string, unknown> = {
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
   selling_kpi: {
     title: "ਮਾਰਕੀਟਿੰਗ ਅਤੇ ਵਿਕਰੀ ਵਿਸ਼ਲੇਸ਼ਣ",
     nav_title: "ਵਿਕਰੀ ਅਤੇ ਮਾਰਕੀਟਿੰਗ KPI",
@@ -289,6 +292,7 @@ const pa: Record<string, unknown> = {
       reset: "ਫਿਲਟਰ ਰੀਸੈੱਟ ਕਰੋ",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "ਵਸੂਲਣ ਵਾਲੇ ਪੈਸੇ",
       subtitle: "ਖੁੱਲ੍ਹੇ ਗਾਹਕ ਬਕਾਏ, ਮਿਆਦ ਪੁੱਗੀਆਂ ਰਕਮਾਂ ਟ੍ਰੈਕ ਕਰੋ ਅਤੇ ਪ੍ਰਾਪਤੀਆਂ ਦਰਜ ਕਰੋ",
       record_receipt: "ਪ੍ਰਾਪਤੀ ਦਰਜ ਕਰੋ",
@@ -392,6 +396,12 @@ const pa: Record<string, unknown> = {
       submit_deposit: "Save & Submit Deposit",
     },
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST ਸਥਿਤੀ",
       subtitle: "ਮਾਸਿਕ GST ਦੇਣਦਾਰੀ, ਯੋਗ ITC ਅਤੇ ਅਦਾਇਗੀ ਟ੍ਰੈਕਿੰਗ",
       month: "ਮਹੀਨਾ",
@@ -2880,6 +2890,7 @@ const pa: Record<string, unknown> = {
     total_dispatch_units: "ਭੇਜਣ ਲਈ {{units}} ਯੂਨਿਟ",
   },
   notifications: {
+    no_users: "No users found",
     title: "ਸੂਚਨਾਵਾਂ",
     unread: "ਨਵਾਂ",
     mark_all_read: "ਸਭ ਪੜ੍ਹੇ ਹੋਏ ਵਜੋਂ ਨਿਸ਼ਾਨ ਲਾਓ",

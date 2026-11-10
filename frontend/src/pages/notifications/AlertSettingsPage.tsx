@@ -265,7 +265,7 @@ export const AlertSettingsPage: React.FC = () => {
                     </span>
                     <div className="flex flex-wrap gap-2">
                       {users.length === 0 ? (
-                        <span className="text-xs text-slate-500">No users found</span>
+                        <span className="text-xs text-slate-500">{t("notifications.no_users")}</span>
                       ) : (
                         users.map((u) => {
                           const isSelected = (currentEdit.recipients || []).includes(u.id);

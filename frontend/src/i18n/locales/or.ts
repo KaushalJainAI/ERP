@@ -5,6 +5,9 @@
  * `npm run i18n:check` after changing any English string. Missing keys fall back to English.
  */
 const or: Record<string, unknown> = {
+  errors: {
+    network: "No connection. Check the internet and try again.",
+  },
   selling_kpi: {
     title: "ବିପଣନ ଏବଂ ବିକ୍ରୟ ବିଶ୍ଳେଷଣ",
     nav_title: "ବିକ୍ରୟ ଏବଂ ବିପଣନ KPI",
@@ -289,6 +292,7 @@ const or: Record<string, unknown> = {
       reset: "ଫିଲ୍ଟର ରିସେଟ୍ କରନ୍ତୁ",
     },
     collections: {
+      toggle_bills: "Toggle bills list",
       title: "ସଂଗ୍ରହ କରିବାକୁ ଟଙ୍କା",
       subtitle: "ଖୋଲା ଗ୍ରାହକ ବାଲାନ୍ସ, ମିଆଦ ଉତୀର୍ଣ୍ଣ ପରିମାଣ ଟ୍ରାକ୍ କରନ୍ତୁ ଏବଂ ପ୍ରାପ୍ତି ରେକର୍ଡ କରନ୍ତୁ",
       record_receipt: "ପ୍ରାପ୍ତି ରେକର୍ଡ କରନ୍ତୁ",
@@ -392,6 +396,12 @@ const or: Record<string, unknown> = {
       submit_deposit: "Save & Submit Deposit",
     },
     gst_position: {
+      doc_no: "Doc No",
+      risk_invoice: "Invoice",
+      risk_bill_date: "Bill Date / Posting",
+      risk_gst: "GST at Risk",
+      refresh: "Refresh",
+      choose_file: "Choose file",
       title: "GST ସ୍ଥିତି",
       subtitle: "ମାସିକ GST ଦାୟିତ୍ୱ, ଯୋଗ୍ୟ ITC ଏବଂ ପେମେଣ୍ଟ ଟ୍ରାକିଂ",
       month: "ମାସ",
@@ -2880,6 +2890,7 @@ const or: Record<string, unknown> = {
     total_dispatch_units: "ପଠାଇବାକୁ {{units}} ୟୁନିଟ୍",
   },
   notifications: {
+    no_users: "No users found",
     title: "ବିଜ୍ଞପ୍ତି",
     unread: "ନୂଆ",
     mark_all_read: "ସମସ୍ତ ପଢ଼ାଯାଇଥିବା ଭାବେ ଚିହ୍ନଟ କରନ୍ତୁ",

@@ -319,7 +319,7 @@ export const GstPositionPage: React.FC = () => {
                 refetchRisk();
               }}
               className="p-2 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 rounded-lg border border-slate-700/60 transition-colors"
-              title="Refresh"
+              title={t("acc.gst_position.refresh")}
             >
               <RefreshCw
                 className={`w-4 h-4 ${positionFetching ? "animate-spin" : ""}`}
@@ -540,11 +540,11 @@ export const GstPositionPage: React.FC = () => {
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-slate-800/60 text-slate-400 uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="px-4 py-3">Doc No</th>
-                      <th className="px-4 py-3">Challan No</th>
-                      <th className="px-4 py-3">Posting Date</th>
-                      <th className="px-4 py-3 text-right">Cash Paid</th>
-                      <th className="px-4 py-3 text-right">Credit Used</th>
+                      <th className="px-4 py-3">{t("acc.gst_position.doc_no")}</th>
+                      <th className="px-4 py-3">{t("acc.gst_position.challan_no")}</th>
+                      <th className="px-4 py-3">{t("acc.gst_position.posting_date")}</th>
+                      <th className="px-4 py-3 text-right">{t("acc.gst_position.cash_paid")}</th>
+                      <th className="px-4 py-3 text-right">{t("acc.gst_position.credit_used")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
@@ -612,13 +612,13 @@ export const GstPositionPage: React.FC = () => {
                   <table className="w-full text-left text-xs text-slate-300">
                     <thead className="bg-slate-800/60 text-slate-400 uppercase text-[10px] tracking-wider">
                       <tr>
-                        <th className="px-4 py-3">Invoice</th>
-                        <th className="px-4 py-3">Supplier</th>
-                        <th className="px-4 py-3">Bill Date / Posting</th>
-                        <th className="px-4 py-3 text-right">Days Unpaid</th>
-                        <th className="px-4 py-3 text-right">GST at Risk</th>
-                        <th className="px-4 py-3 text-right">Outstanding</th>
-                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">{t("acc.gst_position.risk_invoice")}</th>
+                        <th className="px-4 py-3">{t("acc.gst_position.supplier")}</th>
+                        <th className="px-4 py-3">{t("acc.gst_position.risk_bill_date")}</th>
+                        <th className="px-4 py-3 text-right">{t("acc.gst_position.days_unpaid")}</th>
+                        <th className="px-4 py-3 text-right">{t("acc.gst_position.risk_gst")}</th>
+                        <th className="px-4 py-3 text-right">{t("acc.gst_position.outstanding")}</th>
+                        <th className="px-4 py-3">{t("acc.gst_position.status")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
@@ -843,7 +843,7 @@ export const GstPositionPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 cursor-pointer transition-colors text-xs">
                   <Upload className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Choose file</span>
+                  <span>{t("acc.gst_position.choose_file")}</span>
                   <input
                     type="file"
                     accept=".pdf,image/*"
