@@ -548,8 +548,9 @@ backend suite passes apart from five tests this sandbox cannot run (gettext, DEB
   internal transfer from the cash account to the default bank.
 - **Pre-deploy checks:** `check_constraint_candidates` and `check_accounts_constraints`
   count existing rows that would break the new database rules. Run them before migrating.
-- **Day summary (U-7 d):** a new alert rule `day_summary`; it sends nothing until
-  `seed_defaults` has created it and an admin has chosen its recipients. "Spent" is the
+- **Day summary (U-7 d):** a new alert rule `day_summary`, created by a data migration;
+  it sends nothing until an admin chooses its recipients. `seed_defaults` must not be run on
+  the real books (it recreates the demo company). "Spent" is the
   money paid out that day.
 - **Not done:** U-10's Share button (the print view is browser HTML; sharing a PDF or an
   image needs a renderer the app does not have; staff can use Print, then "Save as PDF" in

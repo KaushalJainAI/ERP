@@ -64,11 +64,11 @@ This release adds database rules, so follow the order. `C` below is the compose 
    Every count must be 0. If one is not, stop: the migration would fail (and roll back).
    Fix or report those rows first; a duplicate customer or supplier name (ignoring case)
    is for the accountant to merge.
-4. Migrate, then seed (adds the `day_summary` alert rule; idempotent), then make sure the
-   next fiscal years exist:
+4. Migrate (this also adds the `day_summary` alert rule), then make sure the next fiscal
+   years exist. Do **not** run `seed_defaults` on the real books: it would recreate the
+   demo company "Acme Corp" and could add a second 2026-27 fiscal year under another name.
    ```bash
    $C run --rm -T --no-deps backend python manage.py migrate --noinput
-   $C run --rm -T --no-deps backend python manage.py seed_defaults
    $C run --rm -T --no-deps backend python manage.py ensure_fiscal_years
    $C run --rm -T --no-deps backend python manage.py collectstatic --noinput
    $C run --rm -T --no-deps backend python manage.py verify_integrity

@@ -57,7 +57,8 @@ class NotificationModelTests(TestCase):
 
     def test_alert_rule_seed_idempotency(self):
         """Seeding alert rules creates the defined rules and running again adds no duplicates."""
-        self.assertEqual(AlertRule.objects.count(), 0)
+        # The day_summary rule arrives with a data migration; start from an empty table.
+        AlertRule.objects.all().delete()
 
         expected_count = len(DEFAULT_ALERT_RULES)
         created_first = seed_alert_rules()

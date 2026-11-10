@@ -39,7 +39,9 @@ class DaySummaryTests(TestCase):
             user=self.admin, company=self.other, is_default=False
         )
 
-        self.rule = AlertRule.objects.create(key="day_summary", is_active=True)
+        self.rule, _ = AlertRule.objects.update_or_create(
+            key="day_summary", defaults={"is_active": True}
+        )
         self.rule.recipients.add(self.admin)
 
         self.bank = self._account(
