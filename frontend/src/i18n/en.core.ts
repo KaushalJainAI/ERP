@@ -17,7 +17,7 @@ export const enCore = {
   save: "Save Draft",
   delete: "Delete Draft",
   draft: "Draft",
-  submitted: "Submitted",
+  submitted: "Approved",
   cancelled: "Cancelled",
   search: "Search...",
   actions: "Actions",

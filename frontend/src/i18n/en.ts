@@ -45,7 +45,7 @@ export const enExtra = {
     required: "This field is required.",
     fix_errors: "Please fix the highlighted fields.",
     saved: "Saved.",
-    submitted_ok: "Document submitted.",
+    submitted_ok: "Approved.",
     cancelled_ok: "Document cancelled.",
     amended_ok: "Correction created as a new draft.",
     deleted_ok: "Deleted.",
@@ -138,7 +138,7 @@ export const enExtra = {
     sales_invoice: "Sales Invoice",
     items_table: "Items",
     make_sales_invoice: "Make Sales Invoice",
-    make_payment_entry: "Make Payment Entry",
+    make_payment_entry: "Record payment",
   },
   notifications: {
     no_users: "No users found",

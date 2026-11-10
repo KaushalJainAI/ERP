@@ -4,8 +4,8 @@
  */
 export const enReturns = {
   ret: {
-    create_credit_note: "Create Credit Note",
-    create_debit_note: "Create Debit Note",
+    create_credit_note: "Goods returned (credit note)",
+    create_debit_note: "Goods sent back (debit note)",
     credit_note: "Credit Note",
     debit_note: "Debit Note",
     type: "Type",
