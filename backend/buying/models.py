@@ -824,6 +824,9 @@ class PurchaseInvoiceItem(TaxableLine):
         on_delete=models.PROTECT,
         related_name="return_items",
     )
+    # Mirrors the parent invoice's ``is_historical`` (set by the Tally import).
+    # A historical line may carry zero quantity as imported; new lines cannot.
+    is_historical = models.BooleanField(default=False, editable=False)
 
     class Meta(TaxableLine.Meta):
         constraints = [
@@ -838,9 +841,11 @@ class PurchaseInvoiceItem(TaxableLine):
                 | models.Q(expiry_date__gte=models.F("manufacturing_date")),
                 name="check_purchaseinvoiceitem_expiry_after_manufacturing",
             ),
-            # Returns carry a negative quantity, so only zero is refused.
+            # Returns carry a negative quantity, so only zero is refused, unless
+            # the line is a historical (Tally) line.
             models.CheckConstraint(
-                check=~models.Q(qty=0), name="check_purchaseinvoiceitem_qty_not_zero"
+                check=models.Q(is_historical=True) | ~models.Q(qty=0),
+                name="check_purchaseinvoiceitem_qty_not_zero",
             ),
             models.CheckConstraint(
                 check=models.Q(rate__gte=0), name="check_purchaseinvoiceitem_rate_gte_0"

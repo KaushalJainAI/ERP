@@ -365,6 +365,7 @@ class Command(BaseCommand):
                                     qty=qty,
                                     rate=rate,
                                     amount=amt,
+                                    is_historical=True,
                                 )
                             )
 
@@ -377,6 +378,7 @@ class Command(BaseCommand):
                                     qty=Decimal("1.000"),
                                     rate=header_amt,
                                     amount=header_amt,
+                                    is_historical=True,
                                 )
                             )
                             net_total = header_amt
@@ -495,6 +497,7 @@ class Command(BaseCommand):
                                     qty=qty,
                                     rate=rate,
                                     amount=amt,
+                                    is_historical=True,
                                 )
                             )
 
@@ -507,6 +510,7 @@ class Command(BaseCommand):
                                     qty=Decimal("1.000"),
                                     rate=header_amt,
                                     amount=header_amt,
+                                    is_historical=True,
                                 )
                             )
                             net_total = header_amt

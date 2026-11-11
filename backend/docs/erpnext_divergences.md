@@ -746,6 +746,19 @@ Tally). What a party still owes from that period is carried by the opening bills
 (G-1), which reference the same Tally bill numbers. Enforced by a CHECK on each
 table (`*_historical_is_settled_record`).
 
+**Zero-quantity lines on historical invoices (2026-11-11).** Tally bills carry some
+lines with no quantity and no rate. The invoice-line rule "quantity is never zero"
+(`check_*invoiceitem_qty_not_zero`) would refuse them. Purchase and Sales invoice
+lines now carry `is_historical` (mirroring their invoice, set by the Tally import and
+backfilled by migration), and the rule is `is_historical OR qty <> 0`. New lines
+still cannot be zero. 281 purchase and 2 sales imported lines rely on this.
+
+**Customer names are unique by exact name, not ignoring case (2026-11-11).** ERPNext
+treats party names case-insensitively; this ERP keeps `unique_customer_per_company`
+(company + exact name). Production had two customers that differed only in case
+("MOHAN KIRANA - SUSNER" and "Mohan Kirana - Susner") and the owner chose to keep both
+rather than merge them. Suppliers keep the case-insensitive rule (no duplicates exist).
+
 ## How the money moved: payment mode (2026-11-10, planning 12 card S-6, app `accounts`)
 
 **ERPNext:** a Payment Entry names its payment method through a *Mode of Payment*

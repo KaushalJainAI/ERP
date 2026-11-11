@@ -13,7 +13,7 @@ from accounts.models import InvoiceStatus, JournalEntry
 from core.models import DocStatus
 from gst.tests.test_documents import SI_URL
 from gst.tests.test_reports import OCT, ReportBase
-from selling.models import SalesInvoice
+from selling.models import SalesInvoice, SalesInvoiceItem
 
 
 class HistoricalDocumentTests(ReportBase):
@@ -42,6 +42,19 @@ class HistoricalDocumentTests(ReportBase):
         inv, journal = self.make_historical()
         with self.assertRaises(IntegrityError), transaction.atomic():
             SalesInvoice.objects.filter(pk=inv.pk).update(outstanding_amount=10)
+
+    def test_db_refuses_a_zero_quantity_line_on_a_normal_invoice(self):
+        d = self.sale(self.cust_intra, (self.item18, 1, 100), **OCT)
+        line = SalesInvoiceItem.objects.filter(sales_invoice_id=d["id"]).first()
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            SalesInvoiceItem.objects.filter(pk=line.pk).update(qty=0)
+
+    def test_db_allows_a_zero_quantity_line_on_a_historical_invoice(self):
+        inv, _ = self.make_historical()
+        SalesInvoiceItem.objects.filter(sales_invoice=inv).update(
+            qty=0, is_historical=True
+        )
+        self.assertTrue(SalesInvoiceItem.objects.filter(sales_invoice=inv, qty=0).exists())
 
     def test_cannot_be_cancelled(self):
         inv, _ = self.make_historical()

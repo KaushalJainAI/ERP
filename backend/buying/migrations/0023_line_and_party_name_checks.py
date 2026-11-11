@@ -5,6 +5,13 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def backfill_historical_items(apps, schema_editor):
+    PurchaseInvoiceItem = apps.get_model("buying", "PurchaseInvoiceItem")
+    PurchaseInvoiceItem.objects.filter(purchase_invoice__is_historical=True).update(
+        is_historical=True
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -20,10 +27,19 @@ class Migration(migrations.Migration):
             model_name="supplier",
             name="unique_supplier_per_company",
         ),
+        migrations.AddField(
+            model_name="purchaseinvoiceitem",
+            name="is_historical",
+            field=models.BooleanField(default=False, editable=False),
+        ),
+        # Tally-imported lines mirror their historical parent invoice, so the
+        # zero-quantity lines the import wrote stay valid. Existing rows only.
+        migrations.RunPython(backfill_historical_items, migrations.RunPython.noop),
         migrations.AddConstraint(
             model_name="purchaseinvoiceitem",
             constraint=models.CheckConstraint(
-                check=models.Q(("qty", 0), _negated=True),
+                check=models.Q(("is_historical", True))
+                | models.Q(("qty", 0), _negated=True),
                 name="check_purchaseinvoiceitem_qty_not_zero",
             ),
         ),

@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models.functions import Lower
 from django.utils.translation import gettext as _
 from core.models import (
     Company,
@@ -97,9 +96,10 @@ class Customer(TimeStampedModel):
 
     class Meta:
         constraints = [
-            # One party per name, ignoring case: "sharma traders" is "Sharma Traders".
+            # One party per exact name within a company. Names that differ only in
+            # case are kept as separate parties (owner decision, 2026-11-11).
             models.UniqueConstraint(
-                Lower("name"), "company", name="unique_customer_name_per_company_ci"
+                fields=("company", "name"), name="unique_customer_per_company"
             ),
             models.CheckConstraint(
                 check=models.Q(credit_limit__gte=0),
@@ -585,6 +585,9 @@ class SalesInvoiceItem(TaxableLine):
         on_delete=models.PROTECT,
         related_name="return_items",
     )
+    # Mirrors the parent invoice's ``is_historical`` (set by the Tally import).
+    # A historical line may carry zero quantity as imported; new lines cannot.
+    is_historical = models.BooleanField(default=False, editable=False)
 
     class Meta(TaxableLine.Meta):
         constraints = [
@@ -593,9 +596,11 @@ class SalesInvoiceItem(TaxableLine):
                 check=~models.Q(sales_invoice_item=models.F("id")),
                 name="check_salesinvoiceitem_not_its_own_return",
             ),
-            # Returns carry a negative quantity, so only zero is refused.
+            # Returns carry a negative quantity, so only zero is refused, unless
+            # the line is a historical (Tally) line.
             models.CheckConstraint(
-                check=~models.Q(qty=0), name="check_salesinvoiceitem_qty_not_zero"
+                check=models.Q(is_historical=True) | ~models.Q(qty=0),
+                name="check_salesinvoiceitem_qty_not_zero",
             ),
             models.CheckConstraint(
                 check=models.Q(rate__gte=0), name="check_salesinvoiceitem_rate_gte_0"

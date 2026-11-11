@@ -126,16 +126,18 @@ def test_sales_invoice_line_rate_must_not_be_negative(base):
     )
 
 
-def test_customer_name_is_unique_ignoring_case_per_company(base):
+def test_customer_name_is_unique_by_exact_name_per_company(base):
     company, group = base["company"], CustomerGroup.objects.first()
     Customer.objects.create(
         name="Sharma Traders", company=company, customer_group=group
     )
     _refused(
         lambda: Customer.objects.create(
-            name="sharma traders", company=company, customer_group=group
+            name="Sharma Traders", company=company, customer_group=group
         )
     )
+    # Names that differ only in case are separate parties (owner decision, 2026-11-11).
+    Customer.objects.create(name="sharma traders", company=company, customer_group=group)
     # Same name in another company is fine.
     other = Company.objects.create(name="Other Co", abbr="OTH", default_currency="INR")
-    Customer.objects.create(name="sharma traders", company=other, customer_group=group)
+    Customer.objects.create(name="Sharma Traders", company=other, customer_group=group)
