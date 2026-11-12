@@ -35,7 +35,16 @@ Copy any existing private uploads into `/app/media` in the backend container bef
 
 ## Updating the app
 
-Build images on the development machine for the VM's `linux/amd64` platform, save/load them as Docker archives, and use distinct immutable values for `ERP_BACKEND_TAG` and `ERP_FRONTEND_TAG` in `.env.production`. After transferring and loading images, run:
+Build images on the development machine for the VM's `linux/amd64` platform, save/load them as Docker archives, and use distinct immutable values for `ERP_BACKEND_TAG` and `ERP_FRONTEND_TAG` in `.env.production`.
+
+> **Building from Git Bash on Windows:** run `export MSYS_NO_PATHCONV=1` first. Without it Git Bash
+> rewrites `--build-arg VITE_API_URL=/api` into `C:/Program Files/Git/api`, the browser refuses
+> every API call, and sign-in shows "Cannot reach the server" (this shipped on 2026-11-11).
+> `vite.config.ts` now fails the build on such a value. Check a built image with
+> `docker run --rm --entrypoint sh erp-frontend:<tag> -c 'grep -c "Program Files" /usr/share/nginx/html/assets/index-*.js'`
+> (must print 0).
+
+After transferring and loading images, run:
 
 ```bash
 cd ~/ERP

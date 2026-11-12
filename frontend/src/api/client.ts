@@ -1,7 +1,9 @@
 import axios from "axios";
 import { getActiveCompanyId, setActiveCompanyId } from "@/lib/company";
 
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+// Same-origin by default: nginx (production) and the Vite dev proxy both route /api to Django.
+// vite.config.ts rejects a malformed value at build time.
+export const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 /** Fired when the session is irrecoverably unauthenticated; AuthProvider listens. */
 export const AUTH_LOGOUT_EVENT = "auth:logout";
